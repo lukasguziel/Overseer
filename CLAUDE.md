@@ -48,7 +48,7 @@ src/
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
 frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
 tests/                    pytest, runs WITHOUT c4d
-.github/workflows/ci.yml  python job (ruff + pytest, Python 3.12) + frontend job (tsc/vite build + vitest)
+.github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
 .github/workflows/release.yml  builds SceneOrganizer-<version>.zip + creates a GitHub Release
                           (auto on v* tag push, or manually via workflow_dispatch with version input)
 deploy.ps1                copies .pyp + sceneorg/ + presets/ + plans/ + web/ to the plugin dir
