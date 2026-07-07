@@ -3,6 +3,7 @@
 import { useOrganizer } from './hooks/useOrganizer'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'
+import Preloader from './components/Preloader'
 import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
 import NamingTab from './tabs/NamingTab'
@@ -18,6 +19,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {org.progress?.active && <Preloader progress={org.progress} />}
       <header className="topbar">
         <div className="brand"><span className="brand-mark">◆</span> Scene Organizer</div>
 

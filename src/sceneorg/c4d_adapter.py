@@ -138,16 +138,37 @@ class SceneAdapter:
         self._selected_subtree: set = set()
 
     # -- Reading ----------------------------------------------------------
-    def build_tree(self) -> model.SceneTree:
+    def count_objects(self) -> int:
+        """Fast object count (names/geometry untouched) for progress totals."""
+        n = 0
+        stack = []
+        op = self.doc.GetFirstObject()
+        while op or stack:
+            if op is None:
+                op = stack.pop()
+            n += 1
+            down = op.GetDown()
+            nxt = op.GetNext()
+            if down and nxt:
+                stack.append(nxt)
+            op = down or nxt
+        return n
+
+    def build_tree(self, progress=None) -> model.SceneTree:
+        """Builds the SceneTree. `progress(current, total, detail)` is called
+        every few objects so long scans can drive a preloader."""
         self._by_guid.clear()
         self._selected_direct.clear()
         self._selected_subtree.clear()
         tree = model.SceneTree()
         counter = [0]
+        total = self.count_objects() if progress else 0
 
         def make(op, parent, depth, sel_ancestor):
             guid = counter[0]
             counter[0] += 1
+            if progress and counter[0] % 50 == 0:
+                progress(counter[0], total, op.GetName())
             pts, polys = own_geo(op)
             node = model.SceneNode(
                 name=op.GetName(),
@@ -198,6 +219,19 @@ class SceneAdapter:
         if op is None:
             return False
         self.doc.SetActiveObject(op, c4d.SELECTION_NEW)
+
+        # Unfold the ancestor chain so the highlighted object is actually
+        # visible in the Object Manager (BIT_OFOLD = expanded in the OM).
+        up = op.GetUp()
+        while up is not None:
+            up.SetBit(c4d.BIT_OFOLD)
+            up = up.GetUp()
+        try:
+            # Object Manager: "Scroll To First Active" (best effort; the
+            # command id is stable across recent releases but undocumented).
+            c4d.CallCommand(100004769)
+        except Exception:
+            pass
 
         bd = self.doc.GetActiveBaseDraw()
         cam = None
