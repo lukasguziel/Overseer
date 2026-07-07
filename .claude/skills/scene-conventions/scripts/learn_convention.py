@@ -29,7 +29,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),
                                 "..", "..", "..", "..", "src"))
 try:
-    from sceneorg import naming, translations
+    from sceneorg.naming import casing as naming
+    from sceneorg.naming import translations
 except Exception as exc:  # noqa: BLE001 - fall back to a lighter mode
     naming = None
     translations = None

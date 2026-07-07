@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 from sceneorg import config as C  # noqa: E402
-from sceneorg import rules as R  # noqa: E402
+from sceneorg.structure import rules as R  # noqa: E402
 
 PRODUCIBLE = {"PascalCase", "camelCase", "lower_snake", "UPPER_SNAKE", "kebab"}
 STRUCT_KEYS = {"name", "categories", "keywords", "aliases", "priority",
