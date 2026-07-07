@@ -1,5 +1,5 @@
-// Zentraler App-State: Settings, Report, Live-Previews und alle API-Aktionen.
-// Die Tab-Komponenten konsumieren nur dieses Objekt — App.tsx bleibt duenn.
+// Central app state: settings, report, live previews and all API actions.
+// The tab components consume only this object — App.tsx stays thin.
 import { useCallback, useEffect, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
@@ -20,7 +20,7 @@ export function useOrganizer() {
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
   const [safe, setSafe] = useState(true)
-  const [tidy, setTidy] = useState(true)           // nur lose Objekte einsammeln
+  const [tidy, setTidy] = useState(true)           // only collect loose objects
 
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('Ready.')
@@ -32,7 +32,7 @@ export function useOrganizer() {
   const [structure, setStructure] = useState<PlanResult<ReparentDiff> | null>(null)
   const [layers, setLayers] = useState<PlanResult<LayerDiff> | null>(null)
   const [translation, setTranslation] = useState<PlanResult<TranslateDiff> | null>(null)
-  const [accepted, setAccepted] = useState<Set<number>>(() => new Set())  // guids fuers Rename
+  const [accepted, setAccepted] = useState<Set<number>>(() => new Set())  // guids for the rename
   const [rules, setRules] = useState<RulesInfo | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [exported, setExported] = useState('')
@@ -132,7 +132,7 @@ export function useOrganizer() {
     const r = await call('apply_translate', { settings: settings(), guids })
     setStatus(`Translated ${r.applied} names ✓ (undoable)`)
     doAnalyze()
-    // Vorschau neu laden -> die eben umbenannten fallen raus
+    // Reload the preview -> the just-renamed ones drop out
     const p = await call('plan_translate', { settings: settings() })
     setTranslation(p)
     setAccepted(new Set((p.diff || []).map((d: TranslateDiff) => d.guid)))
@@ -141,24 +141,24 @@ export function useOrganizer() {
   const applyPreset = (id: string) => run('Apply preset', async () => {
     const r = await call('apply_preset', { id })
     setActivePreset(r.applied || id)
-    setRules(null)  // Rules-Tab neu laden lassen
+    setRules(null)  // Let the Rules tab reload
     setStatus(`Preset “${r.applied || id}” applied (${r.groups} groups) — open Rules to see it.`)
   })
 
-  // Auto-Analyse beim ersten Laden.
+  // Auto-analyze on first load.
   useEffect(() => { doAnalyze() }, [doAnalyze])
 
-  // Analyse-Historie + Presets laden, sobald der Misc-Tab aktiv wird.
+  // Load analysis history + presets as soon as the Misc tab becomes active.
   useEffect(() => {
     if (tab !== 'misc') return
     call('history').then((r) => setHistory(r.history || [])).catch(() => {})
     call('presets').then((r) => { setPresets(r.presets || []); setActivePreset(r.active || null) }).catch(() => {})
   }, [tab, report])
 
-  // Generischer Live-Preview-Effekt: plan_<op> debounced neu berechnen,
-  // sobald der Tab aktiv ist und sich Settings aendern.
+  // Generic live-preview effect: recompute plan_<op> debounced
+  // as soon as the tab is active and settings change.
   function usePreview(activeTab: TabId, delay: number, load: () => Promise<void>, deps: unknown[]) {
-    /* eslint-disable react-hooks/rules-of-hooks -- feste Aufruf-Reihenfolge, nur Wrapper */
+    /* eslint-disable react-hooks/rules-of-hooks -- fixed call order, wrappers only */
     useEffect(() => {
       if (tab !== activeTab) return
       let cancel = false

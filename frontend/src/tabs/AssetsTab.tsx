@@ -5,13 +5,13 @@ import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
 import type { FocusFn } from '../components/Treemap'
 
-// Durchsuchbarer, facettierter, sortierbarer Asset-Browser mit Batching.
+// Searchable, faceted, sortable asset browser with batching.
 export default function AssetsTab({ nodes, onFocus }: {
   nodes: SceneNode[]
   onFocus?: FocusFn
 }) {
   const [query, setQuery] = useState('')
-  const [cats, setCats] = useState<Set<string>>(() => new Set())   // aktive Kategorie-Facetten
+  const [cats, setCats] = useState<Set<string>>(() => new Set())   // active category facets
   const [onlyGeo, setOnlyGeo] = useState(true)
   const [sortKey, setSortKey] = useState('polygons')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -27,7 +27,7 @@ export default function AssetsTab({ nodes, onFocus }: {
     else { setSortKey(k); setSortDir(k === 'name' ? 'asc' : 'desc') }
   }
 
-  // Facetten-Zaehlung: nach Suche + onlyGeo, aber VOR Kategorie-Filter.
+  // Facet counting: after search + onlyGeo, but BEFORE the category filter.
   const q = query.trim().toLowerCase()
   const preFiltered = React.useMemo(() => nodes.filter((n) =>
     (!q || n.name.toLowerCase().includes(q) || n.type.toLowerCase().includes(q)) &&
@@ -51,7 +51,7 @@ export default function AssetsTab({ nodes, onFocus }: {
     })
   }, [preFiltered, cats, sortKey, sortDir])
 
-  // Batch bei Filter-/Sortwechsel zuruecksetzen.
+  // Reset the batch when the filter/sort changes.
   useEffect(() => { setLimit(40) }, [q, onlyGeo, sortKey, sortDir, cats])
 
   const shown = filtered.slice(0, limit)

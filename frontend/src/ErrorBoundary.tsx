@@ -8,9 +8,9 @@ interface State {
   info: ErrorInfo | null
 }
 
-// Faengt Render-Fehler ab und zeigt sie an, statt eine leere Seite zu
-// hinterlassen (im eingebetteten QtWebEngine sieht man sonst nur "kurz da,
-// dann nichts"). Zeigt Fehlermeldung + Stack + Reload-Button.
+// Catches render errors and displays them instead of leaving a blank page
+// (in the embedded QtWebEngine you otherwise only see "briefly there,
+// then nothing"). Shows error message + stack + reload button.
 export default class ErrorBoundary extends React.Component<Props, State> {
   state: State = { error: null, info: null }
 
@@ -20,7 +20,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     this.setState({ info })
-    // Auch in die JS-Konsole, falls jemand die DevTools offen hat.
+    // Also log to the JS console in case someone has the DevTools open.
     console.error('[SceneOrganizer] render error:', error, info)
   }
 

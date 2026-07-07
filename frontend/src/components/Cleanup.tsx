@@ -13,7 +13,7 @@ export interface CleanupBucket {
   items: CleanupItem[]
 }
 
-// Cleanup-Accordion: kompakte Liste von Problem-Gruppen, eine offen.
+// Cleanup accordion: compact list of problem groups, one open at a time.
 export default function Cleanup({ buckets, onFocus }: {
   buckets: CleanupBucket[]
   onFocus?: FocusFn

@@ -37,7 +37,7 @@ export const SORTS: [string, string][] = [
   ['name', 'Name'],
 ]
 
-// Kleine Client-Vorschau der Konvention (nur fuer die Beispiel-Anzeige).
+// Small client-side preview of the convention (only for the example display).
 export function exampleName(casing: string, pad: number): string {
   const words = ['key', 'light']
   const num = pad > 0 ? String(3).padStart(pad, '0') : '3'

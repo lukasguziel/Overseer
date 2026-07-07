@@ -13,7 +13,7 @@ interface TreemapCell extends TreemapItem {
   x: number; y: number; w: number; h: number
 }
 
-// Binary-Split-Treemap: fuellt ein Rechteck rekursiv, gute Seitenverhaeltnisse.
+// Binary-split treemap: fills a rectangle recursively, good aspect ratios.
 function treemapBinary(items: TreemapItem[], x: number, y: number, w: number, h: number, out: TreemapCell[]): void {
   if (!items.length) return
   if (items.length === 1) { out.push({ ...items[0], x, y, w, h }); return }
@@ -33,7 +33,7 @@ function treemapBinary(items: TreemapItem[], x: number, y: number, w: number, h:
   }
 }
 
-// Poly-Treemap: Flaeche = Polygone, Farbe = Kategorie, Klick -> framen.
+// Poly treemap: area = polygons, color = category, click -> frame object.
 export default function Treemap({ nodes, onFocus, height = 300 }: {
   nodes: SceneNode[]; onFocus?: FocusFn; height?: number
 }) {

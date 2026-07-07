@@ -14,7 +14,7 @@ import { IconTrash } from '../components/icons'
 
 export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, detectInfo, compliance, busy, history } = org
-  // ALLE Hooks VOR jedem early return -> sonst Rules-of-Hooks-Verletzung.
+  // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
@@ -40,7 +40,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   ]
   const mat = report.materials
 
-  // Trends aus der Analyse-Historie (nur diese Datei, chronologisch).
+  // Trends from the analysis history (this file only, chronological).
   const fh = (history || []).filter((h) => h.file === report.file).sort((a, b) => a.ts - b.ts)
   const seriesOf = (key: string, mul = 1): number[] =>
     fh.map((h) => (h[key] == null ? null : (h[key] as number) * mul))
@@ -76,7 +76,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <span className={misplaced ? 'warn' : ''}><b>{misplaced}</b> misplaced</span>
       </div>
 
-      {/* Composition-Strip: Szenen-Makeup auf einen Blick */}
+      {/* Composition strip: scene makeup at a glance */}
       <Strip data={report.categories} colorFn={(k) => catColor(k)} />
 
       {/* Hero: Poly-Treemap */}

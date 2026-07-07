@@ -8,7 +8,7 @@ export interface FocusItem {
   meta?: string
 }
 
-// Kompakte klickbare Liste (Cleanup-Targets).
+// Compact clickable list (cleanup targets).
 export default function FocusList({ items, onFocus, empty, max = 8 }: {
   items: FocusItem[]
   onFocus?: FocusFn

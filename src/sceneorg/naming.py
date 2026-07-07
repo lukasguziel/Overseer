@@ -1,4 +1,4 @@
-"""Reine Naming-Analyse: Tokenizer, Casing-Erkennung, Sprach-Heuristik."""
+"""Pure naming analysis: tokenizer, casing detection, language heuristic."""
 
 from __future__ import annotations
 
@@ -30,12 +30,12 @@ _RE_NUM_SUFFIX = re.compile(r"^(.*?)[ _\-]*?(\d+)$")
 
 
 def split_camel(name: str) -> str:
-    """Fuegt vor Grossbuchstaben-Grenzen ein Leerzeichen ein (fooBar -> foo Bar)."""
+    """Inserts a space before uppercase boundaries (fooBar -> foo Bar)."""
     return _RE_CAMEL_BOUNDARY.sub(r"\1 \2", name)
 
 
 def tokenize(name: str) -> list[str]:
-    """Zerlegt einen Namen in kleingeschriebene Wort-Tokens (ohne reine Zahlen)."""
+    """Splits a name into lowercase word tokens (pure numbers dropped)."""
     spaced = split_camel(name)
     parts = _RE_SPLIT.split(spaced)
     out = []
@@ -48,7 +48,7 @@ def tokenize(name: str) -> list[str]:
 
 
 def split_trailing_number(name: str) -> tuple[str, int | None]:
-    """Trennt eine abschliessende Zahl ab: 'Chair 01' -> ('Chair', 1)."""
+    """Splits off a trailing number: 'Chair 01' -> ('Chair', 1)."""
     m = _RE_NUM_SUFFIX.match(name.strip())
     if not m:
         return name.strip(), None
@@ -70,8 +70,8 @@ def detect_casing(name: str) -> Casing:
         return Casing.LOWER_SNAKE
     if "-" in base:
         return Casing.KEBAB
-    # Einzelwort-Faelle VOR den camel/pascal-Regexen pruefen:
-    # "LIGHT" wuerde sonst faelschlich als PascalCase erkannt.
+    # Check single-word cases BEFORE the camel/pascal regexes:
+    # "LIGHT" would otherwise be misdetected as PascalCase.
     if base.isupper():
         return Casing.UPPER
     if base.islower():
@@ -85,7 +85,7 @@ def detect_casing(name: str) -> Casing:
     return Casing.MIXED
 
 
-# -- Sprach-Heuristik -----------------------------------------------------
+# -- Language heuristic ---------------------------------------------------
 
 LANG_DE = "de"
 LANG_EN = "en"

@@ -1,13 +1,13 @@
 import type { SceneNode } from '../types'
 
-// Generische Default-Namen (C4D-Objekttypen, DE + EN) -> "unbenannt".
+// Generic default names (C4D object types, DE + EN) -> "unnamed".
 const DEFAULT_TOKENS = new Set([
   'null', 'cube', 'sphere', 'plane', 'cone', 'cylinder', 'torus', 'disc', 'tube',
   'pyramid', 'platonic', 'figure', 'polygon', 'object', 'spline', 'light', 'camera',
   'floor', 'sky', 'background', 'foreground', 'environment', 'text', 'instance',
   'circle', 'rectangle', 'arc', 'helix', 'star', 'flower', 'cogwheel', 'profile',
   'formula', 'n-side', 'nside', 'vectorizer', 'landscape', 'relief', 'cloner', 'matrix',
-  // Deutsch
+  // German
   'wuerfel', 'würfel', 'kugel', 'ebene', 'kegel', 'zylinder', 'licht', 'kamera',
   'objekt', 'boden', 'himmel', 'nullobjekt', 'null-objekt', 'text-spline', 'instanz',
   'kreis', 'rechteck', 'stern', 'landschaft',
@@ -46,7 +46,7 @@ export interface Hygiene {
   top10pct: number
 }
 
-// Alle Hygiene-Metriken aus report.nodes ableiten (rein clientseitig).
+// Derive all hygiene metrics from report.nodes (purely client-side).
 export function computeHygiene(nodes: SceneNode[], totalPolys: number): Hygiene {
   const defaults: SceneNode[] = []
   const emptyGroups: SceneNode[] = []
@@ -54,7 +54,7 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number): Hygiene 
   const outliers: SceneNode[] = []
   const byName: Record<string, SceneNode[]> = {}
   const depth: Record<number, number> = {}
-  const thr = Math.max(50000, totalPolys * 0.05)   // Ausreisser: allein >5% der Szene
+  const thr = Math.max(50000, totalPolys * 0.05)   // outlier: alone >5% of the scene
   for (const n of nodes) {
     depth[n.depth] = (depth[n.depth] || 0) + 1;
     (byName[n.name] = byName[n.name] || []).push(n)
@@ -67,7 +67,7 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number): Hygiene 
     .map(([name, a]) => ({ name, count: a.length, guid: a[0].guid }))
     .sort((x, y) => y.count - x.count)
   outliers.sort((a, b) => b.polygons - a.polygons)
-  // Pareto: wie viele Objekte machen 80% der Polygone aus?
+  // Pareto: how many objects account for 80% of the polygons?
   const sorted = nodes.filter((n) => n.polygons > 0).map((n) => n.polygons).sort((a, b) => b - a)
   let cum = 0
   let p80 = 0

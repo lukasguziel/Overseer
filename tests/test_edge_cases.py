@@ -1,5 +1,6 @@
 """Targeted tests for previously uncovered branches (coverage gaps)."""
 
+import pytest
 from conftest import node
 
 from sceneorg import model, ops
@@ -9,7 +10,6 @@ from sceneorg.detect import detect_style
 from sceneorg.naming import Casing, detect_casing
 from sceneorg.structure import StructureStandard
 from sceneorg.translate import translate_preserving
-
 
 # -- model: aggregates, traversal, lookup ----------------------------------
 
@@ -62,7 +62,7 @@ def test_detect_casing_mixed_and_empty():
 def test_detect_style_skips_mixed_and_empty():
     style, conf, raw = detect_style(["MyChair_big", "", "Chair", "Table"])
     assert style is Casing.PASCAL
-    assert raw.get("mixed") == 1  # counted raw, but not voted on
+    assert "mixed" not in raw and "empty" not in raw  # skipped entirely
 
 
 # -- convention: word passthrough for Pascal/camel styles ------------------
@@ -120,3 +120,12 @@ def test_translate_preserves_lower_and_capitalized_case():
     assert translate_preserving("stuhl")[0] == "chair"
     assert translate_preserving("Stuhl")[0] == "Chair"
     assert translate_preserving("STUHL")[0] == "CHAIR"
+
+
+def test_translate_mixed_case_falls_back_to_plain_translation():
+    assert translate_preserving("StUhl")[0] == "chair"
+
+
+def test_non_producible_style_is_rejected():
+    with pytest.raises(ValueError):
+        NamingConvention(style=Casing.CAPITALIZED, language=None, number_pad=2)

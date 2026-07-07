@@ -8,7 +8,7 @@ export interface BarRow {
   onClick?: () => void
 }
 
-// Horizontale Balkenliste.
+// Horizontal bar list.
 export default function BarList({ rows, format = humanNum, empty }: {
   rows: BarRow[]; format?: (n: number) => string; empty?: string
 }) {

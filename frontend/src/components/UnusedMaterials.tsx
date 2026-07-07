@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-// Liste ungenutzter Materialien mit inline-Loeschbestaetigung (kein window.confirm
-// -> im eingebetteten QtWebEngine unzuverlaessig).
+// List of unused materials with inline delete confirmation (no window.confirm
+// -> unreliable in the embedded QtWebEngine).
 export default function UnusedMaterials({ names, onDelete, max = 20 }: {
   names: string[]
   onDelete: (name: string) => void

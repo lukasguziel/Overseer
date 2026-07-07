@@ -1,7 +1,7 @@
 import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
 
-// SVG-Donut mit Legende. data: {key: value}
+// SVG donut with legend. data: {key: value}
 export default function Donut({ data, colorFn = catColor, format = humanNum }: {
   data: Record<string, number> | undefined
   colorFn?: (key: string) => string

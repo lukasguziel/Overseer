@@ -1,6 +1,6 @@
 export type Tone = 'good' | 'mid' | 'low'
 
-// Compliance-Ring (SVG), 0..100
+// Compliance ring (SVG), 0..100
 export default function Ring({ pct, tone }: { pct: number; tone?: Tone }) {
   const R = 26; const SW = 7; const C = 2 * Math.PI * R
   const col = tone === 'good' ? 'var(--apply)' : tone === 'mid' ? 'var(--warn)' : 'var(--err)'

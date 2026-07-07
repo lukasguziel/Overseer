@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-// Live-Preview-Panel mit sticky Apply-Leiste. Zeigt eine Diff-Tabelle.
+// Live preview panel with sticky apply bar. Shows a diff table.
 export default function Workbench({ title, count, loading, empty, applyLabel, onApply, busy, note, children }: {
   title: string
   count: number
