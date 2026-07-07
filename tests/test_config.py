@@ -1,5 +1,6 @@
-from sceneorg import config, translations
-from sceneorg.naming import LANG_DE, Casing
+from sceneorg import config
+from sceneorg.naming import translations
+from sceneorg.naming.casing import LANG_DE, Casing
 
 
 def test_load_defaults():

@@ -1,6 +1,6 @@
-from sceneorg import model, ops
-from sceneorg.convention import NamingConvention
-from sceneorg.naming import LANG_EN, Casing
+from sceneorg.core import model, ops
+from sceneorg.naming.casing import LANG_EN, Casing
+from sceneorg.naming.convention import NamingConvention
 
 
 def test_plan_renames_only_nonconforming(sample_tree):

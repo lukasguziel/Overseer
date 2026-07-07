@@ -34,7 +34,7 @@ print(tok.most_common(60))
 # Welche Tokens kennt der eingebaute Wortschatz noch nicht?
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "src"))
 try:
-    from sceneorg import translations as T
+    from sceneorg.naming import translations as T
     known = T.DE_WORDS | {w.lower() for w in T.EN_WORDS}
     unknown = [(w, n) for w, n in tok.most_common()
                if w not in known and (not w.isascii() or n >= 3)]

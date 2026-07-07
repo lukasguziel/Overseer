@@ -8,9 +8,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
+from ..naming.convention import NamingConvention
+from ..structure.standard import StructureStandard
 from . import model
-from .convention import NamingConvention
-from .structure import StructureStandard
 
 
 @dataclass

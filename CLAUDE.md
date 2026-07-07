@@ -21,34 +21,39 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 
 **Core principle: pure domain logic strictly separated from `c4d`.**
 `src/sceneorg/` never imports `c4d` → testable in CI. Only these modules import
-`c4d` (never loaded by tests): `c4d_adapter.py`, `dialog.py`, `plugin_entry.py`,
-`bridge.py`, `webapi.py`.
+`c4d` (never loaded by tests): `cinema/` (adapter/dialog/webapi),
+`plugin_entry.py`, `bridge.py`.
 
 ```
 src/
   scene_organizer.pyp     Loader. Registers the plugins; hot-reload purges all
                           sceneorg modules EXCEPT sceneorg.bridge on each dialog call.
   sceneorg/
-    model.py              SceneNode / SceneTree (pure hierarchy)
-    naming.py             Tokenizer, casing detection, language heuristic
-    translations.py       DE<->EN dictionary + add_translations()
-    convention.py         NamingConvention (casing/language/numbering), disambiguate()
-    detect.py             Auto-detect existing scheme (style/language/pad + confidence)
-    structure.py          GroupRule / StructureStandard + evaluate(); default_standard()
-    ops.py                plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
-    rules.py              Declarative rule engine v2 (prefix/renumber/condition/layer,
-                          Match vocabulary, compile_rules() -> RuleSet.plan_all())
-    pipeline.py           plan_combined(): rules + naming + structure + layers in one
+    config.py             config.json schema 2 (migrate_config reads v1 forever)
+    plugin_entry.py       [c4d] opens the native dialog
+    bridge.py             [c4d] HTTP server (BG thread) + main-thread queue + progress
+                          state. PROCESS SINGLETON — stays at package root.
+    core/
+      model.py            SceneNode / SceneTree (pure hierarchy)
+      ops.py              plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
+      analyzer.py         SceneTree -> SceneReport (single pass)
+      pipeline.py         plan_combined(): rules + naming + structure + layers in one
                           pass (backend of plan_all/apply_all, one-button flow)
-    translate.py          Language-only rename proposals
-    analyzer.py           SceneTree -> SceneReport (single pass)
-    config.py / graph.py  config.json schema 2 (migrate_config reads v1 forever);
-                          node-editor graph incl. nested structure
-    c4d_adapter.py        [c4d] doc <-> SceneTree; rename/reparent/plan/layers with undo
-    dialog.py             [c4d] native GeDialog
-    plugin_entry.py       [c4d] opens the dialog
-    bridge.py             [c4d] HTTP server (BG thread) + main-thread queue. PROCESS SINGLETON.
-    webapi.py             [c4d] JSON API; hot-reloaded per request
+    naming/
+      casing.py           Tokenizer, casing detection, language heuristic (was naming.py)
+      convention.py       NamingConvention (casing/language/numbering), disambiguate()
+      translations.py     DE<->EN dictionary + add_translations()
+      translate.py        Language-only rename proposals
+      detect.py           Auto-detect existing scheme (style/language/pad + confidence)
+    structure/
+      standard.py         GroupRule / StructureStandard + evaluate() (was structure.py)
+      rules.py            Declarative rule engine v2 (prefix/renumber/condition/layer,
+                          Match vocabulary, compile_rules() -> RuleSet.plan_all())
+      graph.py            node-editor graph incl. nested structure
+    cinema/               [c4d] host glue
+      adapter.py          doc <-> SceneTree; rename/reparent/plan/layers with undo
+      dialog.py           native GeDialog
+      webapi.py           JSON API; hot-reloaded per request
   presets/  plans/        User-saved preset snapshots (schema 2, no shipped defaults)
                           / frozen restructuring plans (skill artifacts)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
@@ -98,7 +103,7 @@ keep the server dialog open). Full API table:
 
 ## What needs a restart?
 
-- Pure `sceneorg` logic / `dialog.py` / `webapi.py`: no restart — deploy, click command again.
+- Pure `sceneorg` logic / `cinema/dialog.py` / `cinema/webapi.py`: no restart — deploy, click command again.
 - Frontend: `npm run build` + deploy → reload browser.
 - `bridge.py`, `webapi` entry signature, `.pyp`: C4D restart required.
 
@@ -111,12 +116,23 @@ keep the server dialog open). Full API table:
   idempotent. GroupRules match by category OR translated keywords; `aliases`
   map existing containers. Safety filter: only move objects whose parent is
   root or a Null (generator/deformer children untouched).
-- config.json (next to the .pyp) overrides casing/language/number_pad/
-  prefixes/translations/groups; `default_standard()` is Cameras+Lights only.
+- config.json (next to the .pyp, **schema 2**): casing/language/number_pad/
+  translations + nested `structure` tree + declarative `rules` list
+  (prefix/renumber/condition/layer — see `sceneorg/structure/rules.py`). v1 configs
+  (`prefixes`/`groups`) migrate automatically; `default_standard()` is
+  Cameras+Lights only.
+- Presets = complete settings snapshots `{schema:2, meta, settings}` saved by
+  the user (`save_preset`) or generated by the skill. Apply writes the
+  snapshot verbatim (no graph regeneration). No shipped default presets.
+- One-button flow: `plan_all` (combined preview: naming+structure+layers,
+  one tree read) → `apply_all` (server-side re-plan, accept lists per
+  section, ONE undo step via `SceneAdapter.apply_bundle`).
 
 ## Current state / next step
 
-Plugin runs (user-confirmed); web UI + node editor done. Presets + plan
-execution (`/api/apply_preset`, `/api/apply_plan`) in place — the
-`scene-architect` skill learns presets from exported reports and freezes
-restructuring plans. Open: refine the real rule set from the user's scenes.
+Plugin runs (user-confirmed). Rule engine v2 + preset manager + one-button
+apply are in place; the `scene-conventions` skill (replaces scene-architect +
+scene-rules) analyzes exported reports, interviews the artist, and generates
+presets. Open: run the skill on the user's real projects to co-develop the
+actual rule set, then review it against the pro-artist checklist
+(`.claude/skills/scene-conventions/references/review-checklist.md`).

@@ -19,10 +19,12 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from . import model, naming, translations
-from .convention import NamingConvention
-from .ops import LayerOp, RenameOp
-from .structure import StructureStandard
+from ..core import model
+from ..core.ops import LayerOp, RenameOp
+from ..naming import casing as naming
+from ..naming import translations
+from ..naming.convention import NamingConvention
+from .standard import StructureStandard
 
 RULES_SCHEMA_VERSION = 2
 

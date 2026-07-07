@@ -1,5 +1,6 @@
-from sceneorg import model, translate
-from sceneorg.translations import add_translations
+from sceneorg.core import model
+from sceneorg.naming import translate
+from sceneorg.naming.translations import add_translations
 
 
 def setup_module(_):

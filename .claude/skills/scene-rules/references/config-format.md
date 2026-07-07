@@ -30,7 +30,7 @@ ueberschreibt sie nicht). Vollstaendiges Schema: `src/sceneorg/config.py`
 - **Keinen Root-Container als Alias einer Untergruppe** missbrauchen (z.B.
   `House` NICHT als Alias von `Building` — der Root enthaelt mehr).
 - **Prefixe nur setzen, wenn der User sie real nutzt** — sonst leer lassen.
-- **`translations`**: nur Tokens aufnehmen, die `sceneorg/translations.py` noch
+- **`translations`**: nur Tokens aufnehmen, die `sceneorg/naming/translations.py` noch
   nicht kennt (analyze_report.py listet Kandidaten).
 
 ## Interpretation des Reports
@@ -57,7 +57,7 @@ ueberschreibt sie nicht). Vollstaendiges Schema: `src/sceneorg/config.py`
   `plan_layers`/`apply_layers`; Schema `ops.DEFAULT_LAYER_SCHEME`.
 - **Translate** — erkennt nicht-englische Namen, casing-erhaltende Uebersetzung
   (nur Woerter tauschen). User hakt einzeln ab. `plan_translate` (liefert `diff`
-  mit `words`), `apply_translate` (`{guids:[...]}`). Logik: `sceneorg/translate.py`.
+  mit `words`), `apply_translate` (`{guids:[...]}`). Logik: `sceneorg/naming/translate.py`.
 - **Naming** — volle Konvention (Casing + DE→EN + Nummerierung). ACHTUNG:
   PascalCase frisst fuehrende Etagen-Indizes (`0.`, `-1.`) → selektiv anwenden,
   nicht szenenweit.

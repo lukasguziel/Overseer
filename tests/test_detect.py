@@ -1,5 +1,5 @@
-from sceneorg import detect
-from sceneorg.naming import LANG_DE, LANG_EN, Casing
+from sceneorg.naming import detect
+from sceneorg.naming.casing import LANG_DE, LANG_EN, Casing
 
 
 def test_detect_dominant_upper_snake():

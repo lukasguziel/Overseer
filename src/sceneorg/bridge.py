@@ -100,7 +100,7 @@ def drain():
         except queue.Empty:
             return
         try:
-            from . import webapi
+            from .cinema import webapi
             importlib.reload(webapi)  # hot-reload of the API logic
             req.result = webapi.handle(req.payload)
         except Exception:

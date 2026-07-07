@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import naming, translations
+from . import casing as naming
+from . import translations
 
 # Target casings the convention can produce.
 TARGET_STYLES = (

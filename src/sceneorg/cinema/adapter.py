@@ -11,8 +11,8 @@ import collections
 
 import c4d
 
-from . import model
-from .ops import LayerOp, RenameOp, ReparentOp
+from ..core import model
+from ..core.ops import LayerOp, RenameOp, ReparentOp
 
 # Colors for the automatically created type layers (RGB 0..1).
 LAYER_COLORS = {

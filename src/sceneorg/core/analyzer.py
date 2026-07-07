@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 
-from . import model, naming, translations
-from .structure import StructureStandard, default_standard
+from ..naming import casing as naming
+from ..naming import translations
+from ..structure.standard import StructureStandard, default_standard
+from . import model
 
 
 @dataclass
