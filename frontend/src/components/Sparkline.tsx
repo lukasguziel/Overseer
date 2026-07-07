@@ -1,4 +1,4 @@
-// Winzige SVG-Sparkline (Verlauf ueber Analysen).
+// Tiny SVG sparkline (trend across analyses).
 export default function Sparkline({ data, w = 62, h = 20 }: { data: number[]; w?: number; h?: number }) {
   const min = Math.min(...data)
   const max = Math.max(...data)

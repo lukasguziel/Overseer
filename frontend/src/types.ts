@@ -1,4 +1,4 @@
-// Typen der Plugin-JSON-API (webapi.py) und des Reports (analyzer.py).
+// Types of the plugin JSON API (webapi.py) and the report (analyzer.py).
 
 export type Category = 'light' | 'camera' | 'null' | 'mesh' | 'spline' | 'other'
 
@@ -90,7 +90,7 @@ export interface LayerDiff {
   layer: string
 }
 
-// Plan/Apply-Antworten: plan_* liefert diff+count, apply_* zusaetzlich applied.
+// Plan/apply responses: plan_* returns diff+count, apply_* additionally applied.
 export interface PlanResult<D> {
   count: number
   diff?: D[]

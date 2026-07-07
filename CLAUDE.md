@@ -46,9 +46,9 @@ src/
     webapi.py             [c4d] JSON API; hot-reloaded per request
   presets/  plans/        Learned presets / frozen restructuring plans (skill artifacts)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
-frontend/                 Vite/React source (App.jsx, RuleGraph.jsx, api.js)
+frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
 tests/                    pytest, runs WITHOUT c4d
-.github/workflows/ci.yml  ruff + pytest on Python 3.9 & 3.11
+.github/workflows/ci.yml  python job (ruff + pytest, Python 3.12) + frontend job (tsc/vite build + vitest)
 deploy.ps1                copies .pyp + sceneorg/ + presets/ + plans/ + web/ to the plugin dir
 ```
 

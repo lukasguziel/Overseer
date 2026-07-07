@@ -1,5 +1,5 @@
-// Duenne Shell: Topbar + Tab-Navigation. Der gesamte State/API-Fluss lebt in
-// hooks/useOrganizer, jeder Tab in tabs/<Name>Tab.tsx.
+// Thin shell: topbar + tab navigation. All state/API flow lives in
+// hooks/useOrganizer, each tab in tabs/<Name>Tab.tsx.
 import { useOrganizer } from './hooks/useOrganizer'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'

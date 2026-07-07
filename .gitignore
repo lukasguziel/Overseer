@@ -4,22 +4,27 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Analyse-Output
+# Analysis output
 scene_report.json
 
 # Node / Vite
 frontend/node_modules/
 frontend/dist/
 
-# Vite-Build-Output (wird aus frontend/ gebaut, per deploy.ps1 verteilt)
+# Vite build output (built from frontend/, distributed by deploy.ps1)
 src/web/
 
-# C4D SDK reference archives (grosse Vendor-Zips). Nur das fuer dieses Python-
-# Plugin relevante Python-2024-SDK wird versioniert; der Rest bleibt lokal
-# liegen (C++ 2024-2026, ProjectTool sprengen GitHubs 100-MB-Limit).
+# C4D SDK reference archives (large vendor zips). Only the Python 2024 SDK
+# relevant to this Python plugin is versioned; the rest stays local
+# (C++ 2024-2026, ProjectTool exceed GitHub's 100 MB limit).
 c4d_sdk/*
 !c4d_sdk/Cinema_4D_Python_SDK_2024_5_0.zip
 
 # IDE / temp
 .idea/
 resp.json
+.coverage
+
+
+# Deploy-Ziel: maschinenlokal, kommt NIE ins Repo (deploy-Skill schreibt sie)
+deploy.config.json

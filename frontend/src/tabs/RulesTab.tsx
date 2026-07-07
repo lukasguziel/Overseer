@@ -8,8 +8,8 @@ import 'reactflow/dist/style.css'
 import { call } from '../api'
 import type { GroupRuleJson } from '../types'
 
-// Kontext, damit Node-Komponenten ihre Daten aktualisieren koennen (ohne
-// Funktionen in node.data zu speichern -> saubere Serialisierung).
+// Context so node components can update their data (without
+// storing functions in node.data -> clean serialization).
 interface GraphApi {
   update: (id: string, patch: Record<string, unknown>) => void
   remove: (id: string) => void

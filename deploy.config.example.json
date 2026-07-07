@@ -1,0 +1,6 @@
+{
+  "_comment": "Copy to deploy.config.json (gitignored, machine-local). plugin_dir = target plugin folder of YOUR Cinema 4D. The 'deploy' skill in Claude Code fills this interactively.",
+  "cinema": "Maxon Cinema 4D 2024",
+  "location": "prefs",
+  "plugin_dir": "C:\\Users\\<you>\\AppData\\Roaming\\Maxon\\Maxon Cinema 4D 2024_XXXXXXXX\\plugins\\SceneOrganizer"
+}

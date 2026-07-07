@@ -3,7 +3,7 @@ import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
 import type { FocusFn } from './Treemap'
 
-// Kompakte, klickbare Objekt-Tabelle (gleicher Stil wie der Assets-Tab).
+// Compact, clickable object table (same style as the Assets tab).
 export default function AssetTable({ rows, onFocus, empty }: {
   rows: SceneNode[]
   onFocus?: FocusFn

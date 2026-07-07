@@ -3,8 +3,8 @@ import App from './App'
 import ErrorBoundary from './ErrorBoundary'
 import './styles.css'
 
-// Fehler NIE verschlucken: unbehandelte Promise-Rejections + globale Fehler
-// sichtbar machen (sonst nur leerer Screen im eingebetteten Viewer).
+// NEVER swallow errors: surface unhandled promise rejections + global errors
+// (otherwise just a blank screen in the embedded viewer).
 window.addEventListener('error', (e) => {
   const el = document.getElementById('global-error')
   if (el) { el.textContent = 'Error: ' + (e.message || e.error); el.style.display = 'block' }

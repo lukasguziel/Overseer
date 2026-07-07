@@ -3,7 +3,7 @@ import { humanNum } from '../lib/format'
 
 type ColorFn = (key: string, index: number) => string
 
-// Duenner 100%-Stacked-Strip + Legende (Composition / Consistency).
+// Thin 100% stacked strip + legend (composition / consistency).
 export default function Strip({ data, colorFn, format = humanNum, legendMax = 6 }: {
   data: Record<string, number> | undefined
   colorFn?: ColorFn

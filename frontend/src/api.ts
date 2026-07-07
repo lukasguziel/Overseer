@@ -1,5 +1,5 @@
-// Duenner Client fuer die Plugin-JSON-API. Immer relative /api-Pfade
-// (gleiche Origin, wenn vom Plugin ausgeliefert; im Dev via Vite-Proxy).
+// Thin client for the plugin JSON API. Always relative /api paths
+// (same origin when served by the plugin; via Vite proxy in dev).
 export async function call<T = any>(op: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/${op}`, {
     method: body ? 'POST' : 'GET',
