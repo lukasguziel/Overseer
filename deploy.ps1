@@ -55,6 +55,7 @@ Write-Output "Deploying to: $Target"
 
 # Loader + config template (the user's config.json is NOT overwritten)
 Step "scene_organizer.pyp" { Copy-Item (Join-Path $src "scene_organizer.pyp") $Target -Force }
+Step "so_logo.jpg" { Copy-Item (Join-Path $src "so_logo.jpg") $Target -Force }
 Step "config.example.json" { Copy-Item (Join-Path $src "config.example.json") $Target -Force }
 
 # config.json: ONLY seed if none exists in the target (never overwrite user/preset
@@ -73,12 +74,15 @@ Step "sceneorg/" {
   Get-ChildItem (Join-Path $src "sceneorg") -Filter *.py | Copy-Item -Destination $pkgDst -Force
 }
 
-# Mirror presets (curated styles)
+# Merge presets: repo presets are copied in, but presets the user saved in
+# the plugin ("Save current settings as preset") are NEVER deleted.
 Step "presets/" {
   $presetSrc = Join-Path $src "presets"
   $presetDst = Join-Path $Target "presets"
-  if (Test-Path $presetDst) { Remove-Item -Recurse -Force $presetDst }
-  if (Test-Path $presetSrc) { Copy-Item -Recurse $presetSrc $presetDst -Force }
+  if (-not (Test-Path $presetDst)) { New-Item -ItemType Directory -Force -Path $presetDst | Out-Null }
+  if (Test-Path $presetSrc) {
+    Get-ChildItem $presetSrc -Filter *.json | Copy-Item -Destination $presetDst -Force
+  }
 }
 
 # Bring along restructuring plans (written by the skill), if present.

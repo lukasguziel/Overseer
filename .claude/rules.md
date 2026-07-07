@@ -50,10 +50,22 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 
 - `scene_report.json` (repo root) is how Claude sees the real scene — written
   by `/api/analyze`. Reports are 1–2 MB: never read fully, aggregate via the
-  scripts in `.claude/skills/scene-architect/scripts/`.
+  scripts in `.claude/skills/scene-conventions/scripts/`.
 - Report `guid`s are traversal indices, valid only for that exact export.
-- Presets live in `src/presets/`, restructuring plans in `src/plans/`;
-  `deploy.ps1` mirrors both into the plugin dir. Formats + full API table:
-  `.claude/skills/scene-architect/references/`.
-- Structure compliance 0.0 on the user's flat scenes is usually a false
-  negative — do not auto-"repair" structure; prefer Translate/Layers.
+  `apply_all` therefore re-plans server-side; accept lists are only valid
+  within the same plan/apply request cycle.
+- Config/preset **schema 2**: config.json = `{schema:2, casing, language,
+  number_pad, translations, structure (nested tree), rules (typed list),
+  graph, preset}`. `config.migrate_config()` reads v1 (`prefixes`/`groups`)
+  forever; new files are written v2 only. Rule engine: `sceneorg/rules.py`
+  (types: prefix/renumber/condition/layer), combined planning:
+  `sceneorg/pipeline.py`.
+- Presets are **user-created snapshots** (`save_preset` op / skill-generated):
+  `{schema:2, meta:{id,name,description,created_at}, settings:<full config>}`
+  in `src/presets/` resp. plugin `presets/`. No shipped default presets.
+  `deploy.ps1` MERGES presets (never deletes user-saved ones in the plugin).
+- Restructuring plans in `src/plans/`. Formats + full API table:
+  `.claude/skills/scene-conventions/references/`.
+- Nested structure rules fixed the old flat-model false negative, but still:
+  do not auto-"repair" structure blindly on flat scenes — check the
+  compliance evidence first; Translate/Layers are the safer defaults.

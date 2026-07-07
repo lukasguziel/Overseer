@@ -1,18 +1,37 @@
 {
-  "_hinweis": "Kopiere diese Datei nach 'config.json' (neben scene_organizer.pyp). Die 'groups' werden normalerweise im Node-Editor gebaut und dort gespeichert; hier nur als Beispiel.",
+  "_hinweis": "Kopiere diese Datei nach 'config.json' (neben scene_organizer.pyp). Struktur/Regeln werden normalerweise im Rules-Tab oder per Preset gepflegt; hier nur als Beispiel. Alte v1-Configs (prefixes/groups) werden automatisch migriert.",
 
+  "schema": 2,
   "casing": "PascalCase",
   "language": "en",
   "number_pad": 2,
-
-  "prefixes": {
-    "light": "LGT_",
-    "camera": "CAM_"
-  },
 
   "translations": {
     "barhocker": "barstool"
   },
 
-  "groups": []
+  "structure": [
+    {
+      "name": "Lights",
+      "categories": ["light"],
+      "aliases": ["lichter", "beleuchtung"],
+      "priority": 100
+    }
+  ],
+
+  "rules": [
+    {
+      "id": "prefix_lights",
+      "type": "prefix",
+      "prefix": "LGT_",
+      "match": { "categories": ["light"] }
+    },
+    {
+      "id": "renumber_meshes",
+      "type": "renumber",
+      "pad": 2,
+      "per_parent": true,
+      "match": { "categories": ["mesh"] }
+    }
+  ]
 }

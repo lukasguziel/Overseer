@@ -52,13 +52,15 @@ body { margin: 0; background: var(--bg); color: var(--text);
 
 /* ---------- Topbar ---------- */
 .topbar { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; }
-.brand { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
-.brand-mark { color: var(--accent); margin-right: 4px; }
+.brand { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+.brand-logo { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; display: block; }
 .scene-meta { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 6px;
   overflow: hidden; }
 .scene-name { color: var(--text); font-weight: 500; max-width: 260px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .scene-meta .sep { color: var(--dim2); }
+.scope-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 8px; }
 .compliance { font-weight: 600; }
 .compliance.good { color: var(--apply); }
 .compliance.mid { color: var(--warn); }

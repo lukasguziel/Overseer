@@ -1,0 +1,63 @@
+"""Combined one-click planning (sceneorg.pipeline)."""
+
+from conftest import node
+
+from sceneorg import model
+from sceneorg.config import load_config
+from sceneorg.pipeline import filter_accepted, plan_combined
+
+
+def build_tree():
+    tree = model.SceneTree(roots=[
+        node("key light", model.CAT_LIGHT),        # loose -> Lights + rename
+        node("Lights", model.CAT_NULL, children=[
+            node("Fill", model.CAT_LIGHT),
+        ]),
+    ])
+    for i, n in enumerate(tree.walk()):
+        n.guid = i
+    return tree
+
+
+CFG = {
+    "schema": 2,
+    "casing": "PascalCase",
+    "language": "en",
+    "structure": [{"name": "Lights", "categories": ["light"], "priority": 100}],
+    "rules": [
+        {"id": "lgt", "type": "prefix", "prefix": "LGT_",
+         "match": {"categories": ["light"]}, "priority": 10},
+    ],
+}
+
+
+def test_plan_combined_merges_rules_and_naming():
+    cfg = load_config(CFG)
+    plan = plan_combined(build_tree(), cfg)
+    renames = {r.old_name: r.new_name for r in plan.renames}
+    # Rule claims first: prefix, not the convention normalization.
+    assert renames["key light"] == "LGT_key light"
+    assert renames["Fill"] == "LGT_Fill"
+    assert "lgt" in plan.applied_rules
+    # Loose light gets routed into Lights; default layer scheme fires too.
+    assert [r.to_group for r in plan.reparents] == ["Lights"]
+    assert {(o.name, o.layer) for o in plan.layers} == {
+        ("key light", "Lights"), ("Fill", "Lights")}
+
+
+def test_plan_combined_naming_fills_unclaimed():
+    cfg = load_config({"schema": 2, "casing": "PascalCase", "language": "en",
+                       "structure": CFG["structure"]})
+    plan = plan_combined(build_tree(), cfg)
+    renames = {r.old_name: r.new_name for r in plan.renames}
+    assert renames["key light"] == "KeyLight"   # pure convention rename
+
+
+def test_filter_accepted_sections():
+    cfg = load_config(CFG)
+    plan = plan_combined(build_tree(), cfg)
+    keep = plan.renames[0].guid
+    chosen = filter_accepted(plan, {"naming": [keep], "structure": []})
+    assert [r.guid for r in chosen.renames] == [keep]
+    assert chosen.reparents == []
+    assert len(chosen.layers) == len(plan.layers)   # missing key = accept all

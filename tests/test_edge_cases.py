@@ -52,6 +52,27 @@ def test_analyzer_counts_polygons(std):
     assert report.largest and report.largest[0]["name"] in ("Leaf", "Group")
 
 
+def test_analyzer_scope_narrows_all_stats(std, sample_tree):
+    full = SceneAnalyzer(std).analyze(sample_tree)
+    # Scope = the "Lights" container subtree (guids 0..2 in the fixture).
+    scoped = SceneAnalyzer(std).analyze(sample_tree, scope={0, 1, 2})
+    assert scoped.object_count == 3 < full.object_count
+    assert scoped.categories.get("light") == 2
+    assert "camera" not in scoped.categories
+    assert len(scoped.nodes) == 3
+    # Topmost scoped node replaces tree.roots in top_level.
+    assert [t["name"] for t in scoped.top_level] == ["Lights"]
+    # Misplaced findings outside the scope disappear; compliance is scoped.
+    assert all(m["name"] != "KAMERA MAIN" for m in scoped.misplaced)
+    assert 0.0 <= scoped.structure_compliance <= 1.0
+
+
+def test_analyzer_scope_compliance_of_clean_subset(std, sample_tree):
+    # Only the correctly grouped lights -> full compliance within the scope.
+    scoped = SceneAnalyzer(std).analyze(sample_tree, scope={1, 2})
+    assert scoped.structure_compliance == 1.0
+
+
 # -- naming/detect: mixed & empty names ------------------------------------
 
 def test_detect_casing_mixed_and_empty():

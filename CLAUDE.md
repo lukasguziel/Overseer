@@ -36,15 +36,21 @@ src/
     detect.py             Auto-detect existing scheme (style/language/pad + confidence)
     structure.py          GroupRule / StructureStandard + evaluate(); default_standard()
     ops.py                plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
+    rules.py              Declarative rule engine v2 (prefix/renumber/condition/layer,
+                          Match vocabulary, compile_rules() -> RuleSet.plan_all())
+    pipeline.py           plan_combined(): rules + naming + structure + layers in one
+                          pass (backend of plan_all/apply_all, one-button flow)
     translate.py          Language-only rename proposals
     analyzer.py           SceneTree -> SceneReport (single pass)
-    config.py / graph.py  config.json <-> Config; node-editor graph
+    config.py / graph.py  config.json schema 2 (migrate_config reads v1 forever);
+                          node-editor graph incl. nested structure
     c4d_adapter.py        [c4d] doc <-> SceneTree; rename/reparent/plan/layers with undo
     dialog.py             [c4d] native GeDialog
     plugin_entry.py       [c4d] opens the dialog
     bridge.py             [c4d] HTTP server (BG thread) + main-thread queue. PROCESS SINGLETON.
     webapi.py             [c4d] JSON API; hot-reloaded per request
-  presets/  plans/        Learned presets / frozen restructuring plans (skill artifacts)
+  presets/  plans/        User-saved preset snapshots (schema 2, no shipped defaults)
+                          / frozen restructuring plans (skill artifacts)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
 frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
 tests/                    pytest, runs WITHOUT c4d
@@ -88,7 +94,7 @@ powershell -File deploy.ps1      # copy to the C4D plugin dir (see "Deployment";
 After one restart: `Shift+C` → **"Scene Organizer"** (native dialog) or
 **"Scene Organizer (Web)"** (starts server, opens `http://127.0.0.1:8787`;
 keep the server dialog open). Full API table:
-`.claude/skills/scene-architect/references/api.md`.
+`.claude/skills/scene-conventions/references/api.md`.
 
 ## What needs a restart?
 
