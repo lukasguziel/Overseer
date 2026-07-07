@@ -24,7 +24,7 @@ import webbrowser
 import c4d
 
 DEFAULT_PORT = 8787
-_SRV_DIALOG_ID = 1000006
+_SRV_DIALOG_ID = 1069220  # aus Maxon-Basis-ID 1069217 abgeleitet
 WEB_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 
