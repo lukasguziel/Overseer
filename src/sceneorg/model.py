@@ -1,11 +1,11 @@
-"""Reines Datenmodell der Szenen-Hierarchie (kein c4d)."""
+"""Pure data model of the scene hierarchy (no c4d)."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-# Kategorien (bewusst als Strings, damit JSON-freundlich)
+# Categories (deliberately strings, to be JSON-friendly)
 CAT_LIGHT = "light"
 CAT_CAMERA = "camera"
 CAT_NULL = "null"
@@ -18,10 +18,10 @@ ALL_CATEGORIES = (CAT_LIGHT, CAT_CAMERA, CAT_NULL, CAT_MESH, CAT_SPLINE, CAT_OTH
 
 @dataclass
 class SceneNode:
-    """Ein Objekt der Szene, entkoppelt vom c4d.BaseObject.
+    """One scene object, decoupled from c4d.BaseObject.
 
-    `guid` ist ein stabiler Index, ueber den der Adapter das echte
-    c4d-Objekt zuordnet, um Aenderungen zurueckzuschreiben.
+    `guid` is a stable index through which the adapter maps the real
+    c4d object in order to write changes back.
     """
 
     name: str
@@ -29,31 +29,31 @@ class SceneNode:
     category: str = CAT_OTHER
     guid: int = -1
     depth: int = 0
-    point_count: int = 0   # eigene + Cache-Punkte dieses Objekts
-    poly_count: int = 0    # eigene + Cache-Polygone dieses Objekts
+    point_count: int = 0   # own + cache points of this object
+    poly_count: int = 0    # own + cache polygons of this object
     parent: SceneNode | None = field(default=None, repr=False)
     children: list[SceneNode] = field(default_factory=list, repr=False)
 
-    # -- Aggregate --------------------------------------------------------
+    # -- Aggregates ---------------------------------------------------------
     @property
     def subtree_polys(self) -> int:
-        """Polygone dieses Knotens inklusive aller Kind-Objekte (Szenengraph)."""
+        """Polygons of this node including all child objects (scene graph)."""
         return self.poly_count + sum(c.subtree_polys for c in self.children)
 
     @property
     def subtree_points(self) -> int:
         return self.point_count + sum(c.subtree_points for c in self.children)
 
-    # -- Aufbau -----------------------------------------------------------
+    # -- Construction -------------------------------------------------------
     def add_child(self, child: SceneNode) -> SceneNode:
         child.parent = self
         child.depth = self.depth + 1
         self.children.append(child)
         return child
 
-    # -- Traversierung ----------------------------------------------------
+    # -- Traversal ----------------------------------------------------------
     def walk(self) -> Iterator[SceneNode]:
-        """Praeorder ueber diesen Knoten und alle Nachfahren."""
+        """Preorder over this node and all descendants."""
         yield self
         for c in self.children:
             yield from c.walk()
@@ -69,7 +69,7 @@ class SceneNode:
             node = node.parent
 
     def top_group(self) -> SceneNode:
-        """Oberster Vorfahre (Top-Level-Knoten) dieses Knotens."""
+        """Topmost ancestor (top-level node) of this node."""
         node = self
         while node.parent is not None:
             node = node.parent
@@ -89,7 +89,7 @@ class SceneNode:
 
 @dataclass
 class SceneTree:
-    """Wrapper um die Wurzel-Knoten (ein Dokument hat mehrere Top-Level-Objekte)."""
+    """Wrapper around the root nodes (a document has multiple top-level objects)."""
 
     roots: list[SceneNode] = field(default_factory=list)
 

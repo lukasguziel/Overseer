@@ -1,4 +1,4 @@
-"""Gemeinsame Test-Helfer: Aufbau von SceneTrees ohne c4d."""
+"""Shared test helpers: building SceneTrees without c4d."""
 
 import pytest
 
@@ -19,7 +19,7 @@ def node(name, category=model.CAT_OTHER, type_name=None, guid=-1, children=None)
 
 
 def archviz_standard():
-    """Explizites Regelwerk fuer die Tests (nicht mehr im Produkt-Default)."""
+    """Explicit rule set for the tests (no longer part of the product default)."""
     return StructureStandard([
         GroupRule("Cameras", match_categories={model.CAT_CAMERA},
                   aliases={"kameras"}, priority=100),
@@ -47,7 +47,7 @@ def std():
 
 @pytest.fixture
 def sample_tree():
-    """Bewusst gemischte Szene: teils korrekt gruppiert, teils Chaos."""
+    """Deliberately mixed scene: partly grouped correctly, partly chaos."""
     g = [0]
 
     def nid(name, cat, kids=None):

@@ -1,19 +1,20 @@
-"""Node-Editor-Layout aus Gruppen-Regeln erzeugen (rein, kein c4d).
+"""Generate the node-editor layout from group rules (pure, no c4d).
 
-Der Rules-Tab (RuleGraph.jsx) rendert NUR aus einem gespeicherten `graph`
-(nodes/edges). Presets/der Skill liefern aber nur `groups` -> diese Funktion
-baut das passende Layout, damit ein geladenes Preset sofort im Editor erscheint.
+The Rules tab (RuleGraph.jsx) renders ONLY from a stored `graph`
+(nodes/edges). Presets/the skill however only provide `groups` -> this
+function builds the matching layout so a loaded preset shows up in the
+editor immediately.
 """
 
 from __future__ import annotations
 
 
 def graph_from_groups(groups: list[dict]) -> dict:
-    """Baut {nodes, edges} fuer React Flow aus einer Gruppen-Liste.
+    """Builds {nodes, edges} for React Flow from a list of groups.
 
-    Pro Gruppe ein Group-Node (rechts); je Kategorie ein Category-Node und je
-    Keyword-Menge ein Keyword-Node (links), per Edge verbunden. IDs im Schema
-    `<typ>_<n>`, das der Editor beim Nachzaehlen erwartet.
+    One group node per group (right); one category node per category and one
+    keyword node per keyword set (left), connected via edges. IDs follow the
+    `<type>_<n>` scheme the editor expects when re-counting.
     """
     nodes: list[dict] = []
     edges: list[dict] = []

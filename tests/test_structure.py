@@ -3,7 +3,7 @@ from sceneorg.structure import default_standard
 
 
 def test_default_standard_only_categories():
-    # Platzhalter-/Test-Regeln entfernt: Default kennt nur Cameras + Lights
+    # Placeholder/test rules removed: the default only knows Cameras + Lights
     assert set(default_standard().group_names) == {"Cameras", "Lights"}
 
 
@@ -22,7 +22,7 @@ def test_target_group_by_keyword(std):
     assert std.target_group_for(chair_en) == "Furniture"
     assert std.target_group_for(wall) == "Interior"
     assert std.target_group_for(tree) == "Exterior"
-    # deutsches 'stuhl' wird intern nach 'chair' uebersetzt -> Furniture
+    # German 'stuhl' is internally translated to 'chair' -> Furniture
     assert std.target_group_for(chair) == "Furniture"
     assert std.target_group_for(model.SceneNode("Baum_02")) == "Exterior"
 
@@ -43,8 +43,8 @@ def test_existing_alias_group_counts_as_correct(std):
 
 
 def test_nested_group_container_counts_as_correct(std):
-    # Verschachtelt: Scene(root, keine Gruppe) > Lights > Interior > Licht.
-    # Frueher als misplaced gemeldet (top_group == 'Scene'), jetzt korrekt.
+    # Nested: Scene(root, not a group) > Lights > Interior > light.
+    # Previously reported as misplaced (top_group == 'Scene'), now correct.
     scene = model.SceneNode("Scene", category=model.CAT_NULL, guid=1)
     lights = model.SceneNode("Lights", category=model.CAT_NULL, guid=2)
     zone = model.SceneNode("Cluster_A", category=model.CAT_NULL, guid=3)
@@ -60,7 +60,7 @@ def test_nested_group_container_counts_as_correct(std):
 
 
 def test_loose_object_under_non_group_root_is_misplaced(std):
-    # Licht direkt unter 'Scene' (kein Gruppen-Container) -> lose -> misplaced.
+    # Light directly under 'Scene' (not a group container) -> loose -> misplaced.
     scene = model.SceneNode("Scene", category=model.CAT_NULL, guid=1)
     lamp = model.SceneNode("Ceiling_Light", category=model.CAT_LIGHT, guid=2)
     scene.add_child(lamp)

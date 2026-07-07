@@ -1,7 +1,7 @@
-"""Externe Konfiguration (config.json) -> Konvention/Standard/Praefixe (rein).
+"""External configuration (config.json) -> convention/standard/prefixes (pure).
 
-Der Dialog liest die JSON-Datei und ruft `load_config(dict)`. Dieses Modul
-selbst hat KEINE Seiteneffekte (leicht testbar).
+The dialog reads the JSON file and calls `load_config(dict)`. This module
+itself has NO side effects (easily testable).
 """
 
 from __future__ import annotations
@@ -14,11 +14,11 @@ from .structure import GroupRule, StructureStandard, default_standard
 
 DEFAULT_CONFIG = {
     "casing": "PascalCase",        # PascalCase | camelCase | lower_snake | UPPER_SNAKE | kebab
-    "language": "en",              # en | de | null (keine Uebersetzung)
+    "language": "en",              # en | de | null (no translation)
     "number_pad": 2,               # 0 | 2 | 3
     "prefixes": {},                # {"light": "LGT_", "camera": "CAM_", "mesh": "GEO_"}
-    "groups": None,                # optionale Ueberschreibung der Struktur-Regeln
-    "translations": {},            # zusaetzliche de->en Paare
+    "groups": None,                # optional override of the structure rules
+    "translations": {},            # additional de->en pairs
 }
 
 
@@ -32,7 +32,7 @@ class Config:
 
 def build_convention(data: dict) -> NamingConvention:
     casing = Casing(data.get("casing") or "PascalCase")
-    language = data.get("language", "en")   # kann None sein
+    language = data.get("language", "en")   # may be None
     pad = int(data.get("number_pad", 2))
     return NamingConvention(style=casing, language=language, number_pad=pad)
 

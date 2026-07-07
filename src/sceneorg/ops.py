@@ -1,6 +1,6 @@
-"""Aenderungs-Operationen als reine Datenobjekte + Planer (kein c4d).
+"""Change operations as pure data objects + planners (no c4d).
 
-Der Adapter fuehrt diese Operationen spaeter mit Undo im Dokument aus.
+The adapter later executes these operations in the document with undo support.
 """
 
 from __future__ import annotations
@@ -35,10 +35,10 @@ class LayerOp:
     layer: str
 
 
-# Standard-Layer-Schema: die Typ-Achse ("was ist es") gehoert in Layer, NICHT
-# in die Null-Hierarchie (die die Raum-Achse traegt). So laesst sich alles eines
-# Typs togglen/rendern, ohne die raeumliche Struktur flachzumachen.
-# (Kategorie ODER type_name) -> Layer-Name.
+# Default layer scheme: the type axis ("what is it") belongs in layers, NOT
+# in the null hierarchy (which carries the spatial axis). This way everything
+# of one type can be toggled/rendered without flattening the spatial structure.
+# (category OR type_name) -> layer name.
 DEFAULT_LAYER_SCHEME = {
     "categories": {
         model.CAT_LIGHT: "Lights",
@@ -51,7 +51,7 @@ DEFAULT_LAYER_SCHEME = {
 
 
 def layer_for(node: model.SceneNode, scheme: dict | None = None) -> str | None:
-    """Layer-Name fuer ein Objekt nach Schema (oder None = kein Layer)."""
+    """Layer name for an object per scheme (or None = no layer)."""
     scheme = scheme or DEFAULT_LAYER_SCHEME
     by_type = scheme.get("types", {})
     if node.type_name in by_type:
@@ -60,11 +60,11 @@ def layer_for(node: model.SceneNode, scheme: dict | None = None) -> str | None:
 
 
 def is_safe_to_reparent(node: model.SceneNode) -> bool:
-    """Nur verschieben, wenn das Objekt rein organisatorisch geparentet ist.
+    """Only move if the object is parented purely for organization.
 
-    Kinder von Generatoren/Deformern/Meshes (Cloner, Boole, Sweep, ...) duerfen
-    NICHT verschoben werden -> das aenderte das Render-Ergebnis. Heuristik:
-    sicher ist nur, wessen Elternteil die Wurzel oder eine Null ist.
+    Children of generators/deformers/meshes (Cloner, Boole, Sweep, ...) must
+    NOT be moved -> that would change the render result. Heuristic: only
+    objects whose parent is the root or a null are safe.
     """
     return node.parent is None or node.parent.category == model.CAT_NULL
 
@@ -75,10 +75,10 @@ def plan_renames(
     scope: set | None = None,
     prefixes: dict | None = None,
 ) -> list[RenameOp]:
-    """Umbenennungen fuer nicht-konforme Objekte, kollisionssicher pro Elternteil.
+    """Renames for non-conforming objects, collision-safe per parent.
 
-    scope     nur diese guids umbenennen (None = alle)
-    prefixes  {kategorie: praefix} z.B. {'light': 'LGT_'} (idempotent)
+    scope     only rename these guids (None = all)
+    prefixes  {category: prefix} e.g. {'light': 'LGT_'} (idempotent)
     """
     prefixes = prefixes or {}
     buckets: dict = defaultdict(list)
@@ -94,13 +94,13 @@ def plan_renames(
             if scope is None or c.guid in scope:
                 renaming.append(c)
             else:
-                used.add(c.name)  # nicht umbenannte Geschwister-Namen reservieren
+                used.add(c.name)  # reserve names of siblings that are not renamed
 
         for c in renaming:
             prefix = prefixes.get(c.category, "")
             raw = c.name
             if prefix and raw.startswith(prefix):
-                raw = raw[len(prefix):]  # bestehendes Praefix vor Normalisierung abziehen
+                raw = raw[len(prefix):]  # strip existing prefix before normalizing
             base = convention.normalize(raw)
             if not base:
                 used.add(c.name)
@@ -126,16 +126,15 @@ def plan_reparents(
     safe_only: bool = True,
     tidy: bool = True,
 ) -> list[ReparentOp]:
-    """Umgruppierungen fuer falsch platzierte Objekte (mit Safety-Filter).
+    """Regroupings for misplaced objects (with safety filter).
 
-    tidy=True (Default, sicher): sammelt NUR wirklich lose Objekte ein -- solche,
-    die in KEINER erkannten Gruppe stecken. Objekte, die bereits in einem
-    (auch verschachtelten) Gruppen-Container liegen, werden nie herausgerissen.
-    So bleibt eine durchdachte Raum-Hierarchie erhalten, statt flachgeklopft zu
-    werden.
+    tidy=True (default, safe): collects ONLY truly loose objects -- those that
+    sit in NO recognized group. Objects that already live in a (possibly
+    nested) group container are never ripped out. This preserves a
+    well-thought-out spatial hierarchy instead of flattening it.
 
-    tidy=False: aggressives Verhalten -- verschiebt auch Objekte aus einer
-    'falschen' Gruppe an die Wurzel-Zielgruppe (kann Struktur zerlegen).
+    tidy=False: aggressive behavior -- also moves objects out of a 'wrong'
+    group to the root-level target group (can tear apart the structure).
     """
     report = standard.evaluate(tree)
     node_by_guid = {n.guid: n for n in tree.walk()}
@@ -147,7 +146,7 @@ def plan_reparents(
         if safe_only and node is not None and not is_safe_to_reparent(node):
             continue
         if tidy and node is not None and standard.enclosing_group(node) is not None:
-            # steckt schon in einer erkannten Gruppe -> in Ruhe lassen
+            # already inside a recognized group -> leave it alone
             continue
         ops.append(ReparentOp(
             guid=f.guid,
@@ -163,7 +162,7 @@ def plan_layers(
     scope: set | None = None,
     scheme: dict | None = None,
 ) -> list[LayerOp]:
-    """Layer-Zuweisungen nach Schema (Typ-Achse), ohne die Hierarchie zu aendern."""
+    """Layer assignments per scheme (type axis) without changing the hierarchy."""
     ops: list[LayerOp] = []
     for n in tree.walk():
         if scope is not None and n.guid not in scope:

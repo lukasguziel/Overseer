@@ -36,7 +36,7 @@ def test_tokenize(name, tokens):
     ("Chair_02", "Chair", 2),
     ("Chair-3", "Chair", 3),
     ("Chair", "Chair", None),
-    ("07", "07", None),  # reine Zahl bleibt unveraendert
+    ("07", "07", None),  # pure number stays unchanged
 ])
 def test_split_trailing_number(name, base, num):
     assert naming.split_trailing_number(name) == (base, num)
@@ -48,5 +48,5 @@ def test_detect_language():
     assert naming.detect_language("Stuhl_01", de, en) == naming.LANG_DE
     assert naming.detect_language("Chair_01", de, en) == naming.LANG_EN
     assert naming.detect_language("XYZ", de, en) == naming.LANG_UNKNOWN
-    # Umlaut kippt Richtung Deutsch
+    # umlaut tips the scale towards German
     assert naming.detect_language("Küche", de, en) == naming.LANG_DE

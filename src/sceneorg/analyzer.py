@@ -1,4 +1,4 @@
-"""SceneAnalyzer: aggregiert eine SceneTree zu einem Report (rein)."""
+"""SceneAnalyzer: aggregates a SceneTree into a report (pure)."""
 
 from __future__ import annotations
 
@@ -69,13 +69,13 @@ class SceneAnalyzer:
         polys_by_cat: Counter = Counter()
         polys_by_group: Counter = Counter()
         node_dicts: list[dict] = []
-        assets: list[tuple] = []   # (polys, guid, name, type, points) fuers Ranking
+        assets: list[tuple] = []   # (polys, guid, name, type, points) for the ranking
         total_points = 0
         total_polys = 0
         max_depth = 0
         count = 0
 
-        # EIN Durchlauf ueber alle Knoten: Casing/Sprache je Objekt nur einmal.
+        # ONE pass over all nodes: casing/language per object only once.
         for n in tree.walk():
             count += 1
             if n.depth > max_depth:

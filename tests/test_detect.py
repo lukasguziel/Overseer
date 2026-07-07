@@ -43,5 +43,5 @@ def test_detect_number_pad():
 
 def test_detect_empty_names_safe():
     res = detect.detect_convention(["", "   ", None])
-    assert res.style == Casing.PASCAL  # sinnvoller Default
+    assert res.style == Casing.PASCAL  # sensible default
     assert res.confidence == 0.0

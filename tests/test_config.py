@@ -35,7 +35,7 @@ def test_prefixes_loaded():
 
 
 def test_add_translations_extends_dictionary():
-    # Aufraeumen, damit andere Tests nicht beeinflusst werden
+    # Clean up so other tests are not affected
     assert translations.to_english("barhocker") == "barhocker"
     try:
         translations.add_translations({"Barhocker": "Barstool"})

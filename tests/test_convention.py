@@ -8,7 +8,7 @@ def test_pascal_english_translation():
     conv = NamingConvention(style=Casing.PASCAL, language=LANG_EN, number_pad=2)
     assert conv.normalize("stuhl_01") == "Chair01"
     assert conv.normalize("KAMERA MAIN") == "CameraMain"
-    assert conv.normalize("wand-nord") == "WallNord"  # 'nord' unbekannt -> bleibt
+    assert conv.normalize("wand-nord") == "WallNord"  # 'nord' unknown -> stays
 
 
 def test_lower_snake_with_number_padding():
@@ -63,6 +63,6 @@ def test_normalize_is_idempotent(style, name):
 
 
 def test_invalid_style_rejected():
-    # SPACED ist kein erzeugbarer Ziel-Stil
+    # SPACED is not a producible target style
     with pytest.raises(ValueError):
         NamingConvention(style=Casing.SPACED)

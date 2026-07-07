@@ -1,4 +1,4 @@
-"""Einstiegspunkt, den der .pyp-Loader aufruft (c4d-abhaengig)."""
+"""Entry point called by the .pyp loader (c4d-dependent)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import c4d
 
 from .dialog import SceneOrganizerDialog
 
-# Der Dialog muss als modaler/nicht-modaler Zustand ueberleben.
+# The dialog must survive as modal/non-modal state.
 _DIALOG = None
 
 
@@ -14,7 +14,7 @@ def execute(doc):
     global _DIALOG
     if _DIALOG is None:
         _DIALOG = SceneOrganizerDialog()
-    # Async, damit C4D bedienbar bleibt; eigene Dialog-ID (getrennt von der
-    # Command-ID 1069217) fuer Dock/Restore. Abgeleitet aus der Maxon-Basis-ID.
+    # Async so C4D stays usable; separate dialog ID (distinct from the
+    # command ID 1069217) for dock/restore. Derived from the Maxon base ID.
     _DIALOG.Open(c4d.DLG_TYPE_ASYNC, pluginid=1069218, defaultw=600, defaulth=460)
     return True

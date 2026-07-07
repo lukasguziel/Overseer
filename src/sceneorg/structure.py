@@ -1,4 +1,4 @@
-"""Struktur-Standard: erwartete Top-Level-Gruppen + Bewertung (rein)."""
+"""Structure standard: expected top-level groups + evaluation (pure)."""
 
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ from . import model, naming, translations
 
 @dataclass
 class GroupRule:
-    """Eine Ziel-Gruppe (Top-Level-Null) und wie Objekte ihr zugeordnet werden.
+    """A target group (top-level null) and how objects are assigned to it.
 
-    match_categories  Objekt-Kategorien, die hierher gehoeren (z.B. {'light'})
-    match_keywords    englische Namens-Tokens, die hierher routen
-    aliases           alternative Container-Namen (z.B. 'Moebel' == 'Furniture')
-    priority          hoehere Prioritaet gewinnt bei mehreren Treffern
+    match_categories  object categories that belong here (e.g. {'light'})
+    match_keywords    English name tokens that route here
+    aliases           alternative container names (e.g. 'Moebel' == 'Furniture')
+    priority          higher priority wins when multiple rules match
     """
 
     name: str
@@ -26,7 +26,7 @@ class GroupRule:
     def matches(self, node: model.SceneNode) -> bool:
         if node.category in self.match_categories:
             return True
-        # Tokens ins Englische uebersetzen -> sprachunabhaengiges Matching
+        # Translate tokens to English -> language-independent matching
         tokens = {translations.to_english(t) for t in naming.tokenize(node.name)}
         return bool(tokens & self.match_keywords)
 
@@ -62,12 +62,12 @@ class StructureReport:
 
 
 class StructureStandard:
-    """Regelwerk fuer die gewuenschte Szenen-Gliederung."""
+    """Rule set for the desired scene organization."""
 
     def __init__(self, rules: list[GroupRule]) -> None:
-        # nach Prioritaet absteigend, damit spezifische Regeln zuerst greifen
+        # sorted by priority descending so specific rules apply first
         self.rules = sorted(rules, key=lambda r: -r.priority)
-        # Alias/Name (klein) -> kanonischer Gruppenname
+        # alias/name (lowercase) -> canonical group name
         self._canonical: dict[str, str] = {}
         for r in self.rules:
             self._canonical[r.name.lower()] = r.name
@@ -79,7 +79,7 @@ class StructureStandard:
         return [r.name for r in self.rules]
 
     def canonical_group(self, name: str | None) -> str | None:
-        """Bildet einen tatsaechlichen Container-Namen auf den Kanon ab."""
+        """Maps an actual container name to the canonical one."""
         if name is None:
             return None
         return self._canonical.get(name.lower())
@@ -91,24 +91,23 @@ class StructureStandard:
         return None
 
     def is_group_container(self, node: model.SceneNode) -> bool:
-        """Ist dieser Knoten selbst ein (erkannter) Gruppen-Container?
+        """Is this node itself a (recognized) group container?
 
-        Anders als frueher NICHT auf die Wurzel beschraenkt: der User darf
-        Gruppen verschachteln (z.B. Scene > Lights, House > Furniture). Ein
-        Null, dessen Name/Alias auf eine Regel matcht, gilt auf jeder Ebene als
-        Container.
+        Unlike before, NOT restricted to the root: the user may nest groups
+        (e.g. Scene > Lights, House > Furniture). A null whose name/alias
+        matches a rule counts as a container at any level.
         """
         return (node.category == model.CAT_NULL
                 and self.canonical_group(node.name) is not None)
 
     def enclosing_group(self, node: model.SceneNode) -> str | None:
-        """Kanonischer Name des NAECHSTGELEGENEN Vorfahren, der ein erkannter
-        Gruppen-Container ist -- oder None, wenn das Objekt in keiner erkannten
-        Gruppe steckt (also relativ zu den Regeln 'lose' ist).
+        """Canonical name of the NEAREST ancestor that is a recognized group
+        container -- or None if the object sits in no recognized group
+        (i.e. it is 'loose' relative to the rules).
 
-        Das ist der Kern der hierarchie-bewussten Bewertung: ein Licht in
-        Scene > Lights > Interior liegt korrekt (Vorfahre 'Lights' == erwartet),
-        auch wenn die oberste Wurzel 'Scene' heisst.
+        This is the core of the hierarchy-aware evaluation: a light in
+        Scene > Lights > Interior is placed correctly (ancestor 'Lights' ==
+        expected), even if the topmost root is called 'Scene'.
         """
         for anc in node.ancestors():
             canon = self.canonical_group(anc.name)
@@ -124,7 +123,7 @@ class StructureStandard:
             expected = self.target_group_for(node)
             if expected is None:
                 continue
-            # Naechstgelegener erkannter Gruppen-Vorfahre (None = lose).
+            # Nearest recognized group ancestor (None = loose).
             enclosing = self.enclosing_group(node)
             report.findings.append(
                 Finding(
@@ -140,12 +139,12 @@ class StructureStandard:
 
 
 def default_standard() -> StructureStandard:
-    """Minimaler, immer gueltiger Default: nur kategoriebasierte Regeln.
+    """Minimal, always-valid default: category-based rules only.
 
-    Cameras/Lights sind ueber die Objekt-Kategorie eindeutig und daher immer
-    korrekt. Inhaltliche Gruppen (Furniture/Interior/Exterior o.ae.) werden
-    NICHT geraten -- sie kommen aus config.json bzw. dem Node-Editor, passend
-    zur jeweiligen Szene.
+    Cameras/Lights are unambiguous via the object category and therefore
+    always correct. Content groups (Furniture/Interior/Exterior etc.) are
+    NOT guessed -- they come from config.json or the node editor, tailored
+    to the specific scene.
     """
     return StructureStandard([
         GroupRule("Cameras", match_categories={model.CAT_CAMERA},
