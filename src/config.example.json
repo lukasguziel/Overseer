@@ -1,0 +1,18 @@
+{
+  "_hinweis": "Kopiere diese Datei nach 'config.json' (neben scene_organizer.pyp). Die 'groups' werden normalerweise im Node-Editor gebaut und dort gespeichert; hier nur als Beispiel.",
+
+  "casing": "PascalCase",
+  "language": "en",
+  "number_pad": 2,
+
+  "prefixes": {
+    "light": "LGT_",
+    "camera": "CAM_"
+  },
+
+  "translations": {
+    "barhocker": "barstool"
+  },
+
+  "groups": []
+}

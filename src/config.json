@@ -1,0 +1,359 @@
+{
+  "casing": "PascalCase",
+  "language": "en",
+  "number_pad": 2,
+  "prefixes": {},
+  "translations": {
+    "zylinder": "cylinder",
+    "wuerfel": "cube",
+    "kugel": "sphere",
+    "deckflaeche": "top",
+    "grundflaeche": "bottom",
+    "rasenkantensteine": "edging",
+    "rasenkante": "edging",
+    "arbeitsplatte": "countertop",
+    "tischplatte": "tabletop",
+    "kasten": "crate",
+    "kaesten": "crate",
+    "lehne": "backrest",
+    "schraege": "slope",
+    "wand": "wall",
+    "boden": "floor",
+    "decke": "ceiling",
+    "tuer": "door",
+    "fenster": "window",
+    "treppe": "stairs",
+    "lagerraum": "storage",
+    "kabel": "cable",
+    "stecker": "plug",
+    "steckdose": "socket",
+    "vorhang": "curtain",
+    "kissen": "pillow",
+    "regal": "shelf",
+    "schrank": "cabinet",
+    "tisch": "table",
+    "stuhl": "chair",
+    "bett": "bed",
+    "sofa": "sofa",
+    "dach": "roof",
+    "zaun": "fence",
+    "rasen": "lawn",
+    "gehweg": "walkway",
+    "einfahrt": "driveway",
+    "gelaender": "railing",
+    "saeule": "column"
+  },
+  "groups": [
+    {
+      "name": "Cameras",
+      "categories": [
+        "camera"
+      ],
+      "keywords": [],
+      "aliases": [
+        "cams",
+        "cam",
+        "kameras",
+        "kamera"
+      ],
+      "priority": 100
+    },
+    {
+      "name": "Lights",
+      "categories": [
+        "light"
+      ],
+      "keywords": [],
+      "aliases": [
+        "lichter",
+        "licht",
+        "beleuchtung",
+        "lighting"
+      ],
+      "priority": 100
+    },
+    {
+      "name": "Instances",
+      "categories": [],
+      "keywords": [
+        "instance",
+        "proxy",
+        "clone"
+      ],
+      "aliases": [
+        "instanzen",
+        "instanz",
+        "proxies",
+        "assets",
+        "library"
+      ],
+      "priority": 60
+    },
+    {
+      "name": "Furniture",
+      "categories": [],
+      "keywords": [
+        "furniture",
+        "sofa",
+        "chair",
+        "table",
+        "bed",
+        "shelf",
+        "cabinet",
+        "lamp",
+        "curtain",
+        "pillow",
+        "desk",
+        "wardrobe",
+        "couch",
+        "stool",
+        "bench"
+      ],
+      "aliases": [
+        "moebel",
+        "furnishing",
+        "einrichtung"
+      ],
+      "priority": 40
+    },
+    {
+      "name": "Building",
+      "categories": [],
+      "keywords": [
+        "wall",
+        "floor",
+        "ceiling",
+        "roof",
+        "door",
+        "window",
+        "stair",
+        "railing",
+        "column",
+        "basement",
+        "storey",
+        "story"
+      ],
+      "aliases": [
+        "gebaeude",
+        "shell",
+        "architecture",
+        "rohbau"
+      ],
+      "priority": 30
+    },
+    {
+      "name": "Exterior",
+      "categories": [],
+      "keywords": [
+        "garden",
+        "terrace",
+        "grass",
+        "lawn",
+        "fence",
+        "street",
+        "driveway",
+        "garage",
+        "gutter",
+        "hedge",
+        "tree",
+        "plant",
+        "walkway",
+        "entrance"
+      ],
+      "aliases": [
+        "aussen",
+        "outdoor",
+        "environment",
+        "umgebung",
+        "landscape"
+      ],
+      "priority": 20
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "group_1",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 0
+        },
+        "data": {
+          "name": "Cameras",
+          "aliases": "cams, cam, kameras, kamera",
+          "priority": 100
+        }
+      },
+      {
+        "id": "category_2",
+        "type": "category",
+        "position": {
+          "x": 60,
+          "y": 0
+        },
+        "data": {
+          "category": "camera"
+        }
+      },
+      {
+        "id": "group_3",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 190
+        },
+        "data": {
+          "name": "Lights",
+          "aliases": "lichter, licht, beleuchtung, lighting",
+          "priority": 100
+        }
+      },
+      {
+        "id": "category_4",
+        "type": "category",
+        "position": {
+          "x": 60,
+          "y": 190
+        },
+        "data": {
+          "category": "light"
+        }
+      },
+      {
+        "id": "group_5",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 380
+        },
+        "data": {
+          "name": "Instances",
+          "aliases": "instanzen, instanz, proxies, assets, library",
+          "priority": 60
+        }
+      },
+      {
+        "id": "keyword_6",
+        "type": "keyword",
+        "position": {
+          "x": 270,
+          "y": 380
+        },
+        "data": {
+          "keywords": "instance, proxy, clone"
+        }
+      },
+      {
+        "id": "group_7",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 570
+        },
+        "data": {
+          "name": "Furniture",
+          "aliases": "moebel, furnishing, einrichtung",
+          "priority": 40
+        }
+      },
+      {
+        "id": "keyword_8",
+        "type": "keyword",
+        "position": {
+          "x": 270,
+          "y": 570
+        },
+        "data": {
+          "keywords": "furniture, sofa, chair, table, bed, shelf, cabinet, lamp, curtain, pillow, desk, wardrobe, couch, stool, bench"
+        }
+      },
+      {
+        "id": "group_9",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 760
+        },
+        "data": {
+          "name": "Building",
+          "aliases": "gebaeude, shell, architecture, rohbau",
+          "priority": 30
+        }
+      },
+      {
+        "id": "keyword_10",
+        "type": "keyword",
+        "position": {
+          "x": 270,
+          "y": 760
+        },
+        "data": {
+          "keywords": "wall, floor, ceiling, roof, door, window, stair, railing, column, basement, storey, story"
+        }
+      },
+      {
+        "id": "group_11",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 950
+        },
+        "data": {
+          "name": "Exterior",
+          "aliases": "aussen, outdoor, environment, umgebung, landscape",
+          "priority": 20
+        }
+      },
+      {
+        "id": "keyword_12",
+        "type": "keyword",
+        "position": {
+          "x": 270,
+          "y": 950
+        },
+        "data": {
+          "keywords": "garden, terrace, grass, lawn, fence, street, driveway, garage, gutter, hedge, tree, plant, walkway, entrance"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_category_2_group_1",
+        "source": "category_2",
+        "target": "group_1",
+        "animated": true
+      },
+      {
+        "id": "e_category_4_group_3",
+        "source": "category_4",
+        "target": "group_3",
+        "animated": true
+      },
+      {
+        "id": "e_keyword_6_group_5",
+        "source": "keyword_6",
+        "target": "group_5",
+        "animated": true
+      },
+      {
+        "id": "e_keyword_8_group_7",
+        "source": "keyword_8",
+        "target": "group_7",
+        "animated": true
+      },
+      {
+        "id": "e_keyword_10_group_9",
+        "source": "keyword_10",
+        "target": "group_9",
+        "animated": true
+      },
+      {
+        "id": "e_keyword_12_group_11",
+        "source": "keyword_12",
+        "target": "group_11",
+        "animated": true
+      }
+    ]
+  }
+}
