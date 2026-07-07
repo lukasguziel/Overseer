@@ -1,7 +1,7 @@
-"""JSON-API des Web-Frontends (c4d-abhaengig, laeuft auf dem Main-Thread).
+"""JSON API of the web frontend (c4d-dependent, runs on the main thread).
 
-Wird von bridge.drain() bei jeder Anfrage frisch geladen (Hot-Reload).
-Nutzt ausschliesslich die reine sceneorg-Logik + den c4d_adapter.
+Freshly reloaded by bridge.drain() on every request (hot-reload).
+Uses exclusively the pure sceneorg logic + the c4d_adapter.
 """
 
 from __future__ import annotations
@@ -24,17 +24,17 @@ from .naming import Casing
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
-# Vom Skill gelernte/geschriebene Umstrukturierungs-Plaene.
+# Restructuring plans learned/written by the skill.
 PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
 
-# Vollstaendiger Report landet zusaetzlich im Repo -> Claude liest ihn direkt ein.
+# Full report additionally lands in the repo -> Claude reads it directly.
 EXPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
 EXPORT_CSV_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_structure.csv"
-# Analyse-Historie (welches Projekt wann) liegt neben der config.json im Plugin.
+# Analysis history (which project when) lives next to config.json in the plugin.
 HISTORY_PATH = os.path.join(PLUGIN_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
-# Spalten der flachen CSV-Struktur (ein Objekt pro Zeile).
+# Columns of the flat CSV structure (one object per row).
 _CSV_FIELDS = ("path", "name", "type", "category", "depth", "casing",
                "language", "children")
 
@@ -52,10 +52,10 @@ def _write_export(report_dict) -> str | None:
 
 
 def _write_csv(report_dict) -> tuple[str, int] | None:
-    """Flache Knoten-Tabelle (path;name;type;...) fuer Excel/Sheets.
+    """Flat node table (path;name;type;...) for Excel/Sheets.
 
-    Nutzt Semikolon als Trennzeichen (deutsche Excel-Locale) und schreibt eine
-    Kopfzeile. Gibt (Pfad, Zeilenzahl) zurueck oder None bei Fehler.
+    Uses semicolon as delimiter (German Excel locale) and writes a header
+    row. Returns (path, row count) or None on error.
     """
     import csv
     try:
@@ -75,10 +75,10 @@ def _write_csv(report_dict) -> tuple[str, int] | None:
 
 
 def _record_history(entry: dict) -> None:
-    """Haengt einen Analyse-Eintrag (file/when/objects) an die Historie an.
+    """Appends an analysis entry (file/when/objects) to the history.
 
-    Entprellt: identische Datei innerhalb von 60 s aktualisiert nur den letzten
-    Eintrag, statt zu spammen (Live-Preview/Refresh loesen mehrfach aus).
+    Debounced: the same file within 60 s only updates the last entry instead
+    of spamming (live preview/refresh trigger multiple times).
     """
     try:
         hist = []
@@ -119,7 +119,7 @@ def _read_config_data() -> dict:
 
 
 def _list_presets() -> list:
-    """Alle Presets (presets/*.json) mit ihrer meta-Info."""
+    """All presets (presets/*.json) with their meta info."""
     out = []
     try:
         for fn in sorted(os.listdir(PRESETS_DIR)):
@@ -143,7 +143,7 @@ def _list_presets() -> list:
 
 
 def _load_preset(preset_id: str) -> dict | None:
-    """Preset-Datei laden (per id oder Dateiname)."""
+    """Load a preset file (by id or file name)."""
     for cand in (preset_id, preset_id + ".json"):
         path = os.path.join(PRESETS_DIR, os.path.basename(cand))
         if os.path.isfile(path):
@@ -156,7 +156,7 @@ def _load_preset(preset_id: str) -> dict | None:
 
 
 def _list_plans() -> list:
-    """Umstrukturierungs-Plaene (plans/*.json) mit Kurz-Info."""
+    """Restructuring plans (plans/*.json) with short info."""
     out = []
     try:
         if not os.path.isdir(PLANS_DIR):
@@ -195,10 +195,11 @@ def _load_plan(plan_id: str) -> dict | None:
 
 
 def _apply_preset(preset_id: str) -> dict:
-    """Preset -> config.json schreiben (inkl. generiertem Node-Editor-Graph).
+    """Write preset -> config.json (incl. generated node-editor graph).
 
-    Setzt casing/language/number_pad/prefixes/translations/groups des Presets
-    und baut den `graph` neu, damit das Preset sofort im Rules-Tab erscheint.
+    Sets casing/language/number_pad/prefixes/translations/groups from the
+    preset and rebuilds the `graph` so the preset shows up in the Rules tab
+    immediately.
     """
     preset = _load_preset(preset_id)
     if preset is None:
@@ -257,7 +258,7 @@ def handle(payload: dict) -> dict:
         tree = adapter.build_tree()
         report = SceneAnalyzer(cfg.standard).analyze(tree, file_name=doc.GetDocumentName())
         data_dict = report.to_dict()
-        # Projektgroesse: die .c4d-Datei auf der Platte (falls gespeichert).
+        # Project size: the .c4d file on disk (if saved).
         try:
             full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
             data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
@@ -267,7 +268,7 @@ def handle(payload: dict) -> dict:
             data_dict["materials"] = adapter.scan_materials()
         except Exception:
             data_dict["materials"] = None
-        # Zeitstempel: wann diese Szene analysiert wurde (Unix-ts + lokal lesbar).
+        # Timestamp: when this scene was analyzed (Unix ts + locally readable).
         import time
         now = time.time()
         data_dict["analyzed_ts"] = now
@@ -393,7 +394,7 @@ def handle(payload: dict) -> dict:
         scope = _scope(settings, adapter)
         props = translatemod.plan_translations(tree, scope=scope)
         if op == "apply_translate":
-            # Nur die vom User akzeptierten guids anwenden.
+            # Apply only the guids accepted by the user.
             accepted = set(payload.get("guids") or [])
             chosen = [p for p in props if p.guid in accepted]
             renames = [ops.RenameOp(guid=p.guid, old_name=p.old, new_name=p.new)

@@ -1,8 +1,8 @@
-"""C4D-Adapter: baut aus einem Dokument eine reine SceneTree und schreibt
-Operationen (Rename/Reparent) mit Undo zurueck.
+"""C4D adapter: builds a pure SceneTree from a document and writes
+operations (rename/reparent) back with undo support.
 
-Dies ist das EINZIGE Domaenen-Modul, das `c4d` importiert. Es wird von den
-Unit-Tests nie geladen.
+This is the ONLY domain module that imports `c4d`. It is never loaded
+by the unit tests.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import c4d
 from . import model
 from .ops import LayerOp, RenameOp, ReparentOp
 
-# Farben fuer die automatisch angelegten Typ-Layer (RGB 0..1).
+# Colors for the automatically created type layers (RGB 0..1).
 LAYER_COLORS = {
     "Lights": (0.98, 0.75, 0.14),
     "Cameras": (0.22, 0.74, 0.97),
@@ -53,11 +53,11 @@ def type_name(op) -> str:
 
 
 def _virtual_geo(op) -> tuple:
-    """(Punkte, Polygone) ueber einen Cache-Teilbaum (virtuelle Objekte).
+    """(points, polygons) across a cache subtree (virtual objects).
 
-    Traversiert die vom Generator erzeugte Geometrie (Deform-/Cache-Baum) via
-    GetDown/GetNext. Zaehlt nur Zaehler-Ints, iteriert NIE ueber einzelne
-    Polygone -> auch bei Millionen Polys schnell.
+    Traverses the geometry produced by the generator (deform/cache tree) via
+    GetDown/GetNext. Only counts counter ints, NEVER iterates over individual
+    polygons -> fast even with millions of polys.
     """
     pts = polys = 0
     o = op
@@ -88,11 +88,11 @@ def _virtual_geo(op) -> tuple:
 
 
 def own_geo(op) -> tuple:
-    """(Punkte, Polygone) EINES Szenenobjekts (ohne Szenengraph-Kinder).
+    """(points, polygons) of ONE scene object (without scene-graph children).
 
-    Editierbares Poly-Objekt -> direkte Zaehler. Generator (Cube, Cloner, Sweep
-    ...) -> Geometrie aus seinem Cache. So bekommen auch Primitive/MoGraph eine
-    realistische Poly-Zahl statt 0.
+    Editable poly object -> direct counters. Generator (Cube, Cloner, Sweep
+    ...) -> geometry from its cache. This way primitives/MoGraph also get a
+    realistic poly count instead of 0.
     """
     if op.IsInstanceOf(c4d.Opolygon):
         try:
@@ -126,18 +126,18 @@ def classify(op) -> str:
 
 
 class SceneAdapter:
-    """Bidirektionale Bruecke Dokument <-> SceneTree."""
+    """Bidirectional bridge document <-> SceneTree."""
 
     def __init__(self, doc) -> None:
         self.doc = doc
         self._by_guid: dict[int, object] = {}
-        # Auswahl wird beim Baum-Aufbau erfasst (BIT_ACTIVE ist pro Objekt
-        # stabil). GetActiveObjects/id(op) taugt NICHT: C4D liefert bei jedem
-        # API-Aufruf neue Python-Wrapper -> id() matcht nie.
+        # Selection is captured during tree construction (BIT_ACTIVE is
+        # stable per object). GetActiveObjects/id(op) does NOT work: C4D
+        # returns new Python wrappers on every API call -> id() never matches.
         self._selected_direct: set = set()
         self._selected_subtree: set = set()
 
-    # -- Lesen ------------------------------------------------------------
+    # -- Reading ----------------------------------------------------------
     def build_tree(self) -> model.SceneTree:
         self._by_guid.clear()
         self._selected_direct.clear()
@@ -178,21 +178,21 @@ class SceneAdapter:
         return tree
 
     def selected_guids(self, include_children: bool = True) -> set:
-        """guids der aktuell ausgewaehlten Objekte (optional inkl. Kinder).
+        """guids of the currently selected objects (optionally incl. children).
 
-        Muss nach build_tree() aufgerufen werden -- die Auswahl wird dort ueber
-        das BIT_ACTIVE-Flag erfasst.
+        Must be called after build_tree() -- the selection is captured there
+        via the BIT_ACTIVE flag.
         """
         return set(self._selected_subtree if include_children
                    else self._selected_direct)
 
     def focus(self, guid: int) -> bool:
-        """Objekt exklusiv auswaehlen und die Kamera darauf framen (wie 'S').
+        """Select the object exclusively and frame the camera on it (like 'S').
 
-        Setzt die aktive Kamera direkt auf die Bounding-Box des Objekts -- das
-        funktioniert unabhaengig davon, welcher Viewport gerade den Fokus hat
-        (CallCommand(Frame) wuerde ins Leere laufen, wenn das Web-Panel fokus
-        hat). Main-Thread, nach build_tree().
+        Sets the active camera directly onto the object's bounding box -- this
+        works regardless of which viewport currently has focus
+        (CallCommand(Frame) would be a no-op if the web panel has focus).
+        Main thread, after build_tree().
         """
         op = self._by_guid.get(guid)
         if op is None:
@@ -205,15 +205,15 @@ class SceneAdapter:
             cam = bd.GetSceneCamera(self.doc) or bd.GetEditorCamera()
         if cam is not None:
             mg = op.GetMg()
-            center = mg * op.GetMp()          # Welt-Zentrum der Bounding-Box
-            rad = op.GetRad()                 # halbe Ausdehnung (lokal)
+            center = mg * op.GetMp()          # world center of the bounding box
+            rad = op.GetRad()                 # half extent (local)
             sx, sy, sz = mg.v1.GetLength(), mg.v2.GetLength(), mg.v3.GetLength()
             r = max(rad.x * sx, rad.y * sy, rad.z * sz)
-            if r <= 0:                        # Null/Spline/Kamera ohne Volumen
+            if r <= 0:                        # null/spline/camera without volume
                 r = 100.0
             cm = cam.GetMg()
-            forward = cm.v3                   # Blickrichtung (+z) beibehalten
-            dist = r * 2.8                    # Sphaere komfortabel einpassen
+            forward = cm.v3                   # keep viewing direction (+z)
+            dist = r * 2.8                    # fit the sphere comfortably
             cm.off = center - forward * dist
             cam.SetMg(cm)
 
@@ -225,10 +225,10 @@ class SceneAdapter:
         return True
 
     def _used_material_names(self) -> set:
-        """Namen aller via Textur-Tag zugewiesenen Materialien.
+        """Names of all materials assigned via texture tags.
 
-        Nutzung ueber NAMEN (Wrapper-Identitaet/id() ist wie bei der Selektion
-        nicht stabil). Best-effort.
+        Usage tracked by NAME (wrapper identity/id() is not stable, same as
+        with the selection). Best-effort.
         """
         used_names: set = set()
 
@@ -249,7 +249,7 @@ class SceneAdapter:
         return used_names
 
     def scan_materials(self) -> dict:
-        """Material-Uebersicht: gesamt, ungenutzt, fehlende Texturen."""
+        """Material overview: total, unused, missing textures."""
         import os
         doc = self.doc
         try:
@@ -287,11 +287,11 @@ class SceneAdapter:
         }
 
     def delete_material(self, name: str) -> int:
-        """Loescht ungenutzte Materialien mit diesem Namen (Undo-faehig).
+        """Deletes unused materials with this name (undoable).
 
-        Sicherheit: entfernt NUR Materialien, die aktuell keinem Textur-Tag
-        zugewiesen sind -- selbst wenn ein gleichnamiges Material benutzt wird,
-        bleibt das benutzte unangetastet.
+        Safety: removes ONLY materials that are currently not assigned to any
+        texture tag -- even if a material with the same name is in use, the
+        used one remains untouched.
         """
         doc = self.doc
         used_names = self._used_material_names()
@@ -309,10 +309,10 @@ class SceneAdapter:
         return len(targets)
 
     def delete_unused_materials(self) -> int:
-        """Loescht ALLE aktuell ungenutzten Materialien in EINEM Undo-Schritt.
+        """Deletes ALL currently unused materials in ONE undo step.
 
-        Ungenutzt = keinem Textur-Tag zugewiesen (Namensvergleich). Ein
-        gleichnamiges, benutztes Material bleibt unangetastet.
+        Unused = not assigned to any texture tag (name comparison). A used
+        material with the same name remains untouched.
         """
         doc = self.doc
         used_names = self._used_material_names()
@@ -327,7 +327,7 @@ class SceneAdapter:
         c4d.EventAdd()
         return len(targets)
 
-    # -- Schreiben --------------------------------------------------------
+    # -- Writing ----------------------------------------------------------
     def _find_or_create_group(self, name: str, created: list[object]) -> object:
         top = self.doc.GetFirstObject()
         while top:
@@ -382,10 +382,10 @@ class SceneAdapter:
         return layer
 
     def apply_layers(self, layerops: list[LayerOp]) -> int:
-        """Weist Objekten Layer zu (Typ-Achse), ohne die Hierarchie zu aendern.
+        """Assigns layers to objects (type axis) without changing the hierarchy.
 
-        Layer werden bei Bedarf angelegt (farbig). Aendert NUR die Layer-
-        Zuordnung -> raeumliche Null-Struktur bleibt vollstaendig unangetastet.
+        Layers are created on demand (colored). Changes ONLY the layer
+        assignment -> the spatial null structure remains fully untouched.
         """
         if not layerops:
             return 0
@@ -422,28 +422,28 @@ class SceneAdapter:
             mg = obj.GetMg()
             obj.Remove()
             obj.InsertUnderLast(group)
-            obj.SetMg(mg)  # Weltposition beibehalten
+            obj.SetMg(mg)  # keep world position
             count += 1
         self.doc.EndUndo()
         c4d.EventAdd()
         return count
 
-    # -- Umstrukturierungs-Plan (vom Skill geschrieben) -------------------
+    # -- Restructuring plan (written by the skill) ------------------------
     def apply_plan(self, operations: list[dict]) -> dict:
-        """Fuehrt einen deterministischen Umstrukturierungs-Plan aus (1 Undo).
+        """Executes a deterministic restructuring plan (1 undo step).
 
-        Operationen (Reihenfolge zaehlt). `target`/`under`/`into` referenzieren
-        entweder eine bestehende `guid` (int, aus dem Export) ODER eine plan-
-        lokale `$id` einer zuvor in diesem Plan erzeugten Gruppe (str):
+        Operations (order matters). `target`/`under`/`into` reference either
+        an existing `guid` (int, from the export) OR a plan-local `$id` of a
+        group created earlier in this plan (str):
 
           {"op": "group",  "id": "$gf", "name": "GROUND_FLOOR", "under": 12}
           {"op": "rename", "target": 40, "to": "KITCHEN_WINDOW"}
           {"op": "move",   "target": 40, "into": "$gf"}
           {"op": "layer",  "target": 40, "layer": "Lights"}
 
-        Nach diesem Aufruf muss build_tree() neu laufen (guids sind veraltet).
+        After this call, build_tree() must run again (guids are stale).
         """
-        refs: dict = {}          # "$id" -> erzeugtes Objekt
+        refs: dict = {}          # "$id" -> created object
         created: list = []
         lay_cache: dict = {}
         applied: collections.Counter = collections.Counter()

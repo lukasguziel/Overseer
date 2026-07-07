@@ -1,22 +1,30 @@
-import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import ReactFlow, {
   Background, Controls, MiniMap, Handle, Position,
   addEdge, applyNodeChanges, applyEdgeChanges,
+  type Node, type Edge, type Connection, type NodeChange, type EdgeChange, type NodeProps,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { call } from './api.js'
+import { call } from '../api'
+import type { GroupRuleJson } from '../types'
 
 // Kontext, damit Node-Komponenten ihre Daten aktualisieren koennen (ohne
 // Funktionen in node.data zu speichern -> saubere Serialisierung).
-const GraphCtx = createContext({ update: () => {}, remove: () => {} })
+interface GraphApi {
+  update: (id: string, patch: Record<string, unknown>) => void
+  remove: (id: string) => void
+}
+const GraphCtx = createContext<GraphApi>({ update: () => {}, remove: () => {} })
 
 const CATEGORIES = ['light', 'camera', 'mesh', 'spline', 'null', 'other']
 
-function csv(s) {
+function csv(s: string | undefined): string[] {
   return (s || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)
 }
 
-function NodeShell({ id, title, color, children }) {
+function NodeShell({ id, title, color, children }: {
+  id: string; title: string; color: string; children: ReactNode
+}) {
   const { remove } = useContext(GraphCtx)
   return (
     <div className="rf-node" style={{ borderColor: color }}>
@@ -29,7 +37,7 @@ function NodeShell({ id, title, color, children }) {
   )
 }
 
-function KeywordNode({ id, data }) {
+function KeywordNode({ id, data }: NodeProps) {
   const { update } = useContext(GraphCtx)
   return (
     <NodeShell id={id} title="Keywords" color="#5b9dff">
@@ -40,7 +48,7 @@ function KeywordNode({ id, data }) {
   )
 }
 
-function CategoryNode({ id, data }) {
+function CategoryNode({ id, data }: NodeProps) {
   const { update } = useContext(GraphCtx)
   return (
     <NodeShell id={id} title="Category" color="#b07bff">
@@ -52,7 +60,7 @@ function CategoryNode({ id, data }) {
   )
 }
 
-function GroupNode({ id, data }) {
+function GroupNode({ id, data }: NodeProps) {
   const { update } = useContext(GraphCtx)
   return (
     <NodeShell id={id} title="Group (target)" color="#3fb27f">
@@ -69,8 +77,17 @@ function GroupNode({ id, data }) {
 
 const nodeTypes = { keyword: KeywordNode, category: CategoryNode, group: GroupNode }
 
-function graphToGroups(nodes, edges) {
-  const groups = {}
+type NodeKind = keyof typeof nodeTypes
+
+function graphToGroups(nodes: Node[], edges: Edge[]): GroupRuleJson[] {
+  interface Agg {
+    name: string
+    priority: number
+    keywords: Set<string>
+    categories: Set<string>
+    aliases: string[]
+  }
+  const groups: Record<string, Agg> = {}
   nodes.filter((n) => n.type === 'group').forEach((g) => {
     groups[g.id] = {
       name: g.data.name || 'Group',
@@ -93,17 +110,17 @@ function graphToGroups(nodes, edges) {
   }))
 }
 
-export default function RuleGraph() {
-  const [nodes, setNodes] = useState([])
-  const [edges, setEdges] = useState([])
+export default function RulesTab() {
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
   const [status, setStatus] = useState('Loading rules …')
-  const [rawConfig, setRawConfig] = useState({})
+  const [rawConfig, setRawConfig] = useState<Record<string, unknown>>({})
   const idRef = useRef(1)
 
-  const update = useCallback((id, patch) => {
+  const update = useCallback((id: string, patch: Record<string, unknown>) => {
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)))
   }, [])
-  const remove = useCallback((id) => {
+  const remove = useCallback((id: string) => {
     setNodes((ns) => ns.filter((n) => n.id !== id))
     setEdges((es) => es.filter((e) => e.source !== id && e.target !== id))
   }, [])
@@ -115,7 +132,7 @@ export default function RuleGraph() {
       if (cfg.graph && Array.isArray(cfg.graph.nodes)) {
         setNodes(cfg.graph.nodes)
         setEdges(cfg.graph.edges || [])
-        const maxId = cfg.graph.nodes.reduce((m, n) => {
+        const maxId = (cfg.graph.nodes as Node[]).reduce((m, n) => {
           const num = parseInt(String(n.id).split('_')[1] || '0', 10)
           return Math.max(m, num)
         }, 0)
@@ -127,19 +144,19 @@ export default function RuleGraph() {
     }).catch((e) => setStatus('Error: ' + e.message))
   }, [])
 
-  const onNodesChange = useCallback((ch) => setNodes((ns) => applyNodeChanges(ch, ns)), [])
-  const onEdgesChange = useCallback((ch) => setEdges((es) => applyEdgeChanges(ch, es)), [])
-  const onConnect = useCallback((p) => setEdges((es) => addEdge({ ...p, animated: true }, es)), [])
+  const onNodesChange = useCallback((ch: NodeChange[]) => setNodes((ns) => applyNodeChanges(ch, ns)), [])
+  const onEdgesChange = useCallback((ch: EdgeChange[]) => setEdges((es) => applyEdgeChanges(ch, es)), [])
+  const onConnect = useCallback((p: Connection) => setEdges((es) => addEdge({ ...p, animated: true }, es)), [])
 
-  const addNode = (type) => {
+  const addNode = (type: NodeKind) => {
     const id = `${type}_${idRef.current++}`
-    const defaults = {
+    const defaults: Record<NodeKind, Record<string, unknown>> = {
       keyword: { keywords: '' },
       category: { category: 'mesh' },
       group: { name: '', aliases: '', priority: 50 },
-    }[type]
+    }
     const pos = { x: type === 'group' ? 420 : 60, y: 40 + (idRef.current % 8) * 90 }
-    setNodes((ns) => ns.concat({ id, type, position: pos, data: defaults }))
+    setNodes((ns) => ns.concat({ id, type, position: pos, data: defaults[type] }))
   }
 
   const save = async () => {
@@ -150,7 +167,7 @@ export default function RuleGraph() {
       await call('config', { save: true, data })
       setRawConfig(data)
       setStatus(`Saved: ${groups.length} groups -> config.json`)
-    } catch (e) {
+    } catch (e: any) {
       setStatus('Error: ' + e.message)
     }
   }

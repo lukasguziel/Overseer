@@ -34,7 +34,7 @@ def test_top_group_and_path():
 def test_tree_helpers(sample_tree):
     assert sample_tree.by_category(model.CAT_LIGHT).__len__() == 2
     assert len(sample_tree.by_category(model.CAT_CAMERA)) == 1
-    # guids sind eindeutig
+    # guids are unique
     guids = [n.guid for n in sample_tree.walk()]
     assert len(guids) == len(set(guids))
     first = sample_tree.all_nodes()[0]

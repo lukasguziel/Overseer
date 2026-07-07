@@ -1,13 +1,13 @@
-"""HTTP-Bruecke fuer das Web-Frontend (c4d-abhaengig).
+"""HTTP bridge for the web frontend (c4d-dependent).
 
-Wichtig: Dokument-Zugriffe MUESSEN auf dem Main-Thread laufen. Der HTTP-Server
-laeuft auf einem Hintergrund-Thread und legt jede Anfrage in eine Queue; ein
-MessageData-Plugin (im .pyp registriert) leert die Queue via SpecialEventAdd
-auf dem Main-Thread und ruft `webapi.handle` auf.
+Important: document accesses MUST run on the main thread. The HTTP server
+runs on a background thread and puts each request into a queue; a
+MessageData plugin (registered in the .pyp) drains the queue via
+SpecialEventAdd on the main thread and calls `webapi.handle`.
 
-Dieses Modul ist ein prozessweiter Singleton (Queue + Serverzustand) und wird
-vom Loader ABSICHTLICH NICHT hot-reloaded -- sonst ginge die Queue verloren.
-Die eigentliche API-Logik (`webapi`) wird bei jedem Drain frisch geladen.
+This module is a process-wide singleton (queue + server state) and is
+INTENTIONALLY NOT hot-reloaded by the loader -- otherwise the queue would
+be lost. The actual API logic (`webapi`) is freshly loaded on every drain.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import webbrowser
 import c4d
 
 DEFAULT_PORT = 8787
-_SRV_DIALOG_ID = 1069220  # aus Maxon-Basis-ID 1069217 abgeleitet
+_SRV_DIALOG_ID = 1069220  # derived from Maxon base ID 1069217
 WEB_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 
@@ -51,11 +51,11 @@ class _Request:
 
 
 def submit(payload, timeout=60):
-    """Vom Server-Thread: Anfrage einreihen und auf das Ergebnis warten.
+    """From the server thread: enqueue a request and wait for the result.
 
-    Das Abarbeiten passiert auf dem Main-Thread ueber den Timer des
-    ServerDialog (siehe unten) -> KEINE MessageData/SpecialEventAdd noetig,
-    daher kein Startup-Risiko.
+    Processing happens on the main thread via the ServerDialog's timer
+    (see below) -> NO MessageData/SpecialEventAdd needed, hence no
+    startup risk.
     """
     req = _Request(payload)
     _queue.put(req)
@@ -67,7 +67,7 @@ def submit(payload, timeout=60):
 
 
 def drain():
-    """Auf dem MAIN-Thread (aus MessageData.CoreMessage): Queue abarbeiten."""
+    """On the MAIN thread (from MessageData.CoreMessage): process the queue."""
     while True:
         try:
             req = _queue.get_nowait()
@@ -75,7 +75,7 @@ def drain():
             return
         try:
             from . import webapi
-            importlib.reload(webapi)  # Hot-Reload der API-Logik
+            importlib.reload(webapi)  # hot-reload of the API logic
             req.result = webapi.handle(req.payload)
         except Exception:
             req.error = traceback.format_exc()
@@ -132,7 +132,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             path = "/index.html"
         full = os.path.normpath(os.path.join(WEB_DIR, path.lstrip("/")))
         if not full.startswith(WEB_DIR) or not os.path.isfile(full):
-            # SPA-Fallback auf index.html
+            # SPA fallback to index.html
             full = os.path.join(WEB_DIR, "index.html")
             if not os.path.isfile(full):
                 self.send_response(404)
@@ -173,8 +173,8 @@ def is_running():
 
 
 # --------------------------------------------------------------------------
-# Server-Kontroll-Dialog: draint die Queue per Timer auf dem Main-Thread.
-# Solange dieses Fenster offen ist, werden Web-Requests bearbeitet.
+# Server control dialog: drains the queue via timer on the main thread.
+# Web requests are processed as long as this window is open.
 # --------------------------------------------------------------------------
 
 _BTN_OPEN = 3001
@@ -185,16 +185,16 @@ _dialog = None
 
 
 class ServerDialog(c4d.gui.GeDialog):
-    """Kontroll-Dialog MIT eingebettetem Web-Frontend.
+    """Control dialog WITH embedded web frontend.
 
-    Das React-Bundle wird nicht im externen Browser, sondern direkt IN diesem
-    C4D-Fenster gerendert -- ueber das native CUSTOMGUI_HTMLVIEWER-Gadget
-    (QtWebEngine). Der Viewer zeigt auf http://127.0.0.1:<port>/, also die
-    gleiche Origin, die auch die App + /api/* ausliefert -> `fetch('/api/..')`
-    im Frontend laeuft same-origin, kein CORS, kein file://-Mixed-Content.
+    The React bundle is rendered not in an external browser but directly IN
+    this C4D window -- via the native CUSTOMGUI_HTMLVIEWER gadget
+    (QtWebEngine). The viewer points to http://127.0.0.1:<port>/, i.e. the
+    same origin that also serves the app + /api/* -> `fetch('/api/..')`
+    in the frontend runs same-origin, no CORS, no file:// mixed content.
 
-    Faellt CUSTOMGUI_HTMLVIEWER weg (aeltere C4D-Builds), bleibt der klassische
-    Browser-Button als Rueckfallebene.
+    If CUSTOMGUI_HTMLVIEWER is unavailable (older C4D builds), the classic
+    browser button remains as a fallback.
     """
 
     def __init__(self, port):
@@ -207,15 +207,15 @@ class ServerDialog(c4d.gui.GeDialog):
 
     def CreateLayout(self):
         self.SetTitle("Scene Organizer")
-        # Nur der Viewer, fuellt das ganze Fenster. Debug-Aktionen (Reload/Open/
-        # Stop) leben im Web-UI unter Misc -> Debug; Fenster schliessen stoppt
-        # den Server (siehe DestroyWindow).
+        # Only the viewer, fills the whole window. Debug actions (Reload/Open/
+        # Stop) live in the web UI under Misc -> Debug; closing the window
+        # stops the server (see DestroyWindow).
         self.GroupBegin(1000, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, cols=1, rows=1)
         self.GroupBorderSpace(6, 6, 6, 6)
 
         html_constant = getattr(c4d, "CUSTOMGUI_HTMLVIEWER", None)
         if html_constant is None:
-            # Kein eingebetteter Viewer -> im externen Browser oeffnen.
+            # No embedded viewer -> open in the external browser.
             self.AddStaticText(
                 0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT,
                 name="Opened in your browser (HtmlViewer not available here).")
@@ -232,7 +232,7 @@ class ServerDialog(c4d.gui.GeDialog):
         return True
 
     def InitValues(self):
-        self.SetTimer(100)  # ms -> Timer() draint die Queue auf dem Main-Thread
+        self.SetTimer(100)  # ms -> Timer() drains the queue on the main thread
         self._load()
         return True
 
@@ -261,15 +261,15 @@ class ServerDialog(c4d.gui.GeDialog):
         return True
 
     def DestroyWindow(self):
-        # Fenster zu -> Server stoppen (kein Draining mehr moeglich)
+        # Window closed -> stop the server (no more draining possible)
         stop()
 
 
 def open_panel(port=DEFAULT_PORT):
-    """Startet den Server und oeffnet das Fenster mit eingebettetem Frontend."""
+    """Starts the server and opens the window with the embedded frontend."""
     global _dialog
     port = start(port)
-    # Frisch instanziieren, falls sich Groesse/Layout geaendert hat.
+    # Instantiate freshly in case size/layout has changed.
     if _dialog is None or not _dialog.IsOpen():
         _dialog = ServerDialog(port)
         _dialog.Open(c4d.DLG_TYPE_ASYNC, pluginid=_SRV_DIALOG_ID,

@@ -1,7 +1,7 @@
-"""Automatische Erkennung des vorherrschenden Namensschemas (rein).
+"""Automatic detection of the prevailing naming scheme (pure).
 
-Ermittelt aus einer Liste von Objektnamen den dominanten Casing-Stil, die
-Sprache und die Zahlen-Stelligkeit -> Vorschlag fuer die NamingConvention.
+Determines the dominant casing style, language and number padding from a
+list of object names -> suggestion for the NamingConvention.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from . import naming, translations
 from .naming import Casing
 
-# Beobachtete Casings -> naechster erzeugbarer Ziel-Stil (TARGET_STYLES).
+# Observed casings -> closest producible target style (TARGET_STYLES).
 _CASING_TO_TARGET = {
     Casing.PASCAL: Casing.PASCAL,
     Casing.CAPITALIZED: Casing.PASCAL,
@@ -24,7 +24,7 @@ _CASING_TO_TARGET = {
     Casing.UPPER_SNAKE: Casing.UPPER_SNAKE,
     Casing.UPPER: Casing.UPPER_SNAKE,
     Casing.KEBAB: Casing.KEBAB,
-    # MIXED / EMPTY: keine Stimme (mehrdeutig)
+    # MIXED / EMPTY: no vote (ambiguous)
 }
 
 _NUM_SUFFIX = re.compile(r"(\d+)$")
@@ -65,7 +65,7 @@ def detect_language(names: list[str]) -> tuple[str, dict[str, int]]:
     de = dist.get(naming.LANG_DE, 0)
     en = dist.get(naming.LANG_EN, 0)
     if de == 0 and en == 0:
-        return naming.LANG_EN, dict(dist)  # Default, keine Uebersetzung noetig
+        return naming.LANG_EN, dict(dist)  # default, no translation needed
     return (naming.LANG_DE if de >= en else naming.LANG_EN), dict(dist)
 
 

@@ -9,9 +9,9 @@ def test_graph_has_group_and_source_nodes():
     g = graph_from_groups(groups)
     types = [n["type"] for n in g["nodes"]]
     assert types.count("group") == 2
-    assert "category" in types      # Cameras -> Kategorie-Node
+    assert "category" in types      # Cameras -> category node
     assert "keyword" in types       # Furniture -> Keyword-Node
-    # jede Edge verbindet eine Quelle mit einem Group-Node
+    # every edge connects a source to a group node
     group_ids = {n["id"] for n in g["nodes"] if n["type"] == "group"}
     assert all(e["target"] in group_ids for e in g["edges"])
 

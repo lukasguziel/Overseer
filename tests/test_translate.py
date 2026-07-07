@@ -3,7 +3,7 @@ from sceneorg.translations import add_translations
 
 
 def setup_module(_):
-    # Szenen-Vokabular, das der Produkt-Default evtl. noch nicht kennt.
+    # Scene vocabulary the product default may not know yet.
     add_translations({"arbeitsplatte": "countertop", "lehne": "backrest"})
 
 
@@ -19,7 +19,7 @@ def test_translate_preserves_capitalized_and_mixed():
 
 
 def test_translate_only_flags_translatable():
-    # rein englischer Name -> keine Aenderung, keine Woerter
+    # purely English name -> no change, no words
     new, words = translate.translate_preserving("Kitchen_Table_02")
     assert words == []
     assert new == "Kitchen_Table_02"
@@ -34,7 +34,7 @@ def test_plan_translations_filters_and_scopes():
 
     props = translate.plan_translations(tree)
     by = {p.guid: p.new for p in props}
-    assert by == {1: "CHAIR", 3: "COUNTERTOP"}   # 'Table' schon englisch
+    assert by == {1: "CHAIR", 3: "COUNTERTOP"}   # 'Table' already English
 
     scoped = translate.plan_translations(tree, scope={3})
     assert [p.guid for p in scoped] == [3]

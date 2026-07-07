@@ -1,10 +1,10 @@
-"""Uebersetzungs-Tool: erkennt nicht-englische Objektnamen und schlaegt eine
-casing-erhaltende Uebersetzung vor (rein, kein c4d).
+"""Translation tool: detects non-English object names and proposes a
+casing-preserving translation (pure, no c4d).
 
-Anders als die NamingConvention wird hier NICHT das Casing vereinheitlicht:
-jedes deutsche Wort wird an Ort und Stelle durch sein englisches Pendant
-ersetzt, wobei Gross-/Kleinschreibung, Trenner und abschliessende Zahlen des
-Originals erhalten bleiben. So kann der User pro Objekt entscheiden.
+Unlike the NamingConvention, casing is NOT unified here: each German word is
+replaced in place by its English counterpart, while the original's
+upper-/lowercase pattern, separators and trailing numbers are preserved.
+This lets the user decide per object.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from . import translations
 
-# Wort-Runs inkl. Umlauten; alles andere (Zahlen, _, -, Leerzeichen) bleibt.
+# Word runs incl. umlauts; everything else (digits, _, -, spaces) stays.
 _WORD = re.compile(r"[A-Za-zÄÖÜäöüß]+")
 
 
@@ -23,11 +23,11 @@ class TranslateProposal:
     guid: int
     old: str
     new: str
-    words: list  # [(deutsch, englisch), ...] die tatsaechlich ersetzt wurden
+    words: list  # [(german, english), ...] that were actually replaced
 
 
 def _match_case(src: str, tgt: str) -> str:
-    """Uebertraegt das Casing-Muster von src auf die Uebersetzung tgt."""
+    """Transfers the casing pattern from src to the translation tgt."""
     if src.isupper():
         return tgt.upper()
     if src.islower():
@@ -38,10 +38,10 @@ def _match_case(src: str, tgt: str) -> str:
 
 
 def translate_preserving(name: str) -> tuple[str, list]:
-    """Uebersetzt deutsche Woerter im Namen, behaelt Casing/Struktur.
+    """Translates German words in the name, keeps casing/structure.
 
-    Gibt (neuer_name, [(de, en), ...]) zurueck. Die Liste ist leer, wenn nichts
-    uebersetzbar war (Name gilt dann als 'schon englisch / unbekannt').
+    Returns (new_name, [(de, en), ...]). The list is empty if nothing was
+    translatable (the name then counts as 'already English / unknown').
     """
     changed: list = []
 
@@ -59,7 +59,7 @@ def translate_preserving(name: str) -> tuple[str, list]:
 
 
 def plan_translations(tree, scope: set | None = None) -> list[TranslateProposal]:
-    """Vorschlaege fuer alle Objekte mit uebersetzbaren (deutschen) Namen."""
+    """Proposals for all objects with translatable (German) names."""
     out: list[TranslateProposal] = []
     for n in tree.walk():
         if scope is not None and n.guid not in scope:

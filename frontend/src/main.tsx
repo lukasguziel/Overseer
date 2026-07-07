@@ -1,7 +1,6 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
-import ErrorBoundary from './ErrorBoundary.jsx'
+import App from './App'
+import ErrorBoundary from './ErrorBoundary'
 import './styles.css'
 
 // Fehler NIE verschlucken: unbehandelte Promise-Rejections + globale Fehler
@@ -12,9 +11,9 @@ window.addEventListener('error', (e) => {
 })
 window.addEventListener('unhandledrejection', (e) => {
   const el = document.getElementById('global-error')
-  if (el) { el.textContent = 'Unhandled: ' + (e.reason?.message || e.reason); el.style.display = 'block' }
+  if (el) { el.textContent = 'Unhandled: ' + ((e.reason as Error)?.message || e.reason); el.style.display = 'block' }
 })
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <ErrorBoundary><App /></ErrorBoundary>,
 )

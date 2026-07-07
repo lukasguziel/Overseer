@@ -1,4 +1,4 @@
-"""NamingConvention: normalisiert Objektnamen auf ein einheitliches Schema (rein)."""
+"""NamingConvention: normalizes object names to a uniform scheme (pure)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from . import naming, translations
 
-# Ziel-Casings, die die Konvention erzeugen kann.
+# Target casings the convention can produce.
 TARGET_STYLES = (
     naming.Casing.PASCAL,
     naming.Casing.CAMEL,
@@ -15,7 +15,7 @@ TARGET_STYLES = (
     naming.Casing.KEBAB,
 )
 
-# Trennzeichen je Zielstil (fuer Wortfugen).
+# Separator per target style (for word joints).
 _SEP = {
     naming.Casing.PASCAL: "",
     naming.Casing.CAMEL: "",
@@ -24,7 +24,7 @@ _SEP = {
     naming.Casing.KEBAB: "-",
 }
 
-# Trennzeichen vor einer abschliessenden Zahl.
+# Separator before a trailing number.
 _NUM_SEP = {
     naming.Casing.PASCAL: "",
     naming.Casing.CAMEL: "",
@@ -45,13 +45,13 @@ class RenameProposal:
 
 
 class NamingConvention:
-    """Konfigurierbares Namensschema.
+    """Configurable naming scheme.
 
-    Parameter
-    ---------
-    style           Ziel-Casing (Casing.PASCAL etc.)
-    language        Zielsprache 'en' / 'de' / None (keine Uebersetzung)
-    number_pad      Nullen-Padding fuer abschliessende Zahlen (0 = aus)
+    Parameters
+    ----------
+    style           target casing (Casing.PASCAL etc.)
+    language        target language 'en' / 'de' / None (no translation)
+    number_pad      zero padding for trailing numbers (0 = off)
     """
 
     def __init__(
@@ -61,12 +61,12 @@ class NamingConvention:
         number_pad: int = 2,
     ) -> None:
         if style not in TARGET_STYLES:
-            raise ValueError("Nicht unterstuetzter Zielstil: %s" % style)
+            raise ValueError("Unsupported target style: %s" % style)
         self.style = style
         self.language = language
         self.number_pad = number_pad
 
-    # -- Wort-Transformation ---------------------------------------------
+    # -- Word transformation -----------------------------------------------
     def _translate(self, tokens: list[str]) -> list[str]:
         if self.language == naming.LANG_EN:
             return [translations.to_english(t) for t in tokens]
@@ -90,14 +90,14 @@ class NamingConvention:
             return str(num).zfill(self.number_pad)
         return str(num)
 
-    # -- oeffentliche API -------------------------------------------------
+    # -- Public API ---------------------------------------------------------
     def normalize(self, name: str) -> str:
         base, num = naming.split_trailing_number(name)
         tokens = naming.tokenize(base)
         tokens = self._translate(tokens)
         tokens = [t for t in tokens if t]
         if not tokens:
-            # Nur Zahl / leer -> Originalnamen nicht kaputt machen
+            # Number only / empty -> do not break the original name
             return name.strip()
 
         sep = _SEP[self.style]
@@ -115,5 +115,5 @@ class NamingConvention:
         return self.normalize(name) == name
 
     def disambiguate(self, base: str, index: int) -> str:
-        """Haengt einen eindeutig machenden Zaehler im Zielstil an."""
+        """Appends a disambiguating counter in the target style."""
         return base + _NUM_SEP[self.style] + self._format_number(index)
