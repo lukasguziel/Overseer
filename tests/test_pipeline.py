@@ -2,9 +2,9 @@
 
 from conftest import node
 
-from sceneorg import model
 from sceneorg.config import load_config
-from sceneorg.pipeline import filter_accepted, plan_combined
+from sceneorg.core import model
+from sceneorg.core.pipeline import filter_accepted, plan_combined
 
 
 def build_tree():

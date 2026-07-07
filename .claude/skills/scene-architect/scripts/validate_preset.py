@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 from sceneorg import config as C  # noqa: E402
-from sceneorg import graph as G  # noqa: E402
+from sceneorg.structure import graph as G  # noqa: E402
 
 if len(sys.argv) != 2:
     sys.exit("usage: validate_preset.py <preset.json>")

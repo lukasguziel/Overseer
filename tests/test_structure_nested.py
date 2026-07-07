@@ -2,9 +2,9 @@
 
 from conftest import node
 
-from sceneorg import model
 from sceneorg.config import load_config, migrate_config, structure_to_list
-from sceneorg.structure import GroupRule, StructureStandard
+from sceneorg.core import model
+from sceneorg.structure.standard import GroupRule, StructureStandard
 
 
 def nested_standard():

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import model, naming, translations
+from ..core import model
+from ..naming import casing as naming
+from ..naming import translations
 
 
 @dataclass

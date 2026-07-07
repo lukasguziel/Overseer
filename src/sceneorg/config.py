@@ -12,10 +12,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .convention import NamingConvention
-from .naming import Casing
-from .rules import RuleSet, compile_rules
-from .structure import GroupRule, StructureStandard, default_standard
+from .naming.casing import Casing
+from .naming.convention import NamingConvention
+from .structure.rules import RuleSet, compile_rules
+from .structure.standard import GroupRule, StructureStandard, default_standard
 
 CONFIG_SCHEMA_VERSION = 2
 

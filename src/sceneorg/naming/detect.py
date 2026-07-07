@@ -10,8 +10,9 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
-from . import naming, translations
-from .naming import Casing
+from . import casing as naming
+from . import translations
+from .casing import Casing
 
 # Observed casings -> closest producible target style (TARGET_STYLES).
 _CASING_TO_TARGET = {

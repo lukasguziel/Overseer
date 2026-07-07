@@ -11,15 +11,16 @@ import os
 
 import c4d
 
-from . import config as cfgmod
-from . import detect as detectmod
-from . import graph as graphmod
-from . import ops, pipeline, translations
-from . import translate as translatemod
-from .analyzer import SceneAnalyzer
-from .c4d_adapter import SceneAdapter
-from .convention import NamingConvention
-from .naming import Casing
+from .. import config as cfgmod
+from ..core import ops, pipeline
+from ..core.analyzer import SceneAnalyzer
+from ..naming import detect as detectmod
+from ..naming import translate as translatemod
+from ..naming import translations
+from ..naming.casing import Casing
+from ..naming.convention import NamingConvention
+from ..structure import graph as graphmod
+from .adapter import SceneAdapter
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
@@ -322,7 +323,7 @@ def handle(payload: dict) -> dict:
     if op in ("analyze", "export", "export_csv"):
         # Preloader: report progress to the bridge singleton (polled by the
         # web UI via /api/progress) and mirror it in the C4D status bar.
-        from . import bridge
+        from .. import bridge
 
         def _prog(phase, current=0, total=0, detail=""):
             bridge.set_progress(phase, current, total, detail)

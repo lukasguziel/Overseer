@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import c4d
 
-from .dialog import SceneOrganizerDialog
+from .cinema.dialog import SceneOrganizerDialog
 
 # The dialog must survive as modal/non-modal state.
 _DIALOG = None

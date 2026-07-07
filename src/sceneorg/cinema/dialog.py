@@ -7,11 +7,13 @@ import os
 
 import c4d
 
-from . import config as cfgmod
-from . import detect, naming, ops, translations
-from .analyzer import SceneAnalyzer
-from .c4d_adapter import SceneAdapter
-from .convention import NamingConvention
+from .. import config as cfgmod
+from ..core import ops
+from ..core.analyzer import SceneAnalyzer
+from ..naming import casing as naming
+from ..naming import detect, translations
+from ..naming.convention import NamingConvention
+from .adapter import SceneAdapter
 
 REPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
 

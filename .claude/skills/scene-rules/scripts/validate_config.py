@@ -11,7 +11,7 @@ names = sys.argv[2:]
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "src"))
 from sceneorg import config as C  # noqa: E402
-from sceneorg import translations as T  # noqa: E402
+from sceneorg.naming import translations as T  # noqa: E402
 
 data = json.load(open(cfg_path, encoding="utf-8"))
 T.add_translations(data.get("translations", {}))

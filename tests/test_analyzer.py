@@ -1,5 +1,5 @@
-from sceneorg import model
-from sceneorg.analyzer import SceneAnalyzer
+from sceneorg.core import model
+from sceneorg.core.analyzer import SceneAnalyzer
 
 
 def test_analyze_counts(sample_tree):

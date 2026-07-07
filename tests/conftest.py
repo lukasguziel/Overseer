@@ -2,8 +2,8 @@
 
 import pytest
 
-from sceneorg import model
-from sceneorg.structure import GroupRule, StructureStandard
+from sceneorg.core import model
+from sceneorg.structure.standard import GroupRule, StructureStandard
 
 
 def node(name, category=model.CAT_OTHER, type_name=None, guid=-1, children=None):

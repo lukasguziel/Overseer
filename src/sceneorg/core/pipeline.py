@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..config import Config
+from ..naming.convention import NamingConvention
+from ..structure.rules import RuleContext
 from . import model, ops
-from .config import Config
-from .convention import NamingConvention
-from .rules import RuleContext
 
 
 @dataclass

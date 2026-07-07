@@ -2,7 +2,7 @@
 
 Kurzmodell von `src/sceneorg/`, damit Insights und Plaene zur echten Engine
 passen. Kernprinzip: reine Logik (`sceneorg/`) importiert nie `c4d`; nur
-`c4d_adapter/dialog/plugin_entry/bridge/webapi` sind c4d-abhaengig.
+`cinema/` (adapter/dialog/webapi), `plugin_entry` und `bridge` sind c4d-abhaengig.
 
 ## Pipeline pro Feature
 
