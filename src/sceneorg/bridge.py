@@ -32,6 +32,32 @@ _server = None
 _thread = None
 _queue: queue.Queue = queue.Queue()
 
+# ---------------------------------------------------------------------------
+# Progress state (preloader). Written by long-running main-thread operations
+# (webapi/adapter), read by the SERVER thread via GET /api/progress -- that
+# request is answered directly WITHOUT the main-thread queue, otherwise it
+# would be stuck behind the very operation it reports on. Lives in this
+# module because bridge is the process singleton (never hot-reloaded).
+# ---------------------------------------------------------------------------
+_progress_lock = threading.Lock()
+_progress = {"active": False, "phase": "", "current": 0, "total": 0, "detail": ""}
+
+
+def set_progress(phase, current=0, total=0, detail=""):
+    with _progress_lock:
+        _progress.update(active=True, phase=str(phase), current=int(current),
+                         total=int(total), detail=str(detail))
+
+
+def clear_progress():
+    with _progress_lock:
+        _progress.update(active=False, phase="", current=0, total=0, detail="")
+
+
+def get_progress() -> dict:
+    with _progress_lock:
+        return dict(_progress)
+
 _CTYPES = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript",
     ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml",
@@ -122,6 +148,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 if length:
                     payload = json.loads(self.rfile.read(length) or b"{}")
             payload["op"] = self.path[len("/api/"):].split("?")[0]
+            if payload["op"] == "progress":
+                # Answered on the server thread (no doc access) so the
+                # preloader can poll WHILE the main thread is busy.
+                return self._json(get_progress())
             self._json(submit(payload))
         except Exception as e:
             self._json({"error": str(e)}, 500)

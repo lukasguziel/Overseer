@@ -254,35 +254,72 @@ def handle(payload: dict) -> dict:
     cfg, data = _load_cfg()
 
     if op in ("analyze", "export", "export_csv"):
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
-        report = SceneAnalyzer(cfg.standard).analyze(tree, file_name=doc.GetDocumentName())
-        data_dict = report.to_dict()
-        # Project size: the .c4d file on disk (if saved).
+        # Preloader: report progress to the bridge singleton (polled by the
+        # web UI via /api/progress) and mirror it in the C4D status bar.
+        from . import bridge
+
+        def _prog(phase, current=0, total=0, detail=""):
+            bridge.set_progress(phase, current, total, detail)
+            try:
+                c4d.StatusSetText("Scene Organizer: %s" % phase)
+                if total:
+                    c4d.StatusSetBar(int(current * 100 / total))
+                else:
+                    c4d.StatusSetSpin()
+            except Exception:
+                pass
+
         try:
-            full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
-            data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
-        except Exception:
-            data_dict["file_size"] = 0
-        try:
-            data_dict["materials"] = adapter.scan_materials()
-        except Exception:
-            data_dict["materials"] = None
+            _prog("Reading scene objects")
+            adapter = SceneAdapter(doc)
+            tree = adapter.build_tree(
+                progress=lambda cur, tot, name: _prog(
+                    "Reading scene objects", cur, tot, name))
+            _prog("Analyzing structure")
+            # Selection scope narrows ALL stats (live analysis only -- exports
+            # always cover the whole scene; they are the Claude channel).
+            scope = _scope(settings, adapter) if op == "analyze" else None
+            if scope is not None and not scope:
+                return {"error": "No objects selected in Cinema 4D."}
+            report = SceneAnalyzer(cfg.standard).analyze(
+                tree, file_name=doc.GetDocumentName(), scope=scope)
+            data_dict = report.to_dict()
+            data_dict["scoped"] = scope is not None
+            # Project size: the .c4d file on disk (if saved).
+            try:
+                full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
+                data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
+            except Exception:
+                data_dict["file_size"] = 0
+            try:
+                _prog("Scanning materials")
+                data_dict["materials"] = adapter.scan_materials()
+            except Exception:
+                data_dict["materials"] = None
+            _prog("Writing report")
+        finally:
+            bridge.clear_progress()
+            try:
+                c4d.StatusClear()
+            except Exception:
+                pass
         # Timestamp: when this scene was analyzed (Unix ts + locally readable).
         import time
         now = time.time()
         data_dict["analyzed_ts"] = now
         data_dict["analyzed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
-        _record_history({
-            "file": data_dict.get("file") or "(unsaved)",
-            "ts": now,
-            "at": data_dict["analyzed_at"],
-            "objects": data_dict.get("object_count", 0),
-            "compliance": data_dict.get("structure_compliance", 0),
-            "polys": data_dict.get("total_polys", 0),
-            "size": data_dict.get("file_size", 0),
-        })
-        written = _write_export(data_dict)
+        if not data_dict.get("scoped"):
+            # Scoped analyses would pollute the trends and the Claude report.
+            _record_history({
+                "file": data_dict.get("file") or "(unsaved)",
+                "ts": now,
+                "at": data_dict["analyzed_at"],
+                "objects": data_dict.get("object_count", 0),
+                "compliance": data_dict.get("structure_compliance", 0),
+                "polys": data_dict.get("total_polys", 0),
+                "size": data_dict.get("file_size", 0),
+            })
+        written = None if data_dict.get("scoped") else _write_export(data_dict)
         result = {"ok": True, "report": data_dict, "export_path": written}
         if op == "export_csv":
             csv_res = _write_csv(data_dict)

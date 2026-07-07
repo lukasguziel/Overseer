@@ -44,6 +44,16 @@ export interface SceneReport {
   materials?: MaterialReport
 }
 
+// Live progress of a long-running main-thread operation (GET /api/progress,
+// answered by the bridge's server thread while the main thread is busy).
+export interface ProgressInfo {
+  active: boolean
+  phase: string
+  current: number
+  total: number
+  detail: string
+}
+
 export interface DetectInfo {
   style: string
   language: string | null

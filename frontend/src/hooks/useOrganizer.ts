@@ -5,7 +5,7 @@ import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import type {
   DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult, Preset,
-  RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
+  ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
 } from '../types'
 
 export interface RulesInfo {
@@ -25,6 +25,23 @@ export function useOrganizer() {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('Ready.')
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState<ProgressInfo | null>(null)
+
+  // Preloader: while an operation runs, poll /api/progress (answered by the
+  // bridge's server thread, so it works WHILE the main thread is busy).
+  useEffect(() => {
+    if (!busy) { setProgress(null); return }
+    let stop = false
+    const tick = async () => {
+      try {
+        const p = await call<ProgressInfo>('progress')
+        if (!stop) setProgress(p.active ? p : null)
+      } catch { /* server busy/gone - keep last state */ }
+    }
+    tick()
+    const t = setInterval(tick, 250)
+    return () => { stop = true; clearInterval(t) }
+  }, [busy])
 
   const [report, setReport] = useState<SceneReport | null>(null)
   const [detectInfo, setDetectInfo] = useState<DetectInfo | null>(null)
@@ -210,7 +227,7 @@ export function useOrganizer() {
     tab, setTab, scope, setScope,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
     safe, setSafe, tidy, setTidy,
-    busy, status, error, previewing,
+    busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation, accepted, setAccepted,
     rules, exported, history, presets, activePreset,
