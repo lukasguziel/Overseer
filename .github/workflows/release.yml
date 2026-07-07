@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v0.2.0) — tag + release are created with this name"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Gate: same checks as CI ---
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python lint + tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest ruff
+          ruff check src tests
+          pytest
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Frontend tests + build (-> src/web/)
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm run build
+
+      # --- Package: same layout as deploy.ps1 produces ---
+      - name: Assemble plugin folder
+        run: |
+          pkg=dist/SceneOrganizer
+          mkdir -p "$pkg/sceneorg"
+          cp src/scene_organizer.pyp "$pkg/"
+          cp src/config.example.json "$pkg/"
+          cp src/sceneorg/*.py "$pkg/sceneorg/"
+          [ -d src/presets ] && cp -r src/presets "$pkg/presets"
+          if [ -d src/plans ]; then mkdir -p "$pkg/plans"; cp src/plans/*.json "$pkg/plans/" 2>/dev/null || true; fi
+          cp -r src/web "$pkg/web"
+
+      - name: Zip
+        run: cd dist && zip -r "SceneOrganizer-$VERSION.zip" SceneOrganizer
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Scene Organizer ${{ env.VERSION }}
+          files: dist/SceneOrganizer-${{ env.VERSION }}.zip
+          generate_release_notes: true
+          body: |
+            Fertig geschnürtes Cinema-4D-2024-Plugin. Installation: Zip entpacken und den
+            Ordner `SceneOrganizer/` in einen C4D-Plugin-Ordner legen, z.B.
+            `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (kein Admin nötig)
+            oder `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.
