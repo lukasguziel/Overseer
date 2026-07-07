@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "id": "product-studio",
+    "name": "Product / Studio",
+    "description": "Product shots and studio scenes. PascalCase, English, clean type prefixes. Groups for hero product, props and set."
+  },
+  "casing": "PascalCase",
+  "language": "en",
+  "number_pad": 2,
+  "prefixes": {"light": "LGT_", "camera": "CAM_"},
+  "translations": {
+    "zylinder": "cylinder", "wuerfel": "cube", "kugel": "sphere", "produkt": "product"
+  },
+  "groups": [
+    {"name": "Cameras", "categories": ["camera"], "keywords": [], "aliases": ["cams", "kameras"], "priority": 100},
+    {"name": "Lights", "categories": ["light"], "keywords": [], "aliases": ["lichter", "licht"], "priority": 100},
+    {"name": "Product", "categories": [], "keywords": ["product", "hero", "item"], "aliases": ["produkt", "held"], "priority": 50},
+    {"name": "Props", "categories": [], "keywords": ["prop", "accessory", "decoration"], "aliases": ["requisite", "deko"], "priority": 40},
+    {"name": "Set", "categories": [], "keywords": ["backdrop", "floor", "wall", "cyclorama", "stand", "table"], "aliases": ["hintergrund", "buehne"], "priority": 30}
+  ]
+}

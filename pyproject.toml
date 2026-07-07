@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scene-organizer"
+version = "0.1.0"
+description = "Cinema 4D Plugin: Szenen-Analyse, Naming-Vereinheitlichung und Struktur-Optimierung"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+# Reines Domaenen-Package liegt unter src/ und wird ohne c4d getestet.
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# E501: Zeilenlaenge unkritisch. UP031: %-Formatierung ist im c4d-Kontext ok.
+# UP042: StrEnum gibt es erst ab 3.11, wir unterstuetzen aber auch 3.9.
+ignore = ["E501", "UP031", "UP042"]

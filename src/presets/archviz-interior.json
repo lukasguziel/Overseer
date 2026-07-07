@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "id": "archviz-interior",
+    "name": "ArchViz Interior",
+    "description": "Interior/exterior architectural scenes. Spatial null hierarchy (House > floors > rooms), type axis on layers. UPPER_SNAKE, English."
+  },
+  "casing": "UPPER_SNAKE",
+  "language": "en",
+  "number_pad": 2,
+  "prefixes": {},
+  "translations": {
+    "zylinder": "cylinder", "wuerfel": "cube", "kugel": "sphere",
+    "arbeitsplatte": "countertop", "tischplatte": "tabletop", "deckflaeche": "top",
+    "kasten": "crate", "lehne": "backrest", "schraege": "slope",
+    "wand": "wall", "boden": "floor", "decke": "ceiling", "tuer": "door",
+    "fenster": "window", "treppe": "stairs", "dach": "roof", "zaun": "fence",
+    "rasen": "lawn", "vorhang": "curtain", "kissen": "pillow", "regal": "shelf",
+    "schrank": "cabinet", "tisch": "table", "stuhl": "chair", "bett": "bed"
+  },
+  "groups": [
+    {"name": "Cameras", "categories": ["camera"], "keywords": [], "aliases": ["cams", "cam", "kameras"], "priority": 100},
+    {"name": "Lights", "categories": ["light"], "keywords": [], "aliases": ["lichter", "licht", "beleuchtung"], "priority": 100},
+    {"name": "Instances", "categories": [], "keywords": ["instance", "proxy", "clone"], "aliases": ["instanzen", "proxies", "assets", "library"], "priority": 60},
+    {"name": "Furniture", "categories": [], "keywords": ["furniture", "sofa", "chair", "table", "bed", "shelf", "cabinet", "lamp", "curtain", "pillow", "desk", "wardrobe", "couch"], "aliases": ["moebel", "einrichtung"], "priority": 40},
+    {"name": "Building", "categories": [], "keywords": ["wall", "floor", "ceiling", "roof", "door", "window", "stair", "railing", "column", "basement"], "aliases": ["gebaeude", "shell", "rohbau"], "priority": 30},
+    {"name": "Exterior", "categories": [], "keywords": ["garden", "terrace", "grass", "lawn", "fence", "street", "driveway", "garage", "gutter", "hedge", "tree", "plant"], "aliases": ["aussen", "environment", "umgebung"], "priority": 20}
+  ]
+}
