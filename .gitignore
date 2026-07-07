@@ -14,6 +14,12 @@ frontend/dist/
 # Vite-Build-Output (wird aus frontend/ gebaut, per deploy.ps1 verteilt)
 src/web/
 
+# C4D SDK reference archives (grosse Vendor-Zips). Nur das fuer dieses Python-
+# Plugin relevante Python-2024-SDK wird versioniert; der Rest bleibt lokal
+# liegen (C++ 2024-2026, ProjectTool sprengen GitHubs 100-MB-Limit).
+c4d_sdk/*
+!c4d_sdk/Cinema_4D_Python_SDK_2024_5_0.zip
+
 # IDE / temp
 .idea/
 resp.json

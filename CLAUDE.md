@@ -55,23 +55,30 @@ deploy.ps1                kopiert .pyp + config.example.json + sceneorg/ + web/ 
 
 ## Plugin-IDs / Ports (in scene_organizer.pyp)
 
-- `1000001` CommandData "Scene Organizer" (nativer Dialog)
-- `1000002` Dialog-ID (GeDialog)
-- `1000005` CommandData "Scene Organizer (Web)" (startet Server + Kontroll-Dialog)
-- `1000006` ServerDialog-ID (draint die Queue per Timer, s.u.)
-- Web-Port `8787`. IDs liegen im Maxon-Dev-Range 1000001–1000010 (lokal kollisionsfrei).
+- Offizielle Maxon-Basis-ID: `1069217` ("GFCSceneOrganizer"). Die vier global registrierten
+  Elemente leiten sich als zusammenhaengender Block daraus ab (raus aus dem geteilten Dev-Range):
+- `1069217` CommandData "Scene Organizer" (nativer Dialog)
+- `1069218` Dialog-ID (GeDialog, nativer Dialog; plugin_entry.py)
+- `1069219` CommandData "Scene Organizer (Web)" (startet Server + Kontroll-Dialog)
+- `1069220` ServerDialog-ID (draint die Queue per Timer, s.u.; bridge.py)
+- Web-Port `8787`.
 - **KEINE MessageData mehr.** Beim Start werden NUR die zwei CommandData registriert (kein
   Startup-Risiko). Die Web-Request-Queue wird vom Timer des ServerDialog (bridge.ServerDialog,
   `SetTimer(100)`) auf dem Main-Thread abgearbeitet — nur solange dieses Fenster offen ist.
 
 ## Deploy-Ziel
 
-`C:\Users\lukas\AppData\Roaming\Maxon\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer\`
+Anwendungsweiter Plugin-Ordner (globale CLAUDE.md; `deploy.ps1` schreibt hierhin -> **braucht Admin**):
+
+`C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer\`
+
+Alternative ohne Elevation: der User-Prefs-Ordner
+`%APPDATA%\Maxon\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer\` (C4D laedt beide gleichwertig).
 
 ## Commands
 
 ```bash
-python -m pytest                 # Unit-Tests (ohne c4d), aktuell 92 grün
+python -m pytest                 # Unit-Tests (ohne c4d), aktuell 103 grün
 python -m ruff check src tests   # Lint (muss sauber sein — CI-Gate)
 python -m ruff check --fix src tests
 
