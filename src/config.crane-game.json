@@ -1,0 +1,106 @@
+{
+  "casing": "UPPER_SNAKE",
+  "language": null,
+  "number_pad": 2,
+  "prefixes": {},
+  "translations": {},
+  "groups": [
+    {
+      "name": "Cameras",
+      "categories": [
+        "camera"
+      ],
+      "keywords": [],
+      "aliases": [
+        "cam",
+        "cams",
+        "kamera",
+        "kameras"
+      ],
+      "priority": 100
+    },
+    {
+      "name": "Lights",
+      "categories": [
+        "light"
+      ],
+      "keywords": [],
+      "aliases": [
+        "light",
+        "lights",
+        "licht",
+        "lichter",
+        "beleuchtung",
+        "lighting"
+      ],
+      "priority": 100
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "group_1",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 0
+        },
+        "data": {
+          "name": "Cameras",
+          "aliases": "cam, cams, kamera, kameras",
+          "priority": 100
+        }
+      },
+      {
+        "id": "category_2",
+        "type": "category",
+        "position": {
+          "x": 60,
+          "y": 0
+        },
+        "data": {
+          "category": "camera"
+        }
+      },
+      {
+        "id": "group_3",
+        "type": "group",
+        "position": {
+          "x": 520,
+          "y": 190
+        },
+        "data": {
+          "name": "Lights",
+          "aliases": "light, lights, licht, lichter, beleuchtung, lighting",
+          "priority": 100
+        }
+      },
+      {
+        "id": "category_4",
+        "type": "category",
+        "position": {
+          "x": 60,
+          "y": 190
+        },
+        "data": {
+          "category": "light"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_category_2_group_1",
+        "source": "category_2",
+        "target": "group_1",
+        "animated": true
+      },
+      {
+        "id": "e_category_4_group_3",
+        "source": "category_4",
+        "target": "group_3",
+        "animated": true
+      }
+    ]
+  },
+  "preset": "kitbash-mograph"
+}

@@ -18,8 +18,15 @@ import sys
 
 import c4d
 
-CMD_DIALOG = 1000001
-CMD_WEB = 1000005
+# Maxon-registrierte Plugin-ID (offiziell, "GFCSceneOrganizer"): 1069217.
+# Die weiteren global registrierten Elemente leiten sich als zusammenhaengender
+# Block daraus ab -> raus aus dem geteilten Dev-Range 1000001-1000010:
+#   1069217  CommandData  "Scene Organizer"          (hier: CMD_DIALOG)
+#   1069218  async Dialog pluginid (nativer Dialog)  -> plugin_entry.py
+#   1069219  CommandData  "Scene Organizer (Web)"    (hier: CMD_WEB)
+#   1069220  async ServerDialog pluginid             -> bridge.py
+CMD_DIALOG = 1069217
+CMD_WEB = 1069219
 WEB_PORT = 8787
 
 

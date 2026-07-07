@@ -1,7 +1,9 @@
 # Deployt das Scene-Organizer-Plugin in den C4D-2024-Plugin-Ordner.
 # Aufruf:  powershell -File deploy.ps1
-$src    = "C:\Users\lukas\code\cinema4d\scene-organizer\src"
-$target = "C:\Users\lukas\AppData\Roaming\Maxon\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer"
+# Ziel = anwendungsweiter Program-Files-Plugin-Ordner (globale CLAUDE.md) -> BRAUCHT ADMIN.
+# Skript in einer *elevated* PowerShell ausfuehren.
+$src    = Join-Path $PSScriptRoot "src"
+$target = "C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer"
 
 if (-not (Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target | Out-Null }
 
