@@ -362,18 +362,50 @@ class SceneAdapter:
         return len(targets)
 
     # -- Writing ----------------------------------------------------------
+    def _match_group(self, obj, segment: str, canonical=None) -> bool:
+        """Does this null represent the group `segment`? Alias-aware when a
+        `canonical(name) -> canonical name` resolver is supplied (so an
+        existing 'Lichter' container is reused for 'Lights' instead of
+        creating a duplicate)."""
+        if not obj.CheckType(c4d.Onull):
+            return False
+        name = obj.GetName()
+        if name.lower() == segment.lower():
+            return True
+        return canonical is not None and canonical(name) == segment
+
+    def ensure_group_path(self, path: str, created: list[object],
+                          canonical=None) -> object:
+        """Find or create the null chain for a group path ('Room/Furniture').
+
+        Each segment is matched among the children of the previous one
+        (top level: document roots), reusing existing containers -- alias-
+        aware via `canonical`. Missing segments are created (undoable).
+        """
+        parent = None
+        for segment in path.split("/"):
+            found = None
+            child = parent.GetDown() if parent is not None \
+                else self.doc.GetFirstObject()
+            while child:
+                if self._match_group(child, segment, canonical):
+                    found = child
+                    break
+                child = child.GetNext()
+            if found is None:
+                found = c4d.BaseObject(c4d.Onull)
+                found.SetName(segment)
+                if parent is not None:
+                    found.InsertUnderLast(parent)
+                else:
+                    self.doc.InsertObject(found)
+                self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, found)
+                created.append(found)
+            parent = found
+        return parent
+
     def _find_or_create_group(self, name: str, created: list[object]) -> object:
-        top = self.doc.GetFirstObject()
-        while top:
-            if top.CheckType(c4d.Onull) and top.GetName() == name:
-                return top
-            top = top.GetNext()
-        null = c4d.BaseObject(c4d.Onull)
-        null.SetName(name)
-        self.doc.InsertObject(null)
-        self.doc.AddUndo(c4d.UNDOTYPE_NEWOBJ, null)
-        created.append(null)
-        return null
+        return self.ensure_group_path(name, created)
 
     def apply_renames(self, renames: list[RenameOp]) -> int:
         if not renames:
@@ -439,17 +471,15 @@ class SceneAdapter:
         c4d.EventAdd()
         return count
 
-    def apply_reparents(self, reparents: list[ReparentOp]) -> int:
-        if not reparents:
-            return 0
-        self.doc.StartUndo()
-        created: list[object] = []
+    def _do_reparents(self, reparents: list[ReparentOp], created: list,
+                      canonical=None) -> int:
+        """Reparent ops without their own undo bracket (see apply_bundle)."""
         count = 0
         for op in reparents:
             obj = self._by_guid.get(op.guid)
             if obj is None:
                 continue
-            group = self._find_or_create_group(op.to_group, created)
+            group = self.ensure_group_path(op.to_group, created, canonical)
             if obj == group:
                 continue
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
@@ -458,9 +488,53 @@ class SceneAdapter:
             obj.InsertUnderLast(group)
             obj.SetMg(mg)  # keep world position
             count += 1
+        return count
+
+    def apply_reparents(self, reparents: list[ReparentOp], canonical=None) -> int:
+        if not reparents:
+            return 0
+        self.doc.StartUndo()
+        created: list[object] = []
+        count = self._do_reparents(reparents, created, canonical)
         self.doc.EndUndo()
         c4d.EventAdd()
         return count
+
+    def apply_bundle(self, renames: list[RenameOp],
+                     reparents: list[ReparentOp],
+                     layerops: list[LayerOp],
+                     canonical=None) -> dict:
+        """Apply naming + structure + layers in ONE undo step (Ctrl+Z once).
+
+        Renames run first (they reference objects by guid, order-independent),
+        then reparents (may create group chains), then layers.
+        """
+        if not (renames or reparents or layerops):
+            return {"renames": 0, "reparents": 0, "layers": 0}
+        self.doc.StartUndo()
+        created: list = []
+        lay_cache: dict = {}
+        renamed = 0
+        for op in renames:
+            obj = self._by_guid.get(op.guid)
+            if obj is None:
+                continue
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+            obj.SetName(op.new_name)
+            renamed += 1
+        reparented = self._do_reparents(reparents, created, canonical)
+        layered = 0
+        for op in layerops:
+            obj = self._by_guid.get(op.guid)
+            if obj is None:
+                continue
+            layer = self._find_or_create_layer(op.layer, created, lay_cache)
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+            obj.SetLayerObject(layer)
+            layered += 1
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"renames": renamed, "reparents": reparented, "layers": layered}
 
     # -- Restructuring plan (written by the skill) ------------------------
     def apply_plan(self, operations: list[dict]) -> dict:

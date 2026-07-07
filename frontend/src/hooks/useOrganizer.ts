@@ -81,10 +81,11 @@ export function useOrganizer() {
   }
 
   const doAnalyze = useCallback(() => run('Analysis', async () => {
-    const r = await call('analyze')
+    // Selection scope narrows every stat in the report (Overview, Assets, ...).
+    const r = await call('analyze', { settings: { selection: scope } })
     setReport(r.report)
     call('history').then((h) => setHistory(h.history || [])).catch(() => {})
-  }), [])
+  }), [scope])
 
   const doDetect = () => run('Detect', async () => {
     const r = await call('detect')

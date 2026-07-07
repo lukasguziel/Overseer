@@ -57,7 +57,10 @@ class SceneAnalyzer:
     def __init__(self, standard: StructureStandard = None) -> None:
         self.standard = standard or default_standard()
 
-    def analyze(self, tree: model.SceneTree, file_name: str = "") -> SceneReport:
+    def analyze(self, tree: model.SceneTree, file_name: str = "",
+                scope: set | None = None) -> SceneReport:
+        """Aggregate the tree; `scope` (guid set) restricts ALL stats to the
+        selection subtree so every dashboard number reflects it."""
         report = SceneReport(file=file_name)
 
         types: Counter = Counter()
@@ -75,8 +78,15 @@ class SceneAnalyzer:
         max_depth = 0
         count = 0
 
+        top_nodes: list = []       # scoped replacement for tree.roots
+
         # ONE pass over all nodes: casing/language per object only once.
         for n in tree.walk():
+            if scope is not None:
+                if n.guid not in scope:
+                    continue
+                if n.parent is None or n.parent.guid not in scope:
+                    top_nodes.append(n)
             count += 1
             if n.depth > max_depth:
                 max_depth = n.depth
@@ -128,15 +138,23 @@ class SceneAnalyzer:
         report.cameras_by_group = dict(camera_groups)
         report.top_level = [
             {"name": r.name, "type": r.type_name, "children": r.child_count}
-            for r in tree.roots
+            for r in (tree.roots if scope is None else top_nodes)
         ]
         report.nodes = node_dicts
 
         struct = self.standard.evaluate(tree)
-        report.structure_compliance = struct.compliance
+        misplaced = struct.misplaced
+        if scope is None:
+            report.structure_compliance = struct.compliance
+        else:
+            misplaced = [f for f in misplaced if f.guid in scope]
+            correct = [f for f in struct.correct if f.guid in scope]
+            total = len(misplaced) + len(correct)
+            report.structure_compliance = (
+                len(correct) / float(total) if total else 1.0)
         report.misplaced = [
             {"name": f.name, "category": f.category,
              "current": f.current_group, "expected": f.expected_group}
-            for f in struct.misplaced
+            for f in misplaced
         ]
         return report

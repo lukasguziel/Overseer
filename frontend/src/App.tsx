@@ -1,6 +1,7 @@
 // Thin shell: topbar + tab navigation. All state/API flow lives in
 // hooks/useOrganizer, each tab in tabs/<Name>Tab.tsx.
 import { useOrganizer } from './hooks/useOrganizer'
+import logo from './assets/so_logo.jpg'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'
 import Preloader from './components/Preloader'
@@ -21,11 +22,16 @@ export default function App() {
     <div className="app">
       {org.progress?.active && <Preloader progress={org.progress} />}
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">◆</span> Scene Organizer</div>
+        <div className="brand"><img className="brand-logo" src={logo} alt="" /> Scene Organizer</div>
 
         {report && compliance != null && (
           <div className="scene-meta">
             <span className="scene-name">{report.file || '(scene)'}</span>
+            {report.scoped && (
+              <span className="scope-badge" title="Stats cover only the current selection (incl. children)">
+                selection
+              </span>
+            )}
             <span className="sep">·</span>{report.object_count} objects
             <span className="sep">·</span>
             <span className={'compliance ' + (compliance >= 80 ? 'good' : compliance >= 50 ? 'mid' : 'low')}>

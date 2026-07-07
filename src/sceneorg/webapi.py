@@ -14,7 +14,7 @@ import c4d
 from . import config as cfgmod
 from . import detect as detectmod
 from . import graph as graphmod
-from . import ops, translations
+from . import ops, pipeline, translations
 from . import translate as translatemod
 from .analyzer import SceneAnalyzer
 from .c4d_adapter import SceneAdapter
@@ -118,10 +118,19 @@ def _read_config_data() -> dict:
     return {}
 
 
+def _preset_settings(data: dict) -> dict:
+    """Settings payload of a preset -- v2 (`settings` key) or v1 (top-level)."""
+    if "settings" in data:
+        return data.get("settings") or {}
+    return {k: v for k, v in data.items() if k != "meta"}
+
+
 def _list_presets() -> list:
     """All presets (presets/*.json) with their meta info."""
     out = []
     try:
+        if not os.path.isdir(PRESETS_DIR):
+            return out
         for fn in sorted(os.listdir(PRESETS_DIR)):
             if not fn.endswith(".json"):
                 continue
@@ -129,17 +138,71 @@ def _list_presets() -> list:
                 with open(os.path.join(PRESETS_DIR, fn), encoding="utf-8") as f:
                     data = json.load(f)
                 meta = data.get("meta", {})
+                settings = cfgmod.migrate_config(_preset_settings(data))
+                groups = [g.get("name", "?")
+                          for g in (settings.get("structure") or [])]
                 out.append({
                     "id": meta.get("id") or fn[:-5],
                     "name": meta.get("name") or fn[:-5],
                     "description": meta.get("description", ""),
-                    "groups": [g["name"] for g in data.get("groups", [])],
+                    "created_at": meta.get("created_at", ""),
+                    "rules": len(settings.get("rules") or []),
+                    "groups": groups,
                 })
             except Exception:
                 continue
     except Exception:
         pass
     return out
+
+
+def _slugify(name: str) -> str:
+    out = []
+    for ch in name.strip().lower():
+        if ch.isalnum():
+            out.append(ch)
+        elif out and out[-1] != "-":
+            out.append("-")
+    return "".join(out).strip("-") or "preset"
+
+
+def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
+    """Snapshot the CURRENT config.json as a v2 preset file."""
+    if not name.strip():
+        return {"error": "preset needs a name"}
+    import time
+    slug = _slugify(name)
+    if not os.path.isdir(PRESETS_DIR):
+        os.makedirs(PRESETS_DIR)
+    path = os.path.join(PRESETS_DIR, slug + ".json")
+    if os.path.isfile(path) and not overwrite:
+        return {"error": "preset '%s' exists (send overwrite:true to replace)"
+                % slug, "exists": True, "id": slug}
+    settings = cfgmod.migrate_config(_read_config_data())
+    settings.pop("preset", None)   # a snapshot is not 'derived from' anything
+    preset = {
+        "schema": 2,
+        "meta": {
+            "id": slug,
+            "name": name.strip(),
+            "description": description.strip(),
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        },
+        "settings": settings,
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(preset, f, indent=2, ensure_ascii=False)
+    return {"ok": True, "id": slug, "path": path}
+
+
+def _delete_preset(preset_id: str) -> dict:
+    path = os.path.join(PRESETS_DIR, os.path.basename(preset_id))
+    if not path.endswith(".json"):
+        path += ".json"
+    if not os.path.isfile(path):
+        return {"error": "preset not found: %s" % preset_id}
+    os.remove(path)
+    return {"ok": True, "deleted": preset_id}
 
 
 def _load_preset(preset_id: str) -> dict | None:
@@ -195,23 +258,24 @@ def _load_plan(plan_id: str) -> dict | None:
 
 
 def _apply_preset(preset_id: str) -> dict:
-    """Write preset -> config.json (incl. generated node-editor graph).
+    """Write the preset's settings snapshot verbatim to config.json.
 
-    Sets casing/language/number_pad/prefixes/translations/groups from the
-    preset and rebuilds the `graph` so the preset shows up in the Rules tab
-    immediately.
+    v2 presets carry a full settings snapshot (incl. the node-editor graph)
+    -- nothing is regenerated, so manual graph layouts survive round trips.
+    v1 preset files are migrated on the fly (and get a generated graph).
     """
     preset = _load_preset(preset_id)
     if preset is None:
         return {"error": "preset not found: %s" % preset_id}
-    cfg = {k: preset.get(k) for k in
-           ("casing", "language", "number_pad", "prefixes",
-            "translations", "groups") if k in preset}
-    cfg["graph"] = graphmod.graph_from_groups(preset.get("groups", []))
+    cfg = cfgmod.migrate_config(_preset_settings(preset))
+    if not cfg.get("graph"):
+        cfg["graph"] = graphmod.graph_from_structure(cfg.get("structure") or [])
     cfg["preset"] = preset.get("meta", {}).get("id") or preset_id
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
-    return {"ok": True, "applied": cfg.get("preset"), "groups": len(cfg.get("groups", []))}
+    return {"ok": True, "applied": cfg.get("preset"),
+            "rules": len(cfg.get("rules") or []),
+            "groups": len(cfg.get("structure") or [])}
 
 
 def _load_cfg():
@@ -238,6 +302,8 @@ def _scope(settings: dict, adapter: SceneAdapter):
 def _rule_dict(r) -> dict:
     return {
         "name": r.name,
+        "parent": r.parent,
+        "path": r.path,
         "categories": sorted(r.match_categories),
         "keywords": sorted(r.match_keywords),
         "aliases": sorted(r.aliases),
@@ -337,6 +403,47 @@ def handle(payload: dict) -> dict:
     if op == "apply_preset":
         return _apply_preset(payload.get("id", ""))
 
+    if op == "save_preset":
+        return _save_preset(payload.get("name", ""),
+                            payload.get("description", ""),
+                            overwrite=bool(payload.get("overwrite")))
+
+    if op == "delete_preset":
+        return _delete_preset(payload.get("id", ""))
+
+    if op in ("plan_all", "apply_all"):
+        adapter = SceneAdapter(doc)
+        tree = adapter.build_tree()
+        conv = _convention(settings, cfg)
+        scope = _scope(settings, adapter)
+        plan = pipeline.plan_combined(
+            tree, cfg, convention=conv, scope=scope,
+            safe_only=bool(settings.get("safe", True)),
+            tidy=bool(settings.get("tidy", True)))
+        result = {
+            "ok": True,
+            "naming": [{"guid": r.guid, "old": r.old_name, "new": r.new_name}
+                       for r in plan.renames],
+            "structure": [{"guid": r.guid, "name": r.name,
+                           "from": r.from_group, "to": r.to_group}
+                          for r in plan.reparents],
+            "layers": [{"guid": o.guid, "name": o.name, "layer": o.layer}
+                       for o in plan.layers],
+            "applied_rules": plan.applied_rules,
+            "warnings": plan.warnings,
+            "total": plan.total,
+            "preset": data.get("preset"),
+        }
+        if op == "apply_all":
+            # Re-planned server-side on a fresh tree: guids sent by the client
+            # are only trusted as accept filters within this request cycle.
+            chosen = pipeline.filter_accepted(plan, payload.get("accept"))
+            applied = adapter.apply_bundle(
+                chosen.renames, chosen.reparents, chosen.layers,
+                canonical=cfg.standard.canonical_group)
+            result["applied"] = applied
+        return result
+
     if op == "plans":
         return {"ok": True, "plans": _list_plans()}
 
@@ -380,6 +487,9 @@ def handle(payload: dict) -> dict:
     if op == "rules":
         return {"ok": True,
                 "groups": [_rule_dict(r) for r in cfg.standard.rules],
+                "structure": cfgmod.structure_to_list(cfg.standard),
+                "rules": cfg.rules.to_list(),
+                "rule_warnings": cfg.rules.warnings,
                 "prefixes": cfg.prefixes,
                 "convention": {
                     "style": cfg.convention.style.value,
@@ -420,7 +530,8 @@ def handle(payload: dict) -> dict:
         diff = [{"guid": r.guid, "name": r.name, "from": r.from_group, "to": r.to_group}
                 for r in reparents]
         if op == "apply_structure":
-            applied = adapter.apply_reparents(reparents)
+            applied = adapter.apply_reparents(
+                reparents, canonical=cfg.standard.canonical_group)
             return {"ok": True, "applied": applied, "count": len(reparents),
                     "diff": diff, "skipped": skipped}
         return {"ok": True, "count": len(reparents), "diff": diff, "skipped": skipped}
