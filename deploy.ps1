@@ -66,12 +66,14 @@ if ((Test-Path $cfgSrc) -and (-not (Test-Path $cfgDst))) {
   Step "config.json (seeded, was missing)" { Copy-Item $cfgSrc $cfgDst -Force }
 }
 
-# Mirror package cleanly (without __pycache__)
+# Mirror package recursively (subpackages: core/, naming/, structure/,
+# cinema/), then strip __pycache__.
 Step "sceneorg/" {
   $pkgDst = Join-Path $Target "sceneorg"
   if (Test-Path $pkgDst) { Remove-Item -Recurse -Force $pkgDst }
-  New-Item -ItemType Directory -Force -Path $pkgDst | Out-Null
-  Get-ChildItem (Join-Path $src "sceneorg") -Filter *.py | Copy-Item -Destination $pkgDst -Force
+  Copy-Item -Recurse (Join-Path $src "sceneorg") $pkgDst -Force
+  Get-ChildItem $pkgDst -Recurse -Directory -Filter "__pycache__" |
+    Remove-Item -Recurse -Force
 }
 
 # Merge presets: repo presets are copied in, but presets the user saved in
