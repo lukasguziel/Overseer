@@ -59,11 +59,14 @@ Official Maxon base ID `1069217` ("GFCSceneOrganizer"), contiguous block:
 `1069219` CommandData "Scene Organizer (Web)" · `1069220` ServerDialog ID.
 Web port `8787`. No MessageData — the ServerDialog timer drains the queue.
 
-## Deploy target
+## Deployment
 
-App-wide plugin folder (deploy.ps1 writes here → **needs admin**):
-`C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer\`
-Alternative without elevation: `%APPDATA%\Maxon\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer\`.
+**Use the `deploy` skill** (`.claude/skills/deploy/`) — it discovers all installed
+Cinema 4D versions, asks which one to target, and runs `deploy.ps1`. The target
+path is NEVER in the repo: it lives in the machine-local, gitignored
+`deploy.config.json` (template: `deploy.config.example.json`).
+`deploy.ps1` reads that config (or an explicit `-Target <plugin dir>`); Program
+Files targets need an elevated shell, the `%APPDATA%` prefs folder does not.
 
 ## Commands
 
@@ -71,10 +74,11 @@ Alternative without elevation: `%APPDATA%\Maxon\Maxon Cinema 4D 2024_A5DBFF93\pl
 python -m pytest                 # unit tests (no c4d), currently 103 green
 python -m ruff check src tests   # lint (must be clean — CI gate)
 
-cd frontend && npm run build     # output -> src/web/ (then deploy.ps1)
-cd frontend && npm run dev       # HMR dev server, proxy /api -> localhost:8787
+cd frontend && pnpm run build    # output -> src/web/ (then deploy.ps1)
+cd frontend && pnpm run dev      # HMR dev server, proxy /api -> localhost:8787
+cd frontend && pnpm test         # vitest unit tests
 
-powershell -File deploy.ps1      # copy to the C4D plugin dir
+powershell -File deploy.ps1      # copy to the C4D plugin dir (see "Deployment"; target via deploy skill)
 ```
 
 ## Usage in C4D
