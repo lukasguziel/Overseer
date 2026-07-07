@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 from sceneorg import config as C  # noqa: E402
-from sceneorg import model, pipeline  # noqa: E402
+from sceneorg.core import model, pipeline  # noqa: E402
 
 if len(sys.argv) < 3:
     sys.exit("usage: dry_run.py <preset.json> <report.json> [<report2.json> ...]")
