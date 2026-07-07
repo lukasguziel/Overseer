@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "id": "kitbash-mograph",
+    "name": "Kitbash / MoGraph (gelernt)",
+    "description": "Gelernt aus crane-game_005_mainshot_final (2372 Objekte) am 2026-07-07. Dein Stil hier: UPPER_SNAKE durchgehend (2340/2372 ALL-CAPS), Namen sind Englisch/Produktcodes (kein Deutsch -> keine Uebersetzung). Struktur = bewusste Prop-Container pro Asset (KITBASH_BLUE, PIPES, MONITORS, PC, RUBBLE, NEON_SIGN ...), NICHT nach ArchViz-Kategorien. WICHTIG: Struktur NICHT umgruppieren (compliance 0.0 ist hier ein False Negative) und Naming NICHT szenenweit anwenden - PascalCase wuerde Codes/Marker zerstoeren (SONY_KV_S46..., [[[COLLIDER]]], XX_-Praefixe). Der echte Gewinn ist Layers (Kamera/Lights/Proxies taggen), plus manuell die Tippfehler-Dubletten (HALLWAY_RED_STIP vs _STRIP, CARANE vs CRANE) und Default-Junk (CYLINDER/POLYGON/NULL) aufraeumen."
+  },
+  "casing": "UPPER_SNAKE",
+  "language": null,
+  "number_pad": 2,
+  "prefixes": {},
+  "translations": {},
+  "groups": [
+    {"name": "Cameras", "categories": ["camera"], "keywords": [], "aliases": ["cam", "cams", "kamera", "kameras"], "priority": 100},
+    {"name": "Lights", "categories": ["light"], "keywords": [], "aliases": ["light", "lights", "licht", "lichter", "beleuchtung", "lighting"], "priority": 100}
+  ]
+}
