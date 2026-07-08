@@ -534,16 +534,27 @@ export function useOrganizer() {
   // measures DECISIONS, not absolute cleanliness: an open todo counts
   // against it, an applied fix OR an accepted-as-is both clear it — so 100
   // is always reachable by working through the list.
-  const namingHygScore = useMemo(() => report
+  const namingHyg = useMemo(() => report
     ? computeHygiene(report.nodes || [], report.total_polys || 0,
-        { casing, kept: keeps.naming }).namingScore
+        { casing, kept: keeps.naming })
     : null, [report, casing, keeps.naming])
 
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null
     switch (t) {
-      case 'naming':
-        return namingHygScore
+      case 'naming': {
+        // Score = what the tab actually shows as open work: the rename plan
+        // (settings-aware — turning a rule off clears its todos) plus the
+        // name-cleanup lists, unioned per object. Model-based fallback until
+        // the plan has loaded.
+        const nodes = report.nodes || []
+        if (!nodes.length) return null
+        if (!naming?.diff) return namingHyg?.namingScore ?? null
+        const open = new Set<number>(naming.diff.map((d) => d.guid))
+        namingHyg?.defaults.forEach((n) => open.add(n.guid))
+        namingHyg?.dupeGuids.forEach((g) => open.add(g))
+        return capped(open.size, (nodes.length - open.size) / nodes.length)
+      }
       case 'translate': {
         const open = translation?.count
         const total = translation?.detected?.total ?? report.object_count ?? 0
@@ -570,15 +581,16 @@ export function useOrganizer() {
       default:
         return null
     }
-  }, [report, namingHygScore, translation, keeps.layers])
+  }, [report, namingHyg, naming, translation, keeps.layers])
 
-  // The Overview shows every area's score: quietly preload the translate and
-  // layers plans there (naming/materials derive from the report alone).
+  // The Overview shows every area's score: quietly preload the plans it
+  // needs (naming for the plan-based score, translate for the counts).
   useEffect(() => {
     if (tab !== 'overview' || !report) return
+    if (!naming) reloadNaming().catch(() => {})
     if (!translation) reloadTranslate().catch(() => {})
     if (!layers) reloadLayers().catch(() => {})
-  }, [tab, report, translation, layers, reloadTranslate, reloadLayers])
+  }, [tab, report, naming, translation, layers, reloadNaming, reloadTranslate, reloadLayers])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
