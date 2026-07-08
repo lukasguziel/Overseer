@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
+import { dominantCasing } from '../lib/constants'
 import type {
-  DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult, Preset,
-  ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
+  ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult,
+  Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
 } from '../types'
 
 export interface RulesInfo {
@@ -17,23 +18,42 @@ export function useOrganizer() {
   const [scope, setScope] = useState(false)        // false = whole scene, true = selection
   const [includeHidden, setIncludeHidden] = useState(false)  // false = exclude OM-hidden objects from all stats
   const [autoRefresh, setAutoRefresh] = useState(false)  // watch the scene and re-analyze on change
+  // Live C4D object selection (polled) + a manual-mode flag that the selection
+  // changed since the last (selection-scoped) analysis.
+  const [sel, setSel] = useState<{ count: number; names: string[] }>({ count: 0, names: [] })
+  const [selStale, setSelStale] = useState(false)
 
-  const [casing, setCasing] = useState('PascalCase')
+  // Auto-refresh is derived from the scope: selection scope follows the live
+  // C4D selection automatically; whole-scene is manual (click the refresh
+  // icon). There is no separate auto/manual toggle any more.
+  const chooseScope = useCallback((v: boolean) => {
+    setScope(v)
+    setAutoRefresh(v)
+  }, [])
+
+  const [casing, setCasing] = useState('')   // '' = not chosen yet; auto-detected from the scene
+  const [applyCasing, setApplyCasing] = useState(true)        // rule: normalize casing/separators
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
+  const [applyNumbering, setApplyNumbering] = useState(true)  // rule: pad/normalize numbers
+  const [dedupe, setDedupe] = useState(true)                  // rule: renumber duplicate names to be unique
   const [safe, setSafe] = useState(true)
   const [tidy, setTidy] = useState(true)           // only collect loose objects
   const [translateTarget, setTranslateTarget] = useState('en')  // Translate tab: target language
+  // 'offline' = bundled dictionaries (10 languages, local); 'google' = online
+  const [translateEngine, setTranslateEngine] = useState('offline')
 
   const [busy, setBusy] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [status, setStatus] = useState('Ready.')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<ProgressInfo | null>(null)
 
-  // Preloader: while an operation runs, poll /api/progress (answered by the
-  // bridge's server thread, so it works WHILE the main thread is busy).
+  // Preloader: while an operation OR a live preview runs, poll /api/progress
+  // (answered by the bridge's server thread, so it works WHILE the main
+  // thread is busy — e.g. during online translation fetches).
   useEffect(() => {
-    if (!busy) { setProgress(null); return }
+    if (!busy && !previewing) { setProgress(null); return }
     let stop = false
     const tick = async () => {
       try {
@@ -44,30 +64,40 @@ export function useOrganizer() {
     tick()
     const t = setInterval(tick, 250)
     return () => { stop = true; clearInterval(t) }
-  }, [busy])
+  }, [busy, previewing])
+
+  // Bumped on every completed analysis (manual, auto-refresh, post-apply).
+  // Feeds the live-preview deps so the active tab's plan reloads whenever the
+  // scene changed — not only when a setting toggles.
+  const [sceneVersion, setSceneVersion] = useState(0)
 
   const [report, setReport] = useState<SceneReport | null>(null)
   const [detectInfo, setDetectInfo] = useState<DetectInfo | null>(null)
   const [naming, setNaming] = useState<PlanResult<RenameDiff> | null>(null)
   const [structure, setStructure] = useState<PlanResult<ReparentDiff> | null>(null)
   const [layers, setLayers] = useState<PlanResult<LayerDiff> | null>(null)
+  const [layersAccepted, setLayersAccepted] = useState<Set<number>>(() => new Set())  // guids to tag
   const [translation, setTranslation] = useState<PlanResult<TranslateDiff> | null>(null)
   const [accepted, setAccepted] = useState<Set<number>>(() => new Set())  // guids for the rename
+  const [keepNames, setKeepNames] = useState<Set<string>>(() => new Set())  // names kept as-is (persisted in config)
   const [rules, setRules] = useState<RulesInfo | null>(null)
-  const [previewing, setPreviewing] = useState(false)
   const [exported, setExported] = useState('')
   const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [changes, setChanges] = useState<ChangeEntry[]>([])
   const [presets, setPresets] = useState<Preset[]>([])
   const [activePreset, setActivePreset] = useState<string | null>(null)
 
   const settings = useCallback((): OrganizerSettings => ({
     casing,
+    apply_casing: applyCasing,
     language: language === 'none' ? null : language,
     number_pad: numberPad,
+    apply_numbering: applyNumbering,
+    dedupe,
     selection: scope,
     safe,
     tidy,
-  }), [casing, language, numberPad, scope, safe, tidy])
+  }), [casing, applyCasing, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
 
   async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true); setError(''); setStatus(label + ' …')
@@ -85,14 +115,16 @@ export function useOrganizer() {
 
   // Change token of the scene as of the last analysis, so the auto-refresh
   // watcher knows when the scene has moved on (survives re-renders via a ref).
-  const lastDirty = useRef<{ dirty: number; name: string } | null>(null)
+  const lastDirty = useRef<{ dirty: number; name: string; sel: number } | null>(null)
 
   const doAnalyze = useCallback(() => run('Analysis', async () => {
     // Selection scope + the eye toggle narrow every stat in the report
     // (Overview, Assets, compliance, …) — the server re-aggregates the tree.
     const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
     setReport(r.report)
-    lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '' }
+    lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '', sel: r.report?.sel ?? 0 }
+    setSelStale(false)  // this analysis is in sync with the current selection
+    setSceneVersion((v) => v + 1)  // let the active tab's live preview reload
     call('history').then((h) => setHistory(h.history || [])).catch(() => {})
   }), [scope, includeHidden])
 
@@ -142,6 +174,27 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
   }, [doAnalyze])
 
+  // Accept/un-accept a material as intentionally unused (persisted in config,
+  // improves the materials health score). Source of truth: materials.accepted_all.
+  const syncAccepted = useCallback((next: Set<string>) => {
+    setStatus('Saving…')
+    call('set_accepted_unused', { names: Array.from(next) })
+      .then(() => doAnalyze())
+      .catch((e) => { setError(String(e.message || e)); setStatus('Save ✗') })
+  }, [doAnalyze])
+
+  const acceptUnused = useCallback((name: string) => {
+    const cur = new Set(report?.materials?.accepted_all || [])
+    cur.add(name)
+    syncAccepted(cur)
+  }, [report, syncAccepted])
+
+  const unacceptUnused = useCallback((name: string) => {
+    const cur = new Set(report?.materials?.accepted_all || [])
+    cur.delete(name)
+    syncAccepted(cur)
+  }, [report, syncAccepted])
+
   const doFixTexturesRelative = useCallback((materials?: string[]) => {
     setStatus('Making texture paths relative…')
     call('fix_textures_relative', materials ? { materials } : {})
@@ -159,23 +212,48 @@ export function useOrganizer() {
     const r = await call('apply_naming', { settings: settings() })
     setNaming(r); doAnalyze()
   })
+  // Accept a single rename (green ✓ per row).
+  const applyNamingOne = (guid: number, name?: string) => run('Rename', async () => {
+    const r = await call('apply_naming', { settings: settings(), guids: [guid] })
+    setStatus(r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed')
+    doAnalyze()
+  })
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
     setStructure(r); doAnalyze()
   })
-  const applyLayers = () => run('Apply layers', async () => {
-    const r = await call('apply_layers', { settings: settings() })
+  const reloadLayers = useCallback(async () => {
+    const r = await call('plan_layers', { settings: settings() })
     setLayers(r)
+    setLayersAccepted(new Set((r.diff || []).map((d: LayerDiff) => d.guid)))
+  }, [settings])
+
+  const applyLayers = () => run('Apply layers', async () => {
+    const r = await call('apply_layers', {
+      settings: settings(), guids: Array.from(layersAccepted) })
+    setStatus(`${r.applied} objects tagged ✓ (undoable)`)
+    doAnalyze()
+    await reloadLayers()  // tagged rows drop out of the preview
+  })
+
+  // Tag a single object immediately (per-row ✓).
+  const applyLayerOne = (guid: number, name?: string) => run('Tag', async () => {
+    const r = await call('apply_layers', { settings: settings(), guids: [guid] })
+    setStatus(r.applied ? `Tagged “${name || ''}” ✓ (undoable)` : 'Nothing tagged')
+    doAnalyze()
+    await reloadLayers()
   })
   const reloadTranslate = useCallback(async () => {
-    const p = await call('plan_translate', { settings: settings(), target: translateTarget })
+    const p = await call('plan_translate', {
+      settings: settings(), target: translateTarget, engine: translateEngine })
     setTranslation(p)
     setAccepted(new Set((p.diff || []).map((d: TranslateDiff) => d.guid)))
-  }, [settings, translateTarget])
+  }, [settings, translateTarget, translateEngine])
 
   const applyTranslate = () => run('Apply translations', async () => {
     const guids = Array.from(accepted)
-    const r = await call('apply_translate', { settings: settings(), target: translateTarget, guids })
+    const r = await call('apply_translate', {
+      settings: settings(), target: translateTarget, engine: translateEngine, guids })
     setStatus(`Translated ${r.applied} names ✓ (undoable)`)
     doAnalyze()
     await reloadTranslate()  // the just-renamed ones drop out
@@ -183,7 +261,8 @@ export function useOrganizer() {
 
   // Translate a single entry immediately (per-row button).
   const applyTranslateOne = (guid: number, name?: string) => run('Translate', async () => {
-    const r = await call('apply_translate', { settings: settings(), target: translateTarget, guids: [guid] })
+    const r = await call('apply_translate', {
+      settings: settings(), target: translateTarget, engine: translateEngine, guids: [guid] })
     setStatus(r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated')
     doAnalyze()
     await reloadTranslate()
@@ -199,28 +278,36 @@ export function useOrganizer() {
   // Auto-analyze on first load.
   useEffect(() => { doAnalyze() }, [doAnalyze])
 
-  // Auto-refresh watcher: while enabled, poll the cheap `dirty` change token
-  // (~1.2 s). When the scene has moved past the last-analyzed token — a cube
-  // added, geometry edited, objects reparented — or the active document
-  // switched, re-run the analysis so every graph reflects the live scene.
+  // Scene watcher (always polling the cheap `dirty`+selection token, ~1 s):
+  //  - keeps the live C4D selection display up to date;
+  //  - AUTO mode: re-analyzes when the scene changed (add/edit/reparent, doc
+  //    switch) OR, under selection scope, when the C4D selection changed;
+  //  - MANUAL mode: under selection scope, flags that the selection moved on
+  //    so the UI can nudge the user to refresh.
   const refreshing = useRef(false)
   useEffect(() => {
-    if (!autoRefresh) return
     let stop = false
     const tick = async () => {
       if (stop || busy || refreshing.current) return
       try {
         const d = await call('dirty')
+        if (stop) return
+        setSel({ count: d.sel_count ?? 0, names: d.sel_names ?? [] })
         const last = lastDirty.current
-        if (!stop && last && (d.dirty !== last.dirty || d.name !== last.name)) {
+        if (!last) return
+        const sceneChanged = d.dirty !== last.dirty || d.name !== last.name
+        const selChanged = d.sel !== last.sel
+        if (autoRefresh && (sceneChanged || (scope && selChanged))) {
           refreshing.current = true
           Promise.resolve(doAnalyze()).finally(() => { refreshing.current = false })
+        } else if (!autoRefresh && scope && selChanged) {
+          setSelStale(true)
         }
       } catch { /* main thread busy/gone — try again next tick */ }
     }
-    const t = setInterval(tick, 1200)
+    const t = setInterval(tick, 1000)
     return () => { stop = true; clearInterval(t) }
-  }, [autoRefresh, busy, doAnalyze])
+  }, [autoRefresh, scope, busy, doAnalyze])
 
   // Load analysis history + presets as soon as the Misc tab becomes active.
   useEffect(() => {
@@ -256,7 +343,26 @@ export function useOrganizer() {
   usePreview('naming', 350, async () => {
     const r = await call('plan_naming', { settings: settings() })
     setNaming(r)
-  }, [casing, language, numberPad, scope, settings])
+    if (r.keep_names) setKeepNames(new Set(r.keep_names))
+  }, [casing, applyCasing, language, numberPad, applyNumbering, dedupe, scope, settings, sceneVersion])
+
+  // Persist the keep-list to config.json, then re-plan so the score/count sync.
+  const syncKeep = useCallback(async (next: Set<string>) => {
+    setKeepNames(next)
+    await call('set_keep_names', { names: Array.from(next) })
+    const r = await call('plan_naming', { settings: settings() })
+    setNaming(r)
+  }, [settings])
+
+  const keepName = useCallback((name: string) => {
+    const next = new Set(keepNames); next.add(name)
+    syncKeep(next).catch((e) => setError(String(e.message || e)))
+  }, [keepNames, syncKeep])
+
+  const unkeepName = useCallback((name: string) => {
+    const next = new Set(keepNames); next.delete(name)
+    syncKeep(next).catch((e) => setError(String(e.message || e)))
+  }, [keepNames, syncKeep])
 
   usePreview('structure', 350, async () => {
     const [r, rl] = await Promise.all([
@@ -265,32 +371,72 @@ export function useOrganizer() {
     ])
     setStructure(r)
     if (rl) setRules(rl)
-  }, [safe, scope, settings, rules])
+  }, [safe, scope, settings, rules, sceneVersion])
 
   usePreview('translate', 300, async () => {
     await reloadTranslate()
-  }, [scope, settings, translateTarget, reloadTranslate])
+  }, [scope, settings, translateTarget, translateEngine, reloadTranslate, sceneVersion])
 
   usePreview('layers', 300, async () => {
-    const r = await call('plan_layers', { settings: settings() })
-    setLayers(r)
-  }, [scope, settings])
+    await reloadLayers()
+  }, [scope, settings, reloadLayers, sceneVersion])
+
+  // First time a scene is analyzed and no casing is chosen yet: pick the
+  // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
+  useEffect(() => {
+    if (casing !== '') return
+    const d = dominantCasing(report?.casing)
+    if (d) setCasing(d)
+  }, [report, casing])
+
+  // Change history: load when the tab opens or the scene changed after an apply.
+  const loadChanges = useCallback(() => {
+    call('changes').then((r) => setChanges(r.changes || [])).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'misc') loadChanges()
+  }, [tab, sceneVersion, loadChanges])
+
+  const doRevertChange = useCallback((id: string) => {
+    setStatus('Reverting change…')
+    call('revert_change', { id })
+      .then((r) => {
+        setStatus(r.reverted != null
+          ? `Reverted ${r.reverted} change${r.reverted === 1 ? '' : 's'}${r.missing ? ` (${r.missing} object(s) not found)` : ''} ✓ (undoable)`
+          : 'Reverted ✓')
+        loadChanges()
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Revert ✗') })
+  }, [loadChanges, doAnalyze])
+
+  const doClearChanges = useCallback(() => {
+    call('clear_changes').then(() => loadChanges()).catch(() => {})
+  }, [loadChanges])
 
   const compliance = report ? Math.round(report.structure_compliance * 100) : null
 
   return {
-    tab, setTab, scope, setScope, includeHidden, setIncludeHidden,
-    autoRefresh, setAutoRefresh,
+    tab, setTab, scope, setScope: chooseScope, includeHidden, setIncludeHidden,
+    autoRefresh, setAutoRefresh, sel, selStale,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
+    applyCasing, setApplyCasing,
+    applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
+    translateEngine, setTranslateEngine,
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation, accepted, setAccepted,
+    layersAccepted, setLayersAccepted,
+    keepNames, keepName, unkeepName,
+    changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative,
-    applyNaming, applyStructure, applyLayers, applyTranslate, applyTranslateOne,
-    applyPreset,
+    acceptUnused, unacceptUnused,
+    applyNaming, applyNamingOne, applyStructure, applyLayers, applyLayerOne,
+    applyTranslate, applyTranslateOne, applyPreset,
   }
 }
 

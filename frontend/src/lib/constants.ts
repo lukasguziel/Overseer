@@ -14,19 +14,36 @@ export const LANGS: [string, string][] = [
 
 export type TabId =
   | 'overview' | 'assets' | 'naming' | 'translate'
-  | 'structure' | 'layers' | 'textures' | 'rules' | 'misc'
+  | 'structure' | 'layers' | 'materials' | 'rules' | 'misc'
 
-export const TABS: [TabId, string][] = [
+// [id, label, soon?] — `soon` tabs are shown disabled with a "soon" badge.
+export const TABS: [TabId, string, boolean?][] = [
   ['overview', 'Overview'],
-  ['assets', 'Assets'],
   ['naming', 'Naming'],
   ['translate', 'Translate'],
-  ['structure', 'Structure'],
+  ['assets', 'Assets'],
   ['layers', 'Layers'],
-  ['textures', 'Textures'],
-  ['rules', 'Rules'],
+  ['materials', 'Materials'],
+  ['structure', 'Structure', true],
+  ['rules', 'Rules', true],
   ['misc', 'Misc'],
 ]
+
+// The producible target casings, used to auto-pick the scene's dominant one.
+const PRODUCIBLE = CASINGS.map(([v]) => v)
+
+// Most common producible casing in a report.casing distribution, or '' if none
+// of the produced styles dominate (scene is mostly Capitalized/mixed/spaced).
+export function dominantCasing(dist: Record<string, number> | undefined): string {
+  if (!dist) return ''
+  let best = ''
+  let max = 0
+  for (const style of PRODUCIBLE) {
+    const n = dist[style] || 0
+    if (n > max) { max = n; best = style }
+  }
+  return best
+}
 
 export const CAT_ORDER = ['mesh', 'spline', 'light', 'camera', 'null', 'other']
 

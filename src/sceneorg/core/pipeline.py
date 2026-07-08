@@ -42,7 +42,8 @@ def plan_combined(
     renamed = {op.guid for op in bundle.renames}
     layered = {op.guid for op in bundle.layers}
 
-    for op in ops.plan_renames(tree, conv, scope=scope, prefixes=cfg.prefixes):
+    for op in ops.plan_renames(tree, conv, scope=scope, prefixes=cfg.prefixes,
+                               keep=cfg.keep_names):
         if op.guid not in renamed:
             plan.renames.append(op)
             renamed.add(op.guid)

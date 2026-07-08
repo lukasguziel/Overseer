@@ -19,6 +19,8 @@ DEFAULT_CONFIG = {
     "structure": None,
     "rules": [],
     "translations": {},
+    "keep_names": [],
+    "accepted_unused": [],
 }
 
 
@@ -29,6 +31,8 @@ class Config:
     rules: RuleSet
     prefixes: dict = field(default_factory=dict)
     extra_translations: dict = field(default_factory=dict)
+    keep_names: set = field(default_factory=set)
+    accepted_unused: set = field(default_factory=set)
 
 
 def migrate_config(data: dict) -> dict:
@@ -131,4 +135,6 @@ def load_config(data: dict | None = None) -> Config:
         rules=ruleset,
         prefixes=_legacy_prefixes(ruleset),
         extra_translations=dict(merged.get("translations") or {}),
+        keep_names={str(n) for n in (merged.get("keep_names") or [])},
+        accepted_unused={str(n) for n in (merged.get("accepted_unused") or [])},
     )

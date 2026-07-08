@@ -50,14 +50,16 @@ def test_translate_target_german():
 
 
 def test_detect_languages_summary():
-    root = model.SceneNode("Root", category=model.CAT_NULL, guid=0)
+    # NB: with the bundled bulk dictionary, "Root" itself detects as English
+    # -- use a German container name so the intent (dominant=de) stays clear.
+    root = model.SceneNode("Schrank", category=model.CAT_NULL, guid=0)
     root.add_child(model.SceneNode("STUHL", category=model.CAT_MESH, guid=1))
     root.add_child(model.SceneNode("Kitchen", category=model.CAT_MESH, guid=2))
     root.add_child(model.SceneNode("Tisch", category=model.CAT_MESH, guid=3))
     tree = model.SceneTree(roots=[root])
     s = translate.detect_languages(tree)
     assert s.total == 4
-    assert s.de == 2 and s.en == 1
+    assert s.de == 3 and s.en == 1
     assert s.dominant == "de"
 
 

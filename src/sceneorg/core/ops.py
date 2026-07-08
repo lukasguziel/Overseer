@@ -1,44 +1,88 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..naming.convention import NamingConvention
 from ..structure.standard import StructureStandard
 from . import model
+from .defaults import DEFAULT_LAYER_SCHEME
+
+
+class Writer(ABC):
+    @abstractmethod
+    def rename(self, node: model.SceneNode, new_name: str) -> None: ...
+
+    @abstractmethod
+    def reparent(self, node: model.SceneNode, to_group: str) -> None: ...
+
+    @abstractmethod
+    def assign_layer(self, node: model.SceneNode, layer: str) -> None: ...
+
+
+class Operation(ABC):
+    node: model.SceneNode
+
+    @property
+    def guid(self) -> int:
+        return self.node.guid
+
+    @property
+    def name(self) -> str:
+        return self.node.name
+
+    @abstractmethod
+    def apply(self, writer: Writer) -> None: ...
+
+    @abstractmethod
+    def to_dict(self) -> dict: ...
 
 
 @dataclass
-class RenameOp:
-    guid: int
-    old_name: str
-    new_name: str
+class RenameOp(Operation):
+    node: model.SceneNode = field(compare=False)
+    new_name: str = ""
+    # Every rule that contributed to this rename (a rename can trigger more
+    # than one, e.g. casing + numbering + unique). For the UI.
+    rules: list = field(default_factory=lambda: ["casing"])
+
+    @property
+    def old_name(self) -> str:
+        return self.node.name
+
+    def apply(self, writer: Writer) -> None:
+        writer.rename(self.node, self.new_name)
+
+    def to_dict(self) -> dict:
+        return {"guid": self.guid, "old": self.old_name, "new": self.new_name,
+                "rules": self.rules}
 
 
 @dataclass
-class ReparentOp:
-    guid: int
-    name: str
-    from_group: str
-    to_group: str
+class ReparentOp(Operation):
+    node: model.SceneNode = field(compare=False)
+    to_group: str = ""
+    from_group: str = ""
+
+    def apply(self, writer: Writer) -> None:
+        writer.reparent(self.node, self.to_group)
+
+    def to_dict(self) -> dict:
+        return {"guid": self.guid, "name": self.name,
+                "from": self.from_group, "to": self.to_group}
 
 
 @dataclass
-class LayerOp:
-    guid: int
-    name: str
-    layer: str
+class LayerOp(Operation):
+    node: model.SceneNode = field(compare=False)
+    layer: str = ""
 
+    def apply(self, writer: Writer) -> None:
+        writer.assign_layer(self.node, self.layer)
 
-DEFAULT_LAYER_SCHEME = {
-    "categories": {
-        model.CAT_LIGHT: "Lights",
-        model.CAT_CAMERA: "Cameras",
-    },
-    "types": {
-        "Instance": "Proxies",
-    },
-}
+    def to_dict(self) -> dict:
+        return {"guid": self.guid, "name": self.name, "layer": self.layer}
 
 
 def layer_for(node: model.SceneNode, scheme: dict | None = None) -> str | None:
@@ -53,13 +97,42 @@ def is_safe_to_reparent(node: model.SceneNode) -> bool:
     return node.parent is None or node.parent.category == model.CAT_NULL
 
 
+def _rename_rules(convention: NamingConvention, raw: str, prefix: str,
+                  orig: str, base: str, final: str) -> list[str]:
+    """Every rule that contributed to a rename (casing / numbering / prefix /
+    unique). More than one can apply at once."""
+    # Casing-only result (numbering disabled) to separate the two effects.
+    prev = convention.apply_numbering
+    convention.apply_numbering = False
+    try:
+        casing_only = convention.normalize(raw)
+    finally:
+        convention.apply_numbering = prev
+    if prefix:
+        casing_only = prefix + casing_only
+
+    rules: list[str] = []
+    if casing_only != orig:
+        rules.append("casing")
+    if convention.apply_numbering and base != casing_only:
+        rules.append("numbering")
+    if prefix and not orig.startswith(prefix):
+        rules.append("prefix")
+    if final != base:
+        rules.append("unique")   # a counter was appended to break a duplicate
+    return rules or ["casing"]
+
+
 def plan_renames(
     tree: model.SceneTree,
     convention: NamingConvention,
     scope: set | None = None,
     prefixes: dict | None = None,
+    keep: set | None = None,
+    dedupe: bool = True,
 ) -> list[RenameOp]:
     prefixes = prefixes or {}
+    keep = keep or set()
     buckets: dict = defaultdict(list)
     for n in tree.walk():
         key = id(n.parent) if n.parent is not None else None
@@ -70,7 +143,9 @@ def plan_renames(
         used: set = set()
         renaming = []
         for c in children:
-            if scope is None or c.guid in scope:
+            if c.name in keep:
+                used.add(c.name)
+            elif scope is None or c.guid in scope:
                 renaming.append(c)
             else:
                 used.add(c.name)
@@ -88,13 +163,15 @@ def plan_renames(
                 base = prefix + base
 
             final = base
-            i = 1
-            while final in used:
-                final = convention.disambiguate(base, i)
-                i += 1
+            if dedupe:
+                i = 1
+                while final in used:
+                    final = convention.disambiguate(base, i)
+                    i += 1
             used.add(final)
             if final != c.name:
-                ops.append(RenameOp(guid=c.guid, old_name=c.name, new_name=final))
+                rules = _rename_rules(convention, raw, prefix, c.name, base, final)
+                ops.append(RenameOp(node=c, new_name=final, rules=rules))
     return ops
 
 
@@ -106,22 +183,20 @@ def plan_reparents(
     tidy: bool = True,
 ) -> list[ReparentOp]:
     report = standard.evaluate(tree)
-    node_by_guid = {n.guid: n for n in tree.walk()}
 
     ops: list[ReparentOp] = []
     for f in report.misplaced:
         if scope is not None and f.guid not in scope:
             continue
-        node = node_by_guid.get(f.guid)
-        if safe_only and node is not None and not is_safe_to_reparent(node):
+        node = f.node
+        if safe_only and not is_safe_to_reparent(node):
             continue
-        if tidy and node is not None and standard.enclosing_group(node) is not None:
+        if tidy and standard.enclosing_group(node) is not None:
             continue
         ops.append(ReparentOp(
-            guid=f.guid,
-            name=f.name,
-            from_group=f.current_group or "(root)",
+            node=node,
             to_group=f.expected_group,
+            from_group=f.current_group or "(root)",
         ))
     return ops
 
@@ -136,6 +211,8 @@ def plan_layers(
         if scope is not None and n.guid not in scope:
             continue
         layer = layer_for(n, scheme)
-        if layer:
-            ops.append(LayerOp(guid=n.guid, name=n.name, layer=layer))
+        # Skip objects already on their target layer, so applied rows drop
+        # out of the preview instead of being proposed again.
+        if layer and getattr(n, "layer", None) != layer:
+            ops.append(LayerOp(node=n, layer=layer))
     return ops

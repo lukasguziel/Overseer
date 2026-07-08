@@ -5,30 +5,9 @@ import collections
 import c4d
 
 from ..core import model
+from ..core.defaults import LAYER_COLORS, RS_CAMERA_IDS, RS_LIGHT_IDS
 from ..core.ops import LayerOp, RenameOp, ReparentOp
-
-LAYER_COLORS = {
-    "Lights": (0.98, 0.75, 0.14),
-    "Cameras": (0.22, 0.74, 0.97),
-    "Proxies": (0.69, 0.48, 1.0),
-    "Splines": (0.55, 0.60, 0.70),
-}
-
-KNOWN_TYPES = {
-    c4d.Onull: "Null",
-    c4d.Ocamera: "Camera",
-    c4d.Olight: "Light",
-    c4d.Opolygon: "Mesh",
-    c4d.Ospline: "Spline",
-    c4d.Oinstance: "Instance",
-    1018544: "MoGraph Cloner",
-    1018545: "MoGraph Matrix",
-    1018791: "MoGraph Fracture",
-    1019268: "MoGraph Text",
-}
-
-RS_LIGHT_IDS = {1036751}
-RS_CAMERA_IDS = {1057516}
+from .constants import KNOWN_TYPES
 
 
 def type_name(op) -> str:
@@ -113,6 +92,13 @@ def layer_name(op) -> str | None:
         return None
 
 
+def stable_id(op) -> int:
+    try:
+        return op.GetGUID()
+    except Exception:
+        return 0
+
+
 def editor_hidden(op) -> bool:
     try:
         return op[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] == c4d.MODE_OFF
@@ -125,8 +111,10 @@ class SceneAdapter:
     def __init__(self, doc) -> None:
         self.doc = doc
         self._by_guid: dict[int, object] = {}
+        self._by_sid: dict[int, object] = {}
         self._selected_direct: set = set()
         self._selected_subtree: set = set()
+        self.last_changes: list[dict] = []
 
     def count_objects(self) -> int:
         n = 0
@@ -145,6 +133,7 @@ class SceneAdapter:
 
     def build_tree(self, progress=None) -> model.SceneTree:
         self._by_guid.clear()
+        self._by_sid.clear()
         self._selected_direct.clear()
         self._selected_subtree.clear()
         tree = model.SceneTree()
@@ -170,6 +159,7 @@ class SceneAdapter:
                 layer=layer_name(op),
             )
             self._by_guid[guid] = op
+            self._by_sid[stable_id(op)] = op
             is_sel = bool(op.GetBit(c4d.BIT_ACTIVE))
             in_scope = sel_ancestor or is_sel
             if is_sel:
@@ -232,41 +222,66 @@ class SceneAdapter:
             pass
         return True
 
-    def _used_material_names(self) -> set:
-        used_names: set = set()
+    def _material_usage(self) -> tuple[set, set]:
+        used_any: set = set()
+        used_visible: set = set()
 
-        def visit(op):
+        def visit(op, hidden_anc):
             while op:
+                hidden = hidden_anc or editor_hidden(op)
                 try:
                     for tag in op.GetTags():
                         if tag.IsInstanceOf(c4d.Ttexture):
                             m = tag.GetMaterial()
                             if m is not None:
-                                used_names.add(m.GetName())
+                                nm = m.GetName()
+                                used_any.add(nm)
+                                if not hidden:
+                                    used_visible.add(nm)
                 except Exception:
                     pass
-                visit(op.GetDown())
+                visit(op.GetDown(), hidden)
                 op = op.GetNext()
 
-        visit(self.doc.GetFirstObject())
-        return used_names
+        visit(self.doc.GetFirstObject(), False)
+        return used_any, used_visible
 
-    def scan_materials(self) -> dict:
+    def _used_material_names(self) -> set:
+        return self._material_usage()[0]
+
+    def _all_material_names(self) -> set:
+        try:
+            return {m.GetName() for m in self.doc.GetMaterials()}
+        except Exception:
+            return set()
+
+    def scan_materials(self, include_hidden: bool = True,
+                       accepted: set | None = None) -> dict:
         import os
+        accepted = accepted or set()
         doc = self.doc
         try:
             mats = doc.GetMaterials()
         except Exception:
-            return {"total": 0, "unused": [], "missing": [], "missing_textures": 0}
+            return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
+                    "deletable_count": 0, "missing": [], "missing_textures": 0}
 
-        used_names = self._used_material_names()
+        used_any, used_visible = self._material_usage()
+        effective = used_any if include_hidden else used_visible
         doc_path = doc.GetDocumentPath() or ""
         unused: list = []
+        only_hidden: list = []
+        accepted_out: list = []
         missing: list = []
         for m in mats:
             name = m.GetName()
-            if name not in used_names:
-                unused.append(name)
+            if name not in effective:
+                if name in accepted:
+                    accepted_out.append(name)
+                else:
+                    unused.append(name)
+                    if name in used_any:
+                        only_hidden.append(name)
             try:
                 sh = m.GetFirstShader()
                 while sh:
@@ -284,6 +299,10 @@ class SceneAdapter:
         return {
             "total": len(mats),
             "unused": unused,
+            "only_hidden": only_hidden,
+            "accepted": accepted_out,
+            "accepted_all": sorted(accepted),
+            "deletable_count": len(unused) - len(only_hidden),
             "missing": missing[:50],
             "missing_textures": len(missing),
         }
@@ -305,26 +324,115 @@ class SceneAdapter:
         except Exception:
             return
 
-    def scan_textures(self) -> dict:
+    # Image file extensions we treat as textures (asset API returns every
+    # asset kind, incl. scenes/caches/sounds -- we only want image maps).
+    _TEX_EXTS = frozenset({
+        ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".exr", ".hdr", ".tga",
+        ".psd", ".bmp", ".gif", ".iff", ".dds", ".webp", ".pict", ".pct",
+        ".rla", ".rpf", ".dpx", ".sgi", ".rgb", ".b3d", ".ies", ".tx",
+    })
+
+    def _is_texture_file(self, path: str) -> bool:
+        import os
+        ext = os.path.splitext(path)[1].lower()
+        return ext in self._TEX_EXTS
+
+    def _owner_material_name(self, owner):
+        """Best-effort material name for an asset owner (material or shader)."""
+        if owner is None:
+            return ""
+        try:
+            if owner.IsInstanceOf(c4d.Mbase):
+                return owner.GetName()
+        except Exception:
+            pass
+        try:
+            main = owner.GetMain()  # shader -> its host material/object
+            if main is not None:
+                return main.GetName()
+        except Exception:
+            pass
+        try:
+            return owner.GetName()
+        except Exception:
+            return ""
+
+    def _texture_refs(self, effective_used: set | None = None) -> list:
+        """(material_name, raw_path, used) for every texture reference.
+
+        Primary source is c4d's own asset collector (GetAllAssetsNew) so
+        Redshift / Arnold / node materials and IES lights are covered -- not
+        just standard Xbitmap channels. Falls back to walking the material
+        shader trees when the asset API yields nothing. `effective_used` is the
+        set of material names counting as used (visibility-aware); defaults to
+        whole-scene usage.
+        """
+        doc = self.doc
+        used_names = (effective_used if effective_used is not None
+                      else self._used_material_names())
+        all_names = self._all_material_names()
+        refs: list = []
+        seen: set = set()
+        try:
+            assets = c4d.documents.GetAllAssetsNew(doc, False, "") or []
+        except Exception:
+            assets = []
+        for a in assets:
+            try:
+                raw = str(a.get("filename") or "")
+            except Exception:
+                raw = ""
+            if not raw or not self._is_texture_file(raw):
+                continue
+            name = self._owner_material_name(a.get("owner")) \
+                or str(a.get("assetname") or "")
+            key = (name, raw)
+            if key in seen:
+                continue
+            seen.add(key)
+            # The asset collector only lists referenced assets; treat them as
+            # in-use unless the owning material is a known-unused one.
+            used = name in used_names or name not in all_names
+            refs.append((name, raw, used))
+        if refs:
+            return refs
+        # Fallback: standard material shader walk (older / standard-only docs).
+        try:
+            mats = doc.GetMaterials()
+        except Exception:
+            mats = []
+        for m in mats:
+            name = m.GetName()
+            used = name in used_names
+            for sh in self._iter_bitmap_shaders(m):
+                try:
+                    raw = str(sh[c4d.BITMAPSHADER_FILENAME] or "")
+                except Exception:
+                    raw = ""
+                if not raw:
+                    continue
+                key = (name, raw)
+                if key in seen:
+                    continue
+                seen.add(key)
+                refs.append((name, raw, used))
+        return refs
+
+    def scan_textures(self, include_hidden: bool = True) -> dict:
         import os
 
         from ..core import imagesize
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
-        used_names = self._used_material_names()
+        used_any, used_visible = self._material_usage()
+        effective = used_any if include_hidden else used_visible
         entries: list = []
-        seen: set = set()
         meta_cache: dict = {}
-        try:
-            mats = doc.GetMaterials()
-        except Exception:
-            mats = []
 
         def file_meta(path):
             if path in meta_cache:
                 return meta_cache[path]
             size = 0
-            dims = None
             try:
                 size = os.path.getsize(path)
             except Exception:
@@ -333,61 +441,47 @@ class SceneAdapter:
             meta_cache[path] = (size, dims)
             return meta_cache[path]
 
-        for m in mats:
-            name = m.GetName()
-            used = name in used_names
-            for sh in self._iter_bitmap_shaders(m):
+        for name, raw, used in self._texture_refs(effective):
+            try:
+                resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+            except Exception:
+                resolved = ""
+            exists = bool(resolved) and os.path.isfile(resolved)
+            absolute = os.path.isabs(raw)
+            relocatable = False
+            rel_target = ""
+            if absolute and exists and doc_path:
                 try:
-                    raw = sh[c4d.BITMAPSHADER_FILENAME]
+                    rp = os.path.relpath(resolved, doc_path)
+                    if not rp.startswith(".."):
+                        relocatable = True
+                        rel_target = rp.replace("\\", "/")
                 except Exception:
-                    raw = None
-                if not raw:
-                    continue
-                raw = str(raw)
-                key = (name, raw)
-                if key in seen:
-                    continue
-                seen.add(key)
-                try:
-                    resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
-                except Exception:
-                    resolved = ""
-                exists = bool(resolved) and os.path.isfile(resolved)
-                absolute = os.path.isabs(raw)
-                relocatable = False
-                rel_target = ""
-                if absolute and exists and doc_path:
-                    try:
-                        rp = os.path.relpath(resolved, doc_path)
-                        if not rp.startswith(".."):
-                            relocatable = True
-                            rel_target = rp.replace("\\", "/")
-                    except Exception:
-                        pass
-                disk_bytes = 0
-                width = height = 0
-                res_tag = ""
-                if exists:
-                    disk_bytes, dims = file_meta(resolved)
-                    if dims:
-                        width, height = dims
-                        res_tag = imagesize.resolution_tag(max(width, height))
-                entries.append({
-                    "material": name,
-                    "used": used,
-                    "file": os.path.basename(raw),
-                    "path": raw,
-                    "resolved": resolved,
-                    "absolute": absolute,
-                    "exists": exists,
-                    "missing": not exists,
-                    "relocatable": relocatable,
-                    "rel_target": rel_target,
-                    "bytes": disk_bytes,
-                    "width": width,
-                    "height": height,
-                    "res_tag": res_tag,
-                })
+                    pass
+            disk_bytes = 0
+            width = height = 0
+            res_tag = ""
+            if exists:
+                disk_bytes, dims = file_meta(resolved)
+                if dims:
+                    width, height = dims
+                    res_tag = imagesize.resolution_tag(max(width, height))
+            entries.append({
+                "material": name,
+                "used": used,
+                "file": os.path.basename(raw),
+                "path": raw,
+                "resolved": resolved,
+                "absolute": absolute,
+                "exists": exists,
+                "missing": not exists,
+                "relocatable": relocatable,
+                "rel_target": rel_target,
+                "bytes": disk_bytes,
+                "width": width,
+                "height": height,
+                "res_tag": res_tag,
+            })
         absolute = [e for e in entries if e["absolute"]]
         relative = [e for e in entries if not e["absolute"]]
         total_bytes = sum(size for size, _ in meta_cache.values())
@@ -539,7 +633,17 @@ class SceneAdapter:
     def _find_or_create_group(self, name: str, created: list[object]) -> object:
         return self.ensure_group_path(name, created)
 
+    def _log_change(self, obj, field: str, before, after) -> None:
+        self.last_changes.append({
+            "sid": stable_id(obj),
+            "name": obj.GetName(),
+            "field": field,
+            "before": before,
+            "after": after,
+        })
+
     def apply_renames(self, renames: list[RenameOp]) -> int:
+        self.last_changes = []
         if not renames:
             return 0
         self.doc.StartUndo()
@@ -548,8 +652,10 @@ class SceneAdapter:
             obj = self._by_guid.get(op.guid)
             if obj is None:
                 continue
+            before = obj.GetName()
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
             obj.SetName(op.new_name)
+            self._log_change(obj, "name", before, op.new_name)
             count += 1
         self.doc.EndUndo()
         c4d.EventAdd()
@@ -579,7 +685,15 @@ class SceneAdapter:
         cache[name] = layer
         return layer
 
+    def _current_layer_name(self, obj) -> str:
+        try:
+            lay = obj.GetLayerObject(self.doc)
+            return lay.GetName() if lay is not None else ""
+        except Exception:
+            return ""
+
     def apply_layers(self, layerops: list[LayerOp]) -> int:
+        self.last_changes = []
         if not layerops:
             return 0
         self.doc.StartUndo()
@@ -590,9 +704,11 @@ class SceneAdapter:
             obj = self._by_guid.get(op.guid)
             if obj is None:
                 continue
+            before = self._current_layer_name(obj)
             layer = self._find_or_create_layer(op.layer, created, cache)
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
             obj.SetLayerObject(layer)
+            self._log_change(obj, "layer", before, op.layer)
             count += 1
         self.doc.EndUndo()
         c4d.EventAdd()
@@ -613,10 +729,12 @@ class SceneAdapter:
             obj.Remove()
             obj.InsertUnderLast(group)
             obj.SetMg(mg)
+            self._log_change(obj, "parent", op.from_group, op.to_group)
             count += 1
         return count
 
     def apply_reparents(self, reparents: list[ReparentOp], canonical=None) -> int:
+        self.last_changes = []
         if not reparents:
             return 0
         self.doc.StartUndo()
@@ -630,6 +748,7 @@ class SceneAdapter:
                      reparents: list[ReparentOp],
                      layerops: list[LayerOp],
                      canonical=None) -> dict:
+        self.last_changes = []
         if not (renames or reparents or layerops):
             return {"renames": 0, "reparents": 0, "layers": 0}
         self.doc.StartUndo()
@@ -640,8 +759,10 @@ class SceneAdapter:
             obj = self._by_guid.get(op.guid)
             if obj is None:
                 continue
+            before = obj.GetName()
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
             obj.SetName(op.new_name)
+            self._log_change(obj, "name", before, op.new_name)
             renamed += 1
         reparented = self._do_reparents(reparents, created, canonical)
         layered = 0
@@ -649,13 +770,67 @@ class SceneAdapter:
             obj = self._by_guid.get(op.guid)
             if obj is None:
                 continue
+            before = self._current_layer_name(obj)
             layer = self._find_or_create_layer(op.layer, created, lay_cache)
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
             obj.SetLayerObject(layer)
+            self._log_change(obj, "layer", before, op.layer)
             layered += 1
         self.doc.EndUndo()
         c4d.EventAdd()
         return {"renames": renamed, "reparents": reparented, "layers": layered}
+
+    def _resolve_change(self, item: dict):
+        obj = self._by_sid.get(item.get("sid"))
+        if obj is not None:
+            return obj
+        wanted = item.get("after") if item.get("field") == "name" else item.get("name")
+        for cand in self._by_guid.values():
+            if cand.GetName() == wanted:
+                return cand
+        return None
+
+    def revert(self, items: list[dict], canonical=None) -> dict:
+        reverted = 0
+        missing = 0
+        self.doc.StartUndo()
+        created: list = []
+        cache: dict = {}
+        for item in items:
+            obj = self._resolve_change(item)
+            if obj is None:
+                missing += 1
+                continue
+            field = item.get("field")
+            before = item.get("before")
+
+            if field == "name":
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                obj.SetName(before)
+            elif field == "layer":
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                if before:
+                    obj.SetLayerObject(
+                        self._find_or_create_layer(before, created, cache))
+                else:
+                    obj.SetLayerObject(None)
+            elif field == "parent":
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                mg = obj.GetMg()
+                obj.Remove()
+                if before and before not in ("(root)", "/"):
+                    obj.InsertUnderLast(
+                        self.ensure_group_path(before, created, canonical))
+                else:
+                    self.doc.InsertObject(obj)
+                obj.SetMg(mg)
+            else:
+                continue
+            reverted += 1
+
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"reverted": reverted, "missing": missing}
 
     def apply_plan(self, operations: list[dict]) -> dict:
         refs: dict = {}

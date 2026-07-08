@@ -3,6 +3,15 @@ from sceneorg.naming.casing import LANG_EN, Casing
 from sceneorg.naming.convention import NamingConvention
 
 
+def test_plan_renames_keep_list_is_left_untouched(sample_tree):
+    conv = NamingConvention(style=Casing.PASCAL, language=LANG_EN, number_pad=2)
+    kept = ops.plan_renames(sample_tree, conv, keep={"LIGHT_KEY", "Stuhl_01"})
+    names = {r.old_name for r in kept}
+    assert "LIGHT_KEY" not in names
+    assert "Stuhl_01" not in names
+    assert "KAMERA MAIN" in names
+
+
 def test_plan_renames_only_nonconforming(sample_tree):
     conv = NamingConvention(style=Casing.PASCAL, language=LANG_EN, number_pad=2)
     renames = ops.plan_renames(sample_tree, conv)

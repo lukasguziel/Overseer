@@ -28,3 +28,7 @@ resp.json
 
 # Deploy-Ziel: maschinenlokal, kommt NIE ins Repo (deploy-Skill schreibt sie)
 deploy.config.json
+
+# runtime logs written by the plugin
+change_history.json
+analysis_history.json

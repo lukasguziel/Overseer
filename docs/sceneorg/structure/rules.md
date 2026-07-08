@@ -12,6 +12,8 @@ Note: `_SUFFIX_SEP` mirrors `convention._NUM_SEP` (kept local because that dict 
 
 ## Classes
 
+- **`Rule`** — Abstract base (ABC) all four rule types implement: the interface is `from_dict(data)` (classmethod constructor), `to_dict()`, and `plan(ctx) -> PlanBundle`, plus the `id`/`enabled`/`priority`/`type` attributes. `RULE_TYPES` maps the `type` discriminator to the concrete class; `RuleSet` treats them polymorphically.
+
 - **`RuleContext`** — Everything a rule may inspect while planning: `tree`, `convention`, `standard`, optional `scope` (set of guids). `in_scope(node)` is true when no scope is set or the node's guid is in scope.
 
 - **`Match`** — Shared condition vocabulary for all rule types (extensible): `categories` (object categories), `keywords` (English name tokens; object tokens are translated first), `name_regex` (tested against the raw name; invalid regex fails closed), `under_group` (group path prefix resolved via the structure standard), `types` (C4D type names). `from_dict`/`to_dict` round-trip; `matches(node, ctx)` ANDs all set conditions.

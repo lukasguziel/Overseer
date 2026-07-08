@@ -1,20 +1,22 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
 
-const LANG_LABEL: Record<string, string> = { de: 'German', en: 'English', unknown: '—' }
+const LANG_LABEL: Record<string, string> = {
+  de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
+  nl: 'Dutch', pl: 'Polish', cs: 'Czech', pt: 'Portuguese', ru: 'Russian',
+  tr: 'Turkish', auto: 'auto', unknown: '—',
+}
 
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, accepted, setAccepted, busy, previewing,
-    translateTarget, setTranslateTarget } = org
+    translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
   const rows = translation?.diff || []
   const detected = translation?.detected
-  const allOn = rows.length > 0 && rows.every((d) => accepted.has(d.guid))
   const toggle = (guid: number) => setAccepted((s) => {
     const n = new Set(s)
     if (n.has(guid)) n.delete(guid); else n.add(guid)
     return n
   })
-  const toggleAll = () => setAccepted(allOn ? new Set() : new Set(rows.map((d) => d.guid)))
 
   return (
     <div className="workbench">
@@ -33,27 +35,38 @@ export default function TranslateTab({ org }: { org: Organizer }) {
           </select>
         </label>
 
+        <label>Engine
+          <select value={translateEngine} onChange={(e) => setTranslateEngine(e.target.value)}>
+            <option value="offline">Offline dictionaries (10 languages)</option>
+            <option value="google">Google online (any language)</option>
+          </select>
+        </label>
+        {translateEngine === 'google' && (
+          <p className="hint-sm">⚠ Online: names are sent to Google; needs
+            internet and takes a moment on large scenes.</p>
+        )}
+
         <h3>Detected in scene</h3>
         {detected && detected.total > 0
           ? (
             <>
               <div className="lang-detect">
-                <span className={`lang-pill${detected.dominant === 'de' ? ' on' : ''}`}>DE {detected.de}</span>
-                <span className={`lang-pill${detected.dominant === 'en' ? ' on' : ''}`}>EN {detected.en}</span>
-                <span className="lang-pill dim">? {detected.unknown}</span>
+                {Object.entries(detected.counts || {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([lg, n]) => (
+                    <span key={lg}
+                      className={`lang-pill${detected.dominant === lg ? ' on' : ''}${lg === 'unknown' ? ' dim' : ''}`}>
+                      {lg === 'unknown' ? '?' : lg.toUpperCase()} {n}
+                    </span>
+                  ))}
               </div>
               <p className="hint-sm">
-                Mostly <b>{LANG_LABEL[detected.dominant]}</b> across {detected.total} names.
+                Mostly <b>{LANG_LABEL[detected.dominant] || detected.dominant}</b> across {detected.total} names.
               </p>
             </>
           )
           : <p className="hint-sm">Run an analysis to detect the language.</p>}
 
-        <label className="check">
-          <input type="checkbox" checked={allOn} onChange={toggleAll} />
-          Select all ({rows.length})
-        </label>
-        <p className="hint-sm">{accepted.size} selected</p>
         <p className="hint-sm">Missing a word? Add it in the <b>Rules</b> tab’s
           translations, then re-open this tab.</p>
       </aside>
@@ -61,29 +74,34 @@ export default function TranslateTab({ org }: { org: Organizer }) {
       <Workbench
         title="Translation preview" count={accepted.size} loading={previewing}
         empty={`No names to translate into ${LANG_LABEL[translateTarget]}. 🎉`}
-        applyLabel="Translate selected" onApply={org.applyTranslate} busy={busy}
-        note={translation?.count ? `${translation.count} translatable · ${accepted.size} chosen.` : null}
+        applyLabel="Process all" onApply={org.applyTranslate} busy={busy}
+        progress={org.progress}
+        note={translation?.count
+          ? `${translation.count} translatable${accepted.size !== rows.length ? ` · ${rows.length - accepted.size} skipped` : ''}.`
+          : null}
       >
-        <table className="diff"><tbody>
-          {rows.slice(0, 400).map((d) => (
-            <tr key={d.guid}>
-              <td style={{ width: 24 }}>
-                <input type="checkbox" checked={accepted.has(d.guid)} onChange={() => toggle(d.guid)} />
-              </td>
-              <td className="dim">{d.old}</td>
-              <td className="arrow">→</td>
-              <td>{d.new}</td>
-              <td className="dim" style={{ fontSize: 11 }}>
-                {(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ')}
-              </td>
-              <td>
-                <button className="mini" disabled={busy}
-                  title="Translate just this one now (undoable)"
-                  onClick={() => org.applyTranslateOne(d.guid, d.old)}>translate</button>
-              </td>
-            </tr>
-          ))}
-        </tbody></table>
+        <div className="rename-list">
+          {rows.slice(0, 400).map((d) => {
+            const on = accepted.has(d.guid)
+            return (
+              <div className={'rename-row' + (on ? '' : ' row-off')} key={d.guid}>
+                {d.lang && d.lang !== 'unknown'
+                  ? <span className="rule-tag">{d.lang.toUpperCase()}</span>
+                  : <span className="rule-tag rt-casing">?</span>}
+                <span className="rn-old" title={d.old}>{d.old}</span>
+                <span className="rn-arrow">→</span>
+                <span className="rn-new"
+                  title={(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ') || d.new}>{d.new}</span>
+                <span className="rn-actions">
+                  <button className="rn-ok" title="Accept — translate now (undoable)"
+                    onClick={() => org.applyTranslateOne(d.guid, d.old)} disabled={busy}>✓</button>
+                  <button className="rn-no" title={on ? 'Skip — leave out of "Process all"' : 'Skipped — click to include again'}
+                    onClick={() => toggle(d.guid)} disabled={busy}>{on ? '✕' : '↺'}</button>
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </Workbench>
     </div>
   )

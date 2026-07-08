@@ -1,14 +1,20 @@
 # core/ops
 
-Change operations as pure data objects plus planners. No `c4d`. The adapter later executes these operations in the document with undo support.
+Change operations as an OOP hierarchy plus planners. No `c4d`. The adapter later executes these operations in the document with undo support.
 
-## Operation dataclasses
-- `RenameOp(guid, old_name, new_name)`
-- `ReparentOp(guid, name, from_group, to_group)`
-- `LayerOp(guid, name, layer)`
+## Interfaces (ABCs)
+- `Writer` — the abstract sink an operation writes to: `rename(node, new_name)`, `reparent(node, to_group)`, `assign_layer(node, layer)`. Pure code (and tests) implement it; the c4d `SceneAdapter` consumes the same op fields through its batched, single-undo apply methods.
+- `Operation` — abstract base for every change op. Holds a live `node: SceneNode` reference (data is linked, not copied): `guid` and `name` are read-through properties of `node`. Each op implements `apply(writer)` (polymorphic dispatch) and `to_dict()`.
+
+## Operation classes (link back to their SceneNode)
+- `RenameOp(node, new_name)` — `old_name` is `node.name`; `apply` → `writer.rename`.
+- `ReparentOp(node, to_group, from_group)` — `apply` → `writer.reparent`.
+- `LayerOp(node, layer)` — `apply` → `writer.assign_layer`.
+
+The `node` field is `compare=False` so op equality ignores the (self-referential) node graph and never recurses.
 
 ## DEFAULT_LAYER_SCHEME
-The type axis ("what is it") belongs in layers, NOT in the null hierarchy (which carries the spatial axis). This lets everything of one type be toggled/rendered without flattening the spatial structure. Maps category (Light->Lights, Camera->Cameras) or type_name (Instance->Proxies) to a layer name.
+Imported from [core/defaults](defaults.md). The type axis ("what is it") belongs in layers, NOT in the null hierarchy (which carries the spatial axis). This lets everything of one type be toggled/rendered without flattening the spatial structure. Maps category (Light->Lights, Camera->Cameras) or type_name (Instance->Proxies) to a layer name.
 
 ## Functions
 - `layer_for(node, scheme=None)`: layer name for an object per scheme (type match wins over category), or `None`.

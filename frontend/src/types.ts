@@ -42,7 +42,11 @@ export interface MissingTexture {
 
 export interface MaterialReport {
   total: number
-  unused: string[]
+  unused: string[]              // unused + not accepted (the "problem" set)
+  only_hidden?: string[]        // subset of unused only used by hidden objects (protected)
+  accepted?: string[]           // accepted-as-unused AND currently unused (for display)
+  accepted_all?: string[]       // full accepted-unused set from config (toggle source of truth)
+  deletable_count?: number      // unused minus only_hidden (drives the materials score)
   missing: MissingTexture[]
   missing_textures: number
 }
@@ -94,12 +98,14 @@ export interface SceneReport {
   misplaced?: unknown[]
   materials?: MaterialReport
   textures?: TextureReport
+  textures_error?: string   // set when the texture scan raised (diagnostic)
   layers_report?: LayersReport | null
   scoped?: boolean          // true = stats cover only the C4D selection
   hidden_count?: number     // objects hidden in the Object Manager (whole tree)
   include_hidden?: boolean  // false = hidden objects excluded from these stats
   dirty?: number            // C4D change token at read time (auto-refresh sync)
   doc_name?: string         // active document name at read time
+  sel?: number              // selection token at read time (selection-scope sync)
 }
 
 // Live progress of a long-running main-thread operation (GET /api/progress,
@@ -128,6 +134,28 @@ export interface HistoryEntry {
   size?: number
   compliance?: number
   [key: string]: unknown
+}
+
+// One field change of one object inside a batched tool mutation.
+export interface ChangeItem {
+  sid: number               // C4D-stable object id (for revert)
+  name: string              // object name after the change (revert fallback match)
+  field: 'name' | 'layer' | 'parent'
+  before: string
+  after: string
+}
+
+// One batched tool mutation (one apply = one entry), newest first from the API.
+export interface ChangeEntry {
+  id: string
+  ts: number
+  at: string                // "YYYY-MM-DD HH:MM:SS"
+  kind: string              // naming | structure | layers | apply_all | translate | materials_delete | textures_relative | plan
+  summary: string
+  doc?: string
+  items: ChangeItem[]
+  revertible: boolean
+  reverted: boolean
 }
 
 export interface PresetMeta {
@@ -242,6 +270,7 @@ export interface RenameDiff {
   guid: number
   old: string
   new: string
+  rules?: string[]   // every naming rule that produced it: casing | numbering | unique | prefix
 }
 
 export interface TranslateDiff extends RenameDiff {
@@ -251,11 +280,13 @@ export interface TranslateDiff extends RenameDiff {
 
 // Detected source-language distribution across the scene (translate.py).
 export interface LanguageSummary {
+  counts: Record<string, number>  // lang code ('de','fr','ru','en',…) -> objects
+  total: number
+  dominant: string
+  // legacy convenience keys (still sent by the backend)
   de: number
   en: number
   unknown: number
-  total: number
-  dominant: string
 }
 
 export interface ReparentDiff {
@@ -265,6 +296,7 @@ export interface ReparentDiff {
 }
 
 export interface LayerDiff {
+  guid: number
   name: string
   layer: string
 }
@@ -278,6 +310,8 @@ export interface PlanResult<D> {
   by_layer?: Record<string, number>
   detected?: LanguageSummary   // translate: detected source-language spread
   target?: string              // translate: chosen target language
+  engine?: string              // translate: 'offline' (dictionaries) | 'google'
+  keep_names?: string[]        // naming: names the user marked "keep as-is"
 }
 
 export interface GroupRuleJson {
@@ -290,8 +324,11 @@ export interface GroupRuleJson {
 
 export interface OrganizerSettings {
   casing: string
+  apply_casing: boolean
   language: string | null
   number_pad: number
+  apply_numbering: boolean
+  dedupe: boolean
   selection: boolean
   safe: boolean
   tidy: boolean

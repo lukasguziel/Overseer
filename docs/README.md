@@ -14,6 +14,7 @@ markdown file per module, mirroring `src/`.
 - [sceneorg/cinema/adapter.md](sceneorg/cinema/adapter.md) — doc ⇄ SceneTree, writes with undo
 - [sceneorg/cinema/dialog.md](sceneorg/cinema/dialog.md) — native GeDialog
 - [sceneorg/cinema/webapi.md](sceneorg/cinema/webapi.md) — JSON API (hot-reloaded per request)
+- [sceneorg/cinema/constants.md](sceneorg/cinema/constants.md) — c4d-bound constant tables
 
 ## core/ — pure hierarchy + planning
 - [sceneorg/core/model.md](sceneorg/core/model.md) — SceneNode / SceneTree
@@ -21,6 +22,7 @@ markdown file per module, mirroring `src/`.
 - [sceneorg/core/ops.md](sceneorg/core/ops.md) — plan renames / reparents / layers
 - [sceneorg/core/pipeline.md](sceneorg/core/pipeline.md) — combined one-pass planning
 - [sceneorg/core/imagesize.md](sceneorg/core/imagesize.md) — header-only image dimension reader
+- [sceneorg/core/defaults.md](sceneorg/core/defaults.md) — central built-in domain constants
 
 ## naming/
 - [sceneorg/naming/casing.md](sceneorg/naming/casing.md) — tokenizer, casing + language heuristics

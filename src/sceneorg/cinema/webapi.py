@@ -26,36 +26,96 @@ EXPORT_CSV_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_structure
 HISTORY_PATH = os.path.join(PLUGIN_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
+CHANGES_PATH = os.path.join(PLUGIN_DIR, "change_history.json")
+_CHANGES_MAX = 200
+
 _CSV_FIELDS = ("path", "name", "type", "category", "depth", "casing",
                "language", "children")
 
 
-def _write_export(report_dict) -> str | None:
+def _read_changes() -> list:
     try:
-        d = os.path.dirname(EXPORT_PATH)
-        if not os.path.isdir(d):
-            return None
-        with open(EXPORT_PATH, "w") as f:
-            json.dump(report_dict, f, ensure_ascii=True, indent=1)
-        return EXPORT_PATH
+        if os.path.isfile(CHANGES_PATH):
+            with open(CHANGES_PATH, encoding="utf-8") as f:
+                return json.load(f) or []
     except Exception:
-        return None
+        pass
+    return []
 
 
-def _write_csv(report_dict) -> tuple[str, int] | None:
-    import csv
+def _write_changes(entries: list) -> None:
     try:
-        d = os.path.dirname(EXPORT_CSV_PATH)
-        if not os.path.isdir(d):
+        with open(CHANGES_PATH, "w", encoding="utf-8") as f:
+            json.dump(entries[-_CHANGES_MAX:], f, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
+
+
+def _record_change(kind: str, summary: str, items: list,
+                   revertible: bool = True, doc_name: str = "") -> dict | None:
+    if not items and not summary:
+        return None
+    import time
+    now = time.time()
+    entry = {
+        "id": "%d" % int(now * 1000),
+        "ts": now,
+        "at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now)),
+        "kind": kind,
+        "summary": summary,
+        "doc": doc_name,
+        "items": items or [],
+        "revertible": bool(revertible and items),
+        "reverted": False,
+    }
+    entries = _read_changes()
+    entries.append(entry)
+    _write_changes(entries)
+    return entry
+
+
+def _write_export(report_dict, target_dir: str | None = None) -> str | None:
+    """Write the JSON snapshot next to the project file (`target_dir`), and
+    always mirror it into the repo root so the scene-rules skill / Claude keep
+    reading from the fixed `EXPORT_PATH`. Returns the path shown to the user
+    (the project-side one when saved, else the repo mirror)."""
+    primary = None
+    if target_dir and os.path.isdir(target_dir):
+        try:
+            p = os.path.join(target_dir, "scene_report.json")
+            with open(p, "w") as f:
+                json.dump(report_dict, f, ensure_ascii=True, indent=1)
+            primary = p
+        except Exception:
+            primary = None
+    try:
+        if os.path.isdir(os.path.dirname(EXPORT_PATH)):
+            with open(EXPORT_PATH, "w") as f:
+                json.dump(report_dict, f, ensure_ascii=True, indent=1)
+            if primary is None:
+                primary = EXPORT_PATH
+    except Exception:
+        pass
+    return primary
+
+
+def _write_csv(report_dict, target_dir: str | None = None) -> tuple[str, int] | None:
+    import csv
+    if target_dir and os.path.isdir(target_dir):
+        path = os.path.join(target_dir, "scene_structure.csv")
+    else:
+        path = EXPORT_CSV_PATH
+    try:
+        if not os.path.isdir(os.path.dirname(path)):
             return None
         nodes = report_dict.get("nodes", [])
-        with open(EXPORT_CSV_PATH, "w", newline="", encoding="utf-8-sig") as f:
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.DictWriter(f, fieldnames=_CSV_FIELDS, delimiter=";",
                                extrasaction="ignore")
             w.writeheader()
             for n in nodes:
                 w.writerow(n)
-        return EXPORT_CSV_PATH, len(nodes)
+        return path, len(nodes)
     except Exception:
         return None
 
@@ -284,7 +344,10 @@ def _load_cfg():
 def _convention(settings: dict, cfg) -> NamingConvention:
     casing = settings.get("casing") or cfg.convention.style.value
     pad = int(settings.get("number_pad", cfg.convention.number_pad))
-    return NamingConvention(style=Casing(casing), language=None, number_pad=pad)
+    apply_numbering = bool(settings.get("apply_numbering", True))
+    apply_casing = bool(settings.get("apply_casing", True))
+    return NamingConvention(style=Casing(casing), language=None, number_pad=pad,
+                            apply_numbering=apply_numbering, apply_casing=apply_casing)
 
 
 def _scope(settings: dict, adapter: SceneAdapter):
@@ -305,6 +368,109 @@ def _rule_dict(r) -> dict:
     }
 
 
+# Persistent Google translation cache (name+target -> translation). Lives as
+# a FILE next to config.json because webapi is hot-reloaded on every request
+# -- module globals would not survive. Makes re-plans and apply instant: the
+# preview already fetched everything, apply just reads the cache.
+GOOGLE_CACHE_PATH = os.path.join(PLUGIN_DIR, "google_cache.json")
+_GCACHE_MAX = 20000
+
+
+def _load_gcache() -> dict:
+    try:
+        if os.path.isfile(GOOGLE_CACHE_PATH):
+            with open(GOOGLE_CACHE_PATH, encoding="utf-8") as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_gcache(cache: dict) -> None:
+    try:
+        if len(cache) > _GCACHE_MAX:   # crude cap; drop oldest half
+            cache = dict(list(cache.items())[len(cache) // 2:])
+        with open(GOOGLE_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _google_plan(tree, scope, target: str, progress=None):
+    """Online translation via Google's public endpoint (stdlib urllib, no
+    dependencies to install into C4D's Python). Opt-in engine: names leave
+    the machine and it needs internet. Results are cached persistently, so
+    only NEW names hit the network -- apply after a preview is instant.
+    `progress(current, total)` reports fetched names for the preloader.
+    Returns (proposals, error)."""
+    import json as _json
+    import urllib.parse
+    import urllib.request
+
+    nodes = [n for n in tree.walk()
+             if (scope is None or n.guid in scope) and n.name.strip()]
+    if not nodes:
+        return [], None
+
+    cache = _load_gcache()
+
+    def key(name: str) -> str:
+        return target + "\x00" + name.strip()
+
+    # Only names the cache does not know yet go online (deduplicated).
+    todo: list = []
+    seen: set = set()
+    for n in nodes:
+        k = key(n.name)
+        if k not in cache and k not in seen:
+            seen.add(k)
+            todo.append(n.name.strip())
+
+    err = None
+    batch = 40
+    fetched = 0
+    for i in range(0, len(todo), batch):
+        chunk = todo[i:i + batch]
+        if progress:
+            progress(fetched, len(todo))
+        q = "\n".join(chunk)
+        url = ("https://translate.googleapis.com/translate_a/single"
+               "?client=gtx&sl=auto&tl=%s&dt=t&q=%s"
+               % (urllib.parse.quote(target), urllib.parse.quote(q)))
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = _json.loads(r.read().decode("utf-8"))
+            text = "".join(s[0] for s in (data[0] or []) if s and s[0])
+            lines = text.split("\n")
+        except Exception as ex:  # noqa: BLE001 - network is best-effort
+            err = str(ex)
+            break
+        if len(lines) != len(chunk):
+            err = "batch mismatch (%d names -> %d lines)" % (
+                len(chunk), len(lines))
+            continue
+        # NB: no zip(strict=) -- C4D 2023 embeds Python 3.9. Lengths are
+        # already verified equal by the batch-mismatch guard above.
+        for name, new in zip(chunk, lines):  # noqa: B905
+            cache[key(name)] = new.strip()
+        fetched += len(chunk)
+    if todo:
+        _save_gcache(cache)
+    if progress:
+        progress(len(todo), len(todo))
+
+    proposals = []
+    for node in nodes:
+        new = (cache.get(key(node.name)) or "").strip()
+        if new and new.lower() != node.name.strip().lower():
+            proposals.append(translatemod.TranslateProposal(
+                node=node, new=new, words=[(node.name, new)],
+                lang="auto"))
+    return proposals, err
+
+
 def _scene_dirty(doc) -> int:
     """Cheap change token: C4D's per-document dirty counter for object and
     data changes (add/remove/reparent + geometry/parameter edits). Bumps on
@@ -316,6 +482,34 @@ def _scene_dirty(doc) -> int:
         return 0
 
 
+def _selection_info(doc) -> tuple:
+    """(token, names, count) of the current object selection.
+
+    The dirty counter deliberately ignores selection, so this is polled
+    separately to drive the selection-scoped auto-refresh and to show what is
+    selected in the UI. The token is order-sensitive and changes whenever the
+    active selection changes; only a few names are returned for display."""
+    try:
+        objs = doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_SELECTIONORDER)
+    except Exception:
+        try:
+            objs = doc.GetActiveObjects(0)
+        except Exception:
+            objs = []
+    objs = objs or []
+    names: list = []
+    token = len(objs)
+    for o in objs:
+        try:
+            nm = o.GetName()
+            token = (token * 131 + hash((nm, o.GetType()))) & 0xFFFFFFFF
+        except Exception:
+            nm = ""
+        if len(names) < 6:
+            names.append(nm)
+    return token, names, len(objs)
+
+
 def handle(payload: dict) -> dict:
     op = payload.get("op")
     settings = payload.get("settings", {})
@@ -325,9 +519,13 @@ def handle(payload: dict) -> dict:
 
     if op == "dirty":
         # Tiny poll target for the frontend auto-refresh watcher: the change
-        # token + the doc name (so switching documents also forces a refresh).
+        # token + the doc name (so switching documents also forces a refresh)
+        # + the current selection (token/names/count) so selection-scoped
+        # analyses can follow the C4D selection.
+        sel_token, sel_names, sel_count = _selection_info(doc)
         return {"ok": True, "dirty": _scene_dirty(doc),
-                "name": doc.GetDocumentName()}
+                "name": doc.GetDocumentName(),
+                "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
 
     cfg, data = _load_cfg()
 
@@ -367,6 +565,9 @@ def handle(payload: dict) -> dict:
             # this and only re-analyzes once the scene has moved past it.
             data_dict["dirty"] = _scene_dirty(doc)
             data_dict["doc_name"] = doc.GetDocumentName()
+            # Selection token at read time so the watcher can tell when the
+            # C4D selection moved on (relevant for selection-scoped analyses).
+            data_dict["sel"] = _selection_info(doc)[0]
             try:
                 full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
                 data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
@@ -374,14 +575,21 @@ def handle(payload: dict) -> dict:
                 data_dict["file_size"] = 0
             try:
                 _prog("Scanning materials")
-                data_dict["materials"] = adapter.scan_materials()
+                data_dict["materials"] = adapter.scan_materials(
+                    include_hidden=include_hidden,
+                    accepted=cfg.accepted_unused)
             except Exception:
                 data_dict["materials"] = None
             try:
                 _prog("Scanning textures")
-                data_dict["textures"] = adapter.scan_textures()
-            except Exception:
+                data_dict["textures"] = adapter.scan_textures(
+                    include_hidden=include_hidden)
+            except Exception as ex:  # noqa: BLE001
+                import traceback
                 data_dict["textures"] = None
+                data_dict["textures_error"] = "%s: %s" % (
+                    type(ex).__name__, ex)
+                data_dict["textures_trace"] = traceback.format_exc()[-1500:]
             try:
                 _prog("Scanning layers")
                 data_dict["layers_report"] = _merge_layers(
@@ -410,10 +618,11 @@ def handle(payload: dict) -> dict:
                 "polys": data_dict.get("total_polys", 0),
                 "size": data_dict.get("file_size", 0),
             })
-        written = None if data_dict.get("scoped") else _write_export(data_dict)
+        doc_dir = doc.GetDocumentPath() or None
+        written = None if data_dict.get("scoped") else _write_export(data_dict, doc_dir)
         result = {"ok": True, "report": data_dict, "export_path": written}
         if op == "export_csv":
-            csv_res = _write_csv(data_dict)
+            csv_res = _write_csv(data_dict, doc_dir)
             result["csv_path"] = csv_res[0] if csv_res else None
             result["csv_rows"] = csv_res[1] if csv_res else 0
         return result
@@ -465,6 +674,11 @@ def handle(payload: dict) -> dict:
                 chosen.renames, chosen.reparents, chosen.layers,
                 canonical=cfg.standard.canonical_group)
             result["applied"] = applied
+            _record_change(
+                "apply_all",
+                "%d renamed, %d moved, %d layered" % (
+                    applied["renames"], applied["reparents"], applied["layers"]),
+                adapter.last_changes, doc_name=doc.GetDocumentName())
         return result
 
     if op == "plans":
@@ -479,6 +693,8 @@ def handle(payload: dict) -> dict:
         adapter = SceneAdapter(doc)
         adapter.build_tree()
         res = adapter.apply_plan(plan["operations"])
+        _record_change("plan", "restructuring plan: %d ops" % res.get("total", 0),
+                       [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
 
     if op == "focus":
@@ -489,18 +705,71 @@ def handle(payload: dict) -> dict:
 
     if op == "delete_material":
         adapter = SceneAdapter(doc)
-        deleted = adapter.delete_material(payload.get("name", ""))
+        name = payload.get("name", "")
+        deleted = adapter.delete_material(name)
+        if deleted:
+            _record_change("materials_delete", "deleted material '%s'" % name,
+                           [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, "deleted": deleted}
 
     if op == "delete_unused_materials":
         adapter = SceneAdapter(doc)
         deleted = adapter.delete_unused_materials()
+        if deleted:
+            _record_change("materials_delete",
+                           "deleted %d unused material(s)" % deleted,
+                           [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, "deleted": deleted}
 
     if op == "fix_textures_relative":
         adapter = SceneAdapter(doc)
         res = adapter.make_textures_relative(payload.get("materials"))
+        if res.get("fixed"):
+            _record_change("textures_relative",
+                           "%d texture path(s) made relative" % res["fixed"],
+                           [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
+
+    if op == "changes":
+        return {"ok": True, "changes": list(reversed(_read_changes()))}
+
+    if op == "revert_change":
+        entry_id = str(payload.get("id", ""))
+        entries = _read_changes()
+        entry = next((e for e in entries if str(e.get("id")) == entry_id), None)
+        if entry is None:
+            return {"error": "change not found: %s" % entry_id}
+        if entry.get("reverted"):
+            return {"error": "already reverted"}
+        if not entry.get("revertible"):
+            return {"error": "this change cannot be reverted"}
+        adapter = SceneAdapter(doc)
+        adapter.build_tree()
+        res = adapter.revert(entry.get("items") or [],
+                             canonical=cfg.standard.canonical_group)
+        entry["reverted"] = True
+        _write_changes(entries)
+        return {"ok": True, **res}
+
+    if op == "clear_changes":
+        _write_changes([])
+        return {"ok": True}
+
+    if op == "set_accepted_unused":
+        names = sorted({str(n) for n in (payload.get("names") or [])})
+        merged = cfgmod.migrate_config(_read_config_data())
+        merged["accepted_unused"] = names
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2, ensure_ascii=False)
+        return {"ok": True, "accepted_unused": names}
+
+    if op == "set_keep_names":
+        names = sorted({str(n) for n in (payload.get("names") or [])})
+        merged = cfgmod.migrate_config(_read_config_data())
+        merged["keep_names"] = names
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2, ensure_ascii=False)
+        return {"ok": True, "keep_names": names}
 
     if op == "detect":
         tree = SceneAdapter(doc).build_tree()
@@ -537,12 +806,25 @@ def handle(payload: dict) -> dict:
         tree = adapter.build_tree()
         conv = _convention(settings, cfg)
         scope = _scope(settings, adapter)
-        renames = ops.plan_renames(tree, conv, scope=scope, prefixes=cfg.prefixes)
-        diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name} for r in renames]
+        dedupe = bool(settings.get("dedupe", True))
+        renames = ops.plan_renames(tree, conv, scope=scope,
+                                   prefixes=cfg.prefixes, keep=cfg.keep_names,
+                                   dedupe=dedupe)
+        diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name,
+                 "rules": r.rules} for r in renames]
+        keep_names = sorted(cfg.keep_names)
         if op == "apply_naming":
-            applied = adapter.apply_renames(renames)
-            return {"ok": True, "applied": applied, "count": len(renames), "diff": diff}
-        return {"ok": True, "count": len(renames), "diff": diff}
+            # Optional per-row accept: apply only the guids the user ticked.
+            accepted = payload.get("guids")
+            chosen = ([r for r in renames if r.guid in set(accepted)]
+                      if accepted is not None else renames)
+            applied = adapter.apply_renames(chosen)
+            _record_change("naming", "%d renamed" % applied,
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
+            return {"ok": True, "applied": applied, "count": len(chosen),
+                    "diff": diff, "keep_names": keep_names}
+        return {"ok": True, "count": len(renames), "diff": diff,
+                "keep_names": keep_names}
 
     if op in ("plan_structure", "apply_structure"):
         adapter = SceneAdapter(doc)
@@ -560,6 +842,8 @@ def handle(payload: dict) -> dict:
         if op == "apply_structure":
             applied = adapter.apply_reparents(
                 reparents, canonical=cfg.standard.canonical_group)
+            _record_change("structure", "%d moved" % applied,
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
             return {"ok": True, "applied": applied, "count": len(reparents),
                     "diff": diff, "skipped": skipped}
         return {"ok": True, "count": len(reparents), "diff": diff, "skipped": skipped}
@@ -569,19 +853,51 @@ def handle(payload: dict) -> dict:
         tree = adapter.build_tree()
         scope = _scope(settings, adapter)
         target = payload.get("target") or "en"
-        props = translatemod.plan_translations(tree, scope=scope, target=target)
+        engine = (payload.get("engine") or settings.get("engine")
+                  or "offline").lower()
+        if engine == "google":
+            # Report fetch progress to the bridge singleton: the web UI polls
+            # /api/progress (server thread) and blurs the preview meanwhile.
+            from .. import bridge
+
+            def _gprog(cur, tot):
+                bridge.set_progress("Translating online (Google)", cur, tot,
+                                    "%d / %d names" % (cur, tot))
+                try:
+                    c4d.StatusSetText("Scene Organizer: translating %d/%d"
+                                      % (cur, tot))
+                    if tot:
+                        c4d.StatusSetBar(int(cur * 100 / max(1, tot)))
+                except Exception:
+                    pass
+
+            try:
+                props, gerr = _google_plan(tree, scope, target,
+                                           progress=_gprog)
+            finally:
+                bridge.clear_progress()
+                try:
+                    c4d.StatusClear()
+                except Exception:
+                    pass
+            if gerr and not props:
+                return {"error": "Google translate failed: %s" % gerr}
+        else:
+            props = translatemod.plan_translations(
+                tree, scope=scope, target=target)
         if op == "apply_translate":
             accepted = set(payload.get("guids") or [])
             chosen = [p for p in props if p.guid in accepted]
-            renames = [ops.RenameOp(guid=p.guid, old_name=p.old, new_name=p.new)
-                       for p in chosen]
+            renames = [ops.RenameOp(node=p.node, new_name=p.new) for p in chosen]
             applied = adapter.apply_renames(renames)
+            _record_change("translate", "%d translated" % applied,
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
             return {"ok": True, "applied": applied, "count": len(renames)}
         diff = [{"guid": p.guid, "old": p.old, "new": p.new,
                  "words": p.words, "lang": p.lang} for p in props]
         detected = translatemod.detect_languages(tree, scope=scope).to_dict()
         return {"ok": True, "count": len(props), "diff": diff,
-                "target": target, "detected": detected}
+                "target": target, "detected": detected, "engine": engine}
 
     if op in ("plan_layers", "apply_layers"):
         import collections
@@ -592,8 +908,15 @@ def handle(payload: dict) -> dict:
         by_layer = dict(collections.Counter(o.layer for o in layerops))
         diff = [{"guid": o.guid, "name": o.name, "layer": o.layer} for o in layerops]
         if op == "apply_layers":
-            applied = adapter.apply_layers(layerops)
-            return {"ok": True, "applied": applied, "count": len(layerops),
+            # Per-row accept list: only the guids the user ticked are tagged
+            # (missing key = apply everything, older clients keep working).
+            accepted = payload.get("guids")
+            chosen = layerops if accepted is None else [
+                o for o in layerops if o.guid in set(accepted)]
+            applied = adapter.apply_layers(chosen)
+            _record_change("layers", "%d assigned to layers" % applied,
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
+            return {"ok": True, "applied": applied, "count": len(chosen),
                     "diff": diff, "by_layer": by_layer}
         return {"ok": True, "count": len(layerops), "diff": diff, "by_layer": by_layer}
 

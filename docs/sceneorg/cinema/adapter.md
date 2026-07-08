@@ -112,3 +112,14 @@ Bidirectional bridge document <-> SceneTree.
   Collects per-op errors instead of aborting (the `# noqa: BLE001` broad-except
   is intentional). After this call the guids are stale, so `build_tree()` must
   run again.
+
+## Change log & revert
+- Every write method resets and fills `self.last_changes` — a list of
+  `{sid, name, field, before, after}` where `field` is `name`/`layer`/`parent`.
+  `sid` is the C4D-stable object id (`stable_id(op)` = `op.GetGUID()`), captured
+  so a change can be reverted later; `webapi` persists these as one history
+  entry per apply. `build_tree()` also indexes objects by `sid` in `_by_sid`.
+- `revert(items, canonical)` — restores each item's `before` value in ONE undo
+  step (name/layer/parent). Objects are resolved by `sid`, with a fallback to
+  matching the current object name (`_resolve_change`), so an in-session revert
+  is reliable; after reload the id map is rebuilt from the live scene.
