@@ -48,7 +48,7 @@ export function useOrganizer() {
 
   const [casing, setCasing] = useState('')   // '' = not chosen yet; auto-detected from the scene
   const [applyCasing, setApplyCasing] = useState(true)        // rule: normalize casing/separators
-  const [keepSeparators, setKeepSeparators] = useState(false) // recase words but keep existing separators (e.g. hyphens)
+  const [keepSeparators, setKeepSeparators] = useState(true) // recase words but keep existing separators (e.g. hyphens)
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
   const [applyNumbering, setApplyNumbering] = useState(true)  // rule: pad/normalize numbers
@@ -374,8 +374,26 @@ export function useOrganizer() {
     syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
   }, [keeps, syncKeeps])
 
-  // Accept EVERYTHING in a section's current plan as-is (the ✕-all next to
-  // Process all): one config write, all rows vanish, the score jumps.
+  // Accept a whole batch of keys as-is (✕-all buttons, no-layer worklist):
+  // one config write, the matching rows vanish, the score jumps.
+  const keepMany = useCallback((section: KeepSection, keys: string[]) => {
+    if (!keys.length) return
+    const keySet = new Set(keys)
+    const next = new Set(keeps[section])
+    keys.forEach((k) => next.add(k))
+    setKeeps((k) => ({ ...k, [section]: next }))
+    dropRows(section, (d) => keySet.has(
+      section === 'naming' || section === 'translate' ? d.old : d.name))
+    setStatus(`Accepted ${keys.length} item${keys.length === 1 ? '' : 's'} as-is ✓`)
+    call('set_keeps', { section, keys: Array.from(next) })
+      .then(() => { if (section === 'materials') refreshSoon(200) })
+      .catch((e) => {
+        setError(String(e.message || e)); setStatus('Accept ✗')
+        syncKeeps(section, keeps[section]).catch(() => {})
+      })
+  }, [keeps, dropRows, refreshSoon, syncKeeps])
+
+  // Accept EVERYTHING in a section's current plan as-is.
   const keepAll = useCallback((section: KeepSection) => {
     let keys: string[] = []
     if (section === 'materials') {
@@ -388,19 +406,8 @@ export function useOrganizer() {
       keys = (plan?.diff || []).map((d: any) =>
         section === 'naming' || section === 'translate' ? d.old : d.name)
     }
-    if (!keys.length) return
-    const next = new Set(keeps[section])
-    keys.forEach((k) => next.add(k))
-    setKeeps((k) => ({ ...k, [section]: next }))
-    dropRows(section, () => true)
-    setStatus(`Accepted ${keys.length} item${keys.length === 1 ? '' : 's'} as-is ✓`)
-    call('set_keeps', { section, keys: Array.from(next) })
-      .then(() => { if (section === 'materials') refreshSoon(200) })
-      .catch((e) => {
-        setError(String(e.message || e)); setStatus('Accept ✗')
-        syncKeeps(section, keeps[section]).catch(() => {})
-      })
-  }, [keeps, naming, translation, layers, structure, report, dropRows, refreshSoon, syncKeeps])
+    keepMany(section, keys)
+  }, [naming, translation, layers, structure, report, keepMany])
 
   const applyPreset = (id: string) => run('Apply preset', async () => {
     const r = await call('apply_preset', { id })
@@ -620,7 +627,7 @@ export function useOrganizer() {
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
-    keeps, keep, unkeep, keepAll, planCount, areaScore, doRenameObject,
+    keeps, keep, unkeep, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,

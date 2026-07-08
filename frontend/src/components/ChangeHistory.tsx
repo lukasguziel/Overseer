@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEntry, ChangeItem } from '../types'
+import HistoryList, { type HistoryRow } from './HistoryList'
 
 const KIND_LABEL: Record<string, string> = {
   naming: 'Rename',
@@ -31,40 +32,20 @@ function ItemRow({ it }: { it: ChangeItem }) {
   )
 }
 
-function Entry({ e, onRevert }: { e: ChangeEntry; onRevert: (id: string) => void }) {
-  const [open, setOpen] = useState(false)
+// Revert affordance with inline confirm — the row's action slot.
+function RevertAction({ e, onRevert }: { e: ChangeEntry; onRevert: (id: string) => void }) {
   const [confirm, setConfirm] = useState(false)
-  const n = e.items.length
-  return (
-    <div className={'ch-entry' + (e.reverted ? ' reverted' : '')}>
-      <div className="ch-head">
-        <button className="ch-toggle" onClick={() => setOpen(!open)} disabled={!n}>
-          <span className="cl-caret">{n ? (open ? '▾' : '▸') : '·'}</span>
-          <span className="ch-time">{clock(e.at)}</span>
-          <span className={'ch-kind k-' + e.kind}>{KIND_LABEL[e.kind] || e.kind}</span>
-          <span className="ch-summary">{e.summary}</span>
-        </button>
-        {e.reverted
-          ? <span className="ch-reverted">reverted</span>
-          : e.revertible && (
-            confirm ? (
-              <span className="mat-confirm">
-                revert?
-                <button className="mat-yes" onClick={() => { onRevert(e.id); setConfirm(false) }}>✓</button>
-                <button className="mat-no" onClick={() => setConfirm(false)}>✕</button>
-              </span>
-            ) : (
-              <button className="ch-revert" title="Undo this change (one undo step)"
-                onClick={() => setConfirm(true)}>revert</button>
-            )
-          )}
-      </div>
-      {open && n > 0 && (
-        <table className="diff ch-items"><tbody>
-          {e.items.slice(0, 500).map((it, i) => <ItemRow key={i} it={it} />)}
-        </tbody></table>
-      )}
-    </div>
+  if (e.reverted) return <span className="ch-reverted">reverted</span>
+  if (!e.revertible) return null
+  return confirm ? (
+    <span className="mat-confirm">
+      revert?
+      <button className="mat-yes" onClick={() => { onRevert(e.id); setConfirm(false) }}>✓</button>
+      <button className="mat-no" onClick={() => setConfirm(false)}>✕</button>
+    </span>
+  ) : (
+    <button className="ch-revert" title="Undo this change (one undo step)"
+      onClick={() => setConfirm(true)}>revert</button>
   )
 }
 
@@ -73,9 +54,19 @@ export default function ChangeHistory({ changes, onRevert }: {
   onRevert: (id: string) => void
 }) {
   if (changes.length === 0) return <div className="fl-empty">No tool changes recorded yet.</div>
-  return (
-    <div className="ch-list">
-      {changes.map((e) => <Entry key={e.id} e={e} onRevert={onRevert} />)}
-    </div>
-  )
+  const rows: HistoryRow[] = changes.map((e) => ({
+    id: e.id,
+    time: clock(e.at),
+    kind: e.kind,
+    kindLabel: KIND_LABEL[e.kind] || e.kind,
+    summary: e.summary,
+    dimmed: e.reverted,
+    action: <RevertAction e={e} onRevert={onRevert} />,
+    details: e.items.length > 0 ? (
+      <table className="diff ch-items"><tbody>
+        {e.items.slice(0, 500).map((it, i) => <ItemRow key={i} it={it} />)}
+      </tbody></table>
+    ) : undefined,
+  }))
+  return <HistoryList rows={rows} perPage={10} />
 }
