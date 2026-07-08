@@ -469,6 +469,9 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .fl-row:hover:not(.static) .fl-name { color: var(--text); }
 .fl-row.static { cursor: default; }
 .fl-dot { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+/* Material preview sphere (from C4D's material manager) in material rows */
+.mat-thumb { width: 24px; height: 24px; border-radius: 5px; flex: none;
+  object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 .fl-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fl-meta { font-size: 11px; color: var(--dim2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fl-more { color: var(--dim2); font-size: 11px; padding: 4px 6px; }
@@ -842,13 +845,9 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .ly-objs { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px 26px;
   border-left: 1px solid var(--line2); padding-left: 6px; }
 
-/* ---------- Translate tab: language detection + per-row button ---------- */
-.lang-detect { display: flex; gap: 6px; margin: 6px 0 4px; }
-.lang-pill { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px;
-  background: var(--panel2); color: var(--dim); border: 1px solid var(--line);
-  font-variant-numeric: tabular-nums; }
-.lang-pill.on { background: var(--accent); color: #06121a; border-color: transparent; }
-.lang-pill.dim { color: var(--dim2); }
+/* ---------- Translate tab: detected-language rows ---------- */
+.grouplist li.lang-dom b { color: var(--accent); }
+.grouplist li span { font-variant-numeric: tabular-nums; }
 button.mini { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
   padding: 3px 9px; border-radius: 6px; background: var(--panel2); color: var(--dim);
   border: 1px solid var(--line); cursor: pointer; white-space: nowrap; }

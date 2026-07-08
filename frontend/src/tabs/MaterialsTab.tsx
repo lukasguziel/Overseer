@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { call } from '../api'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { TextureEntry } from '../types'
 import { humanBytes } from '../lib/format'
@@ -45,6 +46,14 @@ function TexRow({ e }: { e: TextureEntry }) {
 
 const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
 
+// Material preview sphere (as in the C4D material manager); falls back to the
+// plain status dot until the thumbnail arrives (or if C4D can't render one).
+function MatThumb({ src, fallback }: { src?: string; fallback: string }) {
+  return src
+    ? <img className="mat-thumb" src={src} alt="" draggable={false} />
+    : <span className="fl-dot" style={{ background: fallback }} />
+}
+
 export default function MaterialsTab({ org }: { org: Organizer }) {
   const { report, busy } = org
   const [confirm, setConfirm] = useState(false)         // make textures relative
@@ -58,6 +67,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
   const absPager = usePager(tex ? [...tex.absolute].sort(bySize) : [])
   const relPager = usePager(tex ? [...tex.relative].sort(bySize) : [])
+
+  // Preview spheres for the unused list, fetched once per material set.
+  const [previews, setPreviews] = useState<Record<string, string>>({})
+  const wanted = (mat?.unused || []).join('\n')
+  useEffect(() => {
+    const names = wanted ? wanted.split('\n') : []
+    if (!names.length) { setPreviews({}); return }
+    let alive = true
+    call('material_previews', { names, size: 48 })
+      .then((r) => { if (alive) setPreviews(r.previews || {}) })
+      .catch(() => { /* dots stay as fallback */ })
+    return () => { alive = false }
+  }, [wanted])
 
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
@@ -102,7 +124,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     onApply={() => org.doDeleteMaterial(nm)}
                     onAcceptAsIs={() => org.keep('materials', nm)}
                   >
-                    <span className="fl-dot" style={{ background: 'var(--dim2)' }} />
+                    <MatThumb src={previews[nm]} fallback="var(--dim2)" />
                     <span className="rn-old" title={nm}>{nm}</span>
                     <span className="rn-arrow">→</span>
                     <span className="rn-new dim">delete</span>
@@ -110,7 +132,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 ))}
                 {mat.unused.filter((nm) => onHidden.has(nm)).map((nm) => (
                   <div className="fl-row static mat-row" key={nm}>
-                    <span className="fl-dot" style={{ background: 'var(--warn)' }} />
+                    <MatThumb src={previews[nm]} fallback="var(--warn)" />
                     <span className="fl-name">{nm}</span>
                     <span className="tex-badge unused" title="Used only by hidden objects — kept safe from deletion">on hidden</span>
                   </div>
