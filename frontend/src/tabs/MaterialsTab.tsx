@@ -3,7 +3,6 @@ import { call } from '../api'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { TextureEntry } from '../types'
 import { humanBytes } from '../lib/format'
-import { IconTrash } from '../components/icons'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
@@ -19,27 +18,34 @@ function resTier(e: TextureEntry): string {
   return 'res-sm'
 }
 
-// One texture row: file + material + path, dimensions, size, status badges.
-function TexRow({ e }: { e: TextureEntry }) {
-  const dot = e.missing ? 'var(--err)' : e.absolute ? 'var(--warn)' : 'var(--apply)'
+// Texture table: fixed grid columns so file / path / res / pixels / size /
+// material line up cleanly; long names and paths get ellipsis-truncated.
+function TexTable({ rows, dot }: { rows: TextureEntry[]; dot: string }) {
   return (
-    <div className="fl-row static tex-row" title={e.resolved || e.path}>
-      <span className="fl-dot" style={{ background: dot }} />
-      <span className="tex-main">
-        <span className="fl-name">{e.file}</span>
-        <span className="tex-path dim">{e.path}</span>
-      </span>
-      <span className="tex-specs">
-        {e.res_tag && <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span>}
-        {e.width > 0 && <span className="tex-dim dim">{e.width}×{e.height}</span>}
-        {e.bytes > 0 && <span className="tex-size">{humanBytes(e.bytes)}</span>}
-      </span>
-      <span className="tex-badges">
-        <span className="tex-mat dim">{e.material}</span>
-        {!e.used && <span className="tex-badge unused">unused</span>}
-        {e.missing && <span className="tex-badge missing">missing</span>}
-        {e.relocatable && <span className="tex-badge fixable">→ relative</span>}
-      </span>
+    <div className="tex-table">
+      <div className="tex-tr tex-thead">
+        <span>File</span><span>Path</span><span className="num">Res</span>
+        <span className="num">Pixels</span><span className="num">Size</span><span>Material</span>
+      </div>
+      {rows.map((e, i) => (
+        <div className="tex-tr" key={i} title={e.resolved || e.path}>
+          <span className="tex-cell-file">
+            <span className="fl-dot" style={{ background: dot }} />
+            <span className="tex-cut">{e.file}</span>
+            {!e.used && <span className="tex-badge unused">unused</span>}
+          </span>
+          <span className="tex-cell-path dim">
+            <span className="tex-cut">{e.path}</span>
+            {e.relocatable && <span className="tex-badge fixable">→ relative</span>}
+          </span>
+          <span className="num">
+            {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
+          </span>
+          <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
+          <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
+          <span className="dim">{e.material}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -65,8 +71,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Hooks before the early return (Rules of Hooks).
   const unusedPager = usePager(
     (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
-  const absPager = usePager(tex ? [...tex.absolute].sort(bySize) : [])
-  const relPager = usePager(tex ? [...tex.relative].sort(bySize) : [])
+  // Three clean sections: missing first (a missing map is neither usable as
+  // absolute nor relative), the rest split by path style, heaviest first.
+  const allTex = tex ? [...tex.absolute, ...tex.relative] : []
+  const missPager = usePager(allTex.filter((e) => e.missing).sort(bySize))
+  const absPager = usePager(tex ? tex.absolute.filter((e) => !e.missing).sort(bySize) : [])
+  const relPager = usePager(tex ? tex.relative.filter((e) => !e.missing).sort(bySize) : [])
 
   // Preview spheres for the unused list, fetched once per material set.
   const [previews, setPreviews] = useState<Record<string, string>>({})
@@ -143,20 +153,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <AcceptedSection items={mat.accepted_all || []}
               onRestore={(nm) => org.unkeep('materials', nm)}
               hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
-            {mat.missing.length > 0 && (
-              <>
-                <div className="chipgroup-label" style={{ marginTop: 12 }}>Missing textures</div>
-                <div className="focuslist">
-                  {mat.missing.slice(0, 10).map((t, i) => (
-                    <div className="fl-row static" key={i}>
-                      <span className="fl-dot" style={{ background: 'var(--err)' }} />
-                      <span className="fl-name">{t.material}</span>
-                      <span className="fl-meta dim">{t.file}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
           </>
         ) : <div className="fl-empty">No material data.</div>}
       </section>
@@ -214,14 +210,25 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {tex && (
         <>
+          {missPager.total > 0 && (
+            <section className="card">
+              <div className="card-head">
+                <h3>Missing textures</h3>
+                <span className="card-hint">{missPager.total}</span>
+              </div>
+              <TexTable rows={missPager.rows} dot="var(--err)" />
+              <Pager pager={missPager} />
+            </section>
+          )}
+
           <section className="card">
             <div className="card-head">
-              <h3><IconTrash /> Absolute paths</h3>
-              <span className="card-hint">{tex.absolute_count}</span>
+              <h3>Absolute paths</h3>
+              <span className="card-hint">{absPager.total}</span>
             </div>
             {absPager.total
               ? <>
-                  <div className="focuslist">{absPager.rows.map((e, i) => <TexRow key={i} e={e} />)}</div>
+                  <TexTable rows={absPager.rows} dot="var(--warn)" />
                   <Pager pager={absPager} />
                 </>
               : <div className="fl-empty">No absolute texture paths 🎉</div>}
@@ -230,11 +237,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           <section className="card">
             <div className="card-head">
               <h3>Relative paths</h3>
-              <span className="card-hint">{tex.relative_count}</span>
+              <span className="card-hint">{relPager.total}</span>
             </div>
             {relPager.total
               ? <>
-                  <div className="focuslist">{relPager.rows.map((e, i) => <TexRow key={i} e={e} />)}</div>
+                  <TexTable rows={relPager.rows} dot="var(--apply)" />
                   <Pager pager={relPager} />
                 </>
               : <div className="fl-empty">No relative texture paths.</div>}

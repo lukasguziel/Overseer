@@ -15,8 +15,8 @@ export default function SuggestionRow({ onApply, onAcceptAsIs, busy, applyTitle,
       {children}
       <span className="rn-actions">
         <button className="rn-ok" title={applyTitle} onClick={onApply} disabled={busy}>✓</button>
-        <button className="rn-no" title="Accept as-is — no longer counts as a todo (restore below)"
-          onClick={onAcceptAsIs} disabled={busy}>✕</button>
+        <button className="rn-keep" title="Accept as-is — no longer counts as a todo (restore below)"
+          onClick={onAcceptAsIs} disabled={busy}>=</button>
       </span>
     </div>
   )

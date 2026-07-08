@@ -1,5 +1,28 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import ChangeHistory from '../components/ChangeHistory'
+import HistoryList, { type HistoryRow } from '../components/HistoryList'
+import type { HistoryEntry } from '../types'
+import { humanBytes, humanNum } from '../lib/format'
+
+// Analysis snapshots in the change-history look: time · chip · summary,
+// expandable to the full numbers of that run.
+function analysisRows(history: HistoryEntry[]): HistoryRow[] {
+  return history.map((h, i) => ({
+    id: `${h.ts || i}`,
+    time: h.at.length >= 16 ? h.at.slice(5, 16) : h.at,   // "MM-DD HH:MM"
+    kind: 'analysis',
+    kindLabel: 'Analyze',
+    summary: `${h.file} · ${humanNum(h.objects)} obj · ${Math.round((h.compliance || 0) * 100)}%`,
+    details: (
+      <table className="diff ch-items"><tbody>
+        <tr><td className="ch-field dim">objects</td><td>{humanNum(h.objects)}</td></tr>
+        {h.polys != null && <tr><td className="ch-field dim">polygons</td><td>{humanNum(h.polys)}</td></tr>}
+        {h.size != null && <tr><td className="ch-field dim">size</td><td>{humanBytes(h.size)}</td></tr>}
+        {h.compliance != null && <tr><td className="ch-field dim">structure</td><td>{Math.round(h.compliance * 100)}%</td></tr>}
+      </tbody></table>
+    ),
+  }))
+}
 
 function SectionHead({ title }: { title: string }) {
   return <div className="misc-sec"><span>{title}</span><hr /></div>
@@ -70,19 +93,13 @@ export default function MiscTab({ org }: { org: Organizer }) {
 
         <section className="card">
           <div className="card-head"><h3>Analysis history</h3></div>
+          <p className="hint-sm">
+            Every analysis run, newest first — expand an entry for the full
+            numbers of that snapshot. Up to 100 are kept.
+          </p>
           {history.length === 0
             ? <p className="hint-sm">No analyses recorded yet.</p>
-            : <table className="diff hist"><tbody>
-                {history.map((h, i) => (
-                  <tr key={i}>
-                    <td>{h.file}</td>
-                    <td className="dim">{h.at}</td>
-                    <td className="dim">{h.objects} obj</td>
-                    <td className="dim">{Math.round((h.compliance || 0) * 100)}%</td>
-                  </tr>
-                ))}
-              </tbody></table>}
-          <p className="hint-sm">Most recent first · last {history.length} of up to 100 kept.</p>
+            : <HistoryList rows={analysisRows(history)} perPage={10} />}
         </section>
       </div>
 

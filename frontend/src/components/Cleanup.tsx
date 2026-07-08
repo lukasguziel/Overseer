@@ -57,9 +57,9 @@ function Row({ it, onFocus, onRename, onKeep, busy }: {
           onClick={() => { setValue(it.name); setEditing(true) }}>✎</button>
       )}
       {onKeep && (
-        <button className="rn-no cl-keep" disabled={busy}
+        <button className="rn-keep cl-keep" disabled={busy}
           title="Accept as-is — no longer counts as a todo (restore in the Accepted section)"
-          onClick={() => onKeep(it.name)}>✕</button>
+          onClick={() => onKeep(it.name)}>=</button>
       )}
     </div>
   )

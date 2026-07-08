@@ -9,7 +9,7 @@ const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
   nl: 'Dutch', pl: 'Polish', cs: 'Czech', pt: 'Portuguese', ru: 'Russian',
   tr: 'Turkish', uk: 'Ukrainian', zh: 'Chinese', ja: 'Japanese', ko: 'Korean',
-  ar: 'Arabic', auto: 'auto', unknown: '—',
+  ar: 'Arabic', auto: 'auto', unknown: 'Unknown',
 }
 
 // Offline dictionaries only translate into EN/DE; Google takes any code.
@@ -62,25 +62,21 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         {detected && detected.total > 0
           ? (
             <>
-              <div className="lang-detect">
+              <ul className="grouplist">
                 {Object.entries(detected.counts || {})
                   .sort((a, b) => b[1] - a[1])
                   .map(([lg, n]) => (
-                    <span key={lg}
-                      className={`lang-pill${detected.dominant === lg ? ' on' : ''}${lg === 'unknown' ? ' dim' : ''}`}>
-                      {lg === 'unknown' ? '?' : lg.toUpperCase()} {n}
-                    </span>
+                    <li key={lg} className={detected.dominant === lg ? 'lang-dom' : ''}>
+                      <b>{LANG_LABEL[lg] || lg.toUpperCase()}</b><span>{n}</span>
+                    </li>
                   ))}
-              </div>
+              </ul>
               <p className="hint-sm">
                 Mostly <b>{LANG_LABEL[detected.dominant] || detected.dominant}</b> across {detected.total} names.
               </p>
             </>
           )
           : <p className="hint-sm">Run an analysis to detect the language.</p>}
-
-        <p className="hint-sm">Missing a word? Add it to the <code>translations</code>
-          in config.json, then re-open this tab.</p>
       </aside>
 
       <Workbench

@@ -51,8 +51,8 @@ function NoLayerRow({ n, busy, onAssign, onKeep }: {
             <>
               <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
                 title="Assign a layer — pick an existing one or type a new name">✓</button>
-              <button className="rn-no" disabled={busy} onClick={() => onKeep(n.name)}
-                title="Accept as-is — fine without a layer (restore below)">✕</button>
+              <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
+                title="Accept as-is — fine without a layer (restore below)">=</button>
             </>
           )}
       </span>
@@ -72,57 +72,68 @@ export default function LayersTab({ org }: { org: Organizer }) {
     [report, keeps.layers])
   const nlPager = usePager(noLayer)
   const layerNames = (lr?.layers || []).map((l) => l.name)
+  const [batchLayer, setBatchLayer] = useState('')
+  const assignAll = () => {
+    const v = batchLayer.trim()
+    if (!v || !noLayer.length) return
+    org.doAssignLayer(noLayer.map((n) => n.guid), v)
+    setBatchLayer('')
+  }
 
   return (
     <div className="layers-tab">
-      {/* ---- Objects without a layer (assign or accept) --------------- */}
-      <section className="card">
-        <div className="card-head">
-          <h3>No layer</h3>
-          <span className="card-hint">
-            {noLayer.length
-              ? `${noLayer.length} object${noLayer.length === 1 ? '' : 's'} — ✓ assign a layer (or create one), ✕ accept as-is`
-              : 'every object is on a layer or accepted 🎉'}
-          </span>
-        </div>
-        <datalist id="nl-layers">
-          {layerNames.map((l) => <option key={l} value={l} />)}
-        </datalist>
-        {noLayer.length > 0 && (
-          <>
-            <div className="rename-list">
-              {nlPager.rows.map((n) => (
-                <NoLayerRow key={n.guid} n={n} busy={busy}
-                  onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
-                  onKeep={(nm) => org.keep('layers', nm)} />
-              ))}
-            </div>
-            <Pager pager={nlPager} />
-          </>
-        )}
-      </section>
+      {/* ---- Side by side: layer overview (left) / no-layer worklist --- */}
+      <div className="ov-cols2">
+        <section className="card ly-overview">
+          <div className="card-head">
+            <h3>Layer overview</h3>
+            {lr && (
+              <span className="hint-sm" style={{ margin: 0 }}>
+                {lr.total_layers} layer{lr.total_layers === 1 ? '' : 's'}
+                {lr.empty_layers > 0 && ` · ${lr.empty_layers} empty`}
+                {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
+              </span>
+            )}
+          </div>
+          {lr
+            ? (
+              <LayerTree
+                layers={lr.layers} noLayer={lr.no_layer}
+                nodes={report?.nodes || []} onFocus={org.doFocus}
+              />
+            )
+            : <div className="fl-empty">Run an analysis to see the layer usage.</div>}
+        </section>
 
-      {/* ---- Layer overview (read-only analysis) ---------------------- */}
-      <section className="card ly-overview">
-        <div className="card-head">
-          <h3>Layer overview</h3>
-          {lr && (
-            <span className="hint-sm" style={{ margin: 0 }}>
-              {lr.total_layers} layer{lr.total_layers === 1 ? '' : 's'}
-              {lr.empty_layers > 0 && ` · ${lr.empty_layers} empty`}
-              {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
-            </span>
-          )}
-        </div>
-        {lr
-          ? (
-            <LayerTree
-              layers={lr.layers} noLayer={lr.no_layer}
-              nodes={report?.nodes || []} onFocus={org.doFocus}
-            />
-          )
-          : <div className="fl-empty">Run an analysis to see the layer usage.</div>}
-      </section>
+        <Workbench
+          title="No layer" count={noLayer.length} loading={previewing}
+          empty="Every object is on a layer or accepted 🎉"
+          onAcceptAll={() => org.keepMany('layers', noLayer.map((n) => n.name))}
+          busy={busy}
+        >
+          <datalist id="nl-layers">
+            {layerNames.map((l) => <option key={l} value={l} />)}
+          </datalist>
+          <div className="nl-batch">
+            <input className="nl-input" list="nl-layers" placeholder="layer for ALL of these…"
+              value={batchLayer} onChange={(e) => setBatchLayer(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') assignAll() }} />
+            <button className="sm" disabled={busy || !batchLayer.trim() || !noLayer.length}
+              onClick={assignAll}
+              title="Assign every listed object to this layer (created if missing, undoable)">
+              ✓ Assign all
+            </button>
+          </div>
+          <div className="rename-list">
+            {nlPager.rows.map((n) => (
+              <NoLayerRow key={n.guid} n={n} busy={busy}
+                onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
+                onKeep={(nm) => org.keep('layers', nm)} />
+            ))}
+          </div>
+          <Pager pager={nlPager} />
+        </Workbench>
+      </div>
 
       {/* ---- Layer tagging (write) ----------------------------------- */}
       <div className="workbench">

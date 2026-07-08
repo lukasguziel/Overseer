@@ -349,6 +349,75 @@ class SceneAdapter:
             pass
         return out
 
+    def texture_previews(self, paths=None, size=40):
+        """Tiny data-URL thumbnails of texture image files, keyed by the
+        path string the caller sent (resolved absolute paths render; missing
+        files are skipped so the UI falls back to a status dot)."""
+        import base64
+        import os
+        import tempfile
+
+        out = {}
+        tmp = os.path.join(tempfile.gettempdir(), "so_texprev.png")
+        for p in paths or []:
+            try:
+                if not p or not os.path.isfile(p):
+                    continue
+                bmp = c4d.bitmaps.BaseBitmap()
+                if bmp.InitWith(p)[0] != c4d.IMAGERESULT_OK:
+                    continue
+                w, h = bmp.GetSize()
+                if w <= 0 or h <= 0:
+                    continue
+                dst = c4d.bitmaps.BaseBitmap()
+                if dst.Init(size, size, 32) != c4d.IMAGERESULT_OK:
+                    continue
+                bmp.ScaleIt(dst, 256, True, True)
+                if dst.Save(tmp, c4d.FILTER_PNG) != c4d.IMAGERESULT_OK:
+                    continue
+                with open(tmp, "rb") as f:
+                    data = base64.b64encode(f.read()).decode("ascii")
+                out[p] = "data:image/png;base64," + data
+            except Exception:
+                continue
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        return out
+
+    def focus_material(self, name: str) -> dict:
+        """Select the material in the material manager and, if it is assigned
+        anywhere, select & frame the first object carrying it."""
+        target = None
+        try:
+            for m in self.doc.GetMaterials():
+                if m.GetName() == name:
+                    target = m
+                    break
+        except Exception:
+            target = None
+        if target is None:
+            return {"ok": False, "object": None}
+        try:
+            self.doc.SetActiveMaterial(target)
+            c4d.EventAdd()
+        except Exception:
+            pass
+        for node in self.tree.walk() if self.tree else []:
+            op = self._by_guid.get(node.guid)
+            if op is None:
+                continue
+            for tag in op.GetTags():
+                try:
+                    if (tag.IsInstanceOf(c4d.Ttexture)
+                            and tag[c4d.TEXTURETAG_MATERIAL] == target):
+                        self.focus(node.guid)
+                        return {"ok": True, "object": node.name}
+                except Exception:
+                    continue
+        return {"ok": True, "object": None}
+
     def _iter_bitmap_shaders(self, mat):
         def walk(sh):
             while sh:
