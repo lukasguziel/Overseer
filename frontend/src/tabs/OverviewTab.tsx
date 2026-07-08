@@ -9,15 +9,18 @@ import Treemap from '../components/Treemap'
 import Ring, { type Tone } from '../components/Ring'
 import AssetTable from '../components/AssetTable'
 import EmptyState from '../components/EmptyState'
+import { TABS } from '../lib/constants'
 
 // The guided flow, in the order that makes sense for a scene cleanup.
-const FLOW = [
+// Steps whose tab is parked ("soon") are hidden from the strip too.
+const PARKED = new Set(TABS.filter(([, , soon]) => soon).map(([id]) => id))
+const FLOW = ([
   { tab: 'naming', label: 'Normalize names' },
   { tab: 'translate', label: 'Translate names' },
   { tab: 'structure', label: 'Group objects' },
   { tab: 'layers', label: 'Tag layers' },
   { tab: 'materials', label: 'Clean materials' },
-] as const
+] as const).filter((s) => !PARKED.has(s.tab))
 
 export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, detectInfo, compliance, busy, history } = org

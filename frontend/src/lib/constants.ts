@@ -24,7 +24,7 @@ export const TABS: [TabId, string, boolean?][] = [
   ['assets', 'Assets'],
   ['layers', 'Layers'],
   ['materials', 'Materials'],
-  ['structure', 'Structure'],
+  ['structure', 'Structure', true],
   ['rules', 'Rules', true],
   ['misc', 'Misc'],
 ]
