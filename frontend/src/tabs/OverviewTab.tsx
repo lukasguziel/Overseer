@@ -27,8 +27,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, detectInfo, compliance, busy, history } = org
   // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const hyg = React.useMemo(
-    () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
-    [report])
+    () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
+      { casing: org.casing, kept: org.keeps.naming }),
+    [report, org.casing, org.keeps.naming])
 
   if (!report || compliance == null) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />

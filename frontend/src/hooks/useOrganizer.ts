@@ -1,9 +1,10 @@
 // Central app state: settings, report, live previews and all API actions.
 // The tab components consume only this object — App.tsx stays thin.
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import { dominantCasing } from '../lib/constants'
+import { computeHygiene } from '../lib/hygiene'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult,
   Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
@@ -369,6 +370,34 @@ export function useOrganizer() {
     syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
   }, [keeps, syncKeeps])
 
+  // Accept EVERYTHING in a section's current plan as-is (the ✕-all next to
+  // Process all): one config write, all rows vanish, the score jumps.
+  const keepAll = useCallback((section: KeepSection) => {
+    let keys: string[] = []
+    if (section === 'materials') {
+      const hidden = new Set(report?.materials?.only_hidden || [])
+      keys = (report?.materials?.unused || []).filter((nm) => !hidden.has(nm))
+    } else {
+      const plan = section === 'naming' ? naming
+        : section === 'translate' ? translation
+          : section === 'layers' ? layers : structure
+      keys = (plan?.diff || []).map((d: any) =>
+        section === 'naming' || section === 'translate' ? d.old : d.name)
+    }
+    if (!keys.length) return
+    const next = new Set(keeps[section])
+    keys.forEach((k) => next.add(k))
+    setKeeps((k) => ({ ...k, [section]: next }))
+    dropRows(section, () => true)
+    setStatus(`Accepted ${keys.length} item${keys.length === 1 ? '' : 's'} as-is ✓`)
+    call('set_keeps', { section, keys: Array.from(next) })
+      .then(() => { if (section === 'materials') refreshSoon(200) })
+      .catch((e) => {
+        setError(String(e.message || e)); setStatus('Accept ✗')
+        syncKeeps(section, keeps[section]).catch(() => {})
+      })
+  }, [keeps, naming, translation, layers, structure, report, dropRows, refreshSoon, syncKeeps])
+
   const applyPreset = (id: string) => run('Apply preset', async () => {
     const r = await call('apply_preset', { id })
     setActivePreset(r.applied || id)
@@ -479,6 +508,47 @@ export function useOrganizer() {
     }
   }, [naming, translation, layers, structure, report])
 
+  // Per-area score (0..100) for the ring next to the navigation. The score
+  // measures DECISIONS, not absolute cleanliness: an open todo counts
+  // against it, an applied fix OR an accepted-as-is both clear it — so 100
+  // is always reachable by working through the list.
+  const namingHygScore = useMemo(() => report
+    ? computeHygiene(report.nodes || [], report.total_polys || 0,
+        { casing, kept: keeps.naming }).namingScore
+    : null, [report, casing, keeps.naming])
+
+  const areaScore = useCallback((t: TabId): number | null => {
+    if (!report) return null
+    switch (t) {
+      case 'naming':
+        return namingHygScore
+      case 'translate': {
+        const open = translation?.count
+        const total = translation?.detected?.total ?? report.object_count ?? 0
+        if (open == null || !total) return null
+        return Math.round(Math.max(0, total - open) / total * 100)
+      }
+      case 'layers': {
+        const open = layers?.count
+        if (open == null) return null
+        const denom = Math.max(1, open,
+          (report.categories?.light || 0) + (report.categories?.camera || 0)
+          + ((report.types?.Instance as number) || 0))
+        return Math.round((denom - open) / denom * 100)
+      }
+      case 'materials': {
+        const m = report.materials
+        if (!m?.total) return null
+        const bad = m.deletable_count ?? m.unused.length
+        return Math.round((m.total - bad) / m.total * 100)
+      }
+      case 'structure':
+        return Math.round((report.structure_compliance || 0) * 100)
+      default:
+        return null
+    }
+  }, [report, namingHygScore, translation, layers])
+
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
   useEffect(() => {
@@ -513,6 +583,17 @@ export function useOrganizer() {
     call('clear_changes').then(() => loadChanges()).catch(() => {})
   }, [loadChanges])
 
+  // Direct single-object rename (Name cleanup inline edit).
+  const doRenameObject = useCallback((guid: number, name: string) => {
+    setStatus('Renaming…')
+    call('rename_object', { guid, name })
+      .then((r) => {
+        setStatus(r.ok ? `Renamed to “${name}” ✓ (undoable)` : 'Rename ✗')
+        refreshSoon(300)
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗') })
+  }, [refreshSoon])
+
   const compliance = report ? Math.round(report.structure_compliance * 100) : null
 
   return {
@@ -526,7 +607,7 @@ export function useOrganizer() {
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
-    keeps, keep, unkeep, planCount,
+    keeps, keep, unkeep, keepAll, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,

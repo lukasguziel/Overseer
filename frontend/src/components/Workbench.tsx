@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react'
 import type { ProgressInfo } from '../types'
 
-// Live preview panel. Header carries the change count and the apply-all
-// button (top right). While `loading` with server `progress`, the content
-// blurs and a progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, onApply, busy, note, progress, children }: {
+// Live preview panel. Header carries the change count and the batch pair
+// (top right): ✓ apply everything, ✕ accept everything as-is — both valid
+// ways to clear an area. While `loading` with server `progress`, the
+// content blurs and a progress bar shows what the plugin is fetching.
+export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, progress, children }: {
   title: string
   count: number
   loading: boolean
   empty: string
   applyLabel: string
   onApply: () => void
+  onAcceptAll?: () => void
   busy: boolean
   note?: string | null
   progress?: ProgressInfo | null
@@ -26,9 +28,16 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
         <span className="wb-count">
           {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
         </span>
-        <button className="apply wb-apply" disabled={busy || !count} onClick={onApply}>
-          {applyLabel}
+        <button className="apply wb-apply" disabled={busy || !count} onClick={onApply}
+          title="Apply every suggestion in the list (one undo step)">
+          ✓ {applyLabel}
         </button>
+        {onAcceptAll && (
+          <button className="wb-accept-all" disabled={busy || !count} onClick={onAcceptAll}
+            title="Accept everything as-is — nothing changes in the scene, the items stop counting as todos (restore below)">
+            ✕ Accept all
+          </button>
+        )}
       </div>
       {note && <p className="wb-note">{note}</p>}
       <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>

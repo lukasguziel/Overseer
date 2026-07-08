@@ -37,8 +37,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
   const { report, casing, applyCasing, keepSeparators, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
 
   const hyg = React.useMemo(
-    () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
-    [report])
+    () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
+      { casing, kept: keeps.naming }),
+    [report, casing, keeps.naming])
   const nameBuckets: CleanupBucket[] = [
     { key: 'default', label: 'Default names', items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
     { key: 'dupes', label: 'Duplicate names', items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
@@ -118,7 +119,8 @@ export default function NamingTab({ org }: { org: Organizer }) {
         <Workbench
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty="Every name already matches your rules 🎉"
-          applyLabel="Process all" onApply={org.applyNaming} busy={busy}
+          applyLabel="Process all" onApply={org.applyNaming}
+          onAcceptAll={() => org.keepAll('naming')} busy={busy}
           progress={org.progress}
           note={naming?.applied != null ? `${naming.applied} applied (undoable).` : null}
         >
@@ -147,9 +149,10 @@ export default function NamingTab({ org }: { org: Organizer }) {
       <section className="card">
         <div className="card-head">
           <h3>Name cleanup</h3>
-          <span className="card-hint">click an item to select &amp; frame it</span>
+          <span className="card-hint">click an item to select &amp; frame it · ✎ to rename</span>
         </div>
-        <Cleanup buckets={nameBuckets} onFocus={org.doFocus} />
+        <Cleanup buckets={nameBuckets} onFocus={org.doFocus} onRename={org.doRenameObject}
+          onKeep={(nm) => org.keep('naming', nm)} busy={busy} />
       </section>
     </div>
   )

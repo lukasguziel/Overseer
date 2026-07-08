@@ -782,6 +782,20 @@ def handle(payload: dict) -> dict:
                        [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
 
+    if op == "rename_object":
+        # Direct single-object rename (Name cleanup inline edit) — one undo
+        # step, recorded in the change history like every other mutation.
+        adapter = SceneAdapter(doc)
+        adapter.build_tree()
+        new_name = str(payload.get("name") or "").strip()
+        if not new_name:
+            return {"ok": False, "error": "empty name"}
+        ok = adapter.rename_object(payload.get("guid"), new_name)
+        if ok:
+            _record_change("naming", "renamed to “%s”" % new_name,
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
+        return {"ok": ok, "applied": 1 if ok else 0}
+
     if op == "focus":
         adapter = SceneAdapter(doc)
         adapter.build_tree()
