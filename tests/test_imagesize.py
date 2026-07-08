@@ -7,6 +7,7 @@ from sceneorg.core import imagesize
 
 
 def test_resolution_tag():
+    # postcondition
     assert imagesize.resolution_tag(4096) == "4K"
     assert imagesize.resolution_tag(8192) == "8K"
     assert imagesize.resolution_tag(2048) == "2K"
@@ -24,31 +25,44 @@ def _write_png(path, w, h):
 
 
 def test_png(tmp_path):
+    # setup
     p = tmp_path / "diffuse.png"
     _write_png(p, 4096, 4096)
+
+    # postcondition
     assert imagesize.image_size(str(p)) == (4096, 4096)
 
 
 def test_bmp(tmp_path):
+    # setup
     p = tmp_path / "t.bmp"
     header = b"BM" + b"\x00" * 16 + struct.pack("<ii", 2048, 1024) + b"\x00" * 8
     p.write_bytes(header)
+
+    # postcondition
     assert imagesize.image_size(str(p)) == (2048, 1024)
 
 
 def test_tga(tmp_path):
+    # setup
     p = tmp_path / "t.tga"
     head = bytearray(18)
     struct.pack_into("<HH", head, 12, 1920, 1080)
     p.write_bytes(bytes(head))
+
+    # postcondition
     assert imagesize.image_size(str(p)) == (1920, 1080)
 
 
 def test_unknown_returns_none(tmp_path):
+    # setup
     p = tmp_path / "t.dat"
     p.write_bytes(b"not an image at all")
+
+    # postcondition
     assert imagesize.image_size(str(p)) is None
 
 
 def test_missing_file_returns_none(tmp_path):
+    # postcondition
     assert imagesize.image_size(str(tmp_path / "nope.png")) is None

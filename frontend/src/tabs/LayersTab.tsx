@@ -36,7 +36,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
 
       {/* ---- Layer tagging (write) ----------------------------------- */}
       <div className="workbench">
-        <aside className="wb-side">
+        <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Layer tagging</h3>
           <p className="hint-sm">
             Assigns objects to C4D <b>layers</b> by type — the right axis for

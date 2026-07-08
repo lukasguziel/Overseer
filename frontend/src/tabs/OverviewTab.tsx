@@ -45,10 +45,10 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   const matProblem = mat?.deletable_count ?? (mat?.unused.length ?? 0)
   const matScore = matTotal ? Math.round((matTotal - matProblem) / matTotal * 100) : 100
 
-  // Overall health = average of the sub-scores (naming + structure + materials).
+  // Overall health = average of the sub-scores (naming + materials).
+  // Structure is parked with its tab — re-add its entry when it returns.
   const subScores = [
     { key: 'naming', label: 'Naming', pct: hyg.namingScore, tab: 'naming' as const },
-    { key: 'structure', label: 'Structure', pct: compliance, tab: 'structure' as const },
     { key: 'materials', label: 'Materials', pct: matScore, tab: 'materials' as const },
   ]
   const health = Math.round(subScores.reduce((s, x) => s + x.pct, 0) / subScores.length)
@@ -151,7 +151,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           </tbody></table>
           <div className="ov-links">
             <button className="ghost sm" onClick={() => org.setTab('naming')}>Fix naming →</button>
-            <button className="ghost sm" onClick={() => org.setTab('structure')}>Fix structure →</button>
           </div>
           {detectInfo && <p className="mini-note dim">detected: {detectInfo.style} / {String(detectInfo.language)} / pad {detectInfo.number_pad} · {Math.round(detectInfo.confidence * 100)}%</p>}
         </section>

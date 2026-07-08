@@ -3,6 +3,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import Pager, { usePager } from '../components/Pager'
+import { DiffOld, DiffNew } from '../components/DiffText'
 
 const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
@@ -25,7 +26,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
   return (
     <div className="stacked">
     <div className="workbench">
-      <aside className="wb-side">
+      <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
         <h3>Translate names</h3>
         <p className="hint-sm">
           Rewrites object names into the target language, word by word. Casing,
@@ -99,10 +100,12 @@ export default function TranslateTab({ org }: { org: Organizer }) {
               {d.lang && d.lang !== 'unknown'
                 ? <span className="rule-tag">{d.lang.toUpperCase()}</span>
                 : <span className="rule-tag rt-casing">?</span>}
-              <span className="rn-old" title={d.old}>{d.old}</span>
+              <span className="rn-old" title={d.old}><DiffOld oldS={d.old} newS={d.new} /></span>
               <span className="rn-arrow">→</span>
               <span className="rn-new"
-                title={(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ') || d.new}>{d.new}</span>
+                title={(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ') || d.new}>
+                <DiffNew oldS={d.old} newS={d.new} />
+              </span>
             </SuggestionRow>
           ))}
         </div>

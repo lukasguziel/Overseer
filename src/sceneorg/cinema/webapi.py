@@ -77,7 +77,7 @@ def _export_dir() -> str:
     try:
         stamp = os.path.join(PLUGIN_DIR, "dev_repo.txt")
         if os.path.isfile(stamp):
-            with open(stamp, encoding="utf-8") as f:
+            with open(stamp, encoding="utf-8-sig") as f:
                 repo = f.read().strip()
             if repo and os.path.isdir(repo):
                 return repo

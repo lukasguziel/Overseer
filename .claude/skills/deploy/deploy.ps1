@@ -55,6 +55,10 @@ function Step([string]$What, [scriptblock]$Do) {
 
 Write-Output "Deploying to: $Target"
 
+# Stamp the repo root so the plugin knows where to mirror scene_report.json
+# (read by webapi._export_dir; machine-local by nature, lives only in the target).
+Step "dev_repo.txt" { Set-Content -Path (Join-Path $Target "dev_repo.txt") -Value $repoRoot -Encoding utf8 }
+
 # Loader + config template (the user's config.json is NOT overwritten)
 Step "scene_organizer.pyp" { Copy-Item (Join-Path $src "scene_organizer.pyp") $Target -Force }
 Step "so_logo.jpg" { Copy-Item (Join-Path $src "so_logo.jpg") $Target -Force }
