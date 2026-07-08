@@ -1,9 +1,3 @@
-"""JSON API of the web frontend (c4d-dependent, runs on the main thread).
-
-Freshly reloaded by bridge.drain() on every request (hot-reload).
-Uses exclusively the pure sceneorg logic + the c4d_adapter.
-"""
-
 from __future__ import annotations
 
 import json
@@ -25,17 +19,13 @@ from .adapter import SceneAdapter
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
-# Restructuring plans learned/written by the skill.
 PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
 
-# Full report additionally lands in the repo -> Claude reads it directly.
 EXPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
 EXPORT_CSV_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_structure.csv"
-# Analysis history (which project when) lives next to config.json in the plugin.
 HISTORY_PATH = os.path.join(PLUGIN_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
-# Columns of the flat CSV structure (one object per row).
 _CSV_FIELDS = ("path", "name", "type", "category", "depth", "casing",
                "language", "children")
 
@@ -53,11 +43,6 @@ def _write_export(report_dict) -> str | None:
 
 
 def _write_csv(report_dict) -> tuple[str, int] | None:
-    """Flat node table (path;name;type;...) for Excel/Sheets.
-
-    Uses semicolon as delimiter (German Excel locale) and writes a header
-    row. Returns (path, row count) or None on error.
-    """
     import csv
     try:
         d = os.path.dirname(EXPORT_CSV_PATH)
@@ -76,11 +61,6 @@ def _write_csv(report_dict) -> tuple[str, int] | None:
 
 
 def _record_history(entry: dict) -> None:
-    """Appends an analysis entry (file/when/objects) to the history.
-
-    Debounced: the same file within 60 s only updates the last entry instead
-    of spamming (live preview/refresh trigger multiple times).
-    """
     try:
         hist = []
         if os.path.isfile(HISTORY_PATH):
@@ -109,6 +89,31 @@ def _read_history() -> list:
     return []
 
 
+def _merge_layers(report_dict: dict, layer_meta: list) -> dict:
+    counts = dict(report_dict.get("layers_by_name") or {})
+    polys = dict(report_dict.get("polys_by_layer") or {})
+    layers: list = []
+    seen: set = set()
+    for m in layer_meta:
+        name = m.get("name", "")
+        seen.add(name)
+        n = counts.get(name, 0)
+        layers.append({**m, "objects": n, "polys": polys.get(name, 0),
+                       "empty": n == 0})
+    for name, n in counts.items():
+        if name not in seen:
+            layers.append({"name": name, "color": None, "solo": False,
+                           "view": True, "render": True, "locked": False,
+                           "objects": n, "polys": polys.get(name, 0),
+                           "empty": False})
+    return {
+        "layers": layers,
+        "no_layer": report_dict.get("no_layer_count", 0),
+        "total_layers": len(layers),
+        "empty_layers": sum(1 for e in layers if e["empty"]),
+    }
+
+
 def _read_config_data() -> dict:
     if os.path.isfile(CONFIG_PATH):
         try:
@@ -120,14 +125,12 @@ def _read_config_data() -> dict:
 
 
 def _preset_settings(data: dict) -> dict:
-    """Settings payload of a preset -- v2 (`settings` key) or v1 (top-level)."""
     if "settings" in data:
         return data.get("settings") or {}
     return {k: v for k, v in data.items() if k != "meta"}
 
 
 def _list_presets() -> list:
-    """All presets (presets/*.json) with their meta info."""
     out = []
     try:
         if not os.path.isdir(PRESETS_DIR):
@@ -168,7 +171,6 @@ def _slugify(name: str) -> str:
 
 
 def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
-    """Snapshot the CURRENT config.json as a v2 preset file."""
     if not name.strip():
         return {"error": "preset needs a name"}
     import time
@@ -180,7 +182,7 @@ def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
         return {"error": "preset '%s' exists (send overwrite:true to replace)"
                 % slug, "exists": True, "id": slug}
     settings = cfgmod.migrate_config(_read_config_data())
-    settings.pop("preset", None)   # a snapshot is not 'derived from' anything
+    settings.pop("preset", None)
     preset = {
         "schema": 2,
         "meta": {
@@ -207,7 +209,6 @@ def _delete_preset(preset_id: str) -> dict:
 
 
 def _load_preset(preset_id: str) -> dict | None:
-    """Load a preset file (by id or file name)."""
     for cand in (preset_id, preset_id + ".json"):
         path = os.path.join(PRESETS_DIR, os.path.basename(cand))
         if os.path.isfile(path):
@@ -220,7 +221,6 @@ def _load_preset(preset_id: str) -> dict | None:
 
 
 def _list_plans() -> list:
-    """Restructuring plans (plans/*.json) with short info."""
     out = []
     try:
         if not os.path.isdir(PLANS_DIR):
@@ -259,12 +259,6 @@ def _load_plan(plan_id: str) -> dict | None:
 
 
 def _apply_preset(preset_id: str) -> dict:
-    """Write the preset's settings snapshot verbatim to config.json.
-
-    v2 presets carry a full settings snapshot (incl. the node-editor graph)
-    -- nothing is regenerated, so manual graph layouts survive round trips.
-    v1 preset files are migrated on the fly (and get a generated graph).
-    """
     preset = _load_preset(preset_id)
     if preset is None:
         return {"error": "preset not found: %s" % preset_id}
@@ -289,9 +283,8 @@ def _load_cfg():
 
 def _convention(settings: dict, cfg) -> NamingConvention:
     casing = settings.get("casing") or cfg.convention.style.value
-    language = settings["language"] if "language" in settings else cfg.convention.language
     pad = int(settings.get("number_pad", cfg.convention.number_pad))
-    return NamingConvention(style=Casing(casing), language=language, number_pad=pad)
+    return NamingConvention(style=Casing(casing), language=None, number_pad=pad)
 
 
 def _scope(settings: dict, adapter: SceneAdapter):
@@ -312,17 +305,33 @@ def _rule_dict(r) -> dict:
     }
 
 
+def _scene_dirty(doc) -> int:
+    """Cheap change token: C4D's per-document dirty counter for object and
+    data changes (add/remove/reparent + geometry/parameter edits). Bumps on
+    real scene edits, NOT on mere selection or camera moves -- so the
+    auto-refresh poll only fires when a statistic could actually change."""
+    try:
+        return int(doc.GetDirty(c4d.DIRTYFLAGS_OBJECT | c4d.DIRTYFLAGS_DATA))
+    except Exception:
+        return 0
+
+
 def handle(payload: dict) -> dict:
     op = payload.get("op")
     settings = payload.get("settings", {})
     doc = c4d.documents.GetActiveDocument()
     if doc is None:
         return {"error": "No active document."}
+
+    if op == "dirty":
+        # Tiny poll target for the frontend auto-refresh watcher: the change
+        # token + the doc name (so switching documents also forces a refresh).
+        return {"ok": True, "dirty": _scene_dirty(doc),
+                "name": doc.GetDocumentName()}
+
     cfg, data = _load_cfg()
 
     if op in ("analyze", "export", "export_csv"):
-        # Preloader: report progress to the bridge singleton (polled by the
-        # web UI via /api/progress) and mirror it in the C4D status bar.
         from .. import bridge
 
         def _prog(phase, current=0, total=0, detail=""):
@@ -343,16 +352,21 @@ def handle(payload: dict) -> dict:
                 progress=lambda cur, tot, name: _prog(
                     "Reading scene objects", cur, tot, name))
             _prog("Analyzing structure")
-            # Selection scope narrows ALL stats (live analysis only -- exports
-            # always cover the whole scene; they are the Claude channel).
             scope = _scope(settings, adapter) if op == "analyze" else None
             if scope is not None and not scope:
                 return {"error": "No objects selected in Cinema 4D."}
+            include_hidden = (op != "analyze"
+                              or bool(settings.get("include_hidden", False)))
             report = SceneAnalyzer(cfg.standard).analyze(
-                tree, file_name=doc.GetDocumentName(), scope=scope)
+                tree, file_name=doc.GetDocumentName(), scope=scope,
+                include_hidden=include_hidden)
             data_dict = report.to_dict()
             data_dict["scoped"] = scope is not None
-            # Project size: the .c4d file on disk (if saved).
+            data_dict["include_hidden"] = include_hidden
+            # Change token at read time -> the auto-refresh watcher syncs to
+            # this and only re-analyzes once the scene has moved past it.
+            data_dict["dirty"] = _scene_dirty(doc)
+            data_dict["doc_name"] = doc.GetDocumentName()
             try:
                 full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
                 data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
@@ -363,6 +377,17 @@ def handle(payload: dict) -> dict:
                 data_dict["materials"] = adapter.scan_materials()
             except Exception:
                 data_dict["materials"] = None
+            try:
+                _prog("Scanning textures")
+                data_dict["textures"] = adapter.scan_textures()
+            except Exception:
+                data_dict["textures"] = None
+            try:
+                _prog("Scanning layers")
+                data_dict["layers_report"] = _merge_layers(
+                    data_dict, adapter.scan_layers())
+            except Exception:
+                data_dict["layers_report"] = None
             _prog("Writing report")
         finally:
             bridge.clear_progress()
@@ -370,13 +395,12 @@ def handle(payload: dict) -> dict:
                 c4d.StatusClear()
             except Exception:
                 pass
-        # Timestamp: when this scene was analyzed (Unix ts + locally readable).
+
         import time
         now = time.time()
         data_dict["analyzed_ts"] = now
         data_dict["analyzed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
         if not data_dict.get("scoped"):
-            # Scoped analyses would pollute the trends and the Claude report.
             _record_history({
                 "file": data_dict.get("file") or "(unsaved)",
                 "ts": now,
@@ -436,8 +460,6 @@ def handle(payload: dict) -> dict:
             "preset": data.get("preset"),
         }
         if op == "apply_all":
-            # Re-planned server-side on a fresh tree: guids sent by the client
-            # are only trusted as accept filters within this request cycle.
             chosen = pipeline.filter_accepted(plan, payload.get("accept"))
             applied = adapter.apply_bundle(
                 chosen.renames, chosen.reparents, chosen.layers,
@@ -474,6 +496,11 @@ def handle(payload: dict) -> dict:
         adapter = SceneAdapter(doc)
         deleted = adapter.delete_unused_materials()
         return {"ok": True, "deleted": deleted}
+
+    if op == "fix_textures_relative":
+        adapter = SceneAdapter(doc)
+        res = adapter.make_textures_relative(payload.get("materials"))
+        return {"ok": True, **res}
 
     if op == "detect":
         tree = SceneAdapter(doc).build_tree()
@@ -541,9 +568,9 @@ def handle(payload: dict) -> dict:
         adapter = SceneAdapter(doc)
         tree = adapter.build_tree()
         scope = _scope(settings, adapter)
-        props = translatemod.plan_translations(tree, scope=scope)
+        target = payload.get("target") or "en"
+        props = translatemod.plan_translations(tree, scope=scope, target=target)
         if op == "apply_translate":
-            # Apply only the guids accepted by the user.
             accepted = set(payload.get("guids") or [])
             chosen = [p for p in props if p.guid in accepted]
             renames = [ops.RenameOp(guid=p.guid, old_name=p.old, new_name=p.new)
@@ -551,8 +578,10 @@ def handle(payload: dict) -> dict:
             applied = adapter.apply_renames(renames)
             return {"ok": True, "applied": applied, "count": len(renames)}
         diff = [{"guid": p.guid, "old": p.old, "new": p.new,
-                 "words": p.words} for p in props]
-        return {"ok": True, "count": len(props), "diff": diff}
+                 "words": p.words, "lang": p.lang} for p in props]
+        detected = translatemod.detect_languages(tree, scope=scope).to_dict()
+        return {"ok": True, "count": len(props), "diff": diff,
+                "target": target, "detected": detected}
 
     if op in ("plan_layers", "apply_layers"):
         import collections

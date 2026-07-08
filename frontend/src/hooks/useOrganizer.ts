@@ -1,6 +1,6 @@
 // Central app state: settings, report, live previews and all API actions.
 // The tab components consume only this object — App.tsx stays thin.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import type {
@@ -15,12 +15,15 @@ export interface RulesInfo {
 export function useOrganizer() {
   const [tab, setTab] = useState<TabId>('overview')
   const [scope, setScope] = useState(false)        // false = whole scene, true = selection
+  const [includeHidden, setIncludeHidden] = useState(false)  // false = exclude OM-hidden objects from all stats
+  const [autoRefresh, setAutoRefresh] = useState(false)  // watch the scene and re-analyze on change
 
   const [casing, setCasing] = useState('PascalCase')
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
   const [safe, setSafe] = useState(true)
   const [tidy, setTidy] = useState(true)           // only collect loose objects
+  const [translateTarget, setTranslateTarget] = useState('en')  // Translate tab: target language
 
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('Ready.')
@@ -80,12 +83,18 @@ export function useOrganizer() {
     }
   }
 
+  // Change token of the scene as of the last analysis, so the auto-refresh
+  // watcher knows when the scene has moved on (survives re-renders via a ref).
+  const lastDirty = useRef<{ dirty: number; name: string } | null>(null)
+
   const doAnalyze = useCallback(() => run('Analysis', async () => {
-    // Selection scope narrows every stat in the report (Overview, Assets, ...).
-    const r = await call('analyze', { settings: { selection: scope } })
+    // Selection scope + the eye toggle narrow every stat in the report
+    // (Overview, Assets, compliance, …) — the server re-aggregates the tree.
+    const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
     setReport(r.report)
+    lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '' }
     call('history').then((h) => setHistory(h.history || [])).catch(() => {})
-  }), [scope])
+  }), [scope, includeHidden])
 
   const doDetect = () => run('Detect', async () => {
     const r = await call('detect')
@@ -133,6 +142,19 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
   }, [doAnalyze])
 
+  const doFixTexturesRelative = useCallback((materials?: string[]) => {
+    setStatus('Making texture paths relative…')
+    call('fix_textures_relative', materials ? { materials } : {})
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(r.fixed
+          ? `Rewrote ${r.fixed} texture path${r.fixed === 1 ? '' : 's'} to relative ✓ (undoable)`
+          : 'No relocatable absolute textures to fix.')
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Fix ✗') })
+  }, [doAnalyze])
+
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
     setNaming(r); doAnalyze()
@@ -145,15 +167,26 @@ export function useOrganizer() {
     const r = await call('apply_layers', { settings: settings() })
     setLayers(r)
   })
-  const applyTranslate = () => run('Apply translations', async () => {
-    const guids = Array.from(accepted)
-    const r = await call('apply_translate', { settings: settings(), guids })
-    setStatus(`Translated ${r.applied} names ✓ (undoable)`)
-    doAnalyze()
-    // Reload the preview -> the just-renamed ones drop out
-    const p = await call('plan_translate', { settings: settings() })
+  const reloadTranslate = useCallback(async () => {
+    const p = await call('plan_translate', { settings: settings(), target: translateTarget })
     setTranslation(p)
     setAccepted(new Set((p.diff || []).map((d: TranslateDiff) => d.guid)))
+  }, [settings, translateTarget])
+
+  const applyTranslate = () => run('Apply translations', async () => {
+    const guids = Array.from(accepted)
+    const r = await call('apply_translate', { settings: settings(), target: translateTarget, guids })
+    setStatus(`Translated ${r.applied} names ✓ (undoable)`)
+    doAnalyze()
+    await reloadTranslate()  // the just-renamed ones drop out
+  })
+
+  // Translate a single entry immediately (per-row button).
+  const applyTranslateOne = (guid: number, name?: string) => run('Translate', async () => {
+    const r = await call('apply_translate', { settings: settings(), target: translateTarget, guids: [guid] })
+    setStatus(r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated')
+    doAnalyze()
+    await reloadTranslate()
   })
 
   const applyPreset = (id: string) => run('Apply preset', async () => {
@@ -165,6 +198,29 @@ export function useOrganizer() {
 
   // Auto-analyze on first load.
   useEffect(() => { doAnalyze() }, [doAnalyze])
+
+  // Auto-refresh watcher: while enabled, poll the cheap `dirty` change token
+  // (~1.2 s). When the scene has moved past the last-analyzed token — a cube
+  // added, geometry edited, objects reparented — or the active document
+  // switched, re-run the analysis so every graph reflects the live scene.
+  const refreshing = useRef(false)
+  useEffect(() => {
+    if (!autoRefresh) return
+    let stop = false
+    const tick = async () => {
+      if (stop || busy || refreshing.current) return
+      try {
+        const d = await call('dirty')
+        const last = lastDirty.current
+        if (!stop && last && (d.dirty !== last.dirty || d.name !== last.name)) {
+          refreshing.current = true
+          Promise.resolve(doAnalyze()).finally(() => { refreshing.current = false })
+        }
+      } catch { /* main thread busy/gone — try again next tick */ }
+    }
+    const t = setInterval(tick, 1200)
+    return () => { stop = true; clearInterval(t) }
+  }, [autoRefresh, busy, doAnalyze])
 
   // Load analysis history + presets as soon as the Misc tab becomes active.
   useEffect(() => {
@@ -212,10 +268,8 @@ export function useOrganizer() {
   }, [safe, scope, settings, rules])
 
   usePreview('translate', 300, async () => {
-    const r = await call('plan_translate', { settings: settings() })
-    setTranslation(r)
-    setAccepted(new Set((r.diff || []).map((d: TranslateDiff) => d.guid)))
-  }, [scope, settings])
+    await reloadTranslate()
+  }, [scope, settings, translateTarget, reloadTranslate])
 
   usePreview('layers', 300, async () => {
     const r = await call('plan_layers', { settings: settings() })
@@ -225,16 +279,18 @@ export function useOrganizer() {
   const compliance = report ? Math.round(report.structure_compliance * 100) : null
 
   return {
-    tab, setTab, scope, setScope,
+    tab, setTab, scope, setScope, includeHidden, setIncludeHidden,
+    autoRefresh, setAutoRefresh,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
-    safe, setSafe, tidy, setTidy,
+    safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation, accepted, setAccepted,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
-    doDeleteMaterial, doDeleteAllUnused,
-    applyNaming, applyStructure, applyLayers, applyTranslate, applyPreset,
+    doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative,
+    applyNaming, applyStructure, applyLayers, applyTranslate, applyTranslateOne,
+    applyPreset,
   }
 }
 

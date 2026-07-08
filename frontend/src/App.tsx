@@ -4,6 +4,8 @@ import { useOrganizer } from './hooks/useOrganizer'
 import logo from './assets/so_logo.jpg'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'
+import VisibilityToggle from './components/VisibilityToggle'
+import AutoRefreshToggle from './components/AutoRefreshToggle'
 import Preloader from './components/Preloader'
 import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
@@ -11,6 +13,7 @@ import NamingTab from './tabs/NamingTab'
 import TranslateTab from './tabs/TranslateTab'
 import StructureTab from './tabs/StructureTab'
 import LayersTab from './tabs/LayersTab'
+import TexturesTab from './tabs/TexturesTab'
 import RulesTab from './tabs/RulesTab'
 import MiscTab from './tabs/MiscTab'
 
@@ -48,6 +51,9 @@ export default function App() {
 
         <div className="topbar-right">
           <ScopeToggle scope={org.scope} setScope={org.setScope} />
+          <VisibilityToggle includeHidden={org.includeHidden} setIncludeHidden={org.setIncludeHidden}
+            hidden={report?.hidden_count} />
+          <AutoRefreshToggle autoRefresh={org.autoRefresh} setAutoRefresh={org.setAutoRefresh} busy={busy} />
           <span className={'dot ' + (busy || previewing ? 'busy' : error ? 'err' : 'ok')} />
           <span className="status" title={error || status}>{error ? 'error' : status}</span>
         </div>
@@ -59,6 +65,7 @@ export default function App() {
             {label}
             {id === 'naming' && (org.naming?.count ?? 0) > 0 && <span className="badge">{org.naming?.count}</span>}
             {id === 'structure' && (org.structure?.count ?? 0) > 0 && <span className="badge">{org.structure?.count}</span>}
+            {id === 'textures' && (report?.textures?.absolute_count ?? 0) > 0 && <span className="badge">{report?.textures?.absolute_count}</span>}
           </button>
         ))}
       </nav>
@@ -76,8 +83,11 @@ export default function App() {
       {tab === 'translate' && <TranslateTab org={org} />}
       {tab === 'structure' && <StructureTab org={org} />}
       {tab === 'layers' && <LayersTab org={org} />}
+      {tab === 'textures' && <TexturesTab org={org} />}
       {tab === 'rules' && <RulesTab />}
       {tab === 'misc' && <MiscTab org={org} />}
+
+      <footer className="signature" aria-hidden="true"><span>BAMERUS</span></footer>
     </div>
   )
 }

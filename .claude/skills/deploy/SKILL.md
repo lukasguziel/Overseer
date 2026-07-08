@@ -30,14 +30,24 @@ powershell -File .claude/skills/deploy/scripts/list_cinemas.ps1
 ```
 Liefert JSON `[{name, location, plugin_dir, needs_admin}]` — pro Installation
 das Program-Files-Ziel (`app`, braucht Admin) und den User-Prefs-Ordner
-(`prefs`, kein Admin). Dann per **AskUserQuestion**:
-- Eine Option pro relevantem Eintrag; Label = Versionsname + Ort,
-  Description = `(plugin_dir)` + ggf. "braucht Admin".
-- Bei vielen Eintraegen auf die aktuellen Versionen kuerzen (alte prefs-Ordner
-  ohne zugehoerige Installation weglassen); AskUserQuestion bietet "Other"
-  automatisch an.
-- Prefs vor Program Files listen (kein Admin; C4D laedt beide gleichwertig) —
-  aber KEINE Option als "Recommended" markieren, die Wahl ist offen.
+(`prefs`, kein Admin).
+
+**ALLE** Eintraege auflisten, nichts kuerzen — der User will die komplette
+Liste sehen und daraus waehlen. NICHT `AskUserQuestion` benutzen (das cappt
+hart bei 4 Optionen). Stattdessen eine schlanke, nummerierte Markdown-Liste
+ausgeben, eine Zeile pro Eintrag, und den User die Nummer tippen lassen:
+
+```
+ 1. Cinema 4D 2024 — prefs   ·  …\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer   (kein Admin)
+ 2. Cinema 4D 2024 — app     ·  C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer   (Admin)
+ …
+```
+- Reihenfolge: pro Version zuerst `prefs` (kein Admin), dann `app` (Admin);
+  Versionen absteigend (neueste zuerst).
+- Aktuelles Ziel aus `deploy.config.json` (falls vorhanden) mit `← aktuell`
+  markieren.
+- Kurz drueberschreiben: „Welche Nummer?" — dann die getippte Zahl aufloesen.
+  Keine Empfehlung aufdraengen, die Wahl ist offen.
 
 **3. Wahl in `deploy.config.json` schreiben** (Repo-Root, gitignored):
 ```json

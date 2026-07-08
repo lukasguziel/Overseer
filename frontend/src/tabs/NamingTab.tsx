@@ -1,9 +1,9 @@
 import type { Organizer } from '../hooks/useOrganizer'
-import { CASINGS, LANGS, exampleName } from '../lib/constants'
+import { CASINGS, exampleName } from '../lib/constants'
 import Workbench from '../components/Workbench'
 
 export default function NamingTab({ org }: { org: Organizer }) {
-  const { casing, language, numberPad, naming, busy, previewing } = org
+  const { casing, numberPad, naming, busy, previewing } = org
   return (
     <div className="workbench">
       <aside className="wb-side">
@@ -13,17 +13,14 @@ export default function NamingTab({ org }: { org: Organizer }) {
             {CASINGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </label>
-        <label>Language
-          <select value={language} onChange={(e) => org.setLanguage(e.target.value)}>
-            {LANGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </label>
         <label>Numbering <b>{numberPad === 0 ? 'no padding' : numberPad + '-digit'}</b>
           <input type="range" min="0" max="4" value={numberPad}
             onChange={(e) => org.setNumberPad(Number(e.target.value))} />
         </label>
         <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>
         <button className="ghost" onClick={org.doDetect} disabled={busy}>Detect from scene</button>
+        <p className="hint-sm">Only casing &amp; numbering — this never changes the
+          language. To translate names, use the <b>Translate</b> tab.</p>
       </aside>
 
       <Workbench

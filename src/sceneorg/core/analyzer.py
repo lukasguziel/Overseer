@@ -1,5 +1,3 @@
-"""SceneAnalyzer: aggregates a SceneTree into a report (pure)."""
-
 from __future__ import annotations
 
 from collections import Counter
@@ -31,6 +29,10 @@ class SceneReport:
     structure_compliance: float = 1.0
     misplaced: list[dict] = field(default_factory=list)
     nodes: list[dict] = field(default_factory=list)
+    hidden_count: int = 0
+    layers_by_name: dict[str, int] = field(default_factory=dict)
+    polys_by_layer: dict[str, int] = field(default_factory=dict)
+    no_layer_count: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -52,6 +54,10 @@ class SceneReport:
             "structure_compliance": round(self.structure_compliance, 3),
             "misplaced": self.misplaced,
             "nodes": self.nodes,
+            "hidden_count": self.hidden_count,
+            "layers_by_name": self.layers_by_name,
+            "polys_by_layer": self.polys_by_layer,
+            "no_layer_count": self.no_layer_count,
         }
 
 
@@ -60,9 +66,8 @@ class SceneAnalyzer:
         self.standard = standard or default_standard()
 
     def analyze(self, tree: model.SceneTree, file_name: str = "",
-                scope: set | None = None) -> SceneReport:
-        """Aggregate the tree; `scope` (guid set) restricts ALL stats to the
-        selection subtree so every dashboard number reflects it."""
+                scope: set | None = None,
+                include_hidden: bool = True) -> SceneReport:
         report = SceneReport(file=file_name)
 
         types: Counter = Counter()
@@ -73,22 +78,34 @@ class SceneAnalyzer:
         camera_groups: Counter = Counter()
         polys_by_cat: Counter = Counter()
         polys_by_group: Counter = Counter()
+        layer_counts: Counter = Counter()
+        layer_polys: Counter = Counter()
+        no_layer_count = 0
         node_dicts: list[dict] = []
-        assets: list[tuple] = []   # (polys, guid, name, type, points) for the ranking
+        assets: list[tuple] = []
         total_points = 0
         total_polys = 0
         max_depth = 0
         count = 0
 
-        top_nodes: list = []       # scoped replacement for tree.roots
+        top_nodes: list = []
+        active_guids: set = set()
+        hidden_count = 0
+        filtering = scope is not None or not include_hidden
 
-        # ONE pass over all nodes: casing/language per object only once.
+        def _active(node) -> bool:
+            if scope is not None and node.guid not in scope:
+                return False
+            return include_hidden or node.visible
+
         for n in tree.walk():
-            if scope is not None:
-                if n.guid not in scope:
-                    continue
-                if n.parent is None or n.parent.guid not in scope:
-                    top_nodes.append(n)
+            if not n.visible:
+                hidden_count += 1
+            if not _active(n):
+                continue
+            active_guids.add(n.guid)
+            if filtering and (n.parent is None or n.parent.guid not in active_guids):
+                top_nodes.append(n)
             count += 1
             if n.depth > max_depth:
                 max_depth = n.depth
@@ -113,15 +130,23 @@ class SceneAnalyzer:
             elif n.category == model.CAT_CAMERA:
                 camera_groups[n.top_group().name] += 1
 
+            if n.layer:
+                layer_counts[n.layer] += 1
+                layer_polys[n.layer] += n.poly_count
+            else:
+                no_layer_count += 1
+
             node_dicts.append({
                 "guid": n.guid,
                 "name": n.name, "type": n.type_name, "category": n.category,
                 "depth": n.depth, "path": n.path, "casing": cas,
                 "language": lang, "children": n.child_count,
                 "points": n.point_count, "polygons": n.poly_count,
+                "visible": n.visible, "layer": n.layer,
             })
 
         report.object_count = count
+        report.hidden_count = hidden_count
         report.max_depth = max_depth
         report.total_points = total_points
         report.total_polys = total_polys
@@ -138,19 +163,22 @@ class SceneAnalyzer:
         ]
         report.lights_by_group = dict(light_groups)
         report.cameras_by_group = dict(camera_groups)
+        report.layers_by_name = dict(layer_counts)
+        report.polys_by_layer = dict(layer_polys)
+        report.no_layer_count = no_layer_count
         report.top_level = [
             {"name": r.name, "type": r.type_name, "children": r.child_count}
-            for r in (tree.roots if scope is None else top_nodes)
+            for r in (top_nodes if filtering else tree.roots)
         ]
         report.nodes = node_dicts
 
         struct = self.standard.evaluate(tree)
         misplaced = struct.misplaced
-        if scope is None:
+        if not filtering:
             report.structure_compliance = struct.compliance
         else:
-            misplaced = [f for f in misplaced if f.guid in scope]
-            correct = [f for f in struct.correct if f.guid in scope]
+            misplaced = [f for f in misplaced if f.guid in active_guids]
+            correct = [f for f in struct.correct if f.guid in active_guids]
             total = len(misplaced) + len(correct)
             report.structure_compliance = (
                 len(correct) / float(total) if total else 1.0)

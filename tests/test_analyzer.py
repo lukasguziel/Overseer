@@ -37,6 +37,33 @@ def test_analyze_groups_and_structure(std, sample_tree):
     assert "Sofa" in misplaced_names
 
 
+def test_analyze_layers():
+    a = model.SceneNode("A", category=model.CAT_MESH, guid=0, poly_count=10,
+                        layer="Geo")
+    b = model.SceneNode("B", category=model.CAT_MESH, guid=1, poly_count=5,
+                        layer="Geo")
+    c = model.SceneNode("C", category=model.CAT_LIGHT, guid=2, layer="Lights")
+    d = model.SceneNode("D", category=model.CAT_MESH, guid=3)  # no layer
+    tree = model.SceneTree(roots=[a, b, c, d])
+
+    report = SceneAnalyzer().analyze(tree)
+    assert report.layers_by_name == {"Geo": 2, "Lights": 1}
+    assert report.polys_by_layer == {"Geo": 15, "Lights": 0}
+    assert report.no_layer_count == 1
+    # per-object layer is exposed in the node dicts (for the tree view)
+    layers = {n["name"]: n["layer"] for n in report.nodes}
+    assert layers == {"A": "Geo", "B": "Geo", "C": "Lights", "D": None}
+
+
+def test_layers_respect_visibility_filter():
+    vis = model.SceneNode("V", category=model.CAT_MESH, guid=0, layer="Geo")
+    hid = model.SceneNode("H", category=model.CAT_MESH, guid=1, layer="Geo",
+                          visible=False)
+    tree = model.SceneTree(roots=[vis, hid])
+    report = SceneAnalyzer().analyze(tree, include_hidden=False)
+    assert report.layers_by_name == {"Geo": 1}
+
+
 def test_to_dict_serializable(sample_tree):
     import json
     report = SceneAnalyzer().analyze(sample_tree)

@@ -1,5 +1,3 @@
-"""GeDialog UI of the Scene Organizer (c4d-dependent, not tested)."""
-
 from __future__ import annotations
 
 import json
@@ -17,7 +15,6 @@ from .adapter import SceneAdapter
 
 REPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
 
-# Element IDs
 CMB_STYLE = 1001
 CMB_LANG = 1002
 CMB_PAD = 1003
@@ -32,7 +29,6 @@ BTN_STRUCT_PREVIEW = 1013
 BTN_STRUCT_APPLY = 1014
 TXT_OUT = 1020
 
-# Format presets for the dropdown (label with example).
 _STYLE_ITEMS = [
     (2001, "PascalCase        (LightKey01)",     naming.Casing.PASCAL),
     (2002, "camelCase         (lightKey01)",     naming.Casing.CAMEL),
@@ -60,9 +56,7 @@ class SceneOrganizerDialog(c4d.gui.GeDialog):
         self.cfg = cfgmod.load_config()
         self.config_source = "(Defaults)"
 
-    # -- Config -----------------------------------------------------------
     def _load_config(self):
-        # config.json lives next to the .pyp (one directory above this package)
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path = os.path.join(base, "config.json")
         if os.path.exists(path):
@@ -77,7 +71,6 @@ class SceneOrganizerDialog(c4d.gui.GeDialog):
                 self._log("config.json error (using defaults): %s" % e)
                 self.cfg = cfgmod.load_config()
 
-    # -- Layout -----------------------------------------------------------
     def CreateLayout(self):
         self.SetTitle("Scene Organizer")
 
@@ -138,7 +131,6 @@ class SceneOrganizerDialog(c4d.gui.GeDialog):
         self._log("Tip: 'Analyze' for statistics, 'Show active rules' for the rules.")
         return True
 
-    # -- Output -----------------------------------------------------------
     def _log(self, text):
         self._lines.append(text)
         self.SetString(TXT_OUT, "\n".join(self._lines))
@@ -167,7 +159,6 @@ class SceneOrganizerDialog(c4d.gui.GeDialog):
             return sel
         return None
 
-    # -- Actions ----------------------------------------------------------
     def Command(self, cid, msg):
         doc = c4d.documents.GetActiveDocument()
         if cid == BTN_DETECT:
@@ -285,7 +276,6 @@ class SceneOrganizerDialog(c4d.gui.GeDialog):
         scope = self._scope(adapter)
         safe = self.GetBool(CHK_SAFE)
         reparents = ops.plan_reparents(tree, self.cfg.standard, scope=scope, safe_only=safe)
-        # how many were skipped for safety reasons?
         report = self.cfg.standard.evaluate(tree)
         in_scope = [f for f in report.misplaced if scope is None or f.guid in scope]
         skipped = len(in_scope) - len(reparents)

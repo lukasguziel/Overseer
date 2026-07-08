@@ -104,11 +104,13 @@ export default function AssetsTab({ nodes, onFocus }: {
           </tr></thead>
           <tbody>
             {shown.map((n) => (
-              <tr key={n.guid} className="asset-row" onClick={() => onFocus?.(n.guid, n.name)}
-                title="Select & frame in viewport">
+              <tr key={n.guid} className={'asset-row' + (n.visible === false ? ' hidden-obj' : '')}
+                onClick={() => onFocus?.(n.guid, n.name)}
+                title={n.visible === false ? 'Hidden in the Object Manager · Select & frame' : 'Select & frame in viewport'}>
                 <td className="l">
                   <span className="cat-dot" style={{ background: catColor(n.category) }} />
                   {n.name}
+                  {n.visible === false && <span className="hidden-tag">hidden</span>}
                 </td>
                 <td className="dim">{n.type}</td>
                 <td className="r">{humanNum(n.polygons)}</td>

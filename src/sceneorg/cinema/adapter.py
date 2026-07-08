@@ -1,10 +1,3 @@
-"""C4D adapter: builds a pure SceneTree from a document and writes
-operations (rename/reparent) back with undo support.
-
-This is the ONLY domain module that imports `c4d`. It is never loaded
-by the unit tests.
-"""
-
 from __future__ import annotations
 
 import collections
@@ -14,7 +7,6 @@ import c4d
 from ..core import model
 from ..core.ops import LayerOp, RenameOp, ReparentOp
 
-# Colors for the automatically created type layers (RGB 0..1).
 LAYER_COLORS = {
     "Lights": (0.98, 0.75, 0.14),
     "Cameras": (0.22, 0.74, 0.97),
@@ -53,12 +45,6 @@ def type_name(op) -> str:
 
 
 def _virtual_geo(op) -> tuple:
-    """(points, polygons) across a cache subtree (virtual objects).
-
-    Traverses the geometry produced by the generator (deform/cache tree) via
-    GetDown/GetNext. Only counts counter ints, NEVER iterates over individual
-    polygons -> fast even with millions of polys.
-    """
     pts = polys = 0
     o = op
     while o:
@@ -88,12 +74,6 @@ def _virtual_geo(op) -> tuple:
 
 
 def own_geo(op) -> tuple:
-    """(points, polygons) of ONE scene object (without scene-graph children).
-
-    Editable poly object -> direct counters. Generator (Cube, Cloner, Sweep
-    ...) -> geometry from its cache. This way primitives/MoGraph also get a
-    realistic poly count instead of 0.
-    """
     if op.IsInstanceOf(c4d.Opolygon):
         try:
             return op.GetPointCount(), op.GetPolygonCount()
@@ -125,21 +105,30 @@ def classify(op) -> str:
     return model.CAT_OTHER
 
 
+def layer_name(op) -> str | None:
+    try:
+        lay = op.GetLayerObject(op.GetDocument())
+        return lay.GetName() if lay is not None else None
+    except Exception:
+        return None
+
+
+def editor_hidden(op) -> bool:
+    try:
+        return op[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] == c4d.MODE_OFF
+    except Exception:
+        return False
+
+
 class SceneAdapter:
-    """Bidirectional bridge document <-> SceneTree."""
 
     def __init__(self, doc) -> None:
         self.doc = doc
         self._by_guid: dict[int, object] = {}
-        # Selection is captured during tree construction (BIT_ACTIVE is
-        # stable per object). GetActiveObjects/id(op) does NOT work: C4D
-        # returns new Python wrappers on every API call -> id() never matches.
         self._selected_direct: set = set()
         self._selected_subtree: set = set()
 
-    # -- Reading ----------------------------------------------------------
     def count_objects(self) -> int:
-        """Fast object count (names/geometry untouched) for progress totals."""
         n = 0
         stack = []
         op = self.doc.GetFirstObject()
@@ -155,8 +144,6 @@ class SceneAdapter:
         return n
 
     def build_tree(self, progress=None) -> model.SceneTree:
-        """Builds the SceneTree. `progress(current, total, detail)` is called
-        every few objects so long scans can drive a preloader."""
         self._by_guid.clear()
         self._selected_direct.clear()
         self._selected_subtree.clear()
@@ -164,12 +151,13 @@ class SceneAdapter:
         counter = [0]
         total = self.count_objects() if progress else 0
 
-        def make(op, parent, depth, sel_ancestor):
+        def make(op, parent, depth, sel_ancestor, hidden_ancestor):
             guid = counter[0]
             counter[0] += 1
             if progress and counter[0] % 50 == 0:
                 progress(counter[0], total, op.GetName())
             pts, polys = own_geo(op)
+            hidden = hidden_ancestor or editor_hidden(op)
             node = model.SceneNode(
                 name=op.GetName(),
                 type_name=type_name(op),
@@ -178,6 +166,8 @@ class SceneAdapter:
                 depth=depth,
                 point_count=pts,
                 poly_count=polys,
+                visible=not hidden,
+                layer=layer_name(op),
             )
             self._by_guid[guid] = op
             is_sel = bool(op.GetBit(c4d.BIT_ACTIVE))
@@ -188,47 +178,31 @@ class SceneAdapter:
                 self._selected_subtree.add(guid)
             child = op.GetDown()
             while child:
-                node.add_child(make(child, node, depth + 1, in_scope))
+                node.add_child(make(child, node, depth + 1, in_scope, hidden))
                 child = child.GetNext()
             return node
 
         top = self.doc.GetFirstObject()
         while top:
-            tree.roots.append(make(top, None, 0, False))
+            tree.roots.append(make(top, None, 0, False, False))
             top = top.GetNext()
         return tree
 
     def selected_guids(self, include_children: bool = True) -> set:
-        """guids of the currently selected objects (optionally incl. children).
-
-        Must be called after build_tree() -- the selection is captured there
-        via the BIT_ACTIVE flag.
-        """
         return set(self._selected_subtree if include_children
                    else self._selected_direct)
 
     def focus(self, guid: int) -> bool:
-        """Select the object exclusively and frame the camera on it (like 'S').
-
-        Sets the active camera directly onto the object's bounding box -- this
-        works regardless of which viewport currently has focus
-        (CallCommand(Frame) would be a no-op if the web panel has focus).
-        Main thread, after build_tree().
-        """
         op = self._by_guid.get(guid)
         if op is None:
             return False
         self.doc.SetActiveObject(op, c4d.SELECTION_NEW)
 
-        # Unfold the ancestor chain so the highlighted object is actually
-        # visible in the Object Manager (BIT_OFOLD = expanded in the OM).
         up = op.GetUp()
         while up is not None:
             up.SetBit(c4d.BIT_OFOLD)
             up = up.GetUp()
         try:
-            # Object Manager: "Scroll To First Active" (best effort; the
-            # command id is stable across recent releases but undocumented).
             c4d.CallCommand(100004769)
         except Exception:
             pass
@@ -239,15 +213,15 @@ class SceneAdapter:
             cam = bd.GetSceneCamera(self.doc) or bd.GetEditorCamera()
         if cam is not None:
             mg = op.GetMg()
-            center = mg * op.GetMp()          # world center of the bounding box
-            rad = op.GetRad()                 # half extent (local)
+            center = mg * op.GetMp()
+            rad = op.GetRad()
             sx, sy, sz = mg.v1.GetLength(), mg.v2.GetLength(), mg.v3.GetLength()
             r = max(rad.x * sx, rad.y * sy, rad.z * sz)
-            if r <= 0:                        # null/spline/camera without volume
+            if r <= 0:
                 r = 100.0
             cm = cam.GetMg()
-            forward = cm.v3                   # keep viewing direction (+z)
-            dist = r * 2.8                    # fit the sphere comfortably
+            forward = cm.v3
+            dist = r * 2.8
             cm.off = center - forward * dist
             cam.SetMg(cm)
 
@@ -259,11 +233,6 @@ class SceneAdapter:
         return True
 
     def _used_material_names(self) -> set:
-        """Names of all materials assigned via texture tags.
-
-        Usage tracked by NAME (wrapper identity/id() is not stable, same as
-        with the selection). Best-effort.
-        """
         used_names: set = set()
 
         def visit(op):
@@ -283,7 +252,6 @@ class SceneAdapter:
         return used_names
 
     def scan_materials(self) -> dict:
-        """Material overview: total, unused, missing textures."""
         import os
         doc = self.doc
         try:
@@ -320,13 +288,191 @@ class SceneAdapter:
             "missing_textures": len(missing),
         }
 
-    def delete_material(self, name: str) -> int:
-        """Deletes unused materials with this name (undoable).
+    def _iter_bitmap_shaders(self, mat):
+        def walk(sh):
+            while sh:
+                try:
+                    if sh.IsInstanceOf(c4d.Xbitmap):
+                        yield sh
+                    down = sh.GetDown()
+                except Exception:
+                    down = None
+                if down:
+                    yield from walk(down)
+                sh = sh.GetNext()
+        try:
+            yield from walk(mat.GetFirstShader())
+        except Exception:
+            return
 
-        Safety: removes ONLY materials that are currently not assigned to any
-        texture tag -- even if a material with the same name is in use, the
-        used one remains untouched.
-        """
+    def scan_textures(self) -> dict:
+        import os
+
+        from ..core import imagesize
+        doc = self.doc
+        doc_path = doc.GetDocumentPath() or ""
+        used_names = self._used_material_names()
+        entries: list = []
+        seen: set = set()
+        meta_cache: dict = {}
+        try:
+            mats = doc.GetMaterials()
+        except Exception:
+            mats = []
+
+        def file_meta(path):
+            if path in meta_cache:
+                return meta_cache[path]
+            size = 0
+            dims = None
+            try:
+                size = os.path.getsize(path)
+            except Exception:
+                size = 0
+            dims = imagesize.image_size(path)
+            meta_cache[path] = (size, dims)
+            return meta_cache[path]
+
+        for m in mats:
+            name = m.GetName()
+            used = name in used_names
+            for sh in self._iter_bitmap_shaders(m):
+                try:
+                    raw = sh[c4d.BITMAPSHADER_FILENAME]
+                except Exception:
+                    raw = None
+                if not raw:
+                    continue
+                raw = str(raw)
+                key = (name, raw)
+                if key in seen:
+                    continue
+                seen.add(key)
+                try:
+                    resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+                except Exception:
+                    resolved = ""
+                exists = bool(resolved) and os.path.isfile(resolved)
+                absolute = os.path.isabs(raw)
+                relocatable = False
+                rel_target = ""
+                if absolute and exists and doc_path:
+                    try:
+                        rp = os.path.relpath(resolved, doc_path)
+                        if not rp.startswith(".."):
+                            relocatable = True
+                            rel_target = rp.replace("\\", "/")
+                    except Exception:
+                        pass
+                disk_bytes = 0
+                width = height = 0
+                res_tag = ""
+                if exists:
+                    disk_bytes, dims = file_meta(resolved)
+                    if dims:
+                        width, height = dims
+                        res_tag = imagesize.resolution_tag(max(width, height))
+                entries.append({
+                    "material": name,
+                    "used": used,
+                    "file": os.path.basename(raw),
+                    "path": raw,
+                    "resolved": resolved,
+                    "absolute": absolute,
+                    "exists": exists,
+                    "missing": not exists,
+                    "relocatable": relocatable,
+                    "rel_target": rel_target,
+                    "bytes": disk_bytes,
+                    "width": width,
+                    "height": height,
+                    "res_tag": res_tag,
+                })
+        absolute = [e for e in entries if e["absolute"]]
+        relative = [e for e in entries if not e["absolute"]]
+        total_bytes = sum(size for size, _ in meta_cache.values())
+        return {
+            "doc_path": doc_path,
+            "total": len(entries),
+            "absolute_count": len(absolute),
+            "relative_count": len(relative),
+            "missing_count": sum(1 for e in entries if e["missing"]),
+            "relocatable_count": sum(1 for e in entries if e["relocatable"]),
+            "total_bytes": total_bytes,
+            "absolute": absolute,
+            "relative": relative,
+        }
+
+    def make_textures_relative(self, materials: list | None = None) -> dict:
+        import os
+        doc = self.doc
+        doc_path = doc.GetDocumentPath() or ""
+        if not doc_path:
+            return {"fixed": 0, "error": "Project is not saved (no folder to make paths relative to)."}
+        only = set(materials) if materials else None
+        targets: list = []
+        for m in doc.GetMaterials():
+            if only is not None and m.GetName() not in only:
+                continue
+            for sh in self._iter_bitmap_shaders(m):
+                try:
+                    raw = str(sh[c4d.BITMAPSHADER_FILENAME] or "")
+                except Exception:
+                    continue
+                if not raw or not os.path.isabs(raw):
+                    continue
+                try:
+                    resolved = c4d.GenerateTexturePath(doc_path, raw, "") or raw
+                except Exception:
+                    resolved = raw
+                if not os.path.isfile(resolved):
+                    continue
+                try:
+                    rp = os.path.relpath(resolved, doc_path)
+                except Exception:
+                    continue
+                if rp.startswith(".."):
+                    continue
+                targets.append((sh, rp.replace("\\", "/")))
+        if not targets:
+            return {"fixed": 0}
+
+        doc.StartUndo()
+        for sh, rp in targets:
+            doc.AddUndo(c4d.UNDOTYPE_CHANGE, sh)
+            sh[c4d.BITMAPSHADER_FILENAME] = rp
+        doc.EndUndo()
+        c4d.EventAdd()
+        return {"fixed": len(targets)}
+
+    def scan_layers(self) -> list[dict]:
+        out: list[dict] = []
+        try:
+            root = self.doc.GetLayerObjectRoot()
+        except Exception:
+            return out
+        lay = root.GetDown() if root is not None else None
+        while lay:
+            entry = {"name": lay.GetName(), "color": None,
+                     "solo": False, "view": True, "render": True,
+                     "locked": False}
+            try:
+                d = lay.GetLayerData(self.doc) or {}
+                col = d.get("color")
+                if col is not None:
+                    entry["color"] = [round(col.x, 3), round(col.y, 3),
+                                      round(col.z, 3)]
+                entry["solo"] = bool(d.get("solo", False))
+                entry["view"] = bool(d.get("view", True))
+                entry["render"] = bool(d.get("render", True))
+                entry["locked"] = bool(d.get("locked", False))
+            except Exception:
+                pass
+            out.append(entry)
+            lay = lay.GetNext()
+        return out
+
+    def delete_material(self, name: str) -> int:
         doc = self.doc
         used_names = self._used_material_names()
         if name in used_names:
@@ -334,6 +480,7 @@ class SceneAdapter:
         targets = [m for m in doc.GetMaterials() if m.GetName() == name]
         if not targets:
             return 0
+
         doc.StartUndo()
         for m in targets:
             doc.AddUndo(c4d.UNDOTYPE_DELETE, m)
@@ -343,16 +490,12 @@ class SceneAdapter:
         return len(targets)
 
     def delete_unused_materials(self) -> int:
-        """Deletes ALL currently unused materials in ONE undo step.
-
-        Unused = not assigned to any texture tag (name comparison). A used
-        material with the same name remains untouched.
-        """
         doc = self.doc
         used_names = self._used_material_names()
         targets = [m for m in doc.GetMaterials() if m.GetName() not in used_names]
         if not targets:
             return 0
+
         doc.StartUndo()
         for m in targets:
             doc.AddUndo(c4d.UNDOTYPE_DELETE, m)
@@ -361,12 +504,7 @@ class SceneAdapter:
         c4d.EventAdd()
         return len(targets)
 
-    # -- Writing ----------------------------------------------------------
     def _match_group(self, obj, segment: str, canonical=None) -> bool:
-        """Does this null represent the group `segment`? Alias-aware when a
-        `canonical(name) -> canonical name` resolver is supplied (so an
-        existing 'Lichter' container is reused for 'Lights' instead of
-        creating a duplicate)."""
         if not obj.CheckType(c4d.Onull):
             return False
         name = obj.GetName()
@@ -376,12 +514,6 @@ class SceneAdapter:
 
     def ensure_group_path(self, path: str, created: list[object],
                           canonical=None) -> object:
-        """Find or create the null chain for a group path ('Room/Furniture').
-
-        Each segment is matched among the children of the previous one
-        (top level: document roots), reusing existing containers -- alias-
-        aware via `canonical`. Missing segments are created (undoable).
-        """
         parent = None
         for segment in path.split("/"):
             found = None
@@ -448,11 +580,6 @@ class SceneAdapter:
         return layer
 
     def apply_layers(self, layerops: list[LayerOp]) -> int:
-        """Assigns layers to objects (type axis) without changing the hierarchy.
-
-        Layers are created on demand (colored). Changes ONLY the layer
-        assignment -> the spatial null structure remains fully untouched.
-        """
         if not layerops:
             return 0
         self.doc.StartUndo()
@@ -473,7 +600,6 @@ class SceneAdapter:
 
     def _do_reparents(self, reparents: list[ReparentOp], created: list,
                       canonical=None) -> int:
-        """Reparent ops without their own undo bracket (see apply_bundle)."""
         count = 0
         for op in reparents:
             obj = self._by_guid.get(op.guid)
@@ -486,7 +612,7 @@ class SceneAdapter:
             mg = obj.GetMg()
             obj.Remove()
             obj.InsertUnderLast(group)
-            obj.SetMg(mg)  # keep world position
+            obj.SetMg(mg)
             count += 1
         return count
 
@@ -504,11 +630,6 @@ class SceneAdapter:
                      reparents: list[ReparentOp],
                      layerops: list[LayerOp],
                      canonical=None) -> dict:
-        """Apply naming + structure + layers in ONE undo step (Ctrl+Z once).
-
-        Renames run first (they reference objects by guid, order-independent),
-        then reparents (may create group chains), then layers.
-        """
         if not (renames or reparents or layerops):
             return {"renames": 0, "reparents": 0, "layers": 0}
         self.doc.StartUndo()
@@ -536,22 +657,8 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"renames": renamed, "reparents": reparented, "layers": layered}
 
-    # -- Restructuring plan (written by the skill) ------------------------
     def apply_plan(self, operations: list[dict]) -> dict:
-        """Executes a deterministic restructuring plan (1 undo step).
-
-        Operations (order matters). `target`/`under`/`into` reference either
-        an existing `guid` (int, from the export) OR a plan-local `$id` of a
-        group created earlier in this plan (str):
-
-          {"op": "group",  "id": "$gf", "name": "GROUND_FLOOR", "under": 12}
-          {"op": "rename", "target": 40, "to": "KITCHEN_WINDOW"}
-          {"op": "move",   "target": 40, "into": "$gf"}
-          {"op": "layer",  "target": 40, "layer": "Lights"}
-
-        After this call, build_tree() must run again (guids are stale).
-        """
-        refs: dict = {}          # "$id" -> created object
+        refs: dict = {}
         created: list = []
         lay_cache: dict = {}
         applied: collections.Counter = collections.Counter()

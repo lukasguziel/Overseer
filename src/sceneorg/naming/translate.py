@@ -1,21 +1,20 @@
-"""Translation tool: detects non-English object names and proposes a
-casing-preserving translation (pure, no c4d).
-
-Unlike the NamingConvention, casing is NOT unified here: each German word is
-replaced in place by its English counterpart, while the original's
-upper-/lowercase pattern, separators and trailing numbers are preserved.
-This lets the user decide per object.
-"""
-
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
+from . import casing as naming
 from . import translations
 
-# Word runs incl. umlauts; everything else (digits, _, -, spaces) stays.
 _WORD = re.compile(r"[A-Za-zÄÖÜäöüß]+")
+
+AMBIGUOUS_DE = {
+    "bad", "wand", "regal", "hand", "arm", "hut", "tag", "rat", "gift",
+    "kind", "boden", "hof", "brief", "hell", "bald", "not", "war", "die",
+    "man", "fast", "gut", "rock", "stern",
+}
+
+_UMLAUTS = "äöüß"
 
 
 @dataclass
@@ -23,11 +22,11 @@ class TranslateProposal:
     guid: int
     old: str
     new: str
-    words: list  # [(german, english), ...] that were actually replaced
+    words: list
+    lang: str = naming.LANG_UNKNOWN
 
 
 def _match_case(src: str, tgt: str) -> str:
-    """Transfers the casing pattern from src to the translation tgt."""
     if src.isupper():
         return tgt.upper()
     if src.islower():
@@ -37,34 +36,94 @@ def _match_case(src: str, tgt: str) -> str:
     return tgt
 
 
-def translate_preserving(name: str) -> tuple[str, list]:
-    """Translates German words in the name, keeps casing/structure.
+def detect_name_language(name: str) -> str:
+    return naming.detect_language(name, translations.DE_WORDS,
+                                  translations.EN_WORDS)
 
-    Returns (new_name, [(de, en), ...]). The list is empty if nothing was
-    translatable (the name then counts as 'already English / unknown').
-    """
+
+def _has_german_evidence(name: str) -> bool:
+    low = name.lower()
+    if any(ch in low for ch in _UMLAUTS):
+        return True
+    for tok in _WORD.findall(low):
+        if tok in translations.DE_WORDS and tok not in AMBIGUOUS_DE:
+            return True
+    return False
+
+
+def translate_preserving(name: str, target: str = naming.LANG_EN) -> tuple[str, list]:
     changed: list = []
+    if target == naming.LANG_DE:
+        lookup = translations.to_german
+        guarded = False
+        evidence = True
+    else:
+        lookup = translations.to_english
+        guarded = True
+        evidence = _has_german_evidence(name)
+    ambiguous = AMBIGUOUS_DE & translations.DE_WORDS if guarded else set()
 
     def repl(m: re.Match) -> str:
         word = m.group(0)
-        en = translations.to_english(word.lower())
-        if en != word.lower():
-            cased = _match_case(word, en)
-            changed.append((word, cased))
-            return cased
-        return word
+        low = word.lower()
+        tgt = lookup(low)
+        if tgt == low:
+            return word
+        if low in ambiguous and not evidence:
+            return word
+        cased = _match_case(word, tgt)
+        changed.append((word, cased))
+        return cased
 
     new = _WORD.sub(repl, name)
     return new, changed
 
 
-def plan_translations(tree, scope: set | None = None) -> list[TranslateProposal]:
-    """Proposals for all objects with translatable (German) names."""
+def plan_translations(tree, scope: set | None = None,
+                      target: str = naming.LANG_EN) -> list[TranslateProposal]:
     out: list[TranslateProposal] = []
     for n in tree.walk():
         if scope is not None and n.guid not in scope:
             continue
-        new, words = translate_preserving(n.name)
+        new, words = translate_preserving(n.name, target)
         if words and new != n.name:
-            out.append(TranslateProposal(guid=n.guid, old=n.name, new=new, words=words))
+            out.append(TranslateProposal(
+                guid=n.guid, old=n.name, new=new, words=words,
+                lang=detect_name_language(n.name)))
     return out
+
+
+@dataclass
+class LanguageSummary:
+    de: int = 0
+    en: int = 0
+    unknown: int = 0
+    total: int = 0
+    dominant: str = naming.LANG_UNKNOWN
+
+    def to_dict(self) -> dict:
+        return {"de": self.de, "en": self.en, "unknown": self.unknown,
+                "total": self.total, "dominant": self.dominant}
+
+
+def detect_languages(tree, scope: set | None = None) -> LanguageSummary:
+    s = LanguageSummary()
+    for n in tree.walk():
+        if scope is not None and n.guid not in scope:
+            continue
+        lang = detect_name_language(n.name)
+        s.total += 1
+        if lang == naming.LANG_DE:
+            s.de += 1
+        elif lang == naming.LANG_EN:
+            s.en += 1
+        else:
+            s.unknown += 1
+
+    if s.de > s.en and s.de > s.unknown:
+        s.dominant = naming.LANG_DE
+    elif s.en > s.de and s.en > s.unknown:
+        s.dominant = naming.LANG_EN
+    else:
+        s.dominant = naming.LANG_UNKNOWN
+    return s
