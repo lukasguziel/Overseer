@@ -808,6 +808,17 @@ def handle(payload: dict) -> dict:
         previews = adapter.material_previews(payload.get("names"), size=size)
         return {"ok": True, "previews": previews}
 
+    if op == "texture_previews":
+        adapter = SceneAdapter(doc)
+        size = int(payload.get("size") or 40)
+        previews = adapter.texture_previews(payload.get("paths"), size=size)
+        return {"ok": True, "previews": previews}
+
+    if op == "focus_material":
+        adapter = SceneAdapter(doc)
+        adapter.build_tree()
+        return {"ok": True, **adapter.focus_material(payload.get("name", ""))}
+
     if op == "delete_material":
         adapter = SceneAdapter(doc)
         name = payload.get("name", "")

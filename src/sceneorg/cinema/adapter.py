@@ -404,16 +404,14 @@ class SceneAdapter:
             c4d.EventAdd()
         except Exception:
             pass
-        for node in self.tree.walk() if self.tree else []:
-            op = self._by_guid.get(node.guid)
-            if op is None:
-                continue
+        for guid in sorted(self._by_guid):
+            op = self._by_guid[guid]
             for tag in op.GetTags():
                 try:
                     if (tag.IsInstanceOf(c4d.Ttexture)
                             and tag[c4d.TEXTURETAG_MATERIAL] == target):
-                        self.focus(node.guid)
-                        return {"ok": True, "object": node.name}
+                        self.focus(guid)
+                        return {"ok": True, "object": op.GetName()}
                 except Exception:
                     continue
         return {"ok": True, "object": None}

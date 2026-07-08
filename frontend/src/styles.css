@@ -506,16 +506,40 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .trash-btn:hover:not(:disabled) .trash-count { color: var(--err); }
 .fl-empty { color: var(--dim2); font-size: 12px; padding: 10px 6px; }
 
-/* Texture rows (Textures tab): file + stored path + status badges */
-.tex-row { align-items: flex-start; padding: 5px 6px; gap: 8px; }
-.tex-main { flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 1px; }
-.tex-path { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* Texture tables (Materials tab): fixed grid so the columns line up.
+   Rows are buttons — clicking selects the material & frames its object. */
+.tex-table { display: flex; flex-direction: column; }
+.tex-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 46px 84px 74px minmax(0, 3fr);
+  border-bottom: 1px solid var(--line2); font-size: 12px; }
+.tex-tr:last-child { border-bottom: none; }
+.tex-tr > span { min-width: 0; }
+.tex-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tex-thead { color: var(--dim2); font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; padding-bottom: 5px; }
+.tex-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tex-cell-file { display: flex; align-items: center; gap: 7px; }
+.tex-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
   font-variant-numeric: tabular-nums; }
-.tex-badges { display: flex; align-items: center; gap: 6px; flex: none; }
-.tex-specs { display: flex; align-items: center; gap: 8px; flex: none;
-  font-variant-numeric: tabular-nums; }
-.tex-dim { font-size: 11px; white-space: nowrap; }
-.tex-size { font-size: 11px; color: var(--text); white-space: nowrap; min-width: 56px; text-align: right; }
+button.tex-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
+  width: 100%; border-radius: 0; }
+button.tex-click:last-child { border-bottom: none; }
+button.tex-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+.tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
+  object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
+
+/* Resolution filter chips above the texture sections */
+.tex-filter { display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+.tex-filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--dim2); margin-right: 3px; }
+.tex-filter-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--dim); font: inherit; font-size: 11px; padding: 2px 9px; cursor: pointer; box-shadow: none; }
+.tex-filter-btn em { font-style: normal; color: var(--dim2); font-size: 10px; }
+.tex-filter-btn:hover { color: var(--text); border-color: var(--dim); box-shadow: none; }
+.tex-filter-btn.on { background: var(--accent); border-color: transparent; color: #06121a; }
+.tex-filter-btn.on em { color: #06121a; opacity: .7; }
+
 .tex-res { border: 1px solid transparent; }
 .tex-res.res-sm { background: var(--panel2); color: var(--dim); border-color: var(--line); }
 .tex-res.res-2k { background: rgba(56,189,248,.14); color: var(--primary); }
