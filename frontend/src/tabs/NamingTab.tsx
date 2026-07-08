@@ -41,8 +41,12 @@ export default function NamingTab({ org }: { org: Organizer }) {
       { casing, kept: keeps.naming }),
     [report, casing, keeps.naming])
   const nameBuckets: CleanupBucket[] = [
-    { key: 'default', label: 'Default names', items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
-    { key: 'dupes', label: 'Duplicate names', items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
+    { key: 'default', label: 'Default names',
+      hint: 'Objects still carrying the name Cinema 4D gave them (“Cube”, “Null”, “Light”…) — they say nothing about what the object IS. Give each one a descriptive name: click ✎ to rename it right here, or the name to find it in the viewport first.',
+      items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
+    { key: 'dupes', label: 'Duplicate names',
+      hint: 'The same name is used by several objects (×n = how many). Ambiguous names break the eye in the Object Manager — rename them individually with ✎, or turn on “Make duplicates unique” on the left and let the preview number them for you.',
+      items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
   ]
   const pager = usePager(naming?.diff || [])
 
@@ -119,7 +123,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
         <Workbench
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty="Every name already matches your rules 🎉"
-          applyLabel="Process all" onApply={org.applyNaming}
+          applyLabel="Apply all" onApply={org.applyNaming}
           onAcceptAll={() => org.keepAll('naming')} busy={busy}
           progress={org.progress}
           note={naming?.applied != null ? `${naming.applied} applied (undoable).` : null}

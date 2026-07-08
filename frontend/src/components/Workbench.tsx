@@ -33,13 +33,13 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
         {onApply && (
           <button className="apply wb-apply" disabled={busy || !count} onClick={onApply}
             title="Apply every suggestion in the list (one undo step)">
-            ✓ {applyLabel || 'Process all'}
+            ✓ {applyLabel || 'Apply all'}
           </button>
         )}
         {onAcceptAll && (
           <button className="wb-accept-all" disabled={busy || !count} onClick={onAcceptAll}
-            title="Accept everything as-is — nothing changes in the scene, the items stop counting as todos (restore below)">
-            = Accept all
+            title="Keep everything exactly as it is — nothing changes in the scene, the items stop counting as todos (restore below)">
+            = Keep all as-is
           </button>
         )}
       </div>
