@@ -154,7 +154,10 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number,
   const top10 = sorted.slice(0, 10).reduce((s, v) => s + v, 0)
   return {
     defaults, emptyGroups, rootClutter, outliers, dupes, depth,
-    namingScore: nodes.length ? Math.round((nodes.length - todos) / nodes.length * 100) : 100,
+    // Open todos never round up to a perfect 100.
+    namingScore: !nodes.length ? 100
+      : todos ? Math.min(99, Math.round((nodes.length - todos) / nodes.length * 100))
+        : 100,
     casingScore: nodes.length ? Math.round(casingOk / nodes.length * 100) : 100,
     namingTodos: todos,
     dupTotal: dupes.reduce((s, d) => s + d.count, 0),

@@ -24,6 +24,10 @@ const emptyKeeps = (): Record<KeepSection, Set<string>> => ({
   structure: new Set(), materials: new Set(),
 })
 
+// Score rounding that never shows a perfect 100 while todos remain open.
+const capped = (open: number, share: number): number =>
+  open > 0 ? Math.min(99, Math.round(share * 100)) : 100
+
 export function useOrganizer() {
   const [tab, setTab] = useState<TabId>('overview')
   const [scope, setScope] = useState(false)        // false = whole scene, true = selection
@@ -526,7 +530,7 @@ export function useOrganizer() {
         const open = translation?.count
         const total = translation?.detected?.total ?? report.object_count ?? 0
         if (open == null || !total) return null
-        return Math.round(Math.max(0, total - open) / total * 100)
+        return capped(open, Math.max(0, total - open) / total)
       }
       case 'layers': {
         const open = layers?.count
@@ -534,13 +538,13 @@ export function useOrganizer() {
         const denom = Math.max(1, open,
           (report.categories?.light || 0) + (report.categories?.camera || 0)
           + ((report.types?.Instance as number) || 0))
-        return Math.round((denom - open) / denom * 100)
+        return capped(open, (denom - open) / denom)
       }
       case 'materials': {
         const m = report.materials
         if (!m?.total) return null
         const bad = m.deletable_count ?? m.unused.length
-        return Math.round((m.total - bad) / m.total * 100)
+        return capped(bad, (m.total - bad) / m.total)
       }
       case 'structure':
         return Math.round((report.structure_compliance || 0) * 100)
@@ -548,6 +552,14 @@ export function useOrganizer() {
         return null
     }
   }, [report, namingHygScore, translation, layers])
+
+  // The Overview shows every area's score: quietly preload the translate and
+  // layers plans there (naming/materials derive from the report alone).
+  useEffect(() => {
+    if (tab !== 'overview' || !report) return
+    if (!translation) reloadTranslate().catch(() => {})
+    if (!layers) reloadLayers().catch(() => {})
+  }, [tab, report, translation, layers, reloadTranslate, reloadLayers])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
