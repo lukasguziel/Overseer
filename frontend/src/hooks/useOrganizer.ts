@@ -533,12 +533,13 @@ export function useOrganizer() {
         return capped(open, Math.max(0, total - open) / total)
       }
       case 'layers': {
-        const open = layers?.count
-        if (open == null) return null
-        const denom = Math.max(1, open,
-          (report.categories?.light || 0) + (report.categories?.camera || 0)
-          + ((report.types?.Instance as number) || 0))
-        return capped(open, (denom - open) / denom)
+        // Layer coverage: how much of the scene is assigned to ANY layer.
+        // Accepting an object as fine-without-layer counts as covered.
+        const nodes = report.nodes || []
+        if (!nodes.length) return null
+        const open = nodes.reduce((c, n) =>
+          c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
+        return capped(open, (nodes.length - open) / nodes.length)
       }
       case 'materials': {
         const m = report.materials
@@ -551,7 +552,7 @@ export function useOrganizer() {
       default:
         return null
     }
-  }, [report, namingHygScore, translation, layers])
+  }, [report, namingHygScore, translation, keeps.layers])
 
   // The Overview shows every area's score: quietly preload the translate and
   // layers plans there (naming/materials derive from the report alone).

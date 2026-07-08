@@ -1,17 +1,107 @@
+import React, { useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
+import type { SceneNode } from '../types'
+import { catColor } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import LayerTree from '../components/LayerTree'
 import Pager, { usePager } from '../components/Pager'
 
+// One object without a layer: ✓ opens the inline layer picker (choose an
+// existing layer or type a new name — it is created on assign), ✕ accepts
+// "no layer" as fine for this object (score counts it as decided).
+function NoLayerRow({ n, busy, onAssign, onKeep }: {
+  n: SceneNode
+  busy: boolean
+  onAssign: (guid: number, layer: string) => void
+  onKeep: (name: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const commit = () => {
+    const v = value.trim()
+    if (v) { onAssign(n.guid, v); setEditing(false) }
+  }
+  return (
+    <div className="rename-row">
+      <span className="cat-dot" style={{ background: catColor(n.category) }} />
+      <span className="rn-old" title={n.name}>{n.name}</span>
+      <span className="rn-arrow">→</span>
+      {editing
+        ? (
+          <input className="nl-input" autoFocus list="nl-layers" placeholder="layer name…"
+            value={value} onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit()
+              else if (e.key === 'Escape') setEditing(false)
+            }} />
+        )
+        : <span className="rn-new dim">no layer</span>}
+      <span className="rn-actions">
+        {editing
+          ? (
+            <>
+              <button className="rn-ok" disabled={busy || !value.trim()} onClick={commit}
+                title="Assign to this layer (created if missing, undoable)">✓</button>
+              <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
+            </>
+          )
+          : (
+            <>
+              <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
+                title="Assign a layer — pick an existing one or type a new name">✓</button>
+              <button className="rn-no" disabled={busy} onClick={() => onKeep(n.name)}
+                title="Accept as-is — fine without a layer (restore below)">✕</button>
+            </>
+          )}
+      </span>
+    </div>
+  )
+}
+
 export default function LayersTab({ org }: { org: Organizer }) {
   const { layers, keeps, report, busy, previewing } = org
   const lr = report?.layers_report
   const pager = usePager(layers?.diff || [])
 
+  // Objects without any layer, keeps filtered out — the first thing to work
+  // through on this tab (they drive the coverage score).
+  const noLayer = React.useMemo(
+    () => (report?.nodes || []).filter((n) => !n.layer && !keeps.layers.has(n.name)),
+    [report, keeps.layers])
+  const nlPager = usePager(noLayer)
+  const layerNames = (lr?.layers || []).map((l) => l.name)
+
   return (
     <div className="layers-tab">
+      {/* ---- Objects without a layer (assign or accept) --------------- */}
+      <section className="card">
+        <div className="card-head">
+          <h3>No layer</h3>
+          <span className="card-hint">
+            {noLayer.length
+              ? `${noLayer.length} object${noLayer.length === 1 ? '' : 's'} — ✓ assign a layer (or create one), ✕ accept as-is`
+              : 'every object is on a layer or accepted 🎉'}
+          </span>
+        </div>
+        <datalist id="nl-layers">
+          {layerNames.map((l) => <option key={l} value={l} />)}
+        </datalist>
+        {noLayer.length > 0 && (
+          <>
+            <div className="rename-list">
+              {nlPager.rows.map((n) => (
+                <NoLayerRow key={n.guid} n={n} busy={busy}
+                  onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
+                  onKeep={(nm) => org.keep('layers', nm)} />
+              ))}
+            </div>
+            <Pager pager={nlPager} />
+          </>
+        )}
+      </section>
+
       {/* ---- Layer overview (read-only analysis) ---------------------- */}
       <section className="card ly-overview">
         <div className="card-head">
