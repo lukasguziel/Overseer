@@ -1,21 +1,7 @@
-"""Generate the node-editor layout from group rules (pure, no c4d).
-
-The Rules tab (RuleGraph.jsx) renders ONLY from a stored `graph`
-(nodes/edges). Presets/the skill however only provide `groups` -> this
-function builds the matching layout so a loaded preset shows up in the
-editor immediately.
-"""
-
 from __future__ import annotations
 
 
 def graph_from_structure(structure: list[dict]) -> dict:
-    """Builds {nodes, edges} from a NESTED structure tree (config schema 2).
-
-    Child groups connect to their parent group via a group->group edge; the
-    editor reads that edge back as the `parent` relation. Depth shifts the
-    x position so nesting is visible at a glance.
-    """
     nodes: list[dict] = []
     edges: list[dict] = []
     nid = [1]
@@ -63,16 +49,11 @@ def graph_from_structure(structure: list[dict]) -> dict:
 
     for g in structure or []:
         emit(g, 0, None)
+
     return {"nodes": nodes, "edges": edges}
 
 
 def graph_from_groups(groups: list[dict]) -> dict:
-    """Builds {nodes, edges} for React Flow from a list of groups.
-
-    One group node per group (right); one category node per category and one
-    keyword node per keyword set (left), connected via edges. IDs follow the
-    `<type>_<n>` scheme the editor expects when re-counting.
-    """
     nodes: list[dict] = []
     edges: list[dict] = []
     nid = [1]
@@ -108,4 +89,5 @@ def graph_from_groups(groups: list[dict]) -> dict:
                           "data": {"keywords": ", ".join(g["keywords"])}})
             edges.append({"id": "e_%s_%s" % (kid, gid),
                           "source": kid, "target": gid, "animated": True})
+
     return {"nodes": nodes, "edges": edges}

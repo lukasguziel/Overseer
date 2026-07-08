@@ -1,8 +1,5 @@
-"""DE<->EN dictionary for interior/ArchViz terms (pure, data-driven)."""
-
 from __future__ import annotations
 
-# Canonical mapping German -> English. Umlauts additionally as ae/oe/ue.
 DE_TO_EN = {
     "licht": "light", "lichter": "light", "lampe": "lamp", "leuchte": "light",
     "beleuchtung": "lighting", "sonne": "sun", "himmel": "sky",
@@ -28,12 +25,10 @@ DE_TO_EN = {
     "aussenbereich": "exterior", "innenbereich": "interior",
 }
 
-# Reverse: English -> German (first canonical reverse match wins).
 EN_TO_DE = {}
 for _de, _en in DE_TO_EN.items():
     EN_TO_DE.setdefault(_en, _de)
 
-# Complete word sets for language detection.
 DE_WORDS = set(DE_TO_EN.keys())
 EN_WORDS = set(DE_TO_EN.values()) | {
     "lights", "chairs", "walls", "plants", "trees", "props", "cushion",
@@ -50,11 +45,6 @@ def to_german(token: str) -> str:
 
 
 def add_translations(extra: dict) -> None:
-    """Extends the dictionary at runtime with additional de->en pairs.
-
-    Side effect on the module globals -- intended for the one-time config load
-    (hot-reload imports the module fresh anyway, no accumulation).
-    """
     for de, en in extra.items():
         de, en = de.lower(), en.lower()
         DE_TO_EN[de] = en

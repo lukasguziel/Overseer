@@ -2,10 +2,27 @@
 
 Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both current.
 
+## Comments & docs
+
+- **Source files carry NO module docstrings, NO function/class docstrings, and
+  NO explanatory `#` comments.** A file starts directly with its first import
+  (`from __future__ import annotations` first if present). The code explains the
+  code; readability comes from clear names and logical blank-line grouping.
+  - Keep ONLY functional pragma comments: `# noqa`, `# type:`, `# pragma:`,
+    `# ruff:`, shebangs.
+  - Group steps inside a function with blank lines (e.g. a blank line after an
+    early `return` block before the next `try:`).
+- **Prose explanation lives in `docs/`**, one markdown file per module,
+  mirroring the source tree (`src/sceneorg/cinema/bridge.py` ->
+  `docs/sceneorg/bridge.md`, `src/sceneorg/core/ops.py` ->
+  `docs/sceneorg/core/ops.md`, `src/scene_organizer.pyp` ->
+  `docs/scene_organizer.md`). Update the module's doc when you change its
+  behavior. Hard-won c4d gotchas that used to sit in comments now live there.
+
 ## Language
 
-- **All code, comments, docstrings, commit messages, and internal log/error
-  strings are written in ENGLISH.** No German in source files.
+- **All code, commit messages, and internal log/error strings are written in
+  ENGLISH.** No German in source files. (Docs in `docs/` are English too.)
 - Exceptions (deliberate German, do NOT "fix"):
   - `sceneorg/translations.py` — the DE→EN dictionary keys ARE German.
   - Test fixtures/asserts with German object names ("Möbel", "Küche", …) —

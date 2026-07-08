@@ -1,18 +1,3 @@
-"""Declarative, versioned rule engine (pure, no c4d).
-
-Rules live in config.json / presets as a list of dicts discriminated by
-`type` and compile into Rule objects that plan RenameOp/ReparentOp/LayerOp
-via the existing planners' vocabulary. Unknown rule types are collected as
-warnings instead of crashing (forward compatibility: newer presets keep
-working on older plugins, minus the unknown rules).
-
-Rule types (RULE_TYPES):
-  prefix    contextual prefixes -- e.g. 'LGT_' only for lights under 'Studio'
-  renumber  gap renumbering -- 1,2,3,6,7,9 -> 1..6 with padding
-  condition declarative if/then -- e.g. 'if >3 duplicates -> alpha suffixes'
-  layer     layer assignment by match (extends the fixed DEFAULT_LAYER_SCHEME)
-"""
-
 from __future__ import annotations
 
 import re
@@ -28,8 +13,6 @@ from .standard import StructureStandard
 
 RULES_SCHEMA_VERSION = 2
 
-# Separator used between a base name and an appended number/letter suffix,
-# mirroring convention._NUM_SEP (kept local: that dict is module-private).
 _SUFFIX_SEP = {
     naming.Casing.PASCAL: "",
     naming.Casing.CAMEL: "",
@@ -41,8 +24,6 @@ _SUFFIX_SEP = {
 
 @dataclass
 class RuleContext:
-    """Everything a rule may inspect while planning."""
-
     tree: model.SceneTree
     convention: NamingConvention
     standard: StructureStandard
@@ -54,16 +35,6 @@ class RuleContext:
 
 @dataclass
 class Match:
-    """Shared condition vocabulary for all rule types (extensible).
-
-    categories   object categories, e.g. {'light'}
-    keywords     English name tokens (object tokens are translated first)
-    name_regex   regex tested against the raw object name
-    under_group  group path prefix the object must sit in ('Studio',
-                 'Room/Furniture'); resolved via the structure standard
-    types        C4D type names, e.g. {'Instance'}
-    """
-
     categories: set = field(default_factory=set)
     keywords: set = field(default_factory=set)
     name_regex: str | None = None
@@ -119,11 +90,9 @@ class Match:
 
 @dataclass
 class PlanBundle:
-    """Combined result of RuleSet.plan_all()."""
-
     renames: list = field(default_factory=list)
     layers: list = field(default_factory=list)
-    applied_rules: list = field(default_factory=list)   # rule ids that produced ops
+    applied_rules: list = field(default_factory=list)
     warnings: list = field(default_factory=list)
 
 
@@ -132,7 +101,6 @@ def _suffix_sep(convention: NamingConvention) -> str:
 
 
 def _reserve_sibling_names(nodes_to_rename: list) -> dict:
-    """Names already taken per parent bucket (siblings that are NOT renamed)."""
     by_parent: dict = defaultdict(set)
     renaming_ids = {id(n) for n in nodes_to_rename}
     for n in nodes_to_rename:
@@ -144,17 +112,8 @@ def _reserve_sibling_names(nodes_to_rename: list) -> dict:
     return by_parent
 
 
-# -- Rule types --------------------------------------------------------------
-
-
 @dataclass
 class PrefixRule:
-    """Contextual prefix: prepend `prefix` to every matching object name.
-
-    Idempotent: names already carrying the prefix are left alone.
-    Replaces/extends the flat per-category `prefixes` config of v1.
-    """
-
     id: str
     prefix: str
     match: Match
@@ -191,17 +150,6 @@ class PrefixRule:
 
 @dataclass
 class RenumberRule:
-    """Gap renumbering: reassign trailing numbers as a gapless series.
-
-    Matching numbered siblings that share the same base name form a series;
-    the series is renumbered start..n in document order with `pad` zeros
-    (1,2,3,6,7,9 -> 01..06). Idempotent: an already-gapless series with the
-    right padding yields zero ops. Unnumbered objects are never touched.
-
-    per_parent=True (default) renumbers each sibling series independently;
-    False renumbers one scene-wide series per base name.
-    """
-
     id: str
     match: Match
     pad: int = 2
@@ -235,7 +183,7 @@ class RenumberRule:
     def plan(self, ctx: RuleContext) -> PlanBundle:
         bundle = PlanBundle()
         sep = _suffix_sep(ctx.convention)
-        # series key -> list of (node, base, num, original separator)
+
         series: dict = defaultdict(list)
         for n in ctx.tree.walk():
             if not ctx.in_scope(n) or not self.match.matches(n, ctx):
@@ -250,7 +198,6 @@ class RenumberRule:
         reserved = _reserve_sibling_names(renaming_nodes)
 
         for group in series.values():
-            # Document order is walk order (already the case), keep stable.
             for i, (n, base, _num) in enumerate(group):
                 new_name = base + sep + self._format(self.start + i)
                 if new_name == n.name:
@@ -268,18 +215,6 @@ class RenumberRule:
 
 @dataclass
 class ConditionRule:
-    """Declarative if/then rule.
-
-    when (all given conditions must hold; per candidate set):
-      duplicates_gt  N  -- names occurring more than N times (per parent)
-      match          {...Match...} -- restrict candidates
-    then (one action):
-      suffix_scheme  'alpha' | 'numeric' -- disambiguate duplicates with
-                     A/B/C or 01/02/03 suffixes
-      apply_prefix   'PFX_' -- prefix candidates (idempotent)
-      assign_layer   'LayerName' -- put candidates on a layer
-    """
-
     id: str
     when: dict
     then: dict
@@ -308,7 +243,6 @@ class ConditionRule:
                  if ctx.in_scope(n) and match.matches(n, ctx)]
         dup_gt = self.when.get("duplicates_gt")
         if dup_gt is not None:
-            # duplicate = same name among siblings, counted per parent
             counts: dict = defaultdict(int)
             for n in nodes:
                 counts[(id(n.parent) if n.parent else None, n.name)] += 1
@@ -319,7 +253,6 @@ class ConditionRule:
 
     @staticmethod
     def _alpha(i: int) -> str:
-        """0 -> A, 25 -> Z, 26 -> AA (spreadsheet-style)."""
         out = ""
         i += 1
         while i > 0:
@@ -372,8 +305,6 @@ class ConditionRule:
 
 @dataclass
 class LayerRule:
-    """Assign matching objects to a named layer (type axis, no hierarchy change)."""
-
     id: str
     layer: str
     match: Match
@@ -412,25 +343,15 @@ RULE_TYPES = {
 }
 
 
-# -- Rule set ----------------------------------------------------------------
-
-
 @dataclass
 class RuleSet:
     rules: list = field(default_factory=list)
-    warnings: list = field(default_factory=list)   # from compilation
+    warnings: list = field(default_factory=list)
 
     def to_list(self) -> list:
         return [r.to_dict() for r in self.rules]
 
     def plan_all(self, ctx: RuleContext) -> PlanBundle:
-        """Run all enabled rules (priority descending) and merge their ops.
-
-        Later rules never re-rename an object an earlier rule already
-        claimed (first claim wins -- deterministic, no op chains on stale
-        names). Layer ops: last assignment per object wins is avoided the
-        same way (first claim wins).
-        """
         bundle = PlanBundle(warnings=list(self.warnings))
         renamed: set = set()
         layered: set = set()
@@ -456,7 +377,6 @@ class RuleSet:
 
 
 def compile_rules(raw: list | None) -> RuleSet:
-    """list[dict] -> RuleSet. Unknown/invalid rules become warnings."""
     ruleset = RuleSet()
     for i, item in enumerate(raw or []):
         rtype = (item or {}).get("type")

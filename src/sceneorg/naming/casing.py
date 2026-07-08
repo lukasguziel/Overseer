@@ -1,5 +1,3 @@
-"""Pure naming analysis: tokenizer, casing detection, language heuristic."""
-
 from __future__ import annotations
 
 import re
@@ -8,15 +6,15 @@ from enum import Enum
 
 class Casing(str, Enum):
     EMPTY = "empty"
-    UPPER_SNAKE = "UPPER_SNAKE"      # LIGHT_KEY_01
-    LOWER_SNAKE = "lower_snake"      # light_key_01
-    KEBAB = "kebab"                  # light-key
-    CAMEL = "camelCase"             # lightKey
-    PASCAL = "PascalCase"           # LightKey
-    UPPER = "UPPER"                  # LIGHT
-    LOWER = "lower"                  # light
-    CAPITALIZED = "Capitalized"      # Light
-    SPACED = "spaced"                # Light Key
+    UPPER_SNAKE = "UPPER_SNAKE"
+    LOWER_SNAKE = "lower_snake"
+    KEBAB = "kebab"
+    CAMEL = "camelCase"
+    PASCAL = "PascalCase"
+    UPPER = "UPPER"
+    LOWER = "lower"
+    CAPITALIZED = "Capitalized"
+    SPACED = "spaced"
     MIXED = "mixed"
 
 
@@ -30,12 +28,10 @@ _RE_NUM_SUFFIX = re.compile(r"^(.*?)[ _\-]*?(\d+)$")
 
 
 def split_camel(name: str) -> str:
-    """Inserts a space before uppercase boundaries (fooBar -> foo Bar)."""
     return _RE_CAMEL_BOUNDARY.sub(r"\1 \2", name)
 
 
 def tokenize(name: str) -> list[str]:
-    """Splits a name into lowercase word tokens (pure numbers dropped)."""
     spaced = split_camel(name)
     parts = _RE_SPLIT.split(spaced)
     out = []
@@ -48,13 +44,14 @@ def tokenize(name: str) -> list[str]:
 
 
 def split_trailing_number(name: str) -> tuple[str, int | None]:
-    """Splits off a trailing number: 'Chair 01' -> ('Chair', 1)."""
     m = _RE_NUM_SUFFIX.match(name.strip())
     if not m:
         return name.strip(), None
+
     base, num = m.group(1), m.group(2)
     if not base:
         return name.strip(), None
+
     return base.strip(" _-"), int(num)
 
 
@@ -70,8 +67,7 @@ def detect_casing(name: str) -> Casing:
         return Casing.LOWER_SNAKE
     if "-" in base:
         return Casing.KEBAB
-    # Check single-word cases BEFORE the camel/pascal regexes:
-    # "LIGHT" would otherwise be misdetected as PascalCase.
+
     if base.isupper():
         return Casing.UPPER
     if base.islower():
@@ -84,8 +80,6 @@ def detect_casing(name: str) -> Casing:
         return Casing.CAPITALIZED
     return Casing.MIXED
 
-
-# -- Language heuristic ---------------------------------------------------
 
 LANG_DE = "de"
 LANG_EN = "en"
@@ -104,6 +98,7 @@ def detect_language(name: str, de_words: set, en_words: set) -> str:
             en += 1
     if any(ch in low for ch in _UMLAUTS):
         de += 1
+
     if de > en:
         return LANG_DE
     if en > de:

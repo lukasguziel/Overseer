@@ -1,28 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Scene Organizer  -  loader plugin
-
-Registers ONE CommandData at startup (like any normal plugin -> no startup
-risk, no MessageData anymore, no submenu -> a single click launches it):
-  * "Scene Organizer"  -> starts local server + control dialog (whose timer
-                          drains the request queue on the main thread) and
-                          opens the web frontend.
-
-Hot-reload: `sceneorg.webapi` is freshly loaded on every web request
-(EXCEPTION: sceneorg.bridge = server/queue singleton). Only the initial
-registration requires one restart.
-"""
-
 import os
 import sys
 
 import c4d
 
-# Maxon-registered plugin ID (official, "GFCSceneOrganizer"): 1069217.
-# The other globally registered elements derive from it as a contiguous
-# block -> out of the shared dev range 1000001-1000010:
-#   1069217  CommandData  "Scene Organizer"          (here: CMD_MAIN)
-#   1069220  async ServerDialog pluginid             -> bridge.py
 CMD_MAIN = 1069217
 WEB_PORT = 8787
 
@@ -34,10 +15,6 @@ def _ensure_path():
 
 
 def _load_icon():
-    """Load so_logo.jpg (next to this .pyp) as a 32x32 command icon.
-
-    Returns None on any failure so registration never breaks over the icon.
-    """
     try:
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "so_logo.jpg")

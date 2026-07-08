@@ -1,5 +1,3 @@
-"""NamingConvention: normalizes object names to a uniform scheme (pure)."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +5,6 @@ from dataclasses import dataclass
 from . import casing as naming
 from . import translations
 
-# Target casings the convention can produce.
 TARGET_STYLES = (
     naming.Casing.PASCAL,
     naming.Casing.CAMEL,
@@ -16,7 +13,6 @@ TARGET_STYLES = (
     naming.Casing.KEBAB,
 )
 
-# Separator per target style (for word joints).
 _SEP = {
     naming.Casing.PASCAL: "",
     naming.Casing.CAMEL: "",
@@ -25,7 +21,6 @@ _SEP = {
     naming.Casing.KEBAB: "-",
 }
 
-# Separator before a trailing number.
 _NUM_SEP = {
     naming.Casing.PASCAL: "",
     naming.Casing.CAMEL: "",
@@ -46,15 +41,6 @@ class RenameProposal:
 
 
 class NamingConvention:
-    """Configurable naming scheme.
-
-    Parameters
-    ----------
-    style           target casing (Casing.PASCAL etc.)
-    language        target language 'en' / 'de' / None (no translation)
-    number_pad      zero padding for trailing numbers (0 = off)
-    """
-
     def __init__(
         self,
         style: naming.Casing = naming.Casing.PASCAL,
@@ -67,7 +53,6 @@ class NamingConvention:
         self.language = language
         self.number_pad = number_pad
 
-    # -- Word transformation -----------------------------------------------
     def _translate(self, tokens: list[str]) -> list[str]:
         if self.language == naming.LANG_EN:
             return [translations.to_english(t) for t in tokens]
@@ -91,14 +76,12 @@ class NamingConvention:
             return str(num).zfill(self.number_pad)
         return str(num)
 
-    # -- Public API ---------------------------------------------------------
     def normalize(self, name: str) -> str:
         base, num = naming.split_trailing_number(name)
         tokens = naming.tokenize(base)
         tokens = self._translate(tokens)
         tokens = [t for t in tokens if t]
         if not tokens:
-            # Number only / empty -> do not break the original name
             return name.strip()
 
         sep = _SEP[self.style]
@@ -116,5 +99,4 @@ class NamingConvention:
         return self.normalize(name) == name
 
     def disambiguate(self, base: str, index: int) -> str:
-        """Appends a disambiguating counter in the target style."""
         return base + _NUM_SEP[self.style] + self._format_number(index)

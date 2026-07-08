@@ -14,7 +14,7 @@ export const LANGS: [string, string][] = [
 
 export type TabId =
   | 'overview' | 'assets' | 'naming' | 'translate'
-  | 'structure' | 'layers' | 'rules' | 'misc'
+  | 'structure' | 'layers' | 'textures' | 'rules' | 'misc'
 
 export const TABS: [TabId, string][] = [
   ['overview', 'Overview'],
@@ -23,6 +23,7 @@ export const TABS: [TabId, string][] = [
   ['translate', 'Translate'],
   ['structure', 'Structure'],
   ['layers', 'Layers'],
+  ['textures', 'Textures'],
   ['rules', 'Rules'],
   ['misc', 'Misc'],
 ]

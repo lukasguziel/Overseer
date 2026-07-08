@@ -11,6 +11,28 @@ export interface SceneNode {
   children: number
   polygons: number
   points: number
+  visible?: boolean         // Object Manager visibility (editor dot, inherited)
+  layer?: string | null     // name of the assigned C4D layer (null = no layer)
+}
+
+// One row of the document's layer table (webapi _merge_layers).
+export interface LayerInfo {
+  name: string
+  color: [number, number, number] | null
+  solo: boolean
+  view: boolean             // editor viewport flag (V)
+  render: boolean           // render flag (R)
+  locked: boolean           // locked flag (L)
+  objects: number           // objects assigned to this layer (scope-aware)
+  polys: number
+  empty: boolean            // exists but holds no objects
+}
+
+export interface LayersReport {
+  layers: LayerInfo[]
+  no_layer: number          // objects assigned to no layer at all
+  total_layers: number
+  empty_layers: number
 }
 
 export interface MissingTexture {
@@ -23,6 +45,35 @@ export interface MaterialReport {
   unused: string[]
   missing: MissingTexture[]
   missing_textures: number
+}
+
+export interface TextureEntry {
+  material: string
+  used: boolean
+  file: string           // basename
+  path: string           // path as stored in the shader
+  resolved: string       // absolute path it resolves to ('' if unresolved)
+  absolute: boolean      // stored as an absolute filesystem path
+  exists: boolean
+  missing: boolean
+  relocatable: boolean   // absolute AND file lives under the project folder
+  rel_target: string     // the relative path it would become
+  bytes: number          // file size on disk (0 if missing/unknown)
+  width: number          // pixel dimensions (0 if unknown)
+  height: number
+  res_tag: string        // resolution tag, e.g. '4K' / '8K' / '512px'
+}
+
+export interface TextureReport {
+  doc_path: string
+  total: number
+  absolute_count: number
+  relative_count: number
+  missing_count: number
+  relocatable_count: number
+  total_bytes: number    // disk footprint, each physical file counted once
+  absolute: TextureEntry[]
+  relative: TextureEntry[]
 }
 
 export interface SceneReport {
@@ -42,7 +93,13 @@ export interface SceneReport {
   largest?: SceneNode[]
   misplaced?: unknown[]
   materials?: MaterialReport
+  textures?: TextureReport
+  layers_report?: LayersReport | null
   scoped?: boolean          // true = stats cover only the C4D selection
+  hidden_count?: number     // objects hidden in the Object Manager (whole tree)
+  include_hidden?: boolean  // false = hidden objects excluded from these stats
+  dirty?: number            // C4D change token at read time (auto-refresh sync)
+  doc_name?: string         // active document name at read time
 }
 
 // Live progress of a long-running main-thread operation (GET /api/progress,
@@ -189,6 +246,16 @@ export interface RenameDiff {
 
 export interface TranslateDiff extends RenameDiff {
   words?: [string, string][]
+  lang?: string           // detected source language of the old name
+}
+
+// Detected source-language distribution across the scene (translate.py).
+export interface LanguageSummary {
+  de: number
+  en: number
+  unknown: number
+  total: number
+  dominant: string
 }
 
 export interface ReparentDiff {
@@ -209,6 +276,8 @@ export interface PlanResult<D> {
   applied?: number
   skipped?: number
   by_layer?: Record<string, number>
+  detected?: LanguageSummary   // translate: detected source-language spread
+  target?: string              // translate: chosen target language
 }
 
 export interface GroupRuleJson {
