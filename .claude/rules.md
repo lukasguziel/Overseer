@@ -27,16 +27,16 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
   - `sceneorg/translations.py` — the DE→EN dictionary keys ARE German.
   - Test fixtures/asserts with German object names ("Möbel", "Küche", …) —
     they are inputs for language-detection/translation tests.
-  - User-visible UI copy (C4D dialog labels in `dialog.py`, web frontend
-    texts) stays German — product decision, only change when asked.
+  - User-visible UI copy (web frontend texts) stays German — product
+    decision, only change when asked.
 - Python sources stay ASCII-only (encoding safety); UI strings may use umlauts.
 
 ## Code conventions
 
 - New pure logic → `src/sceneorg/` (must NOT import `c4d`) + test in `tests/`.
   `python -m pytest` and `python -m ruff check src tests` must be green (CI gate).
-- c4d-dependent code only in: `c4d_adapter.py`, `dialog.py`, `plugin_entry.py`,
-  `bridge.py`, `webapi.py`. Tests never import these.
+- c4d-dependent code only in: `cinema/` (adapter/constants/webapi) and
+  `bridge.py`. Tests never import these.
 - Ruff config in `pyproject.toml` (UP031 %-format and UP042 StrEnum are
   deliberately ignored — Python 3.9 support).
 - Syntax-check c4d modules without Cinema: `python -m py_compile <file>`

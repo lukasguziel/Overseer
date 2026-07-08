@@ -28,7 +28,7 @@ Report-Aufbau: [../scene-architect/references/report-schema.md](../scene-archite
 curl -s -X POST 127.0.0.1:8787/api/export -H "Content-Type: application/json" -d "{}"
 ```
 Schreibt `scene_report.json` ins Repo-Root. Connection refused → User bittet
-`Shift+C` → **"Scene Organizer (Web)"** oeffnen, Fenster offen lassen.
+`Shift+C` → **"Scene Organizer"** oeffnen, Server-Fenster offen lassen.
 
 **B) Fallback:** vorhandene `scene_report.json` nutzen — Dateidatum/`file`-Feld
 gegenpruefen und dem User sagen, wenn veraltet.

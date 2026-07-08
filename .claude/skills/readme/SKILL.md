@@ -37,8 +37,9 @@ mehr zum API-Vertrag passt (siehe unten).
 Die Fake-Szene ist Teil des Stils — bei Änderungen konsistent halten:
 
 - `penthouse_loft_final.c4d`, ~1.847 Objekte, **40M Polygone, 1,2 GB**.
-- Deutsche Objektnamen mit echten Übersetzungsbeispielen
-  (`Stuhl → Chair`, `Tuer_Eingang → Door_Entrance`).
+- **Englische Objektnamen** in allen Screenshots; nur der Translate-Tab
+  demonstriert Übersetzung, und zwar EN→FR (`Chair → Chaise`) — `shoot.mjs`
+  wählt dafür Engine „Google" + Ziel „French" im Tab an.
 - Absichtliche Probleme, damit jedes Feature etwas zu zeigen hat: Junk-Namen
   (`Cube.1`), Duplikate, gemischtes Casing, ungenutzte Materialien, 8K-Texturen,
   absolute Pfade, Objekte ohne Layer, versteckte Objekte.
@@ -89,8 +90,8 @@ diesen Skill im Kopf:
 Reihenfolge = Tab-Reihenfolge der App (Overview → Naming → Translate →
 Assets → Layers → Materials → Misc). Immer Überschrift → Screenshot →
 Features. Tonalität: konkret statt Marketing; Zahlenbeispiele aus der
-Fake-Szene wiederverwenden (`Stuhl → Chair`), damit Text und Screenshots
-zusammenpassen.
+Fake-Szene wiederverwenden (`Chair → Chaise`, EN 1288 / DE 138), damit Text
+und Screenshots zusammenpassen.
 
 ## Fehlerbilder
 

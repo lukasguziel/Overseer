@@ -6,13 +6,11 @@ markdown file per module, mirroring `src/`.
 
 ## Entry / host glue
 - [scene_organizer.md](scene_organizer.md) — plugin loader (`src/scene_organizer.pyp`)
-- [sceneorg/plugin_entry.md](sceneorg/plugin_entry.md) — native dialog command
 - [sceneorg/bridge.md](sceneorg/bridge.md) — HTTP server + main-thread queue (process singleton)
 - [sceneorg/config.md](sceneorg/config.md) — config.json schema 2 + migration
 
 ## cinema/ — the only c4d-dependent domain code
 - [sceneorg/cinema/adapter.md](sceneorg/cinema/adapter.md) — doc ⇄ SceneTree, writes with undo
-- [sceneorg/cinema/dialog.md](sceneorg/cinema/dialog.md) — native GeDialog
 - [sceneorg/cinema/webapi.md](sceneorg/cinema/webapi.md) — JSON API (hot-reloaded per request)
 - [sceneorg/cinema/constants.md](sceneorg/cinema/constants.md) — c4d-bound constant tables
 

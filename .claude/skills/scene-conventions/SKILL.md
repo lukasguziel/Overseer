@@ -137,7 +137,7 @@ Abschließend gegen [references/review-checklist.md](references/review-checklist
 ## Fehlerbilder
 
 - `Connection refused` beim Export → Web-Dialog in C4D öffnen (`Shift+C` →
-  „Scene Organizer (Web)"), Fenster offen lassen.
+  „Scene Organizer"), Server-Fenster offen lassen.
 - `(sceneorg not importable)` im Miner → vom Repo-Root ausführen.
 - Miner findet nichts unter AFFIXES → Szene hat schlicht keine Affix-Gewohnheit;
   nicht erfinden. Casing/Numbering/Structure tragen das Preset auch allein.

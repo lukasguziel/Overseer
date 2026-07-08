@@ -21,17 +21,15 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 
 **Core principle: pure domain logic strictly separated from `c4d`.**
 `src/sceneorg/` never imports `c4d` → testable in CI. Only these modules import
-`c4d` (never loaded by tests): `cinema/` (adapter/dialog/webapi),
-`plugin_entry.py`, `bridge.py`.
+`c4d` (never loaded by tests): `cinema/` (adapter/webapi), `bridge.py`.
 
 ```
 src/
-  scene_organizer.pyp     Loader. Registers the plugins; hot-reload purges all
-                          sceneorg modules EXCEPT sceneorg.bridge on each dialog call.
+  scene_organizer.pyp     Loader. Registers ONE command "Scene Organizer" that
+                          starts the server + opens the web UI (the only UI).
   sceneorg/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
                           per-section "accepted as-is" keeps map)
-    plugin_entry.py       [c4d] opens the native dialog
     bridge.py             [c4d] HTTP server (BG thread) + main-thread queue + progress
                           state. PROCESS SINGLETON — stays at package root.
     core/
@@ -54,7 +52,6 @@ src/
       graph.py            node-editor graph incl. nested structure
     cinema/               [c4d] host glue
       adapter.py          doc <-> SceneTree; rename/reparent/plan/layers with undo
-      dialog.py           native GeDialog
       webapi.py           JSON API; hot-reloaded per request
   presets/  plans/        User-saved preset snapshots (schema 2, no shipped defaults)
                           / frozen restructuring plans (skill artifacts)
@@ -64,24 +61,28 @@ tests/                    pytest, runs WITHOUT c4d
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
 .github/workflows/release.yml  builds SceneOrganizer-<version>.zip + creates a GitHub Release
                           (auto on v* tag push, or manually via workflow_dispatch with version input)
-deploy.ps1                copies .pyp + sceneorg/ + presets/ + plans/ + web/ to the plugin dir
+.claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + sceneorg/ +
+                          presets/ + plans/ + web/ to the plugin dir) + machine-local
+                          deploy.config.json (gitignored)
 ```
 
 ## Plugin IDs / port (scene_organizer.pyp)
 
-Official Maxon base ID `1069217` ("GFCSceneOrganizer"), contiguous block:
-`1069217` CommandData "Scene Organizer" · `1069218` dialog ID ·
-`1069219` CommandData "Scene Organizer (Web)" · `1069220` ServerDialog ID.
+Official Maxon base ID `1069217` ("GFCSceneOrganizer"):
+`1069217` CommandData "Scene Organizer" (the only command; opens the web UI) ·
+`1069220` ServerDialog ID. `1069218`/`1069219` are retired (former native
+dialog / web command) — do not reuse them for anything else.
 Web port `8787`. No MessageData — the ServerDialog timer drains the queue.
 
 ## Deployment
 
-**Use the `deploy` skill** (`.claude/skills/deploy/`) — it discovers all installed
-Cinema 4D versions, asks which one to target, and runs `deploy.ps1`. The target
-path is NEVER in the repo: it lives in the machine-local, gitignored
-`deploy.config.json` (template: `deploy.config.example.json`).
-`deploy.ps1` reads that config (or an explicit `-Target <plugin dir>`); Program
-Files targets need an elevated shell, the `%APPDATA%` prefs folder does not.
+**Use the `deploy` skill** (`.claude/skills/deploy/` — script, config and docs
+all live there). It discovers all installed Cinema 4D versions, asks which one
+to target, and runs the skill's `deploy.ps1`. The target path is NEVER in the
+repo: it lives in the machine-local, gitignored
+`.claude/skills/deploy/deploy.config.json` (template: `deploy.config.example.json`
+next to it). `deploy.ps1` reads that config (or an explicit `-Target <plugin dir>`);
+Program Files targets need an elevated shell, the `%APPDATA%` prefs folder does not.
 
 ## Commands
 
@@ -93,19 +94,19 @@ cd frontend && pnpm run build    # output -> src/web/ (then deploy.ps1)
 cd frontend && pnpm run dev      # HMR dev server, proxy /api -> localhost:8787
 cd frontend && pnpm test         # vitest unit tests
 
-powershell -File deploy.ps1      # copy to the C4D plugin dir (see "Deployment"; target via deploy skill)
+powershell -File .claude/skills/deploy/deploy.ps1   # copy to the C4D plugin dir (target via deploy skill)
 ```
 
 ## Usage in C4D
 
-After one restart: `Shift+C` → **"Scene Organizer"** (native dialog) or
-**"Scene Organizer (Web)"** (starts server, opens `http://127.0.0.1:8787`;
-keep the server dialog open). Full API table:
+After one restart: `Shift+C` → **"Scene Organizer"** (starts the server and
+opens `http://127.0.0.1:8787`; keep the server dialog open — the web UI is
+the only UI). Full API table:
 `.claude/skills/scene-conventions/references/api.md`.
 
 ## What needs a restart?
 
-- Pure `sceneorg` logic / `cinema/dialog.py` / `cinema/webapi.py`: **no restart, no
+- Pure `sceneorg` logic / `cinema/webapi.py`: **no restart, no
   even re-click** — `bridge.drain()` calls `reload_all()` on every API request, which
   purges all `sceneorg.*` submodules except `bridge` so the next request re-imports the
   edited source. Just deploy; the next browser action runs fresh code. `POST /api/reload`

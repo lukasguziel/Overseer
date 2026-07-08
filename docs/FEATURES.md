@@ -43,7 +43,7 @@ duplicates — without ever touching the words themselves.
 - ✅ **Producible casings** — PascalCase, camelCase, lower_snake, UPPER_SNAKE,
   kebab; auto-detected from the scene's dominant style.
 - ✅ **Keep separators mode** — recases words but keeps your `-`/`_`
-  conventions (`Wand-01_test → WAND-01_TEST`).
+  conventions (`Wall-01_test → WALL-01_TEST`).
 - ✅ **Numbering & dedupe** — configurable zero-padding (01/001/…), duplicate
   names become unique (`Wall, Wall → Wall01, Wall02`).
 - ✅ **Name cleanup lists** — default names (`Cube`, `Null`) and duplicates,
@@ -60,10 +60,10 @@ separators and numbers survive.
   → English (and back for German), no internet, no data leaves your machine.
 - ✅ **Google engine as opt-in** — any language pair when you need it, with a
   clear "names are sent to Google" warning and progress display.
-- ✅ **Language detection** — per-name source language pills (DE 812 / EN 566)
+- ✅ **Language detection** — per-name source language pills (EN 1288 / DE 138)
   show what the scene is actually written in.
-- ✅ **Word-level diff** — `Tuer_Eingang → Door_Entrance` with the exact word
-  mapping in the tooltip, so you can verify the dictionary before applying.
+- ✅ **Word-level diff** — `Door_Entrance → Porte_Entree` with the exact word
+  mapping in the tooltip, so you can verify the translation before applying.
 - ✅ **Per-row apply / accept-as-is** — the same uniform workflow as every
   other tab.
 

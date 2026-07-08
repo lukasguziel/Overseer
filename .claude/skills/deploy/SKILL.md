@@ -6,21 +6,23 @@ description: >-
   holds the user's choice. If it is missing (or the user names a different
   Cinema), the skill discovers all installed Cinema 4D versions and asks
   which one to use (showing each install path), writes the config, and runs
-  deploy.ps1. Use when the user says "deploy", "deploye das Plugin", "deploy
+  the skill's deploy.ps1. Use when the user says "deploy", "deploye das Plugin", "deploy
   nach Cinema", "installier das Plugin", or after building the frontend.
 ---
 
 # Deploy — Plugin in ein Cinema 4D deployen
 
-Der Zielpfad steht NIE im Repo. Er lebt in **`deploy.config.json`**
-(Repo-Root, **gitignored**, maschinenlokal; Vorlage
-`deploy.config.example.json`) und wird pro Maschine einmal vom User gewaehlt.
+Alle Deploy-Dateien leben in DIESEM Skill-Ordner (`.claude/skills/deploy/`):
+`deploy.ps1` (das Script), `deploy.config.json` (**gitignored**,
+maschinenlokal — der Zielpfad steht NIE im Repo; Vorlage
+`deploy.config.example.json`). Der Zielpfad wird pro Maschine einmal vom
+User gewaehlt.
 
 ## Ablauf
 
 **1. Ziel bestimmen.**
 - Nennt der User Version/Pfad explizit → Schritt 3 (und Config aktualisieren).
-- Existiert `deploy.config.json` mit `plugin_dir` → verwenden, dem User das
+- Existiert `.claude/skills/deploy/deploy.config.json` mit `plugin_dir` → verwenden, dem User das
   Ziel kurz nennen. Weiter zu Schritt 4.
 - Sonst Schritt 2.
 
@@ -49,21 +51,26 @@ ausgeben, eine Zeile pro Eintrag, und den User die Nummer tippen lassen:
 - Kurz drueberschreiben: „Welche Nummer?" — dann die getippte Zahl aufloesen.
   Keine Empfehlung aufdraengen, die Wahl ist offen.
 
-**3. Wahl in `deploy.config.json` schreiben** (Repo-Root, gitignored):
+**3. Wahl in `.claude/skills/deploy/deploy.config.json` schreiben** (gitignored):
 ```json
 { "cinema": "<name>", "location": "prefs|app", "plugin_dir": "<voller Pfad>" }
 ```
 
 **4. Deployen.**
 ```bash
-powershell -File deploy.ps1
+powershell -File .claude/skills/deploy/deploy.ps1
 ```
-Bei `app`-Ziel (Program Files) ohne Admin-Shell:
+Bei `app`-Ziel (Program Files) ohne Admin-Shell (Output des elevated Fensters
+ist unsichtbar — deshalb in ein Log umleiten und das danach ausgeben):
 ```powershell
-Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile","-File","<repo>\deploy.ps1","-Target","<plugin_dir>"
+$log = "$env:TEMP\so_deploy.log"
+Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile","-Command","& '<repo>\.claude\skills\deploy\deploy.ps1' -Target '<plugin_dir>' *> '$log'"
+Get-Content $log
 ```
 (UAC-Prompt beim User ankuendigen.) Danach Erfolg pruefen:
-`Test-Path "<plugin_dir>\scene_organizer.pyp"`.
+`Test-Path "<plugin_dir>\scene_organizer.pyp"` und bei Frontend-Aenderungen
+die Asset-Hashes in `<plugin_dir>\web\index.html` gegen `src/web/index.html`
+vergleichen.
 
 **5. Fehlerbilder.**
 - `Cannot write` → Elevation fehlt (s.o.) oder Pfad falsch.
