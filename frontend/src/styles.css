@@ -258,6 +258,14 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
 /* Small right-aligned hint inside a card head ("click a tile to …") */
 .card-hint { color: var(--dim); font-size: 11px; }
 
+/* Shared pagination (previews, accepted lists): 25 rows per page */
+.pager { display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 0 6px; }
+.pager-btn { width: 26px; height: 24px; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
+.pager-btn:hover:not(:disabled) { color: var(--text); }
+.pager-info { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+
 /* Transient status toast (bottom right): success/progress feedback */
 .statusbar { position: fixed; right: 18px; bottom: 16px; z-index: 900;
   background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
@@ -398,16 +406,20 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
 .health-line.ok { color: var(--apply); }
 .health-line.warn { color: var(--warn); }
 
-/* Health tile: sub-score circular charts inside the top-right tile. */
-.health-tile { justify-content: space-between; }
-.health-rings { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
-.health-rings .hr { display: flex; flex-direction: column; align-items: center; gap: 4px;
+/* Health tile: big overall ring on top, sub-scores as a mini-ring list below. */
+.health-tile { justify-content: space-between; gap: 8px; }
+.health-main { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.health-main .ring { width: 72px; height: 72px; }
+.health-main .ring-text { font-size: 16px; }
+.health-subs { display: flex; flex-direction: column; gap: 3px; }
+.health-subs .hs { display: flex; align-items: center; gap: 6px; width: 100%;
   background: transparent; border: none; box-shadow: none; cursor: pointer; padding: 0;
   color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
-.health-rings .hr:hover { color: var(--text); box-shadow: none; }
-.health-rings .ring { width: 46px; height: 46px; }
-.health-rings .ring-text { font-size: 16px; }
-.health-tile .tile-label b { color: var(--text); }
+.health-subs .hs:hover { color: var(--text); box-shadow: none; }
+.health-subs .ring { width: 16px; height: 16px; flex: none; }
+.health-subs .hs-label { flex: 1; text-align: left; }
+.health-subs .hs-pct { color: var(--text); font-weight: 600; font-size: 11px;
+  font-variant-numeric: tabular-nums; }
 
 /* ---------- Cleanup / hygiene ---------- */
 .health-inline { display: flex; align-items: center; gap: 8px; font-size: 12px; }

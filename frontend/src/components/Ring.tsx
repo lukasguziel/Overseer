@@ -1,7 +1,7 @@
 export type Tone = 'good' | 'mid' | 'low'
 
 // Compliance ring (SVG), 0..100
-export default function Ring({ pct, tone }: { pct: number; tone?: Tone }) {
+export default function Ring({ pct, tone, text = true }: { pct: number; tone?: Tone; text?: boolean }) {
   const R = 26; const SW = 7; const C = 2 * Math.PI * R
   const col = tone === 'good' ? 'var(--apply)' : tone === 'mid' ? 'var(--warn)' : 'var(--err)'
   return (
@@ -9,7 +9,7 @@ export default function Ring({ pct, tone }: { pct: number; tone?: Tone }) {
       <circle cx="32" cy="32" r={R} fill="none" stroke="var(--panel2)" strokeWidth={SW} />
       <circle cx="32" cy="32" r={R} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="round"
         strokeDasharray={`${pct / 100 * C} ${C}`} transform="rotate(-90 32 32)" />
-      <text x="32" y="37" className="ring-text">{pct}%</text>
+      {text && <text x="32" y="37" className="ring-text">{pct}%</text>}
     </svg>
   )
 }

@@ -2,6 +2,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
+import Pager, { usePager } from '../components/Pager'
 
 const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
@@ -12,7 +13,7 @@ const LANG_LABEL: Record<string, string> = {
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, keeps, busy, previewing,
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
-  const rows = translation?.diff || []
+  const pager = usePager(translation?.diff || [])
   const detected = translation?.detected
 
   return (
@@ -77,7 +78,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         note={translation?.applied != null ? `${translation.applied} applied (undoable).` : null}
       >
         <div className="rename-list">
-          {rows.slice(0, 400).map((d) => (
+          {pager.rows.map((d) => (
             <SuggestionRow key={d.guid} busy={busy}
               applyTitle="Apply — translate now (undoable)"
               onApply={() => org.applyTranslateOne(d.guid, d.old)}
@@ -93,6 +94,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
             </SuggestionRow>
           ))}
         </div>
+        <Pager pager={pager} />
       </Workbench>
     </div>
 
