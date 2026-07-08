@@ -7,8 +7,14 @@ import Pager, { usePager } from '../components/Pager'
 const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
   nl: 'Dutch', pl: 'Polish', cs: 'Czech', pt: 'Portuguese', ru: 'Russian',
-  tr: 'Turkish', auto: 'auto', unknown: '—',
+  tr: 'Turkish', uk: 'Ukrainian', zh: 'Chinese', ja: 'Japanese', ko: 'Korean',
+  ar: 'Arabic', auto: 'auto', unknown: '—',
 }
+
+// Offline dictionaries only translate into EN/DE; Google takes any code.
+const OFFLINE_TARGETS = ['en', 'de']
+const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs',
+  'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar']
 
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, keeps, busy, previewing,
@@ -29,13 +35,19 @@ export default function TranslateTab({ org }: { org: Organizer }) {
 
         <label>Target language
           <select value={translateTarget} onChange={(e) => setTranslateTarget(e.target.value)}>
-            <option value="en">→ English</option>
-            <option value="de">→ German</option>
+            {(translateEngine === 'google' ? GOOGLE_TARGETS : OFFLINE_TARGETS).map((lg) => (
+              <option key={lg} value={lg}>→ {LANG_LABEL[lg]}</option>
+            ))}
           </select>
         </label>
 
         <label>Engine
-          <select value={translateEngine} onChange={(e) => setTranslateEngine(e.target.value)}>
+          <select value={translateEngine} onChange={(e) => {
+            const eng = e.target.value
+            setTranslateEngine(eng)
+            // Offline only knows EN/DE — snap back if a Google-only target was picked.
+            if (eng !== 'google' && !OFFLINE_TARGETS.includes(translateTarget)) setTranslateTarget('en')
+          }}>
             <option value="offline">Offline dictionaries (10 languages)</option>
             <option value="google">Google online (any language)</option>
           </select>
