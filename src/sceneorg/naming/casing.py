@@ -31,14 +31,14 @@ def split_camel(name: str) -> str:
     return _RE_CAMEL_BOUNDARY.sub(r"\1 \2", name)
 
 
-def tokenize(name: str) -> list[str]:
+def tokenize(name: str, keep_numbers: bool = False) -> list[str]:
     spaced = split_camel(name)
     parts = _RE_SPLIT.split(spaced)
     out = []
     for p in parts:
         if not p:
             continue
-        if any(ch.isalpha() for ch in p):
+        if any(ch.isalpha() for ch in p) or (keep_numbers and p.isdigit()):
             out.append(p.lower())
     return out
 

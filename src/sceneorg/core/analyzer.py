@@ -4,7 +4,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from ..naming import casing as naming
-from ..naming import translations
+from ..naming import translate as translatemod
 from ..structure.standard import StructureStandard, default_standard
 from . import model
 
@@ -110,8 +110,8 @@ class SceneAnalyzer:
             if n.depth > max_depth:
                 max_depth = n.depth
             cas = naming.detect_casing(n.name).value
-            lang = naming.detect_language(
-                n.name, translations.DE_WORDS, translations.EN_WORDS)
+            # Multi-language detection across all bundled dictionary packs.
+            lang = translatemod.detect_name_language(n.name)
 
             types[n.type_name] += 1
             categories[n.category] += 1

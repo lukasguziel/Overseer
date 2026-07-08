@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
+import type { ProgressInfo } from '../types'
 
 // Live preview panel with sticky apply bar. Shows a diff table.
-export default function Workbench({ title, count, loading, empty, applyLabel, onApply, busy, note, children }: {
+// While `loading` with server `progress`, the content blurs and a progress
+// bar shows what the plugin is fetching (e.g. online translation batches).
+export default function Workbench({ title, count, loading, empty, applyLabel, onApply, busy, note, progress, children }: {
   title: string
   count: number
   loading: boolean
@@ -10,8 +13,12 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   onApply: () => void
   busy: boolean
   note?: string | null
+  progress?: ProgressInfo | null
   children?: ReactNode
 }) {
+  const prog = loading && progress?.active ? progress : null
+  const pct = prog && prog.total > 0
+    ? Math.min(100, Math.round(prog.current / prog.total * 100)) : null
   return (
     <div className="wb-preview">
       <div className="wb-preview-head">
@@ -21,10 +28,23 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
         </span>
       </div>
       {note && <p className="wb-note">{note}</p>}
-      <div className="wb-scroll">
+      <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>
         {count === 0 && !loading
           ? <div className="wb-empty">{empty}</div>
           : children}
+        {prog && (
+          <div className="wb-progress">
+            <div className="wb-progress-box">
+              <div className="pl-phase">{prog.phase}</div>
+              <div className={'pl-track' + (pct == null ? ' indeterminate' : '')}>
+                <div className="pl-fill" style={pct != null ? { width: pct + '%' } : undefined} />
+              </div>
+              <div className="pl-meta">
+                {pct != null ? <><b>{pct}%</b> · {prog.detail}</> : 'Please wait…'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <div className="wb-applybar">
         <button className="apply lg" disabled={busy || !count} onClick={onApply}>

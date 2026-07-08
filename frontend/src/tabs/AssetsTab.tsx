@@ -12,6 +12,8 @@ export default function AssetsTab({ nodes, onFocus }: {
 }) {
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState<Set<string>>(() => new Set())   // active category facets
+  const [types, setTypes] = useState<Set<string>>(() => new Set()) // active type facets
+  const [showTypes, setShowTypes] = useState(false)
   const [onlyGeo, setOnlyGeo] = useState(true)
   const [sortKey, setSortKey] = useState('polygons')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -20,6 +22,11 @@ export default function AssetsTab({ nodes, onFocus }: {
   const toggleCat = (c: string) => setCats((s) => {
     const n = new Set(s)
     if (n.has(c)) n.delete(c); else n.add(c)
+    return n
+  })
+  const toggleType = (t: string) => setTypes((s) => {
+    const n = new Set(s)
+    if (n.has(t)) n.delete(t); else n.add(t)
     return n
   })
   const setSort = (k: string) => {
@@ -40,8 +47,20 @@ export default function AssetsTab({ nodes, onFocus }: {
     return m
   }, [preFiltered])
 
+  // Rows after search + geometry + category, used both for the type facet
+  // counts and as the base for the type filter.
+  const catFiltered = React.useMemo(
+    () => cats.size ? preFiltered.filter((n) => cats.has(n.category)) : preFiltered,
+    [preFiltered, cats])
+
+  const typeCounts = React.useMemo(() => {
+    const m: Record<string, number> = {}
+    catFiltered.forEach((n) => { m[n.type] = (m[n.type] || 0) + 1 })
+    return Object.entries(m).sort((a, b) => b[1] - a[1])
+  }, [catFiltered])
+
   const filtered = React.useMemo(() => {
-    const rows = cats.size ? preFiltered.filter((n) => cats.has(n.category)) : preFiltered
+    const rows = types.size ? catFiltered.filter((n) => types.has(n.type)) : catFiltered
     const dir = sortDir === 'asc' ? 1 : -1
     return [...rows].sort((a, b) => {
       if (sortKey === 'name') return dir * a.name.localeCompare(b.name)
@@ -49,10 +68,10 @@ export default function AssetsTab({ nodes, onFocus }: {
       const kb = (b as unknown as Record<string, number>)[sortKey] || 0
       return dir * (ka - kb)
     })
-  }, [preFiltered, cats, sortKey, sortDir])
+  }, [catFiltered, types, sortKey, sortDir])
 
   // Reset the batch when the filter/sort changes.
-  useEffect(() => { setLimit(40) }, [q, onlyGeo, sortKey, sortDir, cats])
+  useEffect(() => { setLimit(40) }, [q, onlyGeo, sortKey, sortDir, cats, types])
 
   const shown = filtered.slice(0, limit)
   const th = (k: string, label: string, cls?: string) => (
@@ -86,7 +105,25 @@ export default function AssetsTab({ nodes, onFocus }: {
           </button>
         ))}
         {cats.size > 0 && <button className="facet clear" onClick={() => setCats(new Set())}>clear</button>}
+        {typeCounts.length > 1 && (
+          <button className={'facet type-toggle' + (showTypes ? ' on' : '')}
+            onClick={() => setShowTypes((v) => !v)}>
+            Types {types.size > 0 && <b>{types.size}</b>}<span className="caret">{showTypes ? '▾' : '▸'}</span>
+          </button>
+        )}
       </div>
+
+      {showTypes && typeCounts.length > 1 && (
+        <div className="facets type-facets">
+          {typeCounts.map(([t, n]) => (
+            <button key={t} className={'facet' + (types.has(t) ? ' on' : '')} onClick={() => toggleType(t)}
+              title={t}>
+              {t}<b>{n}</b>
+            </button>
+          ))}
+          {types.size > 0 && <button className="facet clear" onClick={() => setTypes(new Set())}>clear types</button>}
+        </div>
+      )}
 
       <div className="asset-count">
         showing {Math.min(limit, filtered.length)} of {filtered.length}

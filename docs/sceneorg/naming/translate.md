@@ -10,7 +10,7 @@ Unlike `NamingConvention`, casing is NOT unified: each word is replaced in place
 Literal set of German keys that collide with common English words. Kept literal and intersected with the live dictionary at call time so runtime-added translations never accidentally join it.
 
 ## `TranslateProposal` (dataclass)
-`guid`, `old`, `new`, `words` (list of `(source, translated)` pairs actually replaced), and detected `lang` of `old`.
+Linked to its `node: SceneNode` (`guid` and `old` are read-through properties of the node), plus `new`, `words` (list of `(source, translated)` pairs actually replaced), and detected `lang` of `old`. The apply path builds a `RenameOp(node=proposal.node, ...)` straight from the proposal.
 
 ## `_match_case(src, tgt)`
 Transfers the casing pattern from `src` onto the translated word `tgt` (upper / lower / capitalized / verbatim).

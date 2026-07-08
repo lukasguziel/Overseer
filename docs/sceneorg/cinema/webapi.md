@@ -93,4 +93,12 @@ Single entry point dispatching on `payload["op"]` against the active document
   user-accepted guids.
 - `plan_layers` / `apply_layers` — plan/apply type-axis layer assignment with a
   by-layer count.
+- `changes` — the change history newest-first. Every apply op records one entry
+  (`_record_change`) into `change_history.json` (max 200): `{id, ts, at, kind,
+  summary, items, revertible, reverted}`, `items` copied from
+  `adapter.last_changes`. Material deletes / texture fixes are logged
+  summary-only (`revertible=false`).
+- `revert_change` (by `id`) — rebuilds the tree and calls `adapter.revert` on the
+  entry's items, then marks the entry `reverted`. `clear_changes` empties the log
+  (does not touch the scene).
 - unknown op → error dict.

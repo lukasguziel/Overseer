@@ -29,12 +29,22 @@ class GroupRule:
 
 @dataclass
 class Finding:
-    guid: int
-    name: str
-    category: str
-    current_group: str | None
-    expected_group: str
+    node: model.SceneNode = field(compare=False)
+    current_group: str | None = None
+    expected_group: str = ""
     misplaced: bool = False
+
+    @property
+    def guid(self) -> int:
+        return self.node.guid
+
+    @property
+    def name(self) -> str:
+        return self.node.name
+
+    @property
+    def category(self) -> str:
+        return self.node.category
 
 
 @dataclass
@@ -138,9 +148,7 @@ class StructureStandard:
             enclosing = self.enclosing_group_path(node)
             report.findings.append(
                 Finding(
-                    guid=node.guid,
-                    name=node.name,
-                    category=node.category,
+                    node=node,
                     current_group=enclosing,
                     expected_group=expected,
                     misplaced=not self.path_complies(enclosing, expected),

@@ -6,7 +6,7 @@ Structure standard: expected top-level (and nested) groups plus evaluation of a 
 
 - **`GroupRule`** — A target group (null container) and how objects are assigned to it. Fields: `name`, `match_categories` (object categories that belong here), `match_keywords` (English name tokens that route here), `aliases` (alternative container names, e.g. `Moebel` == `Furniture`), `priority` (higher wins when several rules match), `parent` (parent group path, None = top-level). `path` yields the full group path (`Room/Furniture`). `matches(node)` is true on a category hit or when translated name tokens intersect the keywords (language-independent).
 
-- **`Finding`** — Per-object evaluation record: `guid`, `name`, `category`, `current_group`, `expected_group`, `misplaced`.
+- **`Finding`** — Per-object evaluation record linked to its `node: SceneNode` (`guid`/`name`/`category` are read-through properties of the node), plus `current_group`, `expected_group`, `misplaced`. `plan_reparents` reads `finding.node` directly instead of re-looking-up by guid. The `node` field is `compare=False` to keep equality shallow.
 
 - **`StructureReport`** — Collection of `findings` plus `known_groups`. Properties: `misplaced`, `correct`, and `compliance` (fraction correct; 1.0 when empty).
 

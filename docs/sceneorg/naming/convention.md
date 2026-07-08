@@ -11,7 +11,7 @@ The casings the convention can actually produce: PASCAL, CAMEL, LOWER_SNAKE, UPP
 ## `NamingConvention`
 Configurable scheme. Constructor params: `style` (a `Casing`, must be in `TARGET_STYLES` or raises `ValueError`), `language` (`'en'`/`'de'`/`None` for no translation), `number_pad` (zero padding for trailing numbers; 0 = off).
 
-- `normalize(name)`: main entry. Splits trailing number, tokenizes, translates, cases each word, joins with the style separator, re-appends the padded number. If translation/tokenizing leaves no word tokens (number-only or empty), returns the stripped original name unchanged so the name is never broken.
+- `normalize(name)`: main entry. Splits trailing number, tokenizes (with `keep_numbers=True`, so leading/inner numbers survive — casing-only renames never drop digits), translates, cases each word, joins with the style separator, re-appends the padded trailing number. If tokenizing leaves nothing (empty), returns the stripped original name unchanged so the name is never broken.
 - `propose(name)`: returns a `RenameProposal` wrapping `normalize`.
 - `is_compliant(name)`: `True` when the name already equals its normalized form.
 - `disambiguate(base, index)`: appends a disambiguating counter in the target style.

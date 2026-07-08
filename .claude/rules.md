@@ -42,6 +42,32 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - Syntax-check c4d modules without Cinema: `python -m py_compile <file>`
   (compiles, does not execute `import c4d`).
 
+## OOP & data modelling
+
+- **Prefer classes and interfaces over loose functions + dicts.** Model a
+  concept as a `@dataclass` (data) or a class (behavior); reach for a plain dict
+  only at the JSON boundary (`to_dict()` / API payloads).
+- **Interfaces are `abc.ABC` + `@abstractmethod`** (explicit inheritance,
+  `isinstance`-checkable), NOT `typing.Protocol`. Examples: `core/ops.Operation`
+  and `core/ops.Writer`, `structure/rules.Rule`. A new op type subclasses
+  `Operation`; a new rule type subclasses `Rule` and registers in `RULE_TYPES`.
+- **Link data by reference, not by copied ids.** Objects that describe a scene
+  node hold a live `node: SceneNode` and expose `guid`/`name`/… as read-through
+  `@property`s (see `RenameOp`, `Finding`, `TranslateProposal`). The integer
+  `guid` stays as the bridge back to the c4d document (write-back, accept lists),
+  but is DERIVED from the node, never stored a second time.
+  - On such dataclasses mark the `node` field `field(compare=False)` so equality
+    stays shallow and never recurses through the parent/child graph.
+- **Polymorphism over type-switches.** Give the base class the abstract method
+  (`op.apply(writer)`, `rule.plan(ctx)`) and let each subclass implement it;
+  avoid `if isinstance(...)` / `type ==` ladders at call sites.
+- **No scattered module-level config constants.** Built-in domain defaults live
+  in ONE place: pure ones in `core/defaults.py` (`LAYER_COLORS`,
+  `DEFAULT_LAYER_SCHEME`, Redshift ids, …); c4d-bound tables (keyed by
+  `c4d.O*`) in `cinema/constants.py`. User-facing settings belong in
+  `config.json` (schema 2) and flow through `config.Config`. Do not define
+  ad-hoc constant dicts inside a feature module.
+
 ## c4d plugin gotchas (each of these froze/blocked C4D at least once)
 
 - **c4dpy is forbidden** — hangs on a stdin license prompt. Stuck `c4dpy.exe`

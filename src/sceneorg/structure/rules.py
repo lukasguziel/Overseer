@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -96,6 +97,23 @@ class PlanBundle:
     warnings: list = field(default_factory=list)
 
 
+class Rule(ABC):
+    id: str
+    enabled: bool
+    priority: int
+    type: str
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: dict) -> Rule: ...
+
+    @abstractmethod
+    def to_dict(self) -> dict: ...
+
+    @abstractmethod
+    def plan(self, ctx: RuleContext) -> PlanBundle: ...
+
+
 def _suffix_sep(convention: NamingConvention) -> str:
     return _SUFFIX_SEP.get(convention.style, "_")
 
@@ -113,7 +131,7 @@ def _reserve_sibling_names(nodes_to_rename: list) -> dict:
 
 
 @dataclass
-class PrefixRule:
+class PrefixRule(Rule):
     id: str
     prefix: str
     match: Match
@@ -143,13 +161,12 @@ class PrefixRule:
                 continue
             if n.name.startswith(self.prefix):
                 continue
-            bundle.renames.append(RenameOp(
-                guid=n.guid, old_name=n.name, new_name=self.prefix + n.name))
+            bundle.renames.append(RenameOp(node=n, new_name=self.prefix + n.name))
         return bundle
 
 
 @dataclass
-class RenumberRule:
+class RenumberRule(Rule):
     id: str
     match: Match
     pad: int = 2
@@ -208,13 +225,12 @@ class RenumberRule:
                         "renumber %r: target %r taken by a sibling, skipped"
                         % (n.name, new_name))
                     continue
-                bundle.renames.append(RenameOp(
-                    guid=n.guid, old_name=n.name, new_name=new_name))
+                bundle.renames.append(RenameOp(node=n, new_name=new_name))
         return bundle
 
 
 @dataclass
-class ConditionRule:
+class ConditionRule(Rule):
     id: str
     when: dict
     then: dict
@@ -280,22 +296,20 @@ class ConditionRule:
                         else str(i + 1).zfill(2)
                     new_name = name + sep + suffix
                     if new_name != n.name:
-                        bundle.renames.append(RenameOp(
-                            guid=n.guid, old_name=n.name, new_name=new_name))
+                        bundle.renames.append(RenameOp(node=n, new_name=new_name))
             return bundle
 
         prefix = self.then.get("apply_prefix")
         if prefix:
             for n in nodes:
                 if not n.name.startswith(prefix):
-                    bundle.renames.append(RenameOp(
-                        guid=n.guid, old_name=n.name, new_name=prefix + n.name))
+                    bundle.renames.append(RenameOp(node=n, new_name=prefix + n.name))
             return bundle
 
         layer = self.then.get("assign_layer")
         if layer:
             for n in nodes:
-                bundle.layers.append(LayerOp(guid=n.guid, name=n.name, layer=layer))
+                bundle.layers.append(LayerOp(node=n, layer=layer))
             return bundle
 
         bundle.warnings.append(
@@ -304,7 +318,7 @@ class ConditionRule:
 
 
 @dataclass
-class LayerRule:
+class LayerRule(Rule):
     id: str
     layer: str
     match: Match
@@ -331,7 +345,7 @@ class LayerRule:
         bundle = PlanBundle()
         for n in ctx.tree.walk():
             if ctx.in_scope(n) and self.match.matches(n, ctx):
-                bundle.layers.append(LayerOp(guid=n.guid, name=n.name, layer=self.layer))
+                bundle.layers.append(LayerOp(node=n, layer=self.layer))
         return bundle
 
 

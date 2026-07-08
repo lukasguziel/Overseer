@@ -10,6 +10,8 @@
     "barhocker": "barstool"
   },
 
+  "keep_names": [],
+
   "structure": [
     {
       "name": "Lights",
