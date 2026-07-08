@@ -20,35 +20,54 @@ function resTier(e: TextureEntry): string {
 
 // Texture table: fixed grid columns so file / path / res / pixels / size /
 // material line up cleanly; long names and paths get ellipsis-truncated.
-function TexTable({ rows, dot }: { rows: TextureEntry[]; dot: string }) {
+// Rows are clickable: they select the material in C4D and frame the first
+// object carrying it.
+function TexTable({ rows, dot, previews, onFocus }: {
+  rows: TextureEntry[]
+  dot: string
+  previews: Record<string, string>
+  onFocus: (material: string) => void
+}) {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
         <span>File</span><span>Path</span><span className="num">Res</span>
         <span className="num">Pixels</span><span className="num">Size</span><span>Material</span>
       </div>
-      {rows.map((e, i) => (
-        <div className="tex-tr" key={i} title={e.resolved || e.path}>
-          <span className="tex-cell-file">
-            <span className="fl-dot" style={{ background: dot }} />
-            <span className="tex-cut">{e.file}</span>
-            {!e.used && <span className="tex-badge unused">unused</span>}
-          </span>
-          <span className="tex-cell-path dim">
-            <span className="tex-cut">{e.path}</span>
-            {e.relocatable && <span className="tex-badge fixable">→ relative</span>}
-          </span>
-          <span className="num">
-            {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
-          </span>
-          <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
-          <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
-          <span className="dim">{e.material}</span>
-        </div>
-      ))}
+      {rows.map((e, i) => {
+        const thumb = previews[e.resolved || e.path]
+        return (
+          <button className="tex-tr tex-click" key={i}
+            title={`${e.resolved || e.path}\nClick to select material “${e.material}” & frame its object`}
+            onClick={() => onFocus(e.material)}>
+            <span className="tex-cell-file">
+              {thumb
+                ? <img className="tex-thumb" src={thumb} alt="" draggable={false} />
+                : <span className="fl-dot" style={{ background: dot }} />}
+              <span className="tex-cut">{e.file}</span>
+              {!e.used && <span className="tex-badge unused">unused</span>}
+            </span>
+            <span className="tex-cell-path dim">
+              <span className="tex-cut">{e.path}</span>
+              {e.relocatable && <span className="tex-badge fixable">→ relative</span>}
+            </span>
+            <span className="num">
+              {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
+            </span>
+            <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
+            <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
+            <span className="dim tex-cut">{e.material}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
+
+// Resolution filter chips: narrow all three texture sections to one tier.
+const RES_TIERS: [string, string][] = [
+  ['', 'all'], ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
+]
 
 const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
 
@@ -73,10 +92,31 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
   // Three clean sections: missing first (a missing map is neither usable as
   // absolute nor relative), the rest split by path style, heaviest first.
+  // An active resolution filter narrows all three.
+  const [resFilter, setResFilter] = useState('')
+  const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
-  const missPager = usePager(allTex.filter((e) => e.missing).sort(bySize))
-  const absPager = usePager(tex ? tex.absolute.filter((e) => !e.missing).sort(bySize) : [])
-  const relPager = usePager(tex ? tex.relative.filter((e) => !e.missing).sort(bySize) : [])
+  const missPager = usePager(allTex.filter((e) => e.missing && byRes(e)).sort(bySize))
+  const absPager = usePager(tex ? tex.absolute.filter((e) => !e.missing && byRes(e)).sort(bySize) : [])
+  const relPager = usePager(tex ? tex.relative.filter((e) => !e.missing && byRes(e)).sort(bySize) : [])
+
+  // Mini image previews for the texture rows currently on screen (keyed by
+  // resolved path; missing files simply keep their status dot).
+  const [texPreviews, setTexPreviews] = useState<Record<string, string>>({})
+  const visiblePaths = [...missPager.rows, ...absPager.rows, ...relPager.rows]
+    .map((e) => e.resolved || e.path).filter(Boolean)
+  const visibleKey = visiblePaths.join('\n')
+  useEffect(() => {
+    const paths = visibleKey ? visibleKey.split('\n') : []
+    const missing = paths.filter((p) => !(p in texPreviews))
+    if (!missing.length) return
+    let alive = true
+    call('texture_previews', { paths: missing, size: 40 })
+      .then((r) => { if (alive) setTexPreviews((prev) => ({ ...prev, ...(r.previews || {}) })) })
+      .catch(() => { /* dots stay as fallback */ })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleKey])
 
   // Preview spheres for the unused list, fetched once per material set.
   const [previews, setPreviews] = useState<Record<string, string>>({})
@@ -192,6 +232,17 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <span><b>{tex.relative_count}</b> relative</span>
               <span className={tex.missing_count ? 'warn' : ''}><b>{tex.missing_count}</b> missing</span>
             </div>
+            <div className="tex-filter">
+              <span className="tex-filter-label">Resolution</span>
+              {RES_TIERS.map(([key, label]) => (
+                <button key={key || 'all'}
+                  className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
+                  title={key ? `Show only ${label} textures in the lists below` : 'Show all resolutions'}
+                  onClick={() => setResFilter(key)}>
+                  {label} {key ? <em>{allTex.filter((e) => resTier(e) === key).length}</em> : <em>{allTex.length}</em>}
+                </button>
+              ))}
+            </div>
             {tex.doc_path
               ? <p className="example" style={{ marginTop: 8 }}>Project: <code>{tex.doc_path}</code></p>
               : <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>}
@@ -216,7 +267,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 <h3>Missing textures</h3>
                 <span className="card-hint">{missPager.total}</span>
               </div>
-              <TexTable rows={missPager.rows} dot="var(--err)" />
+              <TexTable rows={missPager.rows} dot="var(--err)"
+                previews={texPreviews} onFocus={org.doFocusMaterial} />
               <Pager pager={missPager} />
             </section>
           )}
@@ -228,7 +280,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             {absPager.total
               ? <>
-                  <TexTable rows={absPager.rows} dot="var(--warn)" />
+                  <TexTable rows={absPager.rows} dot="var(--warn)"
+                    previews={texPreviews} onFocus={org.doFocusMaterial} />
                   <Pager pager={absPager} />
                 </>
               : <div className="fl-empty">No absolute texture paths 🎉</div>}
@@ -241,7 +294,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             {relPager.total
               ? <>
-                  <TexTable rows={relPager.rows} dot="var(--apply)" />
+                  <TexTable rows={relPager.rows} dot="var(--apply)"
+                    previews={texPreviews} onFocus={org.doFocusMaterial} />
                   <Pager pager={relPager} />
                 </>
               : <div className="fl-empty">No relative texture paths.</div>}

@@ -201,6 +201,17 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Focus ✗') })
   }, [])
 
+  // Select a material in the C4D material manager and frame the first object
+  // that carries it (used by the texture tables).
+  const doFocusMaterial = useCallback((name: string) => {
+    setStatus(`Focusing material “${name}”…`)
+    call('focus_material', { name })
+      .then((r) => setStatus(r.object
+        ? `Selected “${name}” · framed “${r.object}” ✓`
+        : r.ok ? `Selected “${name}” (assigned to no object)` : 'Material not found'))
+      .catch((e) => { setError(String(e.message || e)); setStatus('Focus ✗') })
+  }, [])
+
   const doDeleteMaterial = useCallback((name: string) => {
     setStatus(`Deleting ${name}…`)
     call('delete_material', { name })
@@ -630,7 +641,7 @@ export function useOrganizer() {
     keeps, keep, unkeep, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
-    doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
+    doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
