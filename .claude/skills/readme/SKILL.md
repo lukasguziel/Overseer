@@ -53,35 +53,44 @@ antworten generisch `{ok:true}`). Der API-Vertrag steht in
 **Neuer Tab?** In `shoot.mjs` die `TABS`-Liste erweitern (Nav-Label →
 Dateiname); geparkte „soon"-Tabs bleiben draußen.
 
-## README-Stilvertrag (README.md)
+## Stilvertrag
 
-Sprache: **Englisch**. Reihenfolge der Sektionen = Tab-Reihenfolge der App.
-Jede Tab-Sektion hat exakt diese Form:
+Sprache: **Englisch**. Zwei Dokumente, beide mit dem Verweis-Kommentar auf
+diesen Skill im Kopf:
+
+**README.md — kurz, produktorientiert, GENAU EIN Screenshot:**
+1. Titel + fetter Ein-Satz-Pitch („Keep your Cinema 4D scenes organized …").
+   Kein Versions-Nennen, keine Zielgruppen-Einengung (gilt für alle
+   Projektarten), kein Sample-Szenen-Hinweis.
+2. Intro-Absatz: was das Tool tut + der Vertrauens-Satz (preview first,
+   per-row, undoable, logged).
+3. Overview-Screenshot (`docs/screenshots/overview.png`).
+4. „What it does": Link auf docs/FEATURES.md, dann pro Tab GENAU EIN
+   Bullet-Satz (**Tab** — was er tut). Keine „Why"-Begründungen.
+5. Installation: Release-Zip (fertig gebaut, „nothing to compile") →
+   plugins-Ordner → Neustart; Program-Files-Hinweis.
+6. Development: Testkommandos, Hinweis dass Releases per `v*`-Tag aus main
+   gebaut werden, Verweis auf CLAUDE.md/docs.
+7. **Support** (Buy-me-a-coffee + Issues) — bleibt die letzte Sektion.
+
+**docs/FEATURES.md — die Detailtour, pro Tab exakt diese Form:**
 
 ```markdown
 ## <Tab name>
 
+![<Tab name>](screenshots/<tab>.png)
+
 <Ein Satz: was der Bereich ist, in Nutzersprache.>
 
-- ✅ **<Feature>** — <was es tut>. *Why: <welches Problem es löst>.*
+- ✅ **<Feature>** — <was es tut / welches Problem es löst>.
 - ✅ … (4–6 Punkte, wichtigstes zuerst)
-
-![<Tab name>](docs/screenshots/<tab>.png)
 ```
 
-Feste Rahmen-Sektionen (beibehalten, nur Inhalte aktualisieren):
-1. Kopf: HTML-Kommentar mit Verweis auf diesen Skill, Titel, Ein-Satz-Pitch,
-   Intro-Absatz, Hinweis auf die Sample-Szene.
-2. Tab-Sektionen (Overview → Naming → Translate → Assets → Layers →
-   Materials → Misc).
-3. „The workflow in one paragraph".
-4. Install (Releases-Link, Program-Files-Hinweis).
-5. Development (Testkommandos, Verweis auf CLAUDE.md/docs).
-6. **Support** (Buy-me-a-coffee-Link + Issues) — bleibt die letzte Sektion.
-
-Tonalität: konkret statt Marketing; jedes „Why" nennt den echten
-Artist-Schmerz. Zahlenbeispiele aus der Fake-Szene wiederverwenden (40M
-Polygone, `Stuhl → Chair`), damit Text und Screenshots zusammenpassen.
+Reihenfolge = Tab-Reihenfolge der App (Overview → Naming → Translate →
+Assets → Layers → Materials → Misc). Immer Überschrift → Screenshot →
+Features. Tonalität: konkret statt Marketing; Zahlenbeispiele aus der
+Fake-Szene wiederverwenden (`Stuhl → Chair`), damit Text und Screenshots
+zusammenpassen.
 
 ## Fehlerbilder
 
