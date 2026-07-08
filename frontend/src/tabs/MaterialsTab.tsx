@@ -91,6 +91,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 if (bulkConfirm) { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }
                 else setBulkConfirm(true)
               }}
+              onAcceptAll={() => org.keepAll('materials')}
               busy={busy} progress={org.progress}
               note={bulkConfirm ? 'Click again to delete all unused materials (undoable).' : null}
             >

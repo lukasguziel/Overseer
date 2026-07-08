@@ -64,7 +64,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
         <Workbench
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
           empty="Every light, camera and instance is already on its layer 🎉"
-          applyLabel="Process all" onApply={org.applyLayers} busy={busy}
+          applyLabel="Process all" onApply={org.applyLayers}
+          onAcceptAll={() => org.keepAll('layers')} busy={busy}
           progress={org.progress}
           note={layers?.applied != null ? `${layers.applied} applied (undoable).` : null}
         >

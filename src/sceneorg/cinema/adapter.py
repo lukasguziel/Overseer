@@ -669,6 +669,23 @@ class SceneAdapter:
         c4d.EventAdd()
         return count
 
+    def rename_object(self, guid: int, new_name: str) -> bool:
+        """Rename one object directly (inline edit), with undo + change log."""
+        obj = self._by_guid.get(guid)
+        if obj is None:
+            return False
+        self.last_changes = []
+        before = obj.GetName()
+        if before == new_name:
+            return True
+        self.doc.StartUndo()
+        self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+        obj.SetName(new_name)
+        self._log_change(obj, "name", before, new_name)
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return True
+
     def _find_or_create_layer(self, name: str, created: list, cache: dict):
         if name in cache:
             return cache[name]

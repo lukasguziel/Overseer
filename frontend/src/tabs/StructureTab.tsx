@@ -14,9 +14,10 @@ export default function StructureTab({ org }: { org: Organizer }) {
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
     [report])
   const pager = usePager(structure?.diff || [])
+  const notKept = (n: { name: string }) => !keeps.structure.has(n.name)
   const groupBuckets: CleanupBucket[] = [
-    { key: 'empty', label: 'Empty groups', items: hyg.emptyGroups.map((n) => ({ guid: n.guid, name: n.name })) },
-    { key: 'root', label: 'Root clutter', items: hyg.rootClutter.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
+    { key: 'empty', label: 'Empty groups', items: hyg.emptyGroups.filter(notKept).map((n) => ({ guid: n.guid, name: n.name })) },
+    { key: 'root', label: 'Root clutter', items: hyg.rootClutter.filter(notKept).map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
   ]
 
   return (
@@ -52,7 +53,8 @@ export default function StructureTab({ org }: { org: Organizer }) {
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
           empty="Everything is already in the right group 🎉"
-          applyLabel="Process all" onApply={org.applyStructure} busy={busy}
+          applyLabel="Process all" onApply={org.applyStructure}
+          onAcceptAll={() => org.keepAll('structure')} busy={busy}
           progress={org.progress}
           note={
             structure?.applied != null ? `${structure.applied} applied (undoable).`
@@ -85,7 +87,8 @@ export default function StructureTab({ org }: { org: Organizer }) {
           <h3>Structure cleanup</h3>
           <span className="card-hint">click an item to select &amp; frame it</span>
         </div>
-        <Cleanup buckets={groupBuckets} onFocus={org.doFocus} />
+        <Cleanup buckets={groupBuckets} onFocus={org.doFocus}
+          onKeep={(nm) => org.keep('structure', nm)} busy={busy} />
       </section>
     </div>
   )
