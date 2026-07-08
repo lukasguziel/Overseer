@@ -6,6 +6,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
+import Pager, { usePager } from '../components/Pager'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
 // a count chip you click to reveal them all (a rename can trigger more than
@@ -41,7 +42,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
     { key: 'default', label: 'Default names', items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
     { key: 'dupes', label: 'Duplicate names', items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
   ]
-  const rows = naming?.diff || []
+  const pager = usePager(naming?.diff || [])
 
   return (
     <div className="stacked">
@@ -121,7 +122,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
           note={naming?.applied != null ? `${naming.applied} applied (undoable).` : null}
         >
           <div className="rename-list">
-            {rows.slice(0, 300).map((d) => (
+            {pager.rows.map((d) => (
               <SuggestionRow key={d.guid} busy={busy}
                 applyTitle="Apply — rename now (undoable)"
                 onApply={() => org.applyNamingOne(d.guid, d.old)}
@@ -134,6 +135,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
               </SuggestionRow>
             ))}
           </div>
+          <Pager pager={pager} />
         </Workbench>
       </div>
 

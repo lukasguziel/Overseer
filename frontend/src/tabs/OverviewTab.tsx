@@ -14,6 +14,7 @@ import { TABS } from '../lib/constants'
 // The guided flow, in the order that makes sense for a scene cleanup.
 // Steps whose tab is parked ("soon") are hidden from the strip too.
 const PARKED = new Set(TABS.filter(([, , soon]) => soon).map(([id]) => id))
+const SHOW_WORKFLOW = false
 const FLOW = ([
   { tab: 'naming', label: 'Normalize names' },
   { tab: 'translate', label: 'Translate names' },
@@ -75,17 +76,21 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)} />
         <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)} />
 
-        {/* Health tile = circular charts of the sub-scores (click to jump). */}
+        {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
         <div className={'tile health-tile tile--' + healthTone}>
-          <div className="health-rings">
+          <div className="health-main">
+            <Ring pct={health} tone={healthTone} />
+            <div className="tile-label">Health</div>
+          </div>
+          <div className="health-subs">
             {subScores.map((s) => (
-              <button className="hr" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
-                <Ring pct={s.pct} tone={toneOf(s.pct)} />
-                <span>{s.label}</span>
+              <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
+                <Ring pct={s.pct} tone={toneOf(s.pct)} text={false} />
+                <span className="hs-label">{s.label}</span>
+                <span className="hs-pct">{s.pct}%</span>
               </button>
             ))}
           </div>
-          <div className="tile-label">Health · <b>{health}%</b></div>
         </div>
       </div>
 
@@ -101,8 +106,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
 
       {/* Guided workflow: the cleanup steps in order, with live todo counts.
           ✓ = that area is clean, amber badge = open todos, no marker = not
-          previewed yet (open the step to find out). */}
-      <section className="card">
+          previewed yet (open the step to find out).
+          Parked for now — flip SHOW_WORKFLOW to bring it back. */}
+      {SHOW_WORKFLOW && <section className="card">
         <div className="card-head">
           <h3>Cleanup workflow</h3>
           <span className="card-hint">work the steps left to right — each one is previewed before anything changes</span>
@@ -122,7 +128,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             )
           })}
         </div>
-      </section>
+      </section>}
 
       {/* Hero: Poly-Treemap */}
       <section className="card">

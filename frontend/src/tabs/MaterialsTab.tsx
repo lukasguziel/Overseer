@@ -7,6 +7,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
+import Pager, { usePager } from '../components/Pager'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -51,15 +52,18 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const mat = report?.materials
   const tex = report?.textures
 
+  const onHidden = new Set(mat?.only_hidden || [])
+  // Hooks before the early return (Rules of Hooks).
+  const unusedPager = usePager(
+    (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
+  const absPager = usePager(tex ? [...tex.absolute].sort(bySize) : [])
+  const relPager = usePager(tex ? [...tex.relative].sort(bySize) : [])
+
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
   const fixable = tex?.relocatable_count ?? 0
-  const absolute = tex ? [...tex.absolute].sort(bySize) : []
-  const relative = tex ? [...tex.relative].sort(bySize) : []
-
-  const onHidden = new Set(mat?.only_hidden || [])
   const deletable = mat?.deletable_count ?? (mat?.unused.length ?? 0)
   const acceptedList = mat?.accepted || []
 
@@ -91,7 +95,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               note={bulkConfirm ? 'Click again to delete all unused materials (undoable).' : null}
             >
               <div className="rename-list">
-                {mat.unused.filter((nm) => !onHidden.has(nm)).map((nm) => (
+                {unusedPager.rows.map((nm) => (
                   <SuggestionRow key={nm} busy={busy}
                     applyTitle="Apply — delete this material (undoable)"
                     onApply={() => org.doDeleteMaterial(nm)}
@@ -111,6 +115,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   </div>
                 ))}
               </div>
+              <Pager pager={unusedPager} />
             </Workbench>
             <AcceptedSection items={mat.accepted_all || []}
               onRestore={(nm) => org.unkeep('materials', nm)}
@@ -191,8 +196,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <h3><IconTrash /> Absolute paths</h3>
               <span className="card-hint">{tex.absolute_count}</span>
             </div>
-            {absolute.length
-              ? <div className="focuslist">{absolute.map((e, i) => <TexRow key={i} e={e} />)}</div>
+            {absPager.total
+              ? <>
+                  <div className="focuslist">{absPager.rows.map((e, i) => <TexRow key={i} e={e} />)}</div>
+                  <Pager pager={absPager} />
+                </>
               : <div className="fl-empty">No absolute texture paths 🎉</div>}
           </section>
 
@@ -201,8 +209,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <h3>Relative paths</h3>
               <span className="card-hint">{tex.relative_count}</span>
             </div>
-            {relative.length
-              ? <div className="focuslist">{relative.map((e, i) => <TexRow key={i} e={e} />)}</div>
+            {relPager.total
+              ? <>
+                  <div className="focuslist">{relPager.rows.map((e, i) => <TexRow key={i} e={e} />)}</div>
+                  <Pager pager={relPager} />
+                </>
               : <div className="fl-empty">No relative texture paths.</div>}
           </section>
         </>

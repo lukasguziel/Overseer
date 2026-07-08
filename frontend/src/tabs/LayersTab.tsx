@@ -3,11 +3,12 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import LayerTree from '../components/LayerTree'
+import Pager, { usePager } from '../components/Pager'
 
 export default function LayersTab({ org }: { org: Organizer }) {
   const { layers, keeps, report, busy, previewing } = org
   const lr = report?.layers_report
-  const rows = layers?.diff || []
+  const pager = usePager(layers?.diff || [])
 
   return (
     <div className="layers-tab">
@@ -68,7 +69,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
           note={layers?.applied != null ? `${layers.applied} applied (undoable).` : null}
         >
           <div className="rename-list">
-            {rows.slice(0, 300).map((d) => (
+            {pager.rows.map((d) => (
               <SuggestionRow key={d.guid} busy={busy}
                 applyTitle="Apply — tag now (undoable)"
                 onApply={() => org.applyLayerOne(d.guid, d.name)}
@@ -80,6 +81,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
               </SuggestionRow>
             ))}
           </div>
+          <Pager pager={pager} />
         </Workbench>
       </div>
 

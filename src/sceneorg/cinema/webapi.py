@@ -18,16 +18,58 @@ from ..structure import graph as graphmod
 from .adapter import SceneAdapter
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
-PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
+
+
+def _writable(directory: str) -> bool:
+    probe = os.path.join(directory, ".write_probe")
+    try:
+        with open(probe, "w") as f:
+            f.write("x")
+        os.remove(probe)
+        return True
+    except OSError:
+        return False
+
+
+def _user_data_dir() -> str:
+    # Program-Files installs are read-only for the unelevated C4D process:
+    # every file the plugin WRITES (config, histories, user presets, caches)
+    # then lives in the per-user prefs dir; the plugin dir stays the
+    # read-only source for shipped presets/plans and the config seed.
+    if _writable(PLUGIN_DIR):
+        return PLUGIN_DIR
+    try:
+        base = c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)
+    except Exception:
+        base = None
+    if not base:
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    path = os.path.join(base, "scene_organizer")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+DATA_DIR = _user_data_dir()
+CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
+SHIPPED_PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
+PRESETS_DIR = os.path.join(DATA_DIR, "presets")
 PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
+
+if DATA_DIR != PLUGIN_DIR:
+    _seed = os.path.join(PLUGIN_DIR, "config.json")
+    if os.path.isfile(_seed) and not os.path.isfile(CONFIG_PATH):
+        import shutil
+        try:
+            shutil.copy2(_seed, CONFIG_PATH)
+        except OSError:
+            pass
 
 EXPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
 EXPORT_CSV_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_structure.csv"
-HISTORY_PATH = os.path.join(PLUGIN_DIR, "analysis_history.json")
+HISTORY_PATH = os.path.join(DATA_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
-CHANGES_PATH = os.path.join(PLUGIN_DIR, "change_history.json")
+CHANGES_PATH = os.path.join(DATA_DIR, "change_history.json")
 _CHANGES_MAX = 200
 
 _CSV_FIELDS = ("path", "name", "type", "category", "depth", "casing",
@@ -191,33 +233,43 @@ def _preset_settings(data: dict) -> dict:
     return {k: v for k, v in data.items() if k != "meta"}
 
 
+def _preset_dirs() -> list:
+    dirs = [PRESETS_DIR]
+    if SHIPPED_PRESETS_DIR != PRESETS_DIR:
+        dirs.append(SHIPPED_PRESETS_DIR)
+    return dirs
+
+
 def _list_presets() -> list:
     out = []
-    try:
-        if not os.path.isdir(PRESETS_DIR):
-            return out
-        for fn in sorted(os.listdir(PRESETS_DIR)):
-            if not fn.endswith(".json"):
+    seen: set = set()
+    for directory in _preset_dirs():
+        try:
+            if not os.path.isdir(directory):
                 continue
-            try:
-                with open(os.path.join(PRESETS_DIR, fn), encoding="utf-8") as f:
-                    data = json.load(f)
-                meta = data.get("meta", {})
-                settings = cfgmod.migrate_config(_preset_settings(data))
-                groups = [g.get("name", "?")
-                          for g in (settings.get("structure") or [])]
-                out.append({
-                    "id": meta.get("id") or fn[:-5],
-                    "name": meta.get("name") or fn[:-5],
-                    "description": meta.get("description", ""),
-                    "created_at": meta.get("created_at", ""),
-                    "rules": len(settings.get("rules") or []),
-                    "groups": groups,
-                })
-            except Exception:
-                continue
-    except Exception:
-        pass
+            for fn in sorted(os.listdir(directory)):
+                if not fn.endswith(".json") or fn in seen:
+                    continue
+                seen.add(fn)
+                try:
+                    with open(os.path.join(directory, fn), encoding="utf-8") as f:
+                        data = json.load(f)
+                    meta = data.get("meta", {})
+                    settings = cfgmod.migrate_config(_preset_settings(data))
+                    groups = [g.get("name", "?")
+                              for g in (settings.get("structure") or [])]
+                    out.append({
+                        "id": meta.get("id") or fn[:-5],
+                        "name": meta.get("name") or fn[:-5],
+                        "description": meta.get("description", ""),
+                        "created_at": meta.get("created_at", ""),
+                        "rules": len(settings.get("rules") or []),
+                        "groups": groups,
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            continue
     return out
 
 
@@ -260,24 +312,32 @@ def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
 
 
 def _delete_preset(preset_id: str) -> dict:
-    path = os.path.join(PRESETS_DIR, os.path.basename(preset_id))
-    if not path.endswith(".json"):
-        path += ".json"
-    if not os.path.isfile(path):
-        return {"error": "preset not found: %s" % preset_id}
-    os.remove(path)
-    return {"ok": True, "deleted": preset_id}
+    fn = os.path.basename(preset_id)
+    if not fn.endswith(".json"):
+        fn += ".json"
+    for directory in _preset_dirs():
+        path = os.path.join(directory, fn)
+        if not os.path.isfile(path):
+            continue
+        try:
+            os.remove(path)
+        except OSError:
+            return {"error": "preset '%s' is shipped with the plugin and "
+                    "cannot be deleted" % preset_id}
+        return {"ok": True, "deleted": preset_id}
+    return {"error": "preset not found: %s" % preset_id}
 
 
 def _load_preset(preset_id: str) -> dict | None:
-    for cand in (preset_id, preset_id + ".json"):
-        path = os.path.join(PRESETS_DIR, os.path.basename(cand))
-        if os.path.isfile(path):
-            try:
-                with open(path, encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                return None
+    for directory in _preset_dirs():
+        for cand in (preset_id, preset_id + ".json"):
+            path = os.path.join(directory, os.path.basename(cand))
+            if os.path.isfile(path):
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        return json.load(f)
+                except Exception:
+                    return None
     return None
 
 
@@ -375,7 +435,7 @@ def _rule_dict(r) -> dict:
 # a FILE next to config.json because webapi is hot-reloaded on every request
 # -- module globals would not survive. Makes re-plans and apply instant: the
 # preview already fetched everything, apply just reads the cache.
-GOOGLE_CACHE_PATH = os.path.join(PLUGIN_DIR, "google_cache.json")
+GOOGLE_CACHE_PATH = os.path.join(DATA_DIR, "google_cache.json")
 _GCACHE_MAX = 20000
 
 
