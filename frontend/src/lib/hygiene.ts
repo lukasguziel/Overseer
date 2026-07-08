@@ -77,6 +77,7 @@ export interface Hygiene {
   namingScore: number
   casingScore: number
   namingTodos: number
+  dupeGuids: number[]
   dupTotal: number
   p80: number
   geoObjs: number
@@ -118,6 +119,11 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number,
     .filter(([name, a]) => a.length > 1 && !isKept(name))
     .map(([name, a]) => ({ name, count: a.length, guid: a[0].guid }))
     .sort((x, y) => y.count - x.count)
+  // Every object carrying a duplicated (unkept) name — for guid-level todo
+  // unions with the rename plan (avoids double counting with dedupe on).
+  const dupeGuids = Object.entries(byName)
+    .filter(([name, a]) => a.length > 1 && !isKept(name))
+    .flatMap(([, a]) => a.map((n) => n.guid))
   outliers.sort((a, b) => b.polygons - a.polygons)
 
   // Pick the target style: the user's choice, else the best-fitting one.
@@ -160,6 +166,7 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number,
         : 100,
     casingScore: nodes.length ? Math.round(casingOk / nodes.length * 100) : 100,
     namingTodos: todos,
+    dupeGuids,
     dupTotal: dupes.reduce((s, d) => s + d.count, 0),
     p80, geoObjs: sorted.length,
     top10pct: totalPolys ? Math.round(top10 / totalPolys * 100) : 0,
