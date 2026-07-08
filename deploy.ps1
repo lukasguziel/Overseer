@@ -66,15 +66,17 @@ if ((Test-Path $cfgSrc) -and (-not (Test-Path $cfgDst))) {
   Step "config.json (seeded, was missing)" { Copy-Item $cfgSrc $cfgDst -Force }
 }
 
-# Mirror package recursively (subpackages: core/, naming/, structure/,
-# cinema/), then strip __pycache__.
-Step "sceneorg/" {
-  $pkgDst = Join-Path $Target "sceneorg"
-  if (Test-Path $pkgDst) { Remove-Item -Recurse -Force $pkgDst }
-  Copy-Item -Recurse (Join-Path $src "sceneorg") $pkgDst -Force
-  Get-ChildItem $pkgDst -Recurse -Directory -Filter "__pycache__" |
-    Remove-Item -Recurse -Force
+# Mirror a directory in place with robocopy: unchanged (possibly locked)
+# files are skipped instead of aborting mid-copy, so a lock can never leave
+# the target half-empty like delete-then-copy did. Exit codes 0-7 = success.
+function Mirror([string]$From, [string]$To) {
+  robocopy $From $To /MIR /R:0 /W:0 /XD __pycache__ /NFL /NDL /NJH /NJS | Out-Null
+  if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE) - a changed file is locked; close the Scene Organizer dialogs in C4D and retry." }
+  $global:LASTEXITCODE = 0
 }
+
+# Mirror package recursively (subpackages: core/, naming/, structure/, cinema/).
+Step "sceneorg/" { Mirror (Join-Path $src "sceneorg") (Join-Path $Target "sceneorg") }
 
 # Merge presets: repo presets are copied in, but presets the user saved in
 # the plugin ("Save current settings as preset") are NEVER deleted.
