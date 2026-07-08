@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .core.keeps import empty_keeps, normalize_keeps
 from .naming.casing import Casing
 from .naming.convention import NamingConvention
 from .structure.rules import RuleSet, compile_rules
 from .structure.standard import GroupRule, StructureStandard, default_standard
 
-CONFIG_SCHEMA_VERSION = 2
+CONFIG_SCHEMA_VERSION = 3
 
 _MIGRATED_PREFIX_ID = "prefix_%s_v1"
 
@@ -19,8 +20,7 @@ DEFAULT_CONFIG = {
     "structure": None,
     "rules": [],
     "translations": {},
-    "keep_names": [],
-    "accepted_unused": [],
+    "keeps": empty_keeps(),
 }
 
 
@@ -31,32 +31,56 @@ class Config:
     rules: RuleSet
     prefixes: dict = field(default_factory=dict)
     extra_translations: dict = field(default_factory=dict)
-    keep_names: set = field(default_factory=set)
-    accepted_unused: set = field(default_factory=set)
+    keeps: dict = field(default_factory=dict)
+
+    def kept(self, section: str) -> set:
+        return {str(n) for n in (self.keeps.get(section) or [])}
+
+    # Aliases for pre-schema-3 call sites.
+    @property
+    def keep_names(self) -> set:
+        return self.kept("naming")
+
+    @property
+    def accepted_unused(self) -> set:
+        return self.kept("materials")
 
 
 def migrate_config(data: dict) -> dict:
     out = dict(data or {})
-    if int(out.get("schema") or 1) >= CONFIG_SCHEMA_VERSION:
+    schema = int(out.get("schema") or 1)
+    if schema >= CONFIG_SCHEMA_VERSION:
         out["schema"] = CONFIG_SCHEMA_VERSION
+        out["keeps"] = normalize_keeps(out.get("keeps"))
         return out
 
-    out["schema"] = CONFIG_SCHEMA_VERSION
-    rules = list(out.get("rules") or [])
-    for cat, prefix in (out.pop("prefixes", None) or {}).items():
-        rules.append({
-            "id": _MIGRATED_PREFIX_ID % cat,
-            "type": "prefix",
-            "prefix": prefix,
-            "match": {"categories": [cat]},
-        })
-    out["rules"] = rules
+    if schema < 2:
+        rules = list(out.get("rules") or [])
+        for cat, prefix in (out.pop("prefixes", None) or {}).items():
+            rules.append({
+                "id": _MIGRATED_PREFIX_ID % cat,
+                "type": "prefix",
+                "prefix": prefix,
+                "match": {"categories": [cat]},
+            })
+        out["rules"] = rules
 
-    groups = out.pop("groups", None)
-    if groups:
-        out["structure"] = [dict(g) for g in groups]
-    else:
-        out.setdefault("structure", None)
+        groups = out.pop("groups", None)
+        if groups:
+            out["structure"] = [dict(g) for g in groups]
+        else:
+            out.setdefault("structure", None)
+
+    # v2 -> v3: fold the flat keep lists into the per-section keeps map.
+    keeps = normalize_keeps(out.get("keeps"))
+    if out.get("keep_names"):
+        keeps["naming"] = sorted({str(n) for n in out["keep_names"]} | set(keeps["naming"]))
+    if out.get("accepted_unused"):
+        keeps["materials"] = sorted({str(n) for n in out["accepted_unused"]} | set(keeps["materials"]))
+    out.pop("keep_names", None)
+    out.pop("accepted_unused", None)
+    out["keeps"] = keeps
+    out["schema"] = CONFIG_SCHEMA_VERSION
     return out
 
 
@@ -64,7 +88,9 @@ def build_convention(data: dict) -> NamingConvention:
     casing = Casing(data.get("casing") or "PascalCase")
     language = data.get("language", "en")
     pad = int(data.get("number_pad", 2))
-    return NamingConvention(style=casing, language=language, number_pad=pad)
+    keep_separators = bool(data.get("keep_separators", False))
+    return NamingConvention(style=casing, language=language, number_pad=pad,
+                            keep_separators=keep_separators)
 
 
 def _collect_group_rules(nodes: list, parent: str | None, rules: list) -> None:
@@ -135,6 +161,5 @@ def load_config(data: dict | None = None) -> Config:
         rules=ruleset,
         prefixes=_legacy_prefixes(ruleset),
         extra_translations=dict(merged.get("translations") or {}),
-        keep_names={str(n) for n in (merged.get("keep_names") or [])},
-        accepted_unused={str(n) for n in (merged.get("accepted_unused") or [])},
+        keeps=normalize_keeps(merged.get("keeps")),
     )

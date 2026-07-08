@@ -93,6 +93,12 @@ Single entry point dispatching on `payload["op"]` against the active document
   user-accepted guids.
 - `plan_layers` / `apply_layers` — plan/apply type-axis layer assignment with a
   by-layer count.
+- `assign_layer` / `move_to_group` — direct batch actions from the asset
+  browser: `{guids, layer}` assigns the picked objects to a named layer
+  (created if missing), `{guids, group}` reparents them under a named null
+  (`ensure_group_path`, created at root if missing). The user chose both the
+  objects and the target explicitly, so no plan or safety filter runs; both are
+  one undo step and recorded in the change history.
 - `changes` — the change history newest-first. Every apply op records one entry
   (`_record_change`) into `change_history.json` (max 200): `{id, ts, at, kind,
   summary, items, revertible, reverted}`, `items` copied from

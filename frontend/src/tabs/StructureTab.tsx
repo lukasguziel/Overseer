@@ -2,10 +2,12 @@ import React from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
+import SuggestionRow from '../components/SuggestionRow'
+import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 
 export default function StructureTab({ org }: { org: Organizer }) {
-  const { report, tidy, safe, rules, structure, busy, previewing } = org
+  const { report, tidy, safe, rules, structure, keeps, busy, previewing } = org
 
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
@@ -47,29 +49,38 @@ export default function StructureTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
-          empty="Everything is already in the right place."
-          applyLabel="Apply structure" onApply={org.applyStructure} busy={busy}
+          empty="Everything is already in the right group 🎉"
+          applyLabel="Process all" onApply={org.applyStructure} busy={busy}
+          progress={org.progress}
           note={
-            structure?.applied != null ? `${structure.applied} moved (undoable).`
+            structure?.applied != null ? `${structure.applied} applied (undoable).`
               : (structure?.skipped ?? 0) > 0 ? `${structure?.skipped} protected by the safety filter.` : null
           }
         >
-          <table className="diff"><tbody>
-            {(structure?.diff || []).slice(0, 300).map((d, i) => (
-              <tr key={i}>
-                <td>{d.name}</td><td className="dim">{d.from || '(root)'}</td>
-                <td className="arrow">→</td><td>{d.to}</td>
-              </tr>
+          <div className="rename-list">
+            {(structure?.diff || []).slice(0, 300).map((d) => (
+              <SuggestionRow key={d.guid} busy={busy}
+                applyTitle="Apply — move into its group now (undoable)"
+                onApply={() => org.applyStructureOne(d.guid, d.name)}
+                onAcceptAsIs={() => org.keep('structure', d.name)}
+              >
+                <span className="rn-old" title={d.from || '(root)'}>{d.name}</span>
+                <span className="rn-arrow">→</span>
+                <span className="rn-new dim">{d.to}</span>
+              </SuggestionRow>
             ))}
-          </tbody></table>
+          </div>
         </Workbench>
       </div>
+
+      <AcceptedSection items={Array.from(keeps.structure)}
+        onRestore={(nm) => org.unkeep('structure', nm)} />
 
       {/* Structure hygiene: empty containers & loose root objects. */}
       <section className="card">
         <div className="card-head">
           <h3>Structure cleanup</h3>
-          <span className="dim" style={{ fontSize: 11 }}>click an item to select &amp; frame it</span>
+          <span className="card-hint">click an item to select &amp; frame it</span>
         </div>
         <Cleanup buckets={groupBuckets} onFocus={org.doFocus} />
       </section>

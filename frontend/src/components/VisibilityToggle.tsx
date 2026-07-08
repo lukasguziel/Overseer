@@ -1,25 +1,28 @@
 import { IconEye, IconEyeOff } from './icons'
 
-// Eye toggle: by default hidden objects (Object Manager editor dot OFF) are
-// excluded from every statistic; flip it to fold them back in. `hidden` is the
-// count of hidden objects in the scene, shown as a hint.
+// Segmented switch (built like ScopeToggle): "All objects" folds hidden
+// objects (Object Manager editor dot OFF) into every statistic, "Visible only"
+// excludes them. `hidden` is the count of hidden objects, surfaced on the
+// Visible-only side so it's clear what that mode leaves out.
 export default function VisibilityToggle({ includeHidden, setIncludeHidden, hidden }: {
   includeHidden: boolean
   setIncludeHidden: (v: boolean) => void
   hidden?: number
 }) {
-  const has = (hidden ?? 0) > 0
+  const count = hidden ?? 0
+  const hiddenLabel = count > 0 ? `${count} hidden` : 'none hidden'
+
   return (
-    <button
-      className={'eye-toggle' + (includeHidden ? ' on' : '')}
-      onClick={() => setIncludeHidden(!includeHidden)}
-      title={includeHidden
-        ? 'Hidden objects are counted in all stats — click to exclude them'
-        : 'Hidden objects (Object Manager visibility off) are excluded from all stats — click to include them'}>
-      {includeHidden ? <IconEye /> : <IconEyeOff />}
-      <span>{includeHidden ? 'All objects' : 'Visible only'}
-        {has && <small>{hidden} hidden</small>}
-      </span>
-    </button>
+    <div className="scope-toggle vis-toggle" role="group" aria-label="Visibility">
+      <button className={includeHidden ? 'on' : ''} onClick={() => setIncludeHidden(true)}
+        title="Count every object, including ones hidden in the Object Manager">
+        <IconEye /><span>All objects<small>incl. hidden</small></span>
+      </button>
+      <button className={!includeHidden ? 'on' : ''} onClick={() => setIncludeHidden(false)}
+        title="Exclude objects hidden in the Object Manager from all stats">
+        <IconEyeOff />
+        <span>Visible only<small className={!includeHidden && count > 0 ? 'sel-live' : ''}>{hiddenLabel}</small></span>
+      </button>
+    </div>
   )
 }

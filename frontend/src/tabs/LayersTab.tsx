@@ -1,16 +1,13 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
+import SuggestionRow from '../components/SuggestionRow'
+import AcceptedSection from '../components/AcceptedSection'
 import LayerTree from '../components/LayerTree'
 
 export default function LayersTab({ org }: { org: Organizer }) {
-  const { layers, layersAccepted, setLayersAccepted, report, busy, previewing } = org
+  const { layers, keeps, report, busy, previewing } = org
   const lr = report?.layers_report
   const rows = layers?.diff || []
-  const toggle = (guid: number) => setLayersAccepted((s) => {
-    const n = new Set(s)
-    if (n.has(guid)) n.delete(guid); else n.add(guid)
-    return n
-  })
 
   return (
     <div className="layers-tab">
@@ -64,33 +61,30 @@ export default function LayersTab({ org }: { org: Organizer }) {
         </aside>
 
         <Workbench
-          title="Layer assignment preview" count={layersAccepted.size} loading={previewing}
-          empty="No taggable objects (lights / cameras / instances) found."
+          title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
+          empty="Every light, camera and instance is already on its layer 🎉"
           applyLabel="Process all" onApply={org.applyLayers} busy={busy}
-          note={layers?.count
-            ? `${layers.count} taggable${layersAccepted.size !== rows.length ? ` · ${rows.length - layersAccepted.size} skipped` : ''}.`
-            : null}
+          progress={org.progress}
+          note={layers?.applied != null ? `${layers.applied} applied (undoable).` : null}
         >
           <div className="rename-list">
-            {rows.slice(0, 300).map((d) => {
-              const on = layersAccepted.has(d.guid)
-              return (
-                <div className={'rename-row' + (on ? '' : ' row-off')} key={d.guid}>
-                  <span className="rn-old" title={d.name}>{d.name}</span>
-                  <span className="rn-arrow">→</span>
-                  <span className="rn-new dim">layer: {d.layer}</span>
-                  <span className="rn-actions">
-                    <button className="rn-ok" title="Accept — tag now (undoable)"
-                      onClick={() => org.applyLayerOne(d.guid, d.name)} disabled={busy}>✓</button>
-                    <button className="rn-no" title={on ? 'Skip — leave out of "Process all"' : 'Skipped — click to include again'}
-                      onClick={() => toggle(d.guid)} disabled={busy}>{on ? '✕' : '↺'}</button>
-                  </span>
-                </div>
-              )
-            })}
+            {rows.slice(0, 300).map((d) => (
+              <SuggestionRow key={d.guid} busy={busy}
+                applyTitle="Apply — tag now (undoable)"
+                onApply={() => org.applyLayerOne(d.guid, d.name)}
+                onAcceptAsIs={() => org.keep('layers', d.name)}
+              >
+                <span className="rn-old" title={d.name}>{d.name}</span>
+                <span className="rn-arrow">→</span>
+                <span className="rn-new dim">layer: {d.layer}</span>
+              </SuggestionRow>
+            ))}
           </div>
         </Workbench>
       </div>
+
+      <AcceptedSection items={Array.from(keeps.layers)}
+        onRestore={(nm) => org.unkeep('layers', nm)} />
     </div>
   )
 }

@@ -24,7 +24,7 @@ export const TABS: [TabId, string, boolean?][] = [
   ['assets', 'Assets'],
   ['layers', 'Layers'],
   ['materials', 'Materials'],
-  ['structure', 'Structure', true],
+  ['structure', 'Structure'],
   ['rules', 'Rules', true],
   ['misc', 'Misc'],
 ]
@@ -53,6 +53,7 @@ export const SORTS: [string, string][] = [
   ['children', 'Children'],
   ['depth', 'Depth'],
   ['name', 'Name'],
+  ['layer', 'Layer'],
 ]
 
 // Small client-side preview of the convention (only for the example display).

@@ -101,6 +101,32 @@ def test_numbering_toggle_off_keeps_numbers_verbatim():
     assert off.normalize("chair_007") == "Chair007"  # no reformatting at all
 
 
+def test_keep_separators_preserves_original_separators():
+    c = NamingConvention(style=Casing.UPPER_SNAKE, language=None, number_pad=2,
+                         keep_separators=True)
+    # Hyphen and underscore both survive; only word case changes.
+    assert c.normalize("Wand-01_test") == "WAND-01_TEST"
+    assert c.normalize("foo bar baz") == "FOO BAR BAZ"
+    # Idempotent.
+    assert c.normalize("WAND-01_TEST") == "WAND-01_TEST"
+    assert c.is_compliant("WAND-01_TEST")
+
+
+def test_keep_separators_contrasts_with_default():
+    on = NamingConvention(style=Casing.UPPER_SNAKE, language=None, number_pad=2,
+                          keep_separators=True)
+    off = NamingConvention(style=Casing.UPPER_SNAKE, language=None, number_pad=2)
+    assert on.normalize("Wand-01_test") == "WAND-01_TEST"
+    assert off.normalize("Wand-01_test") == "WAND_01_TEST"
+
+
+def test_keep_separators_no_synthetic_seps_for_camel():
+    # Word-joined names have no separators to keep -> single token, recased only.
+    c = NamingConvention(style=Casing.UPPER_SNAKE, language=None, number_pad=2,
+                         keep_separators=True)
+    assert c.normalize("fooBar") == "FOOBAR"
+
+
 def test_invalid_style_rejected():
     # SPACED is not a producible target style
     with pytest.raises(ValueError):

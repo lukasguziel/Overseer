@@ -3,6 +3,8 @@ import type { Organizer } from '../hooks/useOrganizer'
 import { CASINGS, exampleName } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
+import SuggestionRow from '../components/SuggestionRow'
+import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
@@ -27,10 +29,10 @@ function RuleTags({ rules }: { rules: string[] }) {
   )
 }
 
+const pad = (n: number, p: number) => (p > 0 ? String(n).padStart(p, '0') : String(n))
+
 export default function NamingTab({ org }: { org: Organizer }) {
-  const { report, casing, applyCasing, numberPad, applyNumbering, dedupe, naming, busy, previewing, keepNames } = org
-  const [showKept, setShowKept] = useState(false)
-  const kept = Array.from(keepNames).sort()
+  const { report, casing, applyCasing, keepSeparators, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
 
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0),
@@ -45,9 +47,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
     <div className="stacked">
       <div className="workbench">
         <aside className="wb-side">
-          <h3>Rules</h3>
-          <p className="hint-sm">Toggle the rules to apply — all active by
-            default. Each row shows which rule changed it, so you decide.</p>
+          <h3>Settings</h3>
+          <p className="hint-sm">Toggle the settings to apply — all active by
+            default. Each row shows which setting changed it, so you decide.</p>
 
           <div className="rule-group-head"><span>Casing</span></div>
           <label className="check">
@@ -64,6 +66,17 @@ export default function NamingTab({ org }: { org: Organizer }) {
               </label>
             )
             : <p className="hint-sm" style={{ marginTop: 0 }}>Casing &amp; separators kept as-is.</p>}
+          {applyCasing && (
+            <label className="check">
+              <input type="checkbox" checked={keepSeparators}
+                onChange={(e) => org.setKeepSeparators(e.target.checked)} />
+              Keep separators
+            </label>
+          )}
+          {applyCasing && keepSeparators && (
+            <p className="hint-sm" style={{ marginTop: 0 }}>Only word case changes;
+              existing separators (e.g. <code>-</code>) stay. <code>Wand-01_test</code> → <code>WAND-01_TEST</code>.</p>
+          )}
 
           <div className="rule-group-head"><span>Numbering</span></div>
           <label className="check">
@@ -73,8 +86,17 @@ export default function NamingTab({ org }: { org: Organizer }) {
           {applyNumbering
             ? (
               <label>Pad <b>{numberPad === 0 ? 'none' : numberPad + '-digit'}</b>
-                <input type="range" min="0" max="4" value={numberPad}
-                  onChange={(e) => org.setNumberPad(Number(e.target.value))} />
+                <div className="pad-btns">
+                  {[1, 2, 3, 4].map((p) => (
+                    <button key={p} type="button"
+                      className={'pad-btn' + (numberPad === p ? ' on' : '')}
+                      onClick={() => org.setNumberPad(numberPad === p ? 0 : p)}
+                      title={p + '-digit padding' + (numberPad === p ? ' — click again for none' : '')}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                {applyCasing && casing !== '' && <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>}
               </label>
             )
             : <p className="hint-sm" style={{ marginTop: 0 }}>Numbers kept exactly as they are.</p>}
@@ -83,8 +105,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
             <input type="checkbox" checked={dedupe} onChange={(e) => org.setDedupe(e.target.checked)} />
             Make duplicates unique
           </label>
-
-          {applyCasing && casing !== '' && applyNumbering && <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>}
+          {dedupe && (
+            <div className="example">e.g. <code>Wall, Wall</code> → <code>Wall{pad(1, numberPad)}, Wall{pad(2, numberPad)}</code></div>
+          )}
           <p className="hint-sm">Only casing &amp; numbers — never the language, and
             never swallows info (a name like <code>ROCK_UV_2.1</code> keeps its dot).
             To translate names, use the <b>Translate</b> tab.</p>
@@ -92,58 +115,36 @@ export default function NamingTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
-          empty="Every name already matches these rules (or is kept)."
+          empty="Every name already matches your rules 🎉"
           applyLabel="Process all" onApply={org.applyNaming} busy={busy}
+          progress={org.progress}
           note={naming?.applied != null ? `${naming.applied} applied (undoable).` : null}
         >
           <div className="rename-list">
             {rows.slice(0, 300).map((d) => (
-              <div className="rename-row" key={d.guid}>
+              <SuggestionRow key={d.guid} busy={busy}
+                applyTitle="Apply — rename now (undoable)"
+                onApply={() => org.applyNamingOne(d.guid, d.old)}
+                onAcceptAsIs={() => org.keep('naming', d.old)}
+              >
                 <RuleTags rules={d.rules || ['casing']} />
                 <span className="rn-old" title={d.old}>{d.old}</span>
                 <span className="rn-arrow">→</span>
                 <span className="rn-new" title={d.new}>{d.new}</span>
-                <span className="rn-actions">
-                  <button className="rn-ok" title="Accept — rename now (undoable)"
-                    onClick={() => org.applyNamingOne(d.guid, d.old)} disabled={busy}>✓</button>
-                  <button className="rn-no" title="Ignore — keep this name as-is"
-                    onClick={() => org.keepName(d.old)} disabled={busy}>✕</button>
-                </span>
-              </div>
+              </SuggestionRow>
             ))}
           </div>
         </Workbench>
       </div>
 
-      {/* Ignored / kept-as-is names, collapsed. */}
-      {kept.length > 0 && (
-        <section className="card">
-          <button className="kept-head" onClick={() => setShowKept(!showKept)}>
-            <span className="cl-caret">{showKept ? '▾' : '▸'}</span>
-            Ignored — kept as-is <span className="kept-count">{kept.length}</span>
-          </button>
-          {showKept && (
-            <div className="kept-list">
-              {kept.map((nm) => (
-                <div className="kept-row" key={nm}>
-                  <span className="fl-name" title={nm}>{nm}</span>
-                  <button className="kept-restore" title="Un-keep — allow renaming again"
-                    onClick={() => org.unkeepName(nm)}>restore</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="hint-sm" style={{ marginTop: 8 }}>
-            Kept names are remembered (config) and never counted as problems.
-          </p>
-        </section>
-      )}
+      <AcceptedSection items={Array.from(keeps.naming)}
+        onRestore={(nm) => org.unkeep('naming', nm)} />
 
       {/* Name hygiene: default & duplicate names — click to select in C4D. */}
       <section className="card">
         <div className="card-head">
           <h3>Name cleanup</h3>
-          <span className="dim" style={{ fontSize: 11 }}>click an item to select &amp; frame it</span>
+          <span className="card-hint">click an item to select &amp; frame it</span>
         </div>
         <Cleanup buckets={nameBuckets} onFocus={org.doFocus} />
       </section>

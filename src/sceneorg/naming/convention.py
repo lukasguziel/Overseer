@@ -57,6 +57,7 @@ class NamingConvention:
         number_pad: int = 2,
         apply_numbering: bool = True,
         apply_casing: bool = True,
+        keep_separators: bool = False,
     ) -> None:
         if style not in TARGET_STYLES:
             raise ValueError("Unsupported target style: %s" % style)
@@ -69,6 +70,12 @@ class NamingConvention:
         # When False, casing and separators are left exactly as they are --
         # naming then only touches numbering (if enabled).
         self.apply_casing = apply_casing
+        # When True, only the WORD casing changes; the separator characters
+        # already present between tokens are preserved verbatim instead of
+        # being replaced by the style's separator (e.g. UPPER keeps the "-" in
+        # "Wand-01_test" -> "WAND-01_TEST"). Word-joined names (camel/Pascal)
+        # are then left as single tokens -- no synthetic separators invented.
+        self.keep_separators = keep_separators
 
     def _translate_one(self, tok: str) -> str:
         if self.language == naming.LANG_EN:
@@ -105,11 +112,40 @@ class NamingConvention:
             return s   # part of a decimal (e.g. "2.1") -> leave it
         return base + self._format_number(int(m.group(2)))
 
+    def _normalize_keep(self, stripped: str) -> str:
+        # Recase word tokens but keep the original separators between them.
+        # No split_camel -> camel/Pascal words stay whole (no invented seps).
+        matches = list(_TOKEN_RE.finditer(stripped))
+        if not matches:
+            return stripped
+        last = len(matches) - 1
+        out: list[str] = []
+        word_i = 0
+        prev_end = matches[0].start()
+        for i, m in enumerate(matches):
+            if i > 0:
+                out.append(stripped[prev_end:m.start()])  # verbatim separator
+            text = m.group(0)
+            if text[0].isalpha():
+                out.append(self._case_word(self._translate_one(text.lower()),
+                                           word_i == 0))
+                word_i += 1
+            elif self.apply_numbering and i == last and text.isdigit():
+                out.append(self._format_number(int(text)))
+            else:
+                out.append(text)  # number kept verbatim (decimal safe)
+            prev_end = m.end()
+        if word_i == 0:
+            return stripped  # numbers/symbols only -> never fabricate a name
+        return "".join(out)
+
     def normalize(self, name: str) -> str:
         stripped = name.strip()
 
         if not self.apply_casing:
             return self._renumber_only(stripped)
+        if self.keep_separators:
+            return self._normalize_keep(stripped)
         # Split into word / number tokens (numbers incl. decimals kept whole);
         # every other character is treated as a separator.
         parts = [(m.group(0)[0].isalpha(), m.group(0))

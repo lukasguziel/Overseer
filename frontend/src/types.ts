@@ -290,6 +290,7 @@ export interface LanguageSummary {
 }
 
 export interface ReparentDiff {
+  guid: number
   name: string
   from: string | null
   to: string
@@ -311,7 +312,7 @@ export interface PlanResult<D> {
   detected?: LanguageSummary   // translate: detected source-language spread
   target?: string              // translate: chosen target language
   engine?: string              // translate: 'offline' (dictionaries) | 'google'
-  keep_names?: string[]        // naming: names the user marked "keep as-is"
+  kept?: string[]              // keys the user accepted as-is (config keeps)
 }
 
 export interface GroupRuleJson {
@@ -325,6 +326,7 @@ export interface GroupRuleJson {
 export interface OrganizerSettings {
   casing: string
   apply_casing: boolean
+  keep_separators: boolean
   language: string | null
   number_pad: number
   apply_numbering: boolean
