@@ -42,6 +42,22 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - Syntax-check c4d modules without Cinema: `python -m py_compile <file>`
   (compiles, does not execute `import c4d`).
 
+## Tests
+
+- **Every test body is structured into three commented sections, in this
+  order:** `# setup` (inputs/trees/configs), `# do it` (the call under test),
+  `# postcondition` (the asserts). One blank line between sections, none
+  between a section comment and its code. Omit a section that would be empty
+  (e.g. `# setup` when fixtures provide everything) — never leave a dangling
+  comment.
+- These three section comments are the ONLY standalone comments allowed in a
+  test (deliberate exception to the no-comments rule above). Extra explanation
+  goes after a colon into the section line (`# postcondition: per-object layer
+  is exposed in the node dicts`) or as a short trailing comment on the one
+  assert it explains.
+- Non-test helpers, fixtures (`conftest.py`), and parametrize decorators are
+  not sectioned.
+
 ## OOP & data modelling
 
 - **Prefer classes and interfaces over loose functions + dicts.** Model a
