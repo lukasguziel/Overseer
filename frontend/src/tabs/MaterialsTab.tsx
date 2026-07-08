@@ -3,6 +3,10 @@ import type { Organizer } from '../hooks/useOrganizer'
 import type { TextureEntry } from '../types'
 import { humanBytes } from '../lib/format'
 import { IconTrash } from '../components/icons'
+import Workbench from '../components/Workbench'
+import SuggestionRow from '../components/SuggestionRow'
+import AcceptedSection from '../components/AcceptedSection'
+import EmptyState from '../components/EmptyState'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -48,12 +52,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const tex = report?.textures
 
   if (!report) {
-    return (
-      <div className="empty-state">
-        <p>No scene analyzed yet.</p>
-        <button onClick={org.doAnalyze} disabled={busy}>Analyze scene</button>
-      </div>
-    )
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
   const fixable = tex?.relocatable_count ?? 0
@@ -65,27 +64,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const acceptedList = mat?.accepted || []
 
   return (
-    <div className="misc">
+    <div className="stacked">
       {/* ---- Materials overview (shading definitions) ---------------- */}
       <section className="card">
         <div className="card-head">
           <h3>Materials</h3>
-          {mat && deletable > 0 && (
-            bulkConfirm ? (
-              <span className="mat-confirm">
-                delete {deletable}?
-                <button className="mat-yes" title="Confirm delete all unused"
-                  onClick={() => { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }}>✓</button>
-                <button className="mat-no" title="Cancel" onClick={() => setBulkConfirm(false)}>✕</button>
-              </span>
-            ) : (
-              <button className="trash-btn" disabled={busy}
-                title={`Delete all ${deletable} unused materials (undoable)`}
-                onClick={() => setBulkConfirm(true)}>
-                <IconTrash /><span className="trash-count">{deletable}</span>
-              </button>
-            )
-          )}
         </div>
         {mat ? (
           <>
@@ -96,47 +79,42 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               {onHidden.size > 0 && <span><b>{onHidden.size}</b> on hidden</span>}
               <span className={mat.missing_textures ? 'warn' : ''}><b>{mat.missing_textures || 0}</b> missing tex</span>
             </div>
-            {mat.unused.length > 0 && (
-              <>
-                <div className="chipgroup-label">Unused materials</div>
-                <div className="focuslist">
-                  {mat.unused.map((nm, i) => {
-                    const hid = onHidden.has(nm)
-                    return (
-                      <div className="fl-row static mat-row" key={i}>
-                        <span className="fl-dot" style={{ background: hid ? 'var(--warn)' : 'var(--dim2)' }} />
-                        <span className="fl-name">{nm}</span>
-                        {hid && <span className="tex-badge unused" title="Used only by hidden objects — kept safe from deletion">on hidden</span>}
-                        {!hid && (
-                          <>
-                            <button className="mat-accept" title="Accept as intentionally unused (improves score, keeps the material)"
-                              onClick={() => org.acceptUnused(nm)}>✓ keep</button>
-                            <button className="mat-x" title="Delete this material (undoable)"
-                              onClick={() => org.doDeleteMaterial(nm)}>×</button>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-            {acceptedList.length > 0 && (
-              <>
-                <div className="chipgroup-label" style={{ marginTop: 12 }}>Accepted as unused</div>
-                <div className="focuslist">
-                  {acceptedList.map((nm, i) => (
-                    <div className="fl-row static mat-row" key={i}>
-                      <span className="fl-dot" style={{ background: 'var(--apply)' }} />
-                      <span className="fl-name">{nm}</span>
-                      <span className="tex-badge fixable">accepted</span>
-                      <button className="kept-restore" title="No longer accept — count it as a problem again"
-                        onClick={() => org.unacceptUnused(nm)}>restore</button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            <Workbench
+              title="Unused materials" count={deletable} loading={busy}
+              empty="Every material is in use 🎉"
+              applyLabel={bulkConfirm ? `Really delete ${deletable}?` : 'Process all'}
+              onApply={() => {
+                if (bulkConfirm) { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }
+                else setBulkConfirm(true)
+              }}
+              busy={busy} progress={org.progress}
+              note={bulkConfirm ? 'Click again to delete all unused materials (undoable).' : null}
+            >
+              <div className="rename-list">
+                {mat.unused.filter((nm) => !onHidden.has(nm)).map((nm) => (
+                  <SuggestionRow key={nm} busy={busy}
+                    applyTitle="Apply — delete this material (undoable)"
+                    onApply={() => org.doDeleteMaterial(nm)}
+                    onAcceptAsIs={() => org.keep('materials', nm)}
+                  >
+                    <span className="fl-dot" style={{ background: 'var(--dim2)' }} />
+                    <span className="rn-old" title={nm}>{nm}</span>
+                    <span className="rn-arrow">→</span>
+                    <span className="rn-new dim">delete</span>
+                  </SuggestionRow>
+                ))}
+                {mat.unused.filter((nm) => onHidden.has(nm)).map((nm) => (
+                  <div className="fl-row static mat-row" key={nm}>
+                    <span className="fl-dot" style={{ background: 'var(--warn)' }} />
+                    <span className="fl-name">{nm}</span>
+                    <span className="tex-badge unused" title="Used only by hidden objects — kept safe from deletion">on hidden</span>
+                  </div>
+                ))}
+              </div>
+            </Workbench>
+            <AcceptedSection items={mat.accepted_all || []}
+              onRestore={(nm) => org.unkeep('materials', nm)}
+              hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
             {mat.missing.length > 0 && (
               <>
                 <div className="chipgroup-label" style={{ marginTop: 12 }}>Missing textures</div>
@@ -156,7 +134,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       </section>
 
       {/* ---- Textures (image files on disk) -------------------------- */}
-      <section className="card" style={{ marginTop: 16 }}>
+      <section className="card">
         <div className="card-head">
           <h3>Textures</h3>
           {fixable > 0 && (
@@ -208,20 +186,20 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {tex && (
         <>
-          <section className="card" style={{ marginTop: 16 }}>
+          <section className="card">
             <div className="card-head">
               <h3><IconTrash /> Absolute paths</h3>
-              <span className="dim" style={{ fontSize: 11 }}>{tex.absolute_count}</span>
+              <span className="card-hint">{tex.absolute_count}</span>
             </div>
             {absolute.length
               ? <div className="focuslist">{absolute.map((e, i) => <TexRow key={i} e={e} />)}</div>
               : <div className="fl-empty">No absolute texture paths 🎉</div>}
           </section>
 
-          <section className="card" style={{ marginTop: 16 }}>
+          <section className="card">
             <div className="card-head">
               <h3>Relative paths</h3>
-              <span className="dim" style={{ fontSize: 11 }}>{tex.relative_count}</span>
+              <span className="card-hint">{tex.relative_count}</span>
             </div>
             {relative.length
               ? <div className="focuslist">{relative.map((e, i) => <TexRow key={i} e={e} />)}</div>

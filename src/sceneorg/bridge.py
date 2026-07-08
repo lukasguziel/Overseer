@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import http.server
-import importlib
 import json
 import os
 import queue
+import sys
 import threading
 import traceback
 import webbrowser
@@ -69,6 +69,28 @@ def submit(payload, timeout=60):
     return req.result
 
 
+# Process singletons that must survive a hot-reload: this module holds the
+# HTTP server, the main-thread queue and the progress state. Everything else
+# under sceneorg.* is stateless (config is read from disk per request) and
+# safe to drop so the next import re-reads the edited source.
+_RELOAD_KEEP = (__name__,)
+
+
+def reload_all() -> int:
+    """Purge every sceneorg submodule except the singletons so the next
+    import picks up edited source. Returns how many modules were dropped.
+    Must run on the main thread (submodules import c4d)."""
+    dropped = 0
+    for name in list(sys.modules):
+        if name == "sceneorg" or not name.startswith("sceneorg."):
+            continue
+        if name in _RELOAD_KEEP:
+            continue
+        del sys.modules[name]
+        dropped += 1
+    return dropped
+
+
 def drain():
     while True:
         try:
@@ -77,9 +99,12 @@ def drain():
             return
 
         try:
+            dropped = reload_all()
             from .cinema import webapi
-            importlib.reload(webapi)
-            req.result = webapi.handle(req.payload)
+            if req.payload.get("op") == "reload":
+                req.result = {"ok": True, "reloaded": dropped}
+            else:
+                req.result = webapi.handle(req.payload)
         except Exception:
             req.error = traceback.format_exc()
         finally:

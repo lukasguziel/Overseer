@@ -7,6 +7,8 @@ import ScopeToggle from './components/ScopeToggle'
 import VisibilityToggle from './components/VisibilityToggle'
 import { IconRefresh } from './components/icons'
 import Preloader from './components/Preloader'
+import EmptyState from './components/EmptyState'
+import StatusBar from './components/StatusBar'
 import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
 import NamingTab from './tabs/NamingTab'
@@ -29,7 +31,11 @@ export default function App() {
         <div className="brand">
           <img className="brand-logo" src={logo} alt="" />
           <div className="brand-text">
-            <span className="brand-title">Scene Organizer</span>
+            <span className="brand-title">
+              Scene Organizer
+              <a className="donate-heart" href="https://www.buymeacoffee.com/bamerus"
+                target="_blank" rel="noreferrer" title="Donate to support">♥</a>
+            </span>
             {report && (
               <span className="scene-meta">
                 <span className="scene-name">{report.file || '(scene)'}</span>
@@ -54,9 +60,11 @@ export default function App() {
 
       <nav className="tabs">
         {TABS.map(([id, label, soon]) => {
-          // `soon` tabs (Structure, Rules) are parked — visible but disabled,
+          // `soon` tabs (Rules) are parked — visible but disabled,
           // so the roadmap stays honest without confusing anyone.
           const disabled = !!soon
+          // Uniform todo badge per area (live plan count, report fallback).
+          const todo = org.planCount(id) ?? 0
           return (
             <button key={id} disabled={disabled}
               className={'tab' + (tab === id ? ' on' : '') + (disabled ? ' off' : '')}
@@ -64,10 +72,7 @@ export default function App() {
               title={disabled ? 'Coming soon — being reworked' : undefined}>
               {label}
               {disabled && <span className="soon">soon</span>}
-              {id === 'naming' && (org.naming?.count ?? 0) > 0 && <span className="badge">{org.naming?.count}</span>}
-              {id === 'translate' && (org.translation?.count ?? 0) > 0 && <span className="badge">{org.translation?.count}</span>}
-              {id === 'layers' && (report?.layers_report?.no_layer ?? 0) > 0 && <span className="badge">{report?.layers_report?.no_layer}</span>}
-              {id === 'materials' && (report?.materials?.unused.length ?? 0) > 0 && <span className="badge">{report?.materials?.unused.length}</span>}
+              {!disabled && todo > 0 && <span className="badge">{todo}</span>}
             </button>
           )
         })}
@@ -78,9 +83,11 @@ export default function App() {
       {tab === 'overview' && <OverviewTab org={org} />}
       {tab === 'assets' && (
         report
-          ? <AssetsTab nodes={report.nodes || []} onFocus={org.doFocus} />
-          : <div className="empty-state"><p>No scene analyzed yet.</p>
-              <button onClick={org.doAnalyze} disabled={busy}>Analyze scene</button></div>
+          ? <AssetsTab nodes={report.nodes || []} onFocus={org.doFocus}
+              layerNames={(report.layers_report?.layers || []).map((l) => l.name)}
+              busy={busy}
+              onAssignLayer={org.doAssignLayer} onMoveToGroup={org.doMoveToGroup} />
+          : <EmptyState onAction={org.doAnalyze} busy={busy} />
       )}
       {tab === 'naming' && <NamingTab org={org} />}
       {tab === 'translate' && <TranslateTab org={org} />}
@@ -89,6 +96,8 @@ export default function App() {
       {tab === 'materials' && <MaterialsTab org={org} />}
       {tab === 'rules' && <RulesTab />}
       {tab === 'misc' && <MiscTab org={org} />}
+
+      <StatusBar status={org.status} busy={busy} />
     </div>
   )
 }

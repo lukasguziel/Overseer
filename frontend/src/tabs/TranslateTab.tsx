@@ -1,5 +1,7 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
+import SuggestionRow from '../components/SuggestionRow'
+import AcceptedSection from '../components/AcceptedSection'
 
 const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
@@ -8,17 +10,13 @@ const LANG_LABEL: Record<string, string> = {
 }
 
 export default function TranslateTab({ org }: { org: Organizer }) {
-  const { translation, accepted, setAccepted, busy, previewing,
+  const { translation, keeps, busy, previewing,
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
   const rows = translation?.diff || []
   const detected = translation?.detected
-  const toggle = (guid: number) => setAccepted((s) => {
-    const n = new Set(s)
-    if (n.has(guid)) n.delete(guid); else n.add(guid)
-    return n
-  })
 
   return (
+    <div className="stacked">
     <div className="workbench">
       <aside className="wb-side">
         <h3>Translate names</h3>
@@ -67,42 +65,39 @@ export default function TranslateTab({ org }: { org: Organizer }) {
           )
           : <p className="hint-sm">Run an analysis to detect the language.</p>}
 
-        <p className="hint-sm">Missing a word? Add it in the <b>Rules</b> tab’s
-          translations, then re-open this tab.</p>
+        <p className="hint-sm">Missing a word? Add it to the <code>translations</code>
+          in config.json, then re-open this tab.</p>
       </aside>
 
       <Workbench
-        title="Translation preview" count={accepted.size} loading={previewing}
-        empty={`No names to translate into ${LANG_LABEL[translateTarget]}. 🎉`}
+        title="Translation preview" count={translation?.count ?? 0} loading={previewing}
+        empty={`Every name is already ${LANG_LABEL[translateTarget]} 🎉`}
         applyLabel="Process all" onApply={org.applyTranslate} busy={busy}
         progress={org.progress}
-        note={translation?.count
-          ? `${translation.count} translatable${accepted.size !== rows.length ? ` · ${rows.length - accepted.size} skipped` : ''}.`
-          : null}
+        note={translation?.applied != null ? `${translation.applied} applied (undoable).` : null}
       >
         <div className="rename-list">
-          {rows.slice(0, 400).map((d) => {
-            const on = accepted.has(d.guid)
-            return (
-              <div className={'rename-row' + (on ? '' : ' row-off')} key={d.guid}>
-                {d.lang && d.lang !== 'unknown'
-                  ? <span className="rule-tag">{d.lang.toUpperCase()}</span>
-                  : <span className="rule-tag rt-casing">?</span>}
-                <span className="rn-old" title={d.old}>{d.old}</span>
-                <span className="rn-arrow">→</span>
-                <span className="rn-new"
-                  title={(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ') || d.new}>{d.new}</span>
-                <span className="rn-actions">
-                  <button className="rn-ok" title="Accept — translate now (undoable)"
-                    onClick={() => org.applyTranslateOne(d.guid, d.old)} disabled={busy}>✓</button>
-                  <button className="rn-no" title={on ? 'Skip — leave out of "Process all"' : 'Skipped — click to include again'}
-                    onClick={() => toggle(d.guid)} disabled={busy}>{on ? '✕' : '↺'}</button>
-                </span>
-              </div>
-            )
-          })}
+          {rows.slice(0, 400).map((d) => (
+            <SuggestionRow key={d.guid} busy={busy}
+              applyTitle="Apply — translate now (undoable)"
+              onApply={() => org.applyTranslateOne(d.guid, d.old)}
+              onAcceptAsIs={() => org.keep('translate', d.old)}
+            >
+              {d.lang && d.lang !== 'unknown'
+                ? <span className="rule-tag">{d.lang.toUpperCase()}</span>
+                : <span className="rule-tag rt-casing">?</span>}
+              <span className="rn-old" title={d.old}>{d.old}</span>
+              <span className="rn-arrow">→</span>
+              <span className="rn-new"
+                title={(d.words || []).map((w) => `${w[0]}→${w[1]}`).join(', ') || d.new}>{d.new}</span>
+            </SuggestionRow>
+          ))}
         </div>
       </Workbench>
+    </div>
+
+    <AcceptedSection items={Array.from(keeps.translate)}
+      onRestore={(nm) => org.unkeep('translate', nm)} />
     </div>
   )
 }

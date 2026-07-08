@@ -6,6 +6,7 @@ import os
 import c4d
 
 from .. import config as cfgmod
+from ..core import keeps as keepsmod
 from ..core import ops, pipeline
 from ..core.analyzer import SceneAnalyzer
 from ..naming import detect as detectmod
@@ -346,8 +347,10 @@ def _convention(settings: dict, cfg) -> NamingConvention:
     pad = int(settings.get("number_pad", cfg.convention.number_pad))
     apply_numbering = bool(settings.get("apply_numbering", True))
     apply_casing = bool(settings.get("apply_casing", True))
+    keep_separators = bool(settings.get("keep_separators", False))
     return NamingConvention(style=Casing(casing), language=None, number_pad=pad,
-                            apply_numbering=apply_numbering, apply_casing=apply_casing)
+                            apply_numbering=apply_numbering, apply_casing=apply_casing,
+                            keep_separators=keep_separators)
 
 
 def _scope(settings: dict, adapter: SceneAdapter):
@@ -755,21 +758,22 @@ def handle(payload: dict) -> dict:
         _write_changes([])
         return {"ok": True}
 
-    if op == "set_accepted_unused":
-        names = sorted({str(n) for n in (payload.get("names") or [])})
+    if op in ("set_keeps", "set_keep_names", "set_accepted_unused"):
+        # One "accepted as-is" list per section; the legacy ops are aliases.
+        section = {"set_keep_names": "naming",
+                   "set_accepted_unused": "materials"}.get(
+            op, str(payload.get("section", "")))
+        keys = payload.get("keys", payload.get("names"))
         merged = cfgmod.migrate_config(_read_config_data())
-        merged["accepted_unused"] = names
+        try:
+            merged["keeps"] = keepsmod.set_section_keeps(
+                merged.get("keeps"), section, keys or [])
+        except ValueError as ex:
+            return {"error": str(ex)}
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(merged, f, indent=2, ensure_ascii=False)
-        return {"ok": True, "accepted_unused": names}
-
-    if op == "set_keep_names":
-        names = sorted({str(n) for n in (payload.get("names") or [])})
-        merged = cfgmod.migrate_config(_read_config_data())
-        merged["keep_names"] = names
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2, ensure_ascii=False)
-        return {"ok": True, "keep_names": names}
+        return {"ok": True, "section": section,
+                "keys": merged["keeps"][section]}
 
     if op == "detect":
         tree = SceneAdapter(doc).build_tree()
@@ -812,7 +816,7 @@ def handle(payload: dict) -> dict:
                                    dedupe=dedupe)
         diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name,
                  "rules": r.rules} for r in renames]
-        keep_names = sorted(cfg.keep_names)
+        kept = sorted(cfg.kept("naming"))
         if op == "apply_naming":
             # Optional per-row accept: apply only the guids the user ticked.
             accepted = payload.get("guids")
@@ -822,9 +826,9 @@ def handle(payload: dict) -> dict:
             _record_change("naming", "%d renamed" % applied,
                            adapter.last_changes, doc_name=doc.GetDocumentName())
             return {"ok": True, "applied": applied, "count": len(chosen),
-                    "diff": diff, "keep_names": keep_names}
+                    "diff": diff, "kept": kept, "keep_names": kept}
         return {"ok": True, "count": len(renames), "diff": diff,
-                "keep_names": keep_names}
+                "kept": kept, "keep_names": kept}
 
     if op in ("plan_structure", "apply_structure"):
         adapter = SceneAdapter(doc)
@@ -834,19 +838,26 @@ def handle(payload: dict) -> dict:
         tidy = bool(settings.get("tidy", True))
         reparents = ops.plan_reparents(tree, cfg.standard, scope=scope,
                                        safe_only=safe, tidy=tidy)
+        reparents, kept = keepsmod.filter_kept(
+            reparents, cfg.kept("structure"), key=lambda r: r.name)
         report = cfg.standard.evaluate(tree)
         in_scope = [f for f in report.misplaced if scope is None or f.guid in scope]
-        skipped = len(in_scope) - len(reparents)
+        skipped = max(0, len(in_scope) - len(reparents) - len(kept))
         diff = [{"guid": r.guid, "name": r.name, "from": r.from_group, "to": r.to_group}
                 for r in reparents]
         if op == "apply_structure":
+            # Optional per-row accept: apply only the guids the user ticked.
+            accepted = payload.get("guids")
+            chosen = (reparents if accepted is None else
+                      [r for r in reparents if r.guid in set(accepted)])
             applied = adapter.apply_reparents(
-                reparents, canonical=cfg.standard.canonical_group)
+                chosen, canonical=cfg.standard.canonical_group)
             _record_change("structure", "%d moved" % applied,
                            adapter.last_changes, doc_name=doc.GetDocumentName())
-            return {"ok": True, "applied": applied, "count": len(reparents),
-                    "diff": diff, "skipped": skipped}
-        return {"ok": True, "count": len(reparents), "diff": diff, "skipped": skipped}
+            return {"ok": True, "applied": applied, "count": len(chosen),
+                    "diff": diff, "skipped": skipped, "kept": kept}
+        return {"ok": True, "count": len(reparents), "diff": diff,
+                "skipped": skipped, "kept": kept}
 
     if op in ("plan_translate", "apply_translate"):
         adapter = SceneAdapter(doc)
@@ -885,9 +896,13 @@ def handle(payload: dict) -> dict:
         else:
             props = translatemod.plan_translations(
                 tree, scope=scope, target=target)
+        props, kept = keepsmod.filter_kept(
+            props, cfg.kept("translate"), key=lambda p: p.old)
         if op == "apply_translate":
-            accepted = set(payload.get("guids") or [])
-            chosen = [p for p in props if p.guid in accepted]
+            # Optional per-row accept (missing key = apply everything).
+            accepted = payload.get("guids")
+            chosen = (props if accepted is None else
+                      [p for p in props if p.guid in set(accepted)])
             renames = [ops.RenameOp(node=p.node, new_name=p.new) for p in chosen]
             applied = adapter.apply_renames(renames)
             _record_change("translate", "%d translated" % applied,
@@ -896,7 +911,7 @@ def handle(payload: dict) -> dict:
         diff = [{"guid": p.guid, "old": p.old, "new": p.new,
                  "words": p.words, "lang": p.lang} for p in props]
         detected = translatemod.detect_languages(tree, scope=scope).to_dict()
-        return {"ok": True, "count": len(props), "diff": diff,
+        return {"ok": True, "count": len(props), "diff": diff, "kept": kept,
                 "target": target, "detected": detected, "engine": engine}
 
     if op in ("plan_layers", "apply_layers"):
@@ -905,6 +920,8 @@ def handle(payload: dict) -> dict:
         tree = adapter.build_tree()
         scope = _scope(settings, adapter)
         layerops = ops.plan_layers(tree, scope=scope)
+        layerops, kept = keepsmod.filter_kept(
+            layerops, cfg.kept("layers"), key=lambda o: o.name)
         by_layer = dict(collections.Counter(o.layer for o in layerops))
         diff = [{"guid": o.guid, "name": o.name, "layer": o.layer} for o in layerops]
         if op == "apply_layers":
@@ -917,7 +934,37 @@ def handle(payload: dict) -> dict:
             _record_change("layers", "%d assigned to layers" % applied,
                            adapter.last_changes, doc_name=doc.GetDocumentName())
             return {"ok": True, "applied": applied, "count": len(chosen),
-                    "diff": diff, "by_layer": by_layer}
-        return {"ok": True, "count": len(layerops), "diff": diff, "by_layer": by_layer}
+                    "diff": diff, "by_layer": by_layer, "kept": kept}
+        return {"ok": True, "count": len(layerops), "diff": diff,
+                "by_layer": by_layer, "kept": kept}
+
+    if op in ("assign_layer", "move_to_group"):
+        # Direct batch actions from the asset browser: the user picked the
+        # objects and the target explicitly, so no plan/safety filter runs.
+        adapter = SceneAdapter(doc)
+        tree = adapter.build_tree()
+        key = "layer" if op == "assign_layer" else "group"
+        target = str(payload.get(key) or "").strip()
+        if not target:
+            return {"error": "missing %s name" % key}
+        guids = payload.get("guids") or []
+        nodes = [n for n in (tree.find(g) for g in guids) if n is not None]
+        if not nodes:
+            return {"error": "no matching objects"}
+        if op == "assign_layer":
+            applied = adapter.apply_layers(
+                [ops.LayerOp(node=n, layer=target) for n in nodes])
+            _record_change("layers", "%d assigned to layer %s" % (applied, target),
+                           adapter.last_changes, doc_name=doc.GetDocumentName())
+            return {"ok": True, "applied": applied, "layer": target}
+        reparents = [
+            ops.ReparentOp(node=n, to_group=target,
+                           from_group=n.parent.name if n.parent else "")
+            for n in nodes]
+        applied = adapter.apply_reparents(
+            reparents, canonical=cfg.standard.canonical_group)
+        _record_change("structure", "%d moved to %s" % (applied, target),
+                       adapter.last_changes, doc_name=doc.GetDocumentName())
+        return {"ok": True, "applied": applied, "group": target}
 
     return {"error": "unknown op: %s" % op}

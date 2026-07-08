@@ -105,9 +105,9 @@ V1_CONFIG = {
 }
 
 
-def test_migrate_v1_to_v2():
+def test_migrate_v1_to_current():
     out = migrate_config(V1_CONFIG)
-    assert out["schema"] == 2
+    assert out["schema"] == 3
     assert "prefixes" not in out and "groups" not in out
     prefix_rules = [r for r in out["rules"] if r["type"] == "prefix"]
     assert {r["prefix"] for r in prefix_rules} == {"LGT_", "CAM_"}

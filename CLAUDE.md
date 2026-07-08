@@ -29,13 +29,15 @@ src/
   scene_organizer.pyp     Loader. Registers the plugins; hot-reload purges all
                           sceneorg modules EXCEPT sceneorg.bridge on each dialog call.
   sceneorg/
-    config.py             config.json schema 2 (migrate_config reads v1 forever)
+    config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
+                          per-section "accepted as-is" keeps map)
     plugin_entry.py       [c4d] opens the native dialog
     bridge.py             [c4d] HTTP server (BG thread) + main-thread queue + progress
                           state. PROCESS SINGLETON — stays at package root.
     core/
       model.py            SceneNode / SceneTree (pure hierarchy)
       ops.py              plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
+      keeps.py            per-section "accepted as-is" lists (filter_kept/set_section_keeps)
       analyzer.py         SceneTree -> SceneReport (single pass)
       pipeline.py         plan_combined(): rules + naming + structure + layers in one
                           pass (backend of plan_all/apply_all, one-button flow)
@@ -103,9 +105,16 @@ keep the server dialog open). Full API table:
 
 ## What needs a restart?
 
-- Pure `sceneorg` logic / `cinema/dialog.py` / `cinema/webapi.py`: no restart — deploy, click command again.
-- Frontend: `npm run build` + deploy → reload browser.
-- `bridge.py`, `webapi` entry signature, `.pyp`: C4D restart required.
+- Pure `sceneorg` logic / `cinema/dialog.py` / `cinema/webapi.py`: **no restart, no
+  even re-click** — `bridge.drain()` calls `reload_all()` on every API request, which
+  purges all `sceneorg.*` submodules except `bridge` so the next request re-imports the
+  edited source. Just deploy; the next browser action runs fresh code. `POST /api/reload`
+  forces a purge on demand and returns the module count.
+- Frontend: `pnpm run build` + deploy → reload browser. For a fast dev loop use
+  `cd frontend && pnpm run dev` (Vite HMR, proxies `/api → localhost:8787`) — edits are
+  live with no build/deploy; the C4D web server just needs to be running once.
+- `bridge.py`, `webapi` entry signature, `.pyp`: C4D restart required (`bridge` is the
+  process singleton and is deliberately excluded from `reload_all()`).
 
 ## Domain concepts (short)
 

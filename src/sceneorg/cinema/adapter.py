@@ -373,8 +373,16 @@ class SceneAdapter:
         all_names = self._all_material_names()
         refs: list = []
         seen: set = set()
+        # GetAllAssetsNew RETURNS an int status code (GETALLASSETSRESULT) and
+        # fills the assetList argument with dicts -- iterating the return
+        # value is the classic "'int' object is not iterable" crash.
+        assets: list = []
         try:
-            assets = c4d.documents.GetAllAssetsNew(doc, False, "") or []
+            flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
+                            getattr(c4d, "ASSETDATA_FLAG_0", 0))
+            filled: list = []
+            c4d.documents.GetAllAssetsNew(doc, False, "", flags, filled)
+            assets = [a for a in filled if isinstance(a, dict)]
         except Exception:
             assets = []
         for a in assets:

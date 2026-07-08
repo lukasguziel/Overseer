@@ -13,6 +13,16 @@ export interface RulesInfo {
   groups?: { name: string; priority: number }[]
 }
 
+// The five suggestion areas share one "accepted as-is" mechanism: keys the
+// user accepted are persisted per section in config.json and filtered out of
+// plans server-side.
+export type KeepSection = 'naming' | 'translate' | 'layers' | 'structure' | 'materials'
+
+const emptyKeeps = (): Record<KeepSection, Set<string>> => ({
+  naming: new Set(), translate: new Set(), layers: new Set(),
+  structure: new Set(), materials: new Set(),
+})
+
 export function useOrganizer() {
   const [tab, setTab] = useState<TabId>('overview')
   const [scope, setScope] = useState(false)        // false = whole scene, true = selection
@@ -33,6 +43,7 @@ export function useOrganizer() {
 
   const [casing, setCasing] = useState('')   // '' = not chosen yet; auto-detected from the scene
   const [applyCasing, setApplyCasing] = useState(true)        // rule: normalize casing/separators
+  const [keepSeparators, setKeepSeparators] = useState(false) // recase words but keep existing separators (e.g. hyphens)
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
   const [applyNumbering, setApplyNumbering] = useState(true)  // rule: pad/normalize numbers
@@ -76,10 +87,8 @@ export function useOrganizer() {
   const [naming, setNaming] = useState<PlanResult<RenameDiff> | null>(null)
   const [structure, setStructure] = useState<PlanResult<ReparentDiff> | null>(null)
   const [layers, setLayers] = useState<PlanResult<LayerDiff> | null>(null)
-  const [layersAccepted, setLayersAccepted] = useState<Set<number>>(() => new Set())  // guids to tag
   const [translation, setTranslation] = useState<PlanResult<TranslateDiff> | null>(null)
-  const [accepted, setAccepted] = useState<Set<number>>(() => new Set())  // guids for the rename
-  const [keepNames, setKeepNames] = useState<Set<string>>(() => new Set())  // names kept as-is (persisted in config)
+  const [keeps, setKeeps] = useState<Record<KeepSection, Set<string>>>(emptyKeeps)
   const [rules, setRules] = useState<RulesInfo | null>(null)
   const [exported, setExported] = useState('')
   const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -90,6 +99,7 @@ export function useOrganizer() {
   const settings = useCallback((): OrganizerSettings => ({
     casing,
     apply_casing: applyCasing,
+    keep_separators: keepSeparators,
     language: language === 'none' ? null : language,
     number_pad: numberPad,
     apply_numbering: applyNumbering,
@@ -97,7 +107,7 @@ export function useOrganizer() {
     selection: scope,
     safe,
     tidy,
-  }), [casing, applyCasing, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
+  }), [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
 
   async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true); setError(''); setStatus(label + ' …')
@@ -174,27 +184,6 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
   }, [doAnalyze])
 
-  // Accept/un-accept a material as intentionally unused (persisted in config,
-  // improves the materials health score). Source of truth: materials.accepted_all.
-  const syncAccepted = useCallback((next: Set<string>) => {
-    setStatus('Saving…')
-    call('set_accepted_unused', { names: Array.from(next) })
-      .then(() => doAnalyze())
-      .catch((e) => { setError(String(e.message || e)); setStatus('Save ✗') })
-  }, [doAnalyze])
-
-  const acceptUnused = useCallback((name: string) => {
-    const cur = new Set(report?.materials?.accepted_all || [])
-    cur.add(name)
-    syncAccepted(cur)
-  }, [report, syncAccepted])
-
-  const unacceptUnused = useCallback((name: string) => {
-    const cur = new Set(report?.materials?.accepted_all || [])
-    cur.delete(name)
-    syncAccepted(cur)
-  }, [report, syncAccepted])
-
   const doFixTexturesRelative = useCallback((materials?: string[]) => {
     setStatus('Making texture paths relative…')
     call('fix_textures_relative', materials ? { materials } : {})
@@ -207,6 +196,49 @@ export function useOrganizer() {
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Fix ✗') })
   }, [doAnalyze])
+
+  // Asset browser batch actions: explicit guids + explicit target, no plan.
+  const doAssignLayer = (guids: number[], layer: string) => run('Assign layer', async () => {
+    const r = await call('assign_layer', { guids, layer })
+    setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → layer “${layer}” ✓ (undoable)`)
+    doAnalyze()
+  })
+
+  const doMoveToGroup = (guids: number[], group: string) => run('Move to group', async () => {
+    const r = await call('move_to_group', { guids, group })
+    setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → group “${group}” ✓ (undoable)`)
+    doAnalyze()
+  })
+
+  // Remember the server-filtered keep list a plan reported for a section.
+  const noteKept = useCallback((section: KeepSection, kept?: string[]) => {
+    if (kept) setKeeps((k) => ({ ...k, [section]: new Set(kept) }))
+  }, [])
+
+  const reloadNaming = useCallback(async () => {
+    const r = await call('plan_naming', { settings: settings() })
+    setNaming(r)
+    noteKept('naming', r.kept)
+  }, [settings, noteKept])
+
+  const reloadStructure = useCallback(async () => {
+    const r = await call('plan_structure', { settings: settings() })
+    setStructure(r)
+    noteKept('structure', r.kept)
+  }, [settings, noteKept])
+
+  const reloadLayers = useCallback(async () => {
+    const r = await call('plan_layers', { settings: settings() })
+    setLayers(r)
+    noteKept('layers', r.kept)
+  }, [settings, noteKept])
+
+  const reloadTranslate = useCallback(async () => {
+    const p = await call('plan_translate', {
+      settings: settings(), target: translateTarget, engine: translateEngine })
+    setTranslation(p)
+    noteKept('translate', p.kept)
+  }, [settings, translateTarget, translateEngine, noteKept])
 
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
@@ -222,15 +254,15 @@ export function useOrganizer() {
     const r = await call('apply_structure', { settings: settings() })
     setStructure(r); doAnalyze()
   })
-  const reloadLayers = useCallback(async () => {
-    const r = await call('plan_layers', { settings: settings() })
-    setLayers(r)
-    setLayersAccepted(new Set((r.diff || []).map((d: LayerDiff) => d.guid)))
-  }, [settings])
+  // Move a single object into its group immediately (per-row ✓).
+  const applyStructureOne = (guid: number, name?: string) => run('Move', async () => {
+    const r = await call('apply_structure', { settings: settings(), guids: [guid] })
+    setStatus(r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved')
+    doAnalyze()
+  })
 
   const applyLayers = () => run('Apply layers', async () => {
-    const r = await call('apply_layers', {
-      settings: settings(), guids: Array.from(layersAccepted) })
+    const r = await call('apply_layers', { settings: settings() })
     setStatus(`${r.applied} objects tagged ✓ (undoable)`)
     doAnalyze()
     await reloadLayers()  // tagged rows drop out of the preview
@@ -243,17 +275,10 @@ export function useOrganizer() {
     doAnalyze()
     await reloadLayers()
   })
-  const reloadTranslate = useCallback(async () => {
-    const p = await call('plan_translate', {
-      settings: settings(), target: translateTarget, engine: translateEngine })
-    setTranslation(p)
-    setAccepted(new Set((p.diff || []).map((d: TranslateDiff) => d.guid)))
-  }, [settings, translateTarget, translateEngine])
 
   const applyTranslate = () => run('Apply translations', async () => {
-    const guids = Array.from(accepted)
     const r = await call('apply_translate', {
-      settings: settings(), target: translateTarget, engine: translateEngine, guids })
+      settings: settings(), target: translateTarget, engine: translateEngine })
     setStatus(`Translated ${r.applied} names ✓ (undoable)`)
     doAnalyze()
     await reloadTranslate()  // the just-renamed ones drop out
@@ -267,6 +292,28 @@ export function useOrganizer() {
     doAnalyze()
     await reloadTranslate()
   })
+
+  // Accept-as-is: persist the section's keep list, then re-plan so counts,
+  // rows and the Accepted section stay in sync everywhere.
+  const syncKeeps = useCallback(async (section: KeepSection, next: Set<string>) => {
+    setKeeps((k) => ({ ...k, [section]: next }))
+    await call('set_keeps', { section, keys: Array.from(next) })
+    if (section === 'materials') { doAnalyze(); return }
+    if (section === 'naming') await reloadNaming()
+    else if (section === 'translate') await reloadTranslate()
+    else if (section === 'layers') await reloadLayers()
+    else await reloadStructure()
+  }, [doAnalyze, reloadNaming, reloadTranslate, reloadLayers, reloadStructure])
+
+  const keep = useCallback((section: KeepSection, key: string) => {
+    const next = new Set(keeps[section]); next.add(key)
+    syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
+  }, [keeps, syncKeeps])
+
+  const unkeep = useCallback((section: KeepSection, key: string) => {
+    const next = new Set(keeps[section]); next.delete(key)
+    syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
+  }, [keeps, syncKeeps])
 
   const applyPreset = (id: string) => run('Apply preset', async () => {
     const r = await call('apply_preset', { id })
@@ -341,37 +388,16 @@ export function useOrganizer() {
   }
 
   usePreview('naming', 350, async () => {
-    const r = await call('plan_naming', { settings: settings() })
-    setNaming(r)
-    if (r.keep_names) setKeepNames(new Set(r.keep_names))
-  }, [casing, applyCasing, language, numberPad, applyNumbering, dedupe, scope, settings, sceneVersion])
-
-  // Persist the keep-list to config.json, then re-plan so the score/count sync.
-  const syncKeep = useCallback(async (next: Set<string>) => {
-    setKeepNames(next)
-    await call('set_keep_names', { names: Array.from(next) })
-    const r = await call('plan_naming', { settings: settings() })
-    setNaming(r)
-  }, [settings])
-
-  const keepName = useCallback((name: string) => {
-    const next = new Set(keepNames); next.add(name)
-    syncKeep(next).catch((e) => setError(String(e.message || e)))
-  }, [keepNames, syncKeep])
-
-  const unkeepName = useCallback((name: string) => {
-    const next = new Set(keepNames); next.delete(name)
-    syncKeep(next).catch((e) => setError(String(e.message || e)))
-  }, [keepNames, syncKeep])
+    await reloadNaming()
+  }, [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion])
 
   usePreview('structure', 350, async () => {
-    const [r, rl] = await Promise.all([
-      call('plan_structure', { settings: settings() }),
+    const [, rl] = await Promise.all([
+      reloadStructure(),
       rules ? Promise.resolve(null) : call('rules'),
     ])
-    setStructure(r)
     if (rl) setRules(rl)
-  }, [safe, scope, settings, rules, sceneVersion])
+  }, [safe, tidy, scope, settings, rules, reloadStructure, sceneVersion])
 
   usePreview('translate', 300, async () => {
     await reloadTranslate()
@@ -380,6 +406,24 @@ export function useOrganizer() {
   usePreview('layers', 300, async () => {
     await reloadLayers()
   }, [scope, settings, reloadLayers, sceneVersion])
+
+  // Materials keeps live in the analyze report (accepted_all), not a plan.
+  useEffect(() => {
+    noteKept('materials', report?.materials?.accepted_all)
+  }, [report, noteKept])
+
+  // Uniform todo count per area for the tab-header badges: live plan count
+  // once the tab was previewed, report-derived fallback before that.
+  const planCount = useCallback((t: TabId): number | undefined => {
+    switch (t) {
+      case 'naming': return naming?.count
+      case 'translate': return translation?.count
+      case 'layers': return layers?.count ?? report?.layers_report?.no_layer
+      case 'structure': return structure?.count ?? report?.misplaced?.length
+      case 'materials': return report?.materials?.unused?.length
+      default: return undefined
+    }
+  }, [naming, translation, layers, structure, report])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
@@ -421,21 +465,21 @@ export function useOrganizer() {
     tab, setTab, scope, setScope: chooseScope, includeHidden, setIncludeHidden,
     autoRefresh, setAutoRefresh, sel, selStale,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
-    applyCasing, setApplyCasing,
+    applyCasing, setApplyCasing, keepSeparators, setKeepSeparators,
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
-    naming, structure, layers, translation, accepted, setAccepted,
-    layersAccepted, setLayersAccepted,
-    keepNames, keepName, unkeepName,
+    naming, structure, layers, translation,
+    keeps, keep, unkeep, planCount,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
+    doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative,
-    acceptUnused, unacceptUnused,
-    applyNaming, applyNamingOne, applyStructure, applyLayers, applyLayerOne,
+    applyNaming, applyNamingOne, applyStructure, applyStructureOne,
+    applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,
   }
 }

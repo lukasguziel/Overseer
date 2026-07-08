@@ -23,6 +23,8 @@ mit JSON-Body; `webapi.py` wird pro Request hot-reloaded.
 | `plan_translate` | `{}` | nicht-englische Namen `{guid,old,new,words}` |
 | `apply_translate` | `{"guids":[…]}` | wendet NUR die akzeptierten guids an |
 | `plan_layers` / `apply_layers` | `{}` | Layer-Zuordnung + `by_layer`-Counter |
+| `assign_layer` | `{"guids":[…],"layer":"Deko"}` | gewählte Objekte auf benannten Layer (wird angelegt) |
+| `move_to_group` | `{"guids":[…],"group":"Furniture"}` | gewählte Objekte unter benanntes Null (wird angelegt) |
 | `focus` | `{"guid": 108}` | selektiert + framt Objekt im Viewport |
 | `delete_material` / `delete_unused_materials` | `{"name":…}` / `{}` | Material-Aufraeumen |
 

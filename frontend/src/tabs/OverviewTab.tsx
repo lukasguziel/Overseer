@@ -8,6 +8,16 @@ import Strip from '../components/Strip'
 import Treemap from '../components/Treemap'
 import Ring, { type Tone } from '../components/Ring'
 import AssetTable from '../components/AssetTable'
+import EmptyState from '../components/EmptyState'
+
+// The guided flow, in the order that makes sense for a scene cleanup.
+const FLOW = [
+  { tab: 'naming', label: 'Normalize names' },
+  { tab: 'translate', label: 'Translate names' },
+  { tab: 'structure', label: 'Group objects' },
+  { tab: 'layers', label: 'Tag layers' },
+  { tab: 'materials', label: 'Clean materials' },
+] as const
 
 export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, detectInfo, compliance, busy, history } = org
@@ -17,12 +27,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     [report])
 
   if (!report || compliance == null) {
-    return (
-      <div className="empty-state">
-        <p>No scene loaded yet.</p>
-        <button onClick={org.doAnalyze} disabled={busy}>Analyze scene</button>
-      </div>
-    )
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
   const toneOf = (pct: number): Tone => pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'low'
@@ -91,11 +96,36 @@ export default function OverviewTab({ org }: { org: Organizer }) {
       {/* Composition strip: scene makeup at a glance */}
       <Strip data={report.categories} colorFn={(k) => catColor(k)} />
 
+      {/* Guided workflow: the cleanup steps in order, with live todo counts.
+          ✓ = that area is clean, amber badge = open todos, no marker = not
+          previewed yet (open the step to find out). */}
+      <section className="card">
+        <div className="card-head">
+          <h3>Cleanup workflow</h3>
+          <span className="card-hint">work the steps left to right — each one is previewed before anything changes</span>
+        </div>
+        <div className="flow">
+          {FLOW.map((s, i) => {
+            const count = org.planCount(s.tab)
+            return (
+              <button key={s.tab} className="flow-step" onClick={() => org.setTab(s.tab)}
+                title={count == null ? `Open ${s.label} to preview` : count > 0 ? `${count} open todo${count === 1 ? '' : 's'}` : 'All clean'}>
+                <span className="flow-num">{i + 1}</span>
+                {s.label}
+                {count != null && (count > 0
+                  ? <span className="badge">{count}</span>
+                  : <span className="done">✓</span>)}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       {/* Hero: Poly-Treemap */}
       <section className="card">
         <div className="card-head">
           <h3>Geometry map — polygons by object</h3>
-          <span className="dim" style={{ fontSize: 11 }}>click a tile to select &amp; frame</span>
+          <span className="card-hint">click a tile to select &amp; frame</span>
         </div>
         <Treemap nodes={report.nodes || []} onFocus={org.doFocus} />
       </section>
