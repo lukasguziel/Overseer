@@ -802,6 +802,12 @@ def handle(payload: dict) -> dict:
         ok = adapter.focus(payload.get("guid"))
         return {"ok": ok}
 
+    if op == "material_previews":
+        adapter = SceneAdapter(doc)
+        size = int(payload.get("size") or 48)
+        previews = adapter.material_previews(payload.get("names"), size=size)
+        return {"ok": True, "previews": previews}
+
     if op == "delete_material":
         adapter = SceneAdapter(doc)
         name = payload.get("name", "")
