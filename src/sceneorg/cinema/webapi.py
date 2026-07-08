@@ -64,8 +64,30 @@ if DATA_DIR != PLUGIN_DIR:
         except OSError:
             pass
 
-EXPORT_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_report.json"
-EXPORT_CSV_PATH = r"C:\Users\lukas\code\cinema4d\scene-organizer\scene_structure.csv"
+def _export_dir() -> str:
+    """Directory the scene_report.json/CSV mirror is written to, so Claude's
+    skills can read the scene without c4d. Resolution order:
+      1. SCENEORG_EXPORT_DIR environment variable
+      2. dev_repo.txt in the plugin dir (repo root, stamped by deploy.ps1)
+      3. DATA_DIR (per-user prefs) as the machine-neutral fallback
+    """
+    env = os.environ.get("SCENEORG_EXPORT_DIR")
+    if env and os.path.isdir(env):
+        return env
+    try:
+        stamp = os.path.join(PLUGIN_DIR, "dev_repo.txt")
+        if os.path.isfile(stamp):
+            with open(stamp, encoding="utf-8") as f:
+                repo = f.read().strip()
+            if repo and os.path.isdir(repo):
+                return repo
+    except OSError:
+        pass
+    return DATA_DIR
+
+
+EXPORT_PATH = os.path.join(_export_dir(), "scene_report.json")
+EXPORT_CSV_PATH = os.path.join(_export_dir(), "scene_structure.csv")
 HISTORY_PATH = os.path.join(DATA_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
