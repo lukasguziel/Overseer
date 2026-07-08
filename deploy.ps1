@@ -103,11 +103,7 @@ if (Test-Path $planSrc) {
 # Mirror web bundle (Vite build output)
 $webSrc = Join-Path $src "web"
 if (Test-Path $webSrc) {
-  Step "web/" {
-    $webDst = Join-Path $Target "web"
-    if (Test-Path $webDst) { Remove-Item -Recurse -Force $webDst }
-    Copy-Item -Recurse $webSrc $webDst -Force
-  }
+  Step "web/" { Mirror $webSrc (Join-Path $Target "web") }
 } else {
   Write-Output "  WARN: no web/ bundle - run 'npm run build' in frontend/ first."
 }
