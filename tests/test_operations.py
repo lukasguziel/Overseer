@@ -21,8 +21,13 @@ def _node(name="Cube", guid=7):
 
 
 def test_ops_link_back_to_node():
+    # setup
     n = _node("Wuerfel", guid=3)
+
+    # do it
     op = RenameOp(node=n, new_name="Cube")
+
+    # postcondition
     assert op.guid == 3
     assert op.name == "Wuerfel"
     assert op.old_name == "Wuerfel"
@@ -30,6 +35,7 @@ def test_ops_link_back_to_node():
 
 
 def test_ops_apply_polymorphically_through_writer():
+    # setup
     n = _node("Cube", guid=1)
     ops: list[Operation] = [
         RenameOp(node=n, new_name="Box"),
@@ -37,8 +43,12 @@ def test_ops_apply_polymorphically_through_writer():
         LayerOp(node=n, layer="Proxies"),
     ]
     w = RecordingWriter()
+
+    # do it
     for op in ops:
         op.apply(w)
+
+    # postcondition
     assert w.calls == [
         ("rename", "Cube", "Box"),
         ("reparent", "Cube", "Furniture"),
@@ -47,7 +57,10 @@ def test_ops_apply_polymorphically_through_writer():
 
 
 def test_op_to_dict_uses_live_node():
+    # setup
     n = _node("Lamp", guid=9)
+
+    # postcondition
     assert RenameOp(node=n, new_name="KeyLight").to_dict() == {
         "guid": 9, "old": "Lamp", "new": "KeyLight", "rules": ["casing"]}
     assert LayerOp(node=n, layer="Lights").to_dict() == {

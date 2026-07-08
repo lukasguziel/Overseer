@@ -17,15 +17,15 @@ export type TabId =
   | 'structure' | 'layers' | 'materials' | 'rules' | 'misc'
 
 // [id, label, soon?] — `soon` tabs are shown disabled with a "soon" badge.
+// Structure & Rules are parked entirely (code stays, nav entry removed) —
+// re-add them here to bring them back.
 export const TABS: [TabId, string, boolean?][] = [
   ['overview', 'Overview'],
   ['naming', 'Naming'],
   ['translate', 'Translate'],
-  ['assets', 'Assets'],
   ['layers', 'Layers'],
+  ['assets', 'Assets'],
   ['materials', 'Materials'],
-  ['structure', 'Structure', true],
-  ['rules', 'Rules', true],
   ['misc', 'Misc'],
 ]
 

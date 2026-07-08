@@ -138,6 +138,38 @@ export function useOrganizer() {
     call('history').then((h) => setHistory(h.history || [])).catch(() => {})
   }), [scope, includeHidden])
 
+  // Background re-analysis after optimistic per-row actions: refreshes the
+  // report + previews WITHOUT the global busy lock, debounced so a burst of
+  // row clicks causes one refresh. sceneVersion bump re-plans the open tab.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refreshSoon = useCallback((delay = 700) => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(async () => {
+      refreshTimer.current = null
+      try {
+        const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
+        setReport(r.report)
+        lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '', sel: r.report?.sel ?? 0 }
+        setSceneVersion((v) => v + 1)
+      } catch { /* the next manual analyze catches up */ }
+    }, delay)
+  }, [scope, includeHidden])
+
+  // Optimistically remove rows from a section's plan (per-row apply/accept):
+  // the row disappears instantly, the server re-plan follows via refreshSoon.
+  const dropRows = useCallback((section: KeepSection, pred: (d: any) => boolean) => {
+    const update = (p: any) => {
+      if (!p) return p
+      const diff = (p.diff || []).filter((d: any) => !pred(d))
+      const removed = (p.diff || []).length - diff.length
+      return removed ? { ...p, diff, count: Math.max(0, (p.count || 0) - removed) } : p
+    }
+    if (section === 'naming') setNaming(update)
+    else if (section === 'translate') setTranslation(update)
+    else if (section === 'layers') setLayers(update)
+    else if (section === 'structure') setStructure(update)
+  }, [])
+
   const doDetect = () => run('Detect', async () => {
     const r = await call('detect')
     const d: DetectInfo = r.detect
@@ -244,22 +276,27 @@ export function useOrganizer() {
     const r = await call('apply_naming', { settings: settings() })
     setNaming(r); doAnalyze()
   })
-  // Accept a single rename (green ✓ per row).
-  const applyNamingOne = (guid: number, name?: string) => run('Rename', async () => {
-    const r = await call('apply_naming', { settings: settings(), guids: [guid] })
-    setStatus(r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed')
-    doAnalyze()
-  })
+  // Per-row apply: optimistic — the row disappears instantly, the API call
+  // and the report refresh run in the background (no global busy lock).
+  const applyNamingOne = (guid: number, name?: string) => {
+    dropRows('naming', (d) => d.guid === guid)
+    setStatus(`Renaming “${name || ''}”…`)
+    call('apply_naming', { settings: settings(), guids: [guid] })
+      .then((r) => { setStatus(r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed'); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗'); reloadNaming().catch(() => {}) })
+  }
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
     setStructure(r); doAnalyze()
   })
   // Move a single object into its group immediately (per-row ✓).
-  const applyStructureOne = (guid: number, name?: string) => run('Move', async () => {
-    const r = await call('apply_structure', { settings: settings(), guids: [guid] })
-    setStatus(r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved')
-    doAnalyze()
-  })
+  const applyStructureOne = (guid: number, name?: string) => {
+    dropRows('structure', (d) => d.guid === guid)
+    setStatus(`Moving “${name || ''}”…`)
+    call('apply_structure', { settings: settings(), guids: [guid] })
+      .then((r) => { setStatus(r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved'); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Move ✗'); reloadStructure().catch(() => {}) })
+  }
 
   const applyLayers = () => run('Apply layers', async () => {
     const r = await call('apply_layers', { settings: settings() })
@@ -268,13 +305,14 @@ export function useOrganizer() {
     await reloadLayers()  // tagged rows drop out of the preview
   })
 
-  // Tag a single object immediately (per-row ✓).
-  const applyLayerOne = (guid: number, name?: string) => run('Tag', async () => {
-    const r = await call('apply_layers', { settings: settings(), guids: [guid] })
-    setStatus(r.applied ? `Tagged “${name || ''}” ✓ (undoable)` : 'Nothing tagged')
-    doAnalyze()
-    await reloadLayers()
-  })
+  // Tag a single object immediately (per-row ✓, optimistic).
+  const applyLayerOne = (guid: number, name?: string) => {
+    dropRows('layers', (d) => d.guid === guid)
+    setStatus(`Tagging “${name || ''}”…`)
+    call('apply_layers', { settings: settings(), guids: [guid] })
+      .then((r) => { setStatus(r.applied ? `Tagged “${name || ''}” ✓ (undoable)` : 'Nothing tagged'); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Tag ✗'); reloadLayers().catch(() => {}) })
+  }
 
   const applyTranslate = () => run('Apply translations', async () => {
     const r = await call('apply_translate', {
@@ -284,14 +322,15 @@ export function useOrganizer() {
     await reloadTranslate()  // the just-renamed ones drop out
   })
 
-  // Translate a single entry immediately (per-row button).
-  const applyTranslateOne = (guid: number, name?: string) => run('Translate', async () => {
-    const r = await call('apply_translate', {
+  // Translate a single entry immediately (per-row button, optimistic).
+  const applyTranslateOne = (guid: number, name?: string) => {
+    dropRows('translate', (d) => d.guid === guid)
+    setStatus(`Translating “${name || ''}”…`)
+    call('apply_translate', {
       settings: settings(), target: translateTarget, engine: translateEngine, guids: [guid] })
-    setStatus(r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated')
-    doAnalyze()
-    await reloadTranslate()
-  })
+      .then((r) => { setStatus(r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated'); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Translate ✗'); reloadTranslate().catch(() => {}) })
+  }
 
   // Accept-as-is: persist the section's keep list, then re-plan so counts,
   // rows and the Accepted section stay in sync everywhere.
@@ -305,10 +344,25 @@ export function useOrganizer() {
     else await reloadStructure()
   }, [doAnalyze, reloadNaming, reloadTranslate, reloadLayers, reloadStructure])
 
+  // Accept-as-is is optimistic: the rows vanish instantly (the server plan
+  // filters them identically on the next reload), only the config write goes
+  // over the wire. On error the section is re-planned from the server.
   const keep = useCallback((section: KeepSection, key: string) => {
     const next = new Set(keeps[section]); next.add(key)
-    syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
-  }, [keeps, syncKeeps])
+    setKeeps((k) => ({ ...k, [section]: next }))
+    if (section === 'naming' || section === 'translate') {
+      dropRows(section, (d) => d.old === key)
+    } else if (section === 'layers' || section === 'structure') {
+      dropRows(section, (d) => d.name === key)
+    }
+    setStatus(`Accepted “${key}” as-is ✓`)
+    call('set_keeps', { section, keys: Array.from(next) })
+      .then(() => { if (section === 'materials') refreshSoon(200) })
+      .catch((e) => {
+        setError(String(e.message || e)); setStatus('Accept ✗')
+        syncKeeps(section, keeps[section]).catch(() => {})
+      })
+  }, [keeps, dropRows, refreshSoon, syncKeeps])
 
   const unkeep = useCallback((section: KeepSection, key: string) => {
     const next = new Set(keeps[section]); next.delete(key)
@@ -387,11 +441,11 @@ export function useOrganizer() {
     /* eslint-enable react-hooks/rules-of-hooks */
   }
 
-  usePreview('naming', 350, async () => {
+  usePreview('naming', 250, async () => {
     await reloadNaming()
   }, [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion])
 
-  usePreview('structure', 350, async () => {
+  usePreview('structure', 250, async () => {
     const [, rl] = await Promise.all([
       reloadStructure(),
       rules ? Promise.resolve(null) : call('rules'),
@@ -399,11 +453,11 @@ export function useOrganizer() {
     if (rl) setRules(rl)
   }, [safe, tidy, scope, settings, rules, reloadStructure, sceneVersion])
 
-  usePreview('translate', 300, async () => {
+  usePreview('translate', 250, async () => {
     await reloadTranslate()
   }, [scope, settings, translateTarget, translateEngine, reloadTranslate, sceneVersion])
 
-  usePreview('layers', 300, async () => {
+  usePreview('layers', 250, async () => {
     await reloadLayers()
   }, [scope, settings, reloadLayers, sceneVersion])
 

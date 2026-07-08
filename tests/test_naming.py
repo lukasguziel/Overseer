@@ -17,6 +17,7 @@ from sceneorg.naming.casing import Casing
     ("", Casing.EMPTY),
 ])
 def test_detect_casing(name, expected):
+    # postcondition
     assert naming.detect_casing(name) == expected
 
 
@@ -28,6 +29,7 @@ def test_detect_casing(name, expected):
     ("Camera.Main", ["camera", "main"]),
 ])
 def test_tokenize(name, tokens):
+    # postcondition
     assert naming.tokenize(name) == tokens
 
 
@@ -39,14 +41,17 @@ def test_tokenize(name, tokens):
     ("07", "07", None),  # pure number stays unchanged
 ])
 def test_split_trailing_number(name, base, num):
+    # postcondition
     assert naming.split_trailing_number(name) == (base, num)
 
 
 def test_detect_language():
+    # setup
     de = {"stuhl", "licht"}
     en = {"chair", "light"}
+
+    # postcondition
     assert naming.detect_language("Stuhl_01", de, en) == naming.LANG_DE
     assert naming.detect_language("Chair_01", de, en) == naming.LANG_EN
     assert naming.detect_language("XYZ", de, en) == naming.LANG_UNKNOWN
-    # umlaut tips the scale towards German
-    assert naming.detect_language("Küche", de, en) == naming.LANG_DE
+    assert naming.detect_language("Küche", de, en) == naming.LANG_DE  # umlaut tips the scale towards German

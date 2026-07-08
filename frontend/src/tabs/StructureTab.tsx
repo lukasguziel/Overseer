@@ -22,7 +22,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
   return (
     <div className="stacked">
       <div className="workbench">
-        <aside className="wb-side">
+        <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Options</h3>
           <label className="check">
             <input type="checkbox" checked={tidy} onChange={(e) => org.setTidy(e.target.checked)} />

@@ -241,7 +241,7 @@ class ServerDialog(c4d.gui.GeDialog):
         return True
 
     def InitValues(self):
-        self.SetTimer(100)
+        self.SetTimer(25)
         self._load()
         return True
 

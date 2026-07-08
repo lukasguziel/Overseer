@@ -31,11 +31,7 @@ export default function App() {
         <div className="brand">
           <img className="brand-logo" src={logo} alt="" />
           <div className="brand-text">
-            <span className="brand-title">
-              Scene Organizer
-              <a className="donate-heart" href="https://www.buymeacoffee.com/bamerus"
-                target="_blank" rel="noreferrer" title="Donate to support">♥</a>
-            </span>
+            <span className="brand-title">Scene Organizer</span>
             {report && (
               <span className="scene-meta">
                 <span className="scene-name">{report.file || '(scene)'}</span>

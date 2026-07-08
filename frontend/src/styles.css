@@ -132,13 +132,7 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .brand { display: inline-flex; align-items: center; gap: 9px; letter-spacing: -0.01em; }
 .brand-logo { width: 26px; height: 26px; border-radius: 4px; object-fit: contain; display: block; flex: none; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-.brand-title { font-size: 15px; font-weight: 600; white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 7px; }
-/* Small red heart button next to the app title, links to the donate page */
-.donate-heart { display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: 50%; text-decoration: none;
-  font-size: 11px; line-height: 1; background: #e5484d; color: #fff; flex: none; }
-.donate-heart:hover { filter: brightness(1.12); transform: scale(1.08); }
+.brand-title { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .scene-meta { color: var(--dim); font-size: 11px; display: flex; align-items: center; gap: 6px;
   overflow: hidden; }
 .scene-name { color: var(--dim); font-weight: 500; max-width: 320px; overflow: hidden;
@@ -257,6 +251,16 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
 
 /* Small right-aligned hint inside a card head ("click a tile to …") */
 .card-hint { color: var(--dim); font-size: 11px; }
+
+/* Settings sidebar while the preview re-plans: visibly loading but still
+   clickable (no pointer lock — users keep toggling settings). */
+.wb-side { transition: opacity 120ms var(--ease), filter 120ms var(--ease); }
+.side-loading { opacity: .55; filter: saturate(.6); }
+
+/* Git-style inline character diff in rename previews */
+mark.df-del, mark.df-add { border-radius: 3px; padding: 0 1px; color: inherit; }
+mark.df-del { background: rgba(248, 113, 113, .26); }
+mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 
 /* Shared pagination (previews, accepted lists): 25 rows per page */
 .pager { display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -406,12 +410,15 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
 .health-line.ok { color: var(--apply); }
 .health-line.warn { color: var(--warn); }
 
-/* Health tile: big overall ring on top, sub-scores as a mini-ring list below. */
-.health-tile { justify-content: space-between; gap: 8px; }
-.health-main { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.health-main .ring { width: 72px; height: 72px; }
+/* Health tile: big overall ring LEFT, sub-scores as a mini-ring column RIGHT —
+   horizontal, so the tile stays as flat as the stat tiles next to it. */
+.health-tile { display: flex; flex-direction: row; align-items: center;
+  justify-content: space-between; gap: 14px; }
+.health-main { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.health-main .ring { width: 64px; height: 64px; }
 .health-main .ring-text { font-size: 16px; }
-.health-subs { display: flex; flex-direction: column; gap: 3px; }
+.health-subs { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0;
+  justify-content: center; }
 .health-subs .hs { display: flex; align-items: center; gap: 6px; width: 100%;
   background: transparent; border: none; box-shadow: none; cursor: pointer; padding: 0;
   color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }

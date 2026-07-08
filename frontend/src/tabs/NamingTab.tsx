@@ -7,6 +7,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import Pager, { usePager } from '../components/Pager'
+import { DiffOld, DiffNew } from '../components/DiffText'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
 // a count chip you click to reveal them all (a rename can trigger more than
@@ -47,7 +48,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
   return (
     <div className="stacked">
       <div className="workbench">
-        <aside className="wb-side">
+        <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Settings</h3>
           <p className="hint-sm">Toggle the settings to apply — all active by
             default. Each row shows which setting changed it, so you decide.</p>
@@ -129,9 +130,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
                 onAcceptAsIs={() => org.keep('naming', d.old)}
               >
                 <RuleTags rules={d.rules || ['casing']} />
-                <span className="rn-old" title={d.old}>{d.old}</span>
+                <span className="rn-old" title={d.old}><DiffOld oldS={d.old} newS={d.new} /></span>
                 <span className="rn-arrow">→</span>
-                <span className="rn-new" title={d.new}>{d.new}</span>
+                <span className="rn-new" title={d.new}><DiffNew oldS={d.old} newS={d.new} /></span>
               </SuggestionRow>
             ))}
           </div>
