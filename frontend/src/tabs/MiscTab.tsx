@@ -91,7 +91,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head"><h3>Debug</h3></div>
           <p className="hint-sm">
-            The server runs while the “Scene Organizer (Web)” window is open in
+            The server runs while the “Scene Organizer” window is open in
             C4D — closing that window stops it.
           </p>
           <div className="btns">

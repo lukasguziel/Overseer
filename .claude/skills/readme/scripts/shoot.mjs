@@ -18,11 +18,19 @@ const PORT = Number(process.argv[2] || 8899)
 const OUT = join(fileURLToPath(new URL('.', import.meta.url)),
   '..', '..', '..', '..', 'docs', 'screenshots')
 
-// [tab nav label, output file]; Structure/Rules are parked ("soon") -> skipped.
+// [tab nav label, output file, prepare?]; Structure/Rules are parked
+// ("soon") -> skipped. `prepare` runs after the tab is opened, before the
+// shot — e.g. the Translate tab demonstrates English -> French, which needs
+// the Google engine selected (offline only offers EN/DE targets).
 const TABS = [
   ['Overview', 'overview.png'],
   ['Naming', 'naming.png'],
-  ['Translate', 'translate.png'],
+  ['Translate', 'translate.png', async (page) => {
+    const side = page.locator('.wb-side select')
+    await side.nth(1).selectOption('google')   // engine first: unlocks fr
+    await side.nth(0).selectOption('fr')
+    await page.waitForTimeout(800)
+  }],
   ['Assets', 'assets.png'],
   ['Layers', 'layers.png'],
   ['Materials', 'materials.png'],
@@ -50,9 +58,10 @@ await page.waitForSelector('.tabs', { timeout: 15000 })
 // First analyze + auto preview need a beat (350 ms debounce + fetch).
 await page.waitForTimeout(1200)
 
-for (const [label, file] of TABS) {
+for (const [label, file, prepare] of TABS) {
   await page.click(`.tabs button:has-text("${label}")`)
   await page.waitForTimeout(1200)
+  if (prepare) await prepare(page)
   // Hide the transient status toast so shots stay deterministic.
   await page.addStyleTag({ content: '.statusbar { display: none !important; }' })
   await page.screenshot({ path: join(OUT, file) })

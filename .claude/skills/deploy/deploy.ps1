@@ -12,7 +12,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$src = Join-Path $PSScriptRoot "src"
+# Script lives in .claude/skills/deploy/ -- the repo root is three levels up.
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
+$src = Join-Path $repoRoot "src"
 
 if (-not $Target) {
   $cfgPath = Join-Path $PSScriptRoot "deploy.config.json"
