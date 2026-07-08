@@ -40,19 +40,21 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   const mat = report.materials
   const tex = report.textures
 
-  // Materials score: share of materials that are NOT a problem (unused &
-  // not accepted & not only-on-hidden). Accepting an unused material lifts it.
-  const matTotal = mat?.total ?? 0
-  const matProblem = mat?.deletable_count ?? (mat?.unused.length ?? 0)
-  const matScore = matTotal ? Math.round((matTotal - matProblem) / matTotal * 100) : 100
-
-  // Overall health = average of the sub-scores (naming + materials).
-  // Structure is parked with its tab — re-add its entry when it returns.
-  const subScores = [
-    { key: 'naming', label: 'Naming', pct: hyg.namingScore, tab: 'naming' as const },
-    { key: 'materials', label: 'Materials', pct: matScore, tab: 'materials' as const },
+  // Overall health = average of the per-area decision scores (same numbers
+  // as the ring next to the navigation). Translate/Layers need their plan —
+  // the hook preloads both while the Overview is open; until they arrive the
+  // ring shows a placeholder. Structure is parked with its tab.
+  const AREAS = [
+    { key: 'naming', label: 'Naming', tab: 'naming' as const },
+    { key: 'translate', label: 'Translate', tab: 'translate' as const },
+    { key: 'layers', label: 'Layers', tab: 'layers' as const },
+    { key: 'materials', label: 'Materials', tab: 'materials' as const },
   ]
-  const health = Math.round(subScores.reduce((s, x) => s + x.pct, 0) / subScores.length)
+  const subScores = AREAS.map((a) => ({ ...a, pct: org.areaScore(a.tab) }))
+  const known = subScores.filter((s): s is typeof s & { pct: number } => s.pct != null)
+  const health = known.length
+    ? Math.round(known.reduce((s, x) => s + x.pct, 0) / known.length)
+    : 100
   const healthTone = toneOf(health)
 
   // Trends from the analysis history (this file only, chronological).
@@ -86,9 +88,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           <div className="health-subs">
             {subScores.map((s) => (
               <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
-                <Ring pct={s.pct} tone={toneOf(s.pct)} text={false} />
+                <Ring pct={s.pct ?? 0} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
                 <span className="hs-label">{s.label}</span>
-                <span className="hs-pct">{s.pct}%</span>
+                <span className="hs-pct">{s.pct == null ? '…' : `${s.pct}%`}</span>
               </button>
             ))}
           </div>
