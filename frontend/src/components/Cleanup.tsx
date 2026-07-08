@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FocusFn } from './Treemap'
+import Pager, { usePager } from './Pager'
 
 export interface CleanupItem {
   guid: number
@@ -11,6 +12,7 @@ export interface CleanupBucket {
   key: string
   label: string
   items: CleanupItem[]
+  hint?: string          // short "what is this & what to do" line shown when open
 }
 
 // One row: click the name to select & frame in C4D, ✎ opens an inline rename
@@ -65,6 +67,27 @@ function Row({ it, onFocus, onRename, onKeep, busy }: {
   )
 }
 
+// One open bucket's body: hint + rows, paginated 10 per page.
+function BucketBody({ b, onFocus, onRename, onKeep, busy }: {
+  b: CleanupBucket
+  onFocus?: FocusFn
+  onRename?: (guid: number, name: string) => void
+  onKeep?: (name: string) => void
+  busy?: boolean
+}) {
+  const pager = usePager(b.items, 10)
+  if (!b.items.length) return <div className="cl-clean">Clean 🎉</div>
+  return (
+    <div className="cl-items">
+      {pager.rows.map((it) => (
+        <Row key={it.guid} it={it} onFocus={onFocus} onRename={onRename}
+          onKeep={onKeep} busy={busy} />
+      ))}
+      <Pager pager={pager} />
+    </div>
+  )
+}
+
 // Cleanup accordion: compact list of problem groups, one open at a time.
 export default function Cleanup({ buckets, onFocus, onRename, onKeep, busy }: {
   buckets: CleanupBucket[]
@@ -86,15 +109,9 @@ export default function Cleanup({ buckets, onFocus, onRename, onKeep, busy }: {
               <span className="cl-label">{b.label}</span>
               <span className={'cl-count' + (b.items.length ? ' warn' : '')}>{b.items.length}</span>
             </button>
-            {isOpen && (b.items.length
-              ? <div className="cl-items">
-                  {b.items.slice(0, 40).map((it) => (
-                    <Row key={it.guid} it={it} onFocus={onFocus} onRename={onRename}
-                      onKeep={onKeep} busy={busy} />
-                  ))}
-                  {b.items.length > 40 && <div className="fl-more">+{b.items.length - 40} more</div>}
-                </div>
-              : <div className="cl-clean">Clean 🎉</div>)}
+            {isOpen && b.hint && <p className="cl-hint">{b.hint}</p>}
+            {isOpen && <BucketBody b={b} onFocus={onFocus} onRename={onRename}
+              onKeep={onKeep} busy={busy} />}
           </div>
         )
       })}

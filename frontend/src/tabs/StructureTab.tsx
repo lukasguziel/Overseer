@@ -53,7 +53,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
           empty="Everything is already in the right group 🎉"
-          applyLabel="Process all" onApply={org.applyStructure}
+          applyLabel="Apply all" onApply={org.applyStructure}
           onAcceptAll={() => org.keepAll('structure')} busy={busy}
           progress={org.progress}
           note={

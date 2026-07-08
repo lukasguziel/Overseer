@@ -158,7 +158,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <Workbench
               title="Unused materials" count={deletable} loading={busy}
               empty="Every material is in use 🎉"
-              applyLabel={bulkConfirm ? `Really delete ${deletable}?` : 'Process all'}
+              applyLabel={bulkConfirm ? `Really delete ${deletable}?` : 'Delete all'}
               onApply={() => {
                 if (bulkConfirm) { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }
                 else setBulkConfirm(true)

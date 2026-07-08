@@ -82,7 +82,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
       <Workbench
         title="Translation preview" count={translation?.count ?? 0} loading={previewing}
         empty={`Every name is already ${LANG_LABEL[translateTarget]} 🎉`}
-        applyLabel="Process all" onApply={org.applyTranslate}
+        applyLabel="Apply all" onApply={org.applyTranslate}
         onAcceptAll={() => org.keepAll('translate')} busy={busy}
         progress={org.progress}
         note={translation?.applied != null ? `${translation.applied} applied (undoable).` : null}
