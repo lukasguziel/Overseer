@@ -11,7 +11,7 @@ export default function Tile({ value, label, tone, spark, delta, sub }: {
   tone?: string
   spark?: number[]
   delta?: Delta | null
-  sub?: string | null   // small secondary line (e.g. texture size under project size)
+  sub?: string | string[] | null // small secondary line(s) (e.g. texture/external sizes)
 }) {
   return (
     <div className={'tile' + (tone ? ' tile--' + tone : '')}>
@@ -27,7 +27,9 @@ export default function Tile({ value, label, tone, spark, delta, sub }: {
           </span>
         )}
       </div>
-      {sub && <div className="tile-sub">{sub}</div>}
+      {sub && (Array.isArray(sub) ? sub : [sub]).map((s, i) => (
+        <div className="tile-sub" key={i}>{s}</div>
+      ))}
     </div>
   )
 }

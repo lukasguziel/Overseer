@@ -9,6 +9,7 @@ import Treemap from '../components/Treemap'
 import Ring, { type Tone } from '../components/Ring'
 import AssetTable from '../components/AssetTable'
 import EmptyState from '../components/EmptyState'
+import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 
 // The guided flow, in the order that makes sense for a scene cleanup.
@@ -30,6 +31,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
       { casing: org.casing, kept: org.keeps.naming }),
     [report, org.casing, org.keeps.naming])
+  // External files size (Alembic/caches/…) from the shared files scan —
+  // prefetched while the Overview is open.
+  const filesScan = useAuditData<{ summary?: { total_bytes?: number } }>('files_scan')
 
   if (!report || compliance == null) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
@@ -79,7 +83,15 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)} />
         <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)} />
         <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)}
-          sub={tex?.total_bytes ? `+ ${humanBytes(tex.total_bytes)} textures on disk` : null} />
+          sub={(() => {
+            const texB = tex?.total_bytes ?? 0
+            const extB = filesScan?.summary?.total_bytes ?? 0
+            const lines: string[] = []
+            if (texB) lines.push(`+ ${humanBytes(texB)} textures on disk`)
+            if (extB) lines.push(`+ ${humanBytes(extB)} external files (Alembic & caches)`)
+            if (texB || extB) lines.push(`= ${humanBytes((report.file_size || 0) + texB + extB)} total footprint`)
+            return lines.length ? lines : null
+          })()} />
 
         {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
         <div className={'tile health-tile tile--' + healthTone}>
