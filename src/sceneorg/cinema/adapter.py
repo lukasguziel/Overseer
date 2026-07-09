@@ -883,6 +883,65 @@ class SceneAdapter:
         return {"relinked": relinked, "not_found": not_found,
                 "skipped": skipped}
 
+    def set_texture_path(self, raw: str, new_path: str,
+                         material: str | None = None) -> dict:
+        """Rewrite (or blank, new_path='') ONE texture reference identified by
+        its current raw path — optionally narrowed to one material — across
+        every shader holding it. Per-row action from the paths list."""
+        import os
+        doc = self.doc
+        doc_path = doc.GetDocumentPath() or ""
+        filled: list = []
+        try:
+            flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
+                            getattr(c4d, "ASSETDATA_FLAG_0", 0))
+            c4d.documents.GetAllAssetsNew(doc, False, "", flags, filled)
+        except Exception:
+            filled = []
+        targets: list = []
+        seen: set = set()
+        for a in filled:
+            if not isinstance(a, dict):
+                continue
+            owner = a.get("owner")
+            if owner is None or str(a.get("filename") or "") != raw:
+                continue
+            if material and self._owner_material_name(owner) != material:
+                continue
+            if id(owner) in seen:
+                continue
+            seen.add(id(owner))
+            targets.append(owner)
+        if not targets:
+            return {"changed": 0, "skipped": 0, "error": "reference not found"}
+
+        # Prefer a project-relative form when the new file lives under it.
+        write_path = new_path.strip()
+        if write_path and doc_path and os.path.isabs(write_path):
+            try:
+                rp = os.path.relpath(write_path, doc_path)
+                if not rp.startswith(".."):
+                    write_path = rp.replace("\\", "/")
+            except Exception:
+                pass
+
+        changed = skipped = 0
+        doc.StartUndo()
+        for owner in targets:
+            paramid = self._find_path_param(owner, raw)
+            if paramid is None:
+                skipped += 1
+                continue
+            try:
+                doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
+                owner[paramid] = write_path
+                changed += 1
+            except Exception:
+                skipped += 1
+        doc.EndUndo()
+        c4d.EventAdd()
+        return {"changed": changed, "skipped": skipped}
+
     def clear_missing_textures(self) -> dict:
         """Blank the path parameter of every reference whose file is missing —
         the material stays, it just no longer points at a dead file. One

@@ -718,6 +718,7 @@ _OP_LABELS = {
     "collect_textures": "Copying textures into the project",
     "relink_textures": "Relinking missing textures",
     "clear_missing_textures": "Clearing missing texture references",
+    "set_texture_path": "Rewriting texture reference",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
 }
@@ -940,6 +941,39 @@ def _handle(payload: dict) -> dict:
         ok = adapter.focus(payload.get("guid"))
         return {"ok": ok}
 
+    if op == "type_icons":
+        # C4D's own object/tag icons as data URLs, keyed by type id — the
+        # same icons the Object Manager shows. Cached per process.
+        import base64
+        import tempfile
+        cache = _cache_store().setdefault("type_icons", {})
+        tmp = os.path.join(tempfile.gettempdir(), "so_typeicon.png")
+        icons = {}
+        for tid in payload.get("ids") or []:
+            try:
+                tid = int(tid)
+            except (TypeError, ValueError):
+                continue
+            if tid not in cache:
+                data = ""
+                try:
+                    bmp = c4d.bitmaps.InitResourceBitmap(tid)
+                    if bmp is not None and bmp.GetSize()[0] > 0 \
+                            and bmp.Save(tmp, c4d.FILTER_PNG) == c4d.IMAGERESULT_OK:
+                        with open(tmp, "rb") as f:
+                            data = ("data:image/png;base64,"
+                                    + base64.b64encode(f.read()).decode("ascii"))
+                except Exception:
+                    data = ""
+                cache[tid] = data
+            if cache[tid]:
+                icons[str(tid)] = cache[tid]
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return {"ok": True, "icons": icons}
+
     if op == "material_previews":
         # Rendering preview bitmaps is the slowest per-item main-thread job
         # (~0.2s each) — cache them across requests so a preview renders
@@ -1045,6 +1079,20 @@ def _handle(payload: dict) -> dict:
         if res.get("relinked"):
             _record_change("textures_relink",
                            "%d missing texture(s) relinked" % res["relinked"],
+                           [], revertible=False, doc_name=doc.GetDocumentName())
+        return {"ok": True, **res}
+
+    if op == "set_texture_path":
+        adapter = SceneAdapter(doc)
+        res = adapter.set_texture_path(str(payload.get("path") or ""),
+                                       str(payload.get("new_path") or ""),
+                                       material=payload.get("material") or None)
+        if res.get("changed"):
+            what = "cleared" if not (payload.get("new_path") or "").strip() \
+                else "rewritten"
+            _record_change("textures_edit",
+                           "texture reference %s (%s)" % (what,
+                           os.path.basename(str(payload.get("path") or ""))),
                            [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
 

@@ -128,6 +128,31 @@ def _coerce(value, kind):
     return value
 
 
+def _choice_labels(obj, pid) -> dict:
+    """value -> human label for a cycle (dropdown) parameter, read from the
+    object's OWN description — the exact strings C4D shows in the Attribute
+    Manager, no hand-maintained tables."""
+    try:
+        description = obj.GetDescription(c4d.DESCFLAGS_DESC_NONE)
+        for bc, paramid, _group in description:
+            try:
+                if paramid[0].id != pid:
+                    continue
+            except Exception:
+                continue
+            cycle = bc.GetContainerInstance(c4d.DESC_CYCLE)
+            if cycle is None:
+                return {}
+            out = {}
+            for cid, name in cycle:
+                if isinstance(name, str) and name:
+                    out[int(cid)] = name
+            return out
+    except Exception:
+        pass
+    return {}
+
+
 def _objects_by_type(adapter, tree, progress=None):
     resolved = _resolve_registry()
     groups = {}
@@ -171,9 +196,16 @@ def _scan(payload, doc, adapter, tree, progress):
             summary = gens_logic.summarize(entries)
             if not summary["uniform"]:
                 non_uniform_params += 1
+            # Human labels for dropdown values, straight from C4D's own
+            # description (e.g. 2102 -> "Catmull-Clark (N-Gons)").
+            choices = {}
+            if param["kind"] == "choice" and param["id"] is not None and members:
+                labels = _choice_labels(members[0][1], param["id"])
+                choices = {str(k): v for k, v in labels.items()}
             params_out.append({
                 "key": param["key"], "label": param["label"],
                 "kind": param["kind"],
+                "choices": choices,
                 "values": summary["values"],
                 "distribution": summary["distribution"],
                 "uniform": summary["uniform"],
@@ -181,6 +213,7 @@ def _scan(payload, doc, adapter, tree, progress):
                 "outliers": summary["outliers"],
             })
         types_out.append({"key": entry["key"], "label": entry["label"],
+                          "type_id": type_id,
                           "count": len(members), "params": params_out})
 
     types_out.sort(key=lambda t: -t["count"])
