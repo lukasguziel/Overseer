@@ -88,7 +88,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
           )}
           {applyCasing && keepSeparators && (
             <p className="hint-sm" style={{ marginTop: 0 }}>Only word case changes;
-              existing separators (e.g. <code>-</code>) stay. <code>Wand-01_test</code> → <code>WAND-01_TEST</code>.</p>
+              existing separators and special characters stay — <code>-</code>, <code>_</code>,
+              brackets &amp; co. <code>Wand-01_test</code> → <code>WAND-01_TEST</code>,
+              <code>[test]</code> → <code>[TEST]</code>.</p>
           )}
 
           <div className="rule-group-head"><span>Numbering</span></div>
