@@ -266,6 +266,33 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Collect ✗') })
   }, [doAnalyze])
 
+  // Relink missing textures by searching a folder recursively for the file
+  // names; matches are rewritten (project-relative when possible).
+  const doRelinkTextures = useCallback((folder: string) => {
+    setStatus(`Searching “${folder}” for missing textures…`)
+    call('relink_textures', { folder })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(`Relinked ${r.relinked} texture${r.relinked === 1 ? '' : 's'} ✓ (undoable)`
+          + (r.not_found ? ` · ${r.not_found} not found there` : '')
+          + (r.skipped ? ` · ${r.skipped} skipped` : ''))
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Relink ✗') })
+  }, [doAnalyze])
+
+  // Clear dead references: blank the path on shaders whose file is missing.
+  const doClearMissingTextures = useCallback(() => {
+    setStatus('Clearing missing texture references…')
+    call('clear_missing_textures')
+      .then((r) => {
+        setStatus(`Cleared ${r.cleared} missing reference${r.cleared === 1 ? '' : 's'} ✓ (undoable)`
+          + (r.skipped ? ` · ${r.skipped} skipped (parameter not writable)` : ''))
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Clear ✗') })
+  }, [doAnalyze])
+
   // Asset browser batch actions: explicit guids + explicit target, no plan.
   const doAssignLayer = (guids: number[], layer: string) => run('Assign layer', async () => {
     const r = await call('assign_layer', { guids, layer })
@@ -744,6 +771,7 @@ export function useOrganizer() {
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
+    doRelinkTextures, doClearMissingTextures,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,
