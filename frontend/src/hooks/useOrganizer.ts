@@ -770,7 +770,8 @@ export function useOrganizer() {
     if (tab !== 'overview' || !report) return
     if (!naming) reloadNaming().catch(() => {})
     if (!translation) reloadTranslate().catch(() => {})
-    prefetchAudit('tags_scan')  // tags score without visiting the Tags tab
+    prefetchAudit('tags_scan')   // tags score without visiting the Tags tab
+    prefetchAudit('files_scan')  // external-files size for the size tile
   }, [tab, report, naming, translation, reloadNaming, reloadTranslate])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
