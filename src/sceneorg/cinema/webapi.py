@@ -737,18 +737,35 @@ _AUDIT_MODULES = {
 }
 
 
+# Ops that MUTATE the scene. C4D's dirty counter does NOT bump for plain
+# renames (and other light edits), so the scene cache cannot rely on it to
+# notice our own changes — every mutating op explicitly drops the cache.
+_MUTATING_OPS = {
+    "apply_naming", "apply_structure", "apply_layers", "apply_translate",
+    "apply_all", "apply_plan", "rename_object", "revert_change",
+    "assign_layer", "move_to_group",
+    "delete_material", "delete_unused_materials",
+    "fix_textures_relative", "collect_textures", "relink_textures",
+    "clear_missing_textures", "set_texture_path", "pick_texture_path",
+    "tags_add_phong", "tags_set_phong_angle", "tags_delete_duplicates",
+    "gens_apply", "sims_set_enabled", "files_make_relative",
+}
+
+
 def handle(payload: dict) -> dict:
     op = str(payload.get("op") or "")
     label = _OP_LABELS.get(op)
     if label is None and op.split("_", 1)[0] in _AUDIT_MODULES:
         label = "Scanning scene (%s)" % op.split("_", 1)[0]
-    if label is None:  # cheap ops (dirty poll, history, presets, config, …)
-        return _handle(payload)
     try:
-        _progress(label)
+        if label is not None:
+            _progress(label)
         return _handle(payload)
     finally:
-        _clear_progress()
+        if op in _MUTATING_OPS:
+            invalidate_scene_cache()
+        if label is not None:
+            _clear_progress()
 
 
 def _handle(payload: dict) -> dict:
@@ -784,6 +801,10 @@ def _handle(payload: dict) -> dict:
     cfg, data = _load_cfg()
 
     if op in ("analyze", "export", "export_csv"):
+        # An analysis is the explicit "read the scene" action — always read
+        # FRESH. The dirty counter misses light edits (renames done by hand
+        # in C4D), so a cached tree could silently show stale names here.
+        invalidate_scene_cache()
         adapter, tree = _get_scene(doc, "analyzing")
         _progress("Analyzing structure")
         scope = _scope(settings, adapter) if op == "analyze" else None
