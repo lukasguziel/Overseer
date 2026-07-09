@@ -28,10 +28,86 @@ function resTier(e: TextureEntry): string {
 const texDot = (e: TextureEntry): string =>
   e.missing ? 'var(--err)' : 'var(--apply)'
 
-function TexTable({ rows, previews, onFocus }: {
+// One texture row. Missing rows carry their own decision buttons:
+// ✎ set a new path for THIS reference, ✕ clear THIS dead reference.
+function TexRow({ e, thumb, onFocus, onSetPath, onClear }: {
+  e: TextureEntry
+  thumb?: string
+  onFocus: (material: string) => void
+  onSetPath?: (e: TextureEntry, newPath: string) => void
+  onClear?: (e: TextureEntry) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const commit = () => {
+    const v = value.trim()
+    if (v && onSetPath) { onSetPath(e, v); setEditing(false) }
+  }
+  const actionable = e.missing && (onSetPath || onClear)
+  return (
+    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')}
+      title={`${e.resolved || e.path}\nClick to select material “${e.material}” & frame its object`}
+      onClick={() => onFocus(e.material)}>
+      <span className="tex-cell-file">
+        {thumb
+          ? <img className="tex-thumb" src={thumb} alt="" draggable={false} />
+          : <span className="fl-dot" style={{ background: texDot(e) }} />}
+        <span className="tex-cut">{e.file}</span>
+        {!e.used && <span className="tex-badge unused">unused</span>}
+      </span>
+      <span className="tex-cell-path dim" onClick={(ev) => { if (editing) ev.stopPropagation() }}>
+        {editing
+          ? <input className="nl-input" autoFocus placeholder="new file path…"
+              value={value} onChange={(ev) => setValue(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter') commit()
+                else if (ev.key === 'Escape') setEditing(false)
+              }} />
+          : <>
+              <span className="tex-cut">{e.path}</span>
+              {e.missing
+                ? <span className="tex-badge missing">missing</span>
+                : e.relocatable
+                  ? <span className="tex-badge fixable">→ relative</span>
+                  : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
+            </>}
+      </span>
+      <span className="num">
+        {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
+      </span>
+      <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
+      <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
+      <span className="dim tex-cut">{e.material}</span>
+      {actionable && (
+        <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
+          {editing
+            ? <>
+                <button className="rn-ok" disabled={!value.trim()} onClick={commit}
+                  title="Set this reference to the entered file path (undoable)">✓</button>
+                <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
+              </>
+            : <>
+                {onSetPath && (
+                  <button className="rn-ok" title="Set a new file path for this reference"
+                    onClick={() => { setValue(''); setEditing(true) }}>✎</button>
+                )}
+                {onClear && (
+                  <button className="rn-no" title="Clear this dead reference — the material stops pointing at the missing file (undoable)"
+                    onClick={() => onClear(e)}>✕</button>
+                )}
+              </>}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function TexTable({ rows, previews, onFocus, onSetPath, onClear }: {
   rows: TextureEntry[]
   previews: Record<string, string>
   onFocus: (material: string) => void
+  onSetPath?: (e: TextureEntry, newPath: string) => void
+  onClear?: (e: TextureEntry) => void
 }) {
   return (
     <div className="tex-table">
@@ -39,36 +115,11 @@ function TexTable({ rows, previews, onFocus }: {
         <span>File</span><span>Path</span><span className="num">Res</span>
         <span className="num">Pixels</span><span className="num">Size</span><span>Material</span>
       </div>
-      {rows.map((e, i) => {
-        const thumb = previews[e.resolved || e.path]
-        return (
-          <button className="tex-tr tex-click" key={i}
-            title={`${e.resolved || e.path}\nClick to select material “${e.material}” & frame its object`}
-            onClick={() => onFocus(e.material)}>
-            <span className="tex-cell-file">
-              {thumb
-                ? <img className="tex-thumb" src={thumb} alt="" draggable={false} />
-                : <span className="fl-dot" style={{ background: texDot(e) }} />}
-              <span className="tex-cut">{e.file}</span>
-              {!e.used && <span className="tex-badge unused">unused</span>}
-            </span>
-            <span className="tex-cell-path dim">
-              <span className="tex-cut">{e.path}</span>
-              {e.missing
-                ? <span className="tex-badge missing">missing</span>
-                : e.relocatable
-                  ? <span className="tex-badge fixable">→ relative</span>
-                  : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
-            </span>
-            <span className="num">
-              {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
-            </span>
-            <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
-            <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
-            <span className="dim tex-cut">{e.material}</span>
-          </button>
-        )
-      })}
+      {rows.map((e, i) => (
+        <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
+          thumb={previews[e.resolved || e.path]}
+          onFocus={onFocus} onSetPath={onSetPath} onClear={onClear} />
+      ))}
     </div>
   )
 }
@@ -317,17 +368,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               onClick={() => setRelinkConfirm(true)}>
               Relink missing ({missingCount})
             </button>
-            <button className="ghost" disabled={busy || !missingCount}
-              title={missingCount
-                ? 'Blank the dead path on every shader whose file is missing — the material stays, the broken reference goes (undoable)'
-                : 'No missing textures'}
-              onClick={() => setClearConfirm(true)}>
-              Clear missing refs ({missingCount})
-            </button>
             <p className="hint-sm">
               The files themselves are gone — either <b>relink</b> them from a
-              folder that still has them, or <b>clear</b> the dead references
-              so the materials stop pointing at nothing.
+              folder that still has them, or decide per row in the list
+              (✎ set a new path, ✕ clear the dead reference). “Clear all” for
+              the whole list sits top right in the Paths panel.
             </p>
             {tex.doc_path
               ? <p className="example">Project: <code>{tex.doc_path}</code></p>
@@ -341,13 +386,22 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
               </span>
+              {missingCount > 0 && (
+                <button className="wb-accept-all" disabled={busy}
+                  title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
+                  onClick={() => setClearConfirm(true)}>
+                  ✕ Clear {missingCount} missing
+                </button>
+              )}
             </div>
-            <p className="hint-sm wb-hint">Click a row to select its material in Cinema 4D and frame the first object using it.</p>
+            <p className="hint-sm wb-hint">Click a row to select its material in Cinema 4D · missing rows: ✎ set a new path · ✕ clear the dead reference.</p>
             <div className="wb-scroll">
               {pathPager.total
                 ? <>
                     <TexTable rows={pathPager.rows}
-                      previews={texPreviews} onFocus={org.doFocusMaterial} />
+                      previews={texPreviews} onFocus={org.doFocusMaterial}
+                      onSetPath={(e, p) => org.doSetTexturePath(e.path, p, e.material)}
+                      onClear={(e) => org.doSetTexturePath(e.path, '', e.material)} />
                     <Pager pager={pathPager} />
                   </>
                 : <div className="wb-empty">

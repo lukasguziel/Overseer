@@ -281,6 +281,21 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Relink ✗') })
   }, [doAnalyze])
 
+  // Per-row texture reference edit: rewrite (or blank) ONE reference,
+  // identified by its current raw path + owning material.
+  const doSetTexturePath = useCallback((path: string, newPath: string, material?: string) => {
+    setStatus(newPath ? 'Rewriting texture reference…' : 'Clearing texture reference…')
+    call('set_texture_path', { path, new_path: newPath, material })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(newPath
+          ? `Reference → “${newPath}” ✓ (undoable)`
+          : `Reference cleared ✓ (undoable)`)
+        refreshSoon(300)
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Edit ✗') })
+  }, [refreshSoon])
+
   // Clear dead references: blank the path on shaders whose file is missing.
   const doClearMissingTextures = useCallback(() => {
     setStatus('Clearing missing texture references…')
@@ -771,7 +786,7 @@ export function useOrganizer() {
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
-    doRelinkTextures, doClearMissingTextures,
+    doRelinkTextures, doClearMissingTextures, doSetTexturePath,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,

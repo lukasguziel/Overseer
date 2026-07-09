@@ -545,11 +545,15 @@ table.diff td { word-break: break-word; }
 .tex-cell-file { display: flex; align-items: center; gap: 7px; }
 .tex-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
   font-variant-numeric: tabular-nums; }
-button.tex-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
+.tex-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
   color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
   width: 100%; border-radius: 0; }
-button.tex-click:last-child { border-bottom: none; }
-button.tex-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+.tex-click:last-child { border-bottom: none; }
+.tex-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+/* Missing rows carry their own ✎/✕ decision buttons in an extra column. */
+.tex-tr.tex-actionable {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 46px 84px 74px minmax(0, 3fr) auto; }
+.tex-tr .rn-actions { flex: none; }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 
