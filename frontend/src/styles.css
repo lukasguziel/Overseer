@@ -115,6 +115,16 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .cl-head-row .cl-head { flex: 1; min-width: 0; }
 .cl-keepall { flex: none; }
 
+/* Texture-budget rows (overview): name + resolution + est. memory. */
+.tb-row { display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; border: none; box-shadow: none; cursor: pointer;
+  padding: 3px 6px; border-radius: 6px; font-size: 12px; color: inherit;
+  text-align: left; }
+.tb-row:hover { background: var(--panel2); box-shadow: none; }
+.tb-row .fl-name { flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.tb-row .dim { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* Small secondary line under a tile's label (e.g. texture size on disk). */
 .tile-sub { font-size: 10px; color: var(--dim2); margin-top: 2px; }
 
