@@ -27,9 +27,9 @@ export const TABS: [TabId, string, boolean?][] = [
   ['layers', 'Layers'],
   ['materials', 'Materials'],
   ['tags', 'Tags'],
+  ['files', 'Files'],
   ['assets', 'Assets'],
   ['generators', 'Generators'],
-  ['files', 'Files'],
   ['sims', 'Sims'],
   ['misc', 'Misc'],
 ]

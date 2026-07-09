@@ -54,6 +54,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     { key: 'layers', label: 'Layers', tab: 'layers' as const },
     { key: 'materials', label: 'Materials', tab: 'materials' as const },
     { key: 'tags', label: 'Tags', tab: 'tags' as const },
+    { key: 'files', label: 'Files', tab: 'files' as const },
   ]
   const subScores = AREAS.map((a) => ({ ...a, pct: org.areaScore(a.tab) }))
   const known = subScores.filter((s): s is typeof s & { pct: number } => s.pct != null)
