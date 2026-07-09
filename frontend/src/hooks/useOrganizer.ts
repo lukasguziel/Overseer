@@ -702,6 +702,9 @@ export function useOrganizer() {
   const tagsScan = useAuditData<{
     summary?: { missing_phong?: number; duplicate_material_tags?: number }
   }>('tags_scan')
+  const filesScan = useAuditData<{
+    summary?: { total?: number; missing_count?: number }
+  }>('files_scan')
 
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null
@@ -759,10 +762,20 @@ export function useOrganizer() {
         if (!total) return bad ? 0 : 100
         return capped(bad, Math.max(0, total - bad) / total)
       }
+      case 'files': {
+        // Missing external files are the defect; a scene with no external
+        // references at all is trivially clean.
+        const f = filesScan?.summary
+        if (!f) return null
+        const total = f.total || 0
+        if (!total) return 100
+        const bad = f.missing_count || 0
+        return capped(bad, Math.max(0, total - bad) / total)
+      }
       default:
         return null
     }
-  }, [report, namingHyg, naming, translation, keeps.layers, tagsScan])
+  }, [report, namingHyg, naming, translation, keeps.layers, tagsScan, filesScan])
 
   // The Overview shows every area's score: quietly preload the plans it
   // needs (naming for the plan-based score, translate for the counts).
