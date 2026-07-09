@@ -232,7 +232,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{mat.total}</b> total</span>
               <span className={deletable ? 'warn' : ''}><b>{deletable}</b> unused</span>
-              {(mat.only_hidden?.length ?? 0) > 0 && (
+              {org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
                 // Count from the LIST (names can repeat), not the name set.
                 <span><b>{mat.only_hidden?.length}</b> only on hidden</span>
               )}
@@ -265,10 +265,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
               <Pager pager={unusedPager} />
             </Workbench>
-            {/* Only-on-hidden materials OUTSIDE the workbench: they must stay
-                visible even when the deletable list is empty (otherwise the
-                🎉 empty state contradicts the counts). */}
-            {(mat.only_hidden?.length ?? 0) > 0 && (
+            {/* Only-on-hidden materials belong to the ALL-OBJECTS view: with
+                'Visible only' active, hidden usage is out of scope, so these
+                rows disappear along with it. Rendered directly under the
+                unused list (same card) as protected rows. */}
+            {org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
               <div className="rename-list" style={{ marginTop: 10 }}>
                 {(mat.only_hidden || []).map((nm, i) => (
                   <div className="fl-row static mat-row" key={nm + i}>
