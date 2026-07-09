@@ -28,10 +28,15 @@ function SectionHead({ title }: { title: string }) {
   return <div className="misc-sec"><span>{title}</span><hr /></div>
 }
 
+// Presets + scene-hierarchy export are parked for now — flip to bring the
+// "Misc" section back.
+const SHOW_MISC_SECTION = false
+
 export default function MiscTab({ org }: { org: Organizer }) {
   const { presets, activePreset, busy, exported, history, changes } = org
   return (
     <div className="misc misc-grid">
+      {SHOW_MISC_SECTION && (<>
       <SectionHead title="Misc" />
       <div className="ov-cols2">
         <section className="card">
@@ -72,6 +77,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
           {exported && <p className="example" style={{ marginTop: 12 }}>Written: <code>{exported}</code></p>}
         </section>
       </div>
+      </>)}
 
       <SectionHead title="History" />
       <div className="ov-cols2">
