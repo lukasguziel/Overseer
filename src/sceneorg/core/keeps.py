@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
-SECTIONS = ("naming", "translate", "layers", "structure", "materials")
+SECTIONS = ("naming", "translate", "layers", "structure", "materials", "files")
 
 
 def empty_keeps() -> dict:

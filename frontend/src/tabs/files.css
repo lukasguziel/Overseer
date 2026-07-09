@@ -12,11 +12,15 @@
 .fa-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
   font-variant-numeric: tabular-nums; }
 
-button.fa-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
+.fa-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
   color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
   width: 100%; border-radius: 0; }
-button.fa-click:last-child { border-bottom: none; }
-button.fa-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+.fa-click:last-child { border-bottom: none; }
+.fa-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+/* Missing rows carry their own …/= decision buttons in an extra column. */
+.fa-tr.fa-actionable {
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr) auto; }
+.fa-tr .rn-actions { flex: none; }
 
 .fa-kind { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   padding: 1px 6px; border-radius: 6px; flex: none; white-space: nowrap;
