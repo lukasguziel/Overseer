@@ -47,12 +47,10 @@ const KINDS: [string, string][] = [
 const KIND_LABEL: Record<string, string> = Object.fromEntries(
   KINDS.filter(([k]) => k).map(([k, l]) => [k, l]))
 
-// Status dot: a missing file is the worst (err); a present-but-absolute path
-// breaks when the project moves (warn); a relative path is healthy (ok).
+// Status dot: only a MISSING file is a defect (err). Absolute vs relative
+// is a pipeline preference — both count as healthy, the badge tells which.
 function statusColor(e: FileEntry): string {
-  if (e.missing) return 'var(--err)'
-  if (e.absolute) return 'var(--warn)'
-  return 'var(--apply)'
+  return e.missing ? 'var(--err)' : 'var(--apply)'
 }
 
 function FileTable({ rows, onFocus }: {
@@ -82,9 +80,7 @@ function FileTable({ rows, onFocus }: {
               ? <span className="tex-badge missing">missing</span>
               : e.relocatable
                 ? <span className="tex-badge fixable">→ relative</span>
-                : e.absolute
-                  ? <span className="tex-badge unused">absolute</span>
-                  : <span className="tex-badge fixable">relative</span>}
+                : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
           </span>
         </button>
       ))}
@@ -163,7 +159,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           <span className="fa-hi"><b>{s.by_kind.alembic || 0}</b> alembic</span>
           <span><b>{humanBytes(s.total_bytes)}</b> on disk</span>
           <span className={s.missing_count ? 'warn' : ''}><b>{s.missing_count}</b> missing</span>
-          <span className={s.absolute_count ? 'warn' : ''}><b>{s.absolute_count}</b> absolute</span>
+          <span><b>{s.absolute_count}</b> absolute</span>
         </div>
         <div className="tex-filter">
           <span className="tex-filter-label">Kind</span>
