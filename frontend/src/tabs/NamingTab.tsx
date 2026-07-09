@@ -35,7 +35,7 @@ function RuleTags({ rules }: { rules: string[] }) {
 const pad = (n: number, p: number) => (p > 0 ? String(n).padStart(p, '0') : String(n))
 
 export default function NamingTab({ org }: { org: Organizer }) {
-  const { report, casing, applyCasing, keepSeparators, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
+  const { report, casing, applyCasing, keepSeparators, keepSpecials, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
 
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -91,6 +91,24 @@ export default function NamingTab({ org }: { org: Organizer }) {
               existing separators and special characters stay — <code>-</code>, <code>_</code>,
               brackets &amp; co. <code>Wand-01_test</code> → <code>WAND-01_TEST</code>,
               <code>[test]</code> → <code>[TEST]</code>.</p>
+          )}
+          {applyCasing && (
+            <label className="check" title={keepSeparators
+              ? 'Already covered: “Keep separators” keeps every character as-is'
+              : 'Keep special characters like [ ] ( ) * — [test] stays [Test] instead of Test'}>
+              <input type="checkbox"
+                checked={keepSeparators ? true : keepSpecials}
+                disabled={keepSeparators}
+                onChange={(e) => org.setKeepSpecials(e.target.checked)} />
+              Keep special characters
+            </label>
+          )}
+          {applyCasing && !keepSeparators && (
+            <p className="hint-sm" style={{ marginTop: 0 }}>
+              {keepSpecials
+                ? <>Brackets &amp; co. survive full normalization: <code>[test]</code> → <code>[Test]</code>.</>
+                : <>Special characters are stripped: <code>[test]</code> → <code>Test</code>.</>}
+            </p>
           )}
 
           <div className="rule-group-head"><span>Numbering</span></div>

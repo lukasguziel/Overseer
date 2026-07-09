@@ -14,6 +14,11 @@ from . import translations
 _TOKEN_RE = re.compile(r"[A-Za-zÄÖÜäöüß]+"
                        r"|\d+(?:[.,]\d+)*")
 
+# A gap consisting only of these is a plain SEPARATOR (replaced by the
+# target style's separator). Anything else in a gap — brackets, parens,
+# asterisks … — counts as SPECIAL and survives when keep_specials is on.
+_SEP_ONLY_RE = re.compile(r"^[\s._\-]+$")
+
 TARGET_STYLES = (
     naming.Casing.PASCAL,
     naming.Casing.CAMEL,
@@ -58,6 +63,7 @@ class NamingConvention:
         apply_numbering: bool = True,
         apply_casing: bool = True,
         keep_separators: bool = False,
+        keep_specials: bool = True,
     ) -> None:
         if style not in TARGET_STYLES:
             raise ValueError("Unsupported target style: %s" % style)
@@ -76,6 +82,10 @@ class NamingConvention:
         # "Wand-01_test" -> "WAND-01_TEST"). Word-joined names (camel/Pascal)
         # are then left as single tokens -- no synthetic separators invented.
         self.keep_separators = keep_separators
+        # When True (default), special characters that are NOT plain
+        # separators survive full normalization: "[test]" -> "[Test]".
+        # keep_separators=True implies this anyway (everything is kept).
+        self.keep_specials = keep_specials
 
     def _translate_one(self, tok: str) -> str:
         if self.language == naming.LANG_EN:
@@ -149,30 +159,56 @@ class NamingConvention:
             return self._renumber_only(stripped)
         if self.keep_separators:
             return self._normalize_keep(stripped)
-        # Split into word / number tokens (numbers incl. decimals kept whole);
-        # every other character is treated as a separator.
-        parts = [(m.group(0)[0].isalpha(), m.group(0))
-                 for m in _TOKEN_RE.finditer(naming.split_camel(stripped))]
-        if not parts:
+        return self._normalize_full(stripped)
+
+    def _normalize_full(self, stripped: str) -> str:
+        # Full normalization: word/number tokens are recased and rejoined
+        # with the style's separator. Gaps that are plain separators are
+        # replaced; with keep_specials, gaps carrying OTHER characters
+        # (brackets & co.) survive verbatim — "[test]" -> "[Test]".
+        matches = list(_TOKEN_RE.finditer(stripped))
+        if not matches:
             return stripped
 
         sep = _SEP[self.style]
-        last = len(parts) - 1
+        last = len(matches) - 1
         out: list[str] = []
         word_i = 0
-        for i, (is_word, text) in enumerate(parts):
-            if is_word:
-                out.append(self._case_word(self._translate_one(text.lower()),
-                                           word_i == 0))
-                word_i += 1
+
+        if self.keep_specials:
+            prefix = stripped[:matches[0].start()]
+            if prefix and not _SEP_ONLY_RE.match(prefix):
+                out.append(prefix)
+
+        for i, m in enumerate(matches):
+            if i > 0:
+                gap = stripped[matches[i - 1].end():m.start()]
+                if self.keep_specials and gap and not _SEP_ONLY_RE.match(gap):
+                    out.append(gap)  # specials survive verbatim
+                else:
+                    out.append(sep)
+            text = m.group(0)
+            if text[0].isalpha():
+                # A word run may contain camel humps -> split into words.
+                for j, w in enumerate(_TOKEN_RE.findall(naming.split_camel(text))):
+                    if j > 0:
+                        out.append(sep)
+                    out.append(self._case_word(self._translate_one(w.lower()),
+                                               word_i == 0))
+                    word_i += 1
             elif self.apply_numbering and i == last and text.isdigit():
                 out.append(self._format_number(int(text)))
             else:
                 out.append(text)  # number kept verbatim (decimal safe)
 
+        if self.keep_specials:
+            suffix = stripped[matches[last].end():]
+            if suffix and not _SEP_ONLY_RE.match(suffix):
+                out.append(suffix)
+
         if word_i == 0:
             return stripped  # numbers/symbols only -> never fabricate a name
-        return sep.join(out)
+        return "".join(out)
 
     def propose(self, name: str) -> RenameProposal:
         return RenameProposal(old=name, new=self.normalize(name))

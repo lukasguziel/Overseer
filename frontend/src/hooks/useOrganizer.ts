@@ -50,6 +50,7 @@ export function useOrganizer() {
   const [casing, setCasing] = useState('')   // '' = not chosen yet; auto-detected from the scene
   const [applyCasing, setApplyCasing] = useState(true)        // rule: normalize casing/separators
   const [keepSeparators, setKeepSeparators] = useState(true) // recase words but keep existing separators (e.g. hyphens)
+  const [keepSpecials, setKeepSpecials] = useState(true)     // keep special chars like [ ] even in full normalization
   const [language, setLanguage] = useState('en')
   const [numberPad, setNumberPad] = useState(2)
   const [applyNumbering, setApplyNumbering] = useState(true)  // rule: pad/normalize numbers
@@ -111,6 +112,7 @@ export function useOrganizer() {
     casing,
     apply_casing: applyCasing,
     keep_separators: keepSeparators,
+    keep_specials: keepSpecials,
     language: language === 'none' ? null : language,
     number_pad: numberPad,
     apply_numbering: applyNumbering,
@@ -118,7 +120,7 @@ export function useOrganizer() {
     selection: scope,
     safe,
     tidy,
-  }), [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
+  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
 
   async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true); setError(''); setStatus(label + ' …')
@@ -504,16 +506,17 @@ export function useOrganizer() {
   // the same project is reopened. `scope` is deliberately NOT persisted — the
   // selection scope is a session-specific choice, not a project preference.
   const currentUi = useCallback(() => ({
-    casing, applyCasing, keepSeparators, language, numberPad,
+    casing, applyCasing, keepSeparators, keepSpecials, language, numberPad,
     applyNumbering, dedupe, safe, tidy, translateTarget,
     translateEngine, includeHidden,
-  }), [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering,
-    dedupe, safe, tidy, translateTarget, translateEngine, includeHidden])
+  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad,
+    applyNumbering, dedupe, safe, tidy, translateTarget, translateEngine, includeHidden])
 
   const applyStoredUi = useCallback((ui: any) => {
     if (typeof ui.casing === 'string') setCasing(ui.casing)
     if (typeof ui.applyCasing === 'boolean') setApplyCasing(ui.applyCasing)
     if (typeof ui.keepSeparators === 'boolean') setKeepSeparators(ui.keepSeparators)
+    if (typeof ui.keepSpecials === 'boolean') setKeepSpecials(ui.keepSpecials)
     if (typeof ui.language === 'string') setLanguage(ui.language)
     if (typeof ui.numberPad === 'number') setNumberPad(ui.numberPad)
     if (typeof ui.applyNumbering === 'boolean') setApplyNumbering(ui.applyNumbering)
@@ -633,7 +636,7 @@ export function useOrganizer() {
 
   usePreview('naming', 250, async () => {
     await reloadNaming()
-  }, [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion])
+  }, [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion])
 
   usePreview('structure', 250, async () => {
     const [, rl] = await Promise.all([
@@ -806,6 +809,7 @@ export function useOrganizer() {
     autoRefresh, setAutoRefresh, sel, selStale,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
     applyCasing, setApplyCasing, keepSeparators, setKeepSeparators,
+    keepSpecials, setKeepSpecials,
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,

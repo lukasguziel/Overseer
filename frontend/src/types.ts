@@ -327,6 +327,7 @@ export interface OrganizerSettings {
   casing: string
   apply_casing: boolean
   keep_separators: boolean
+  keep_specials: boolean
   language: string | null
   number_pad: number
   apply_numbering: boolean

@@ -6,6 +6,7 @@ PERSISTED_KEYS = {
     "casing": str,
     "applyCasing": bool,
     "keepSeparators": bool,
+    "keepSpecials": bool,
     "language": str,
     "numberPad": int,
     "applyNumbering": bool,
