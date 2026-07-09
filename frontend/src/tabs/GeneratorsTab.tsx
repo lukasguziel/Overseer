@@ -71,42 +71,46 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
           most use <b>{fmt(param.dominant, param)}</b> — {offCount} object{offCount === 1 ? '' : 's'} differ{offCount === 1 ? 's' : ''}
         </span>
       </div>
-      <div className="gens-chips">
-        {sorted.map((b, i) => {
-          const dom = sameValue(b.value, param.dominant)
-          return (
-            <button key={i}
-              className={'gens-chip' + (dom ? ' dom' : ' warn')}
-              title={`${b.count} object${b.count === 1 ? '' : 's'} — click to select them in Cinema 4D`}
-              onClick={() => onSelectValue(param, b.value)}>
-              <span className="gens-chip-val">{fmt(b.value, param)}</span>
-              <span className="gens-chip-n">×{b.count}</span>
-            </button>
-          )
-        })}
+      {/* READ row: the values as they are right now — neutral chips, purely
+          informational (click = select those objects in C4D). */}
+      <div className="gens-row">
+        <span className="gens-microlabel">Current values</span>
+        <div className="gens-chips">
+          {sorted.map((b, i) => {
+            const dom = sameValue(b.value, param.dominant)
+            return (
+              <button key={i} className={'gens-chip' + (dom ? ' dom' : '')}
+                title={`${b.count} object${b.count === 1 ? '' : 's'} — click to select them in Cinema 4D`}
+                onClick={() => onSelectValue(param, b.value)}>
+                <span className="gens-chip-val">{fmt(b.value, param)}</span>
+                <span className="gens-chip-n">×{b.count}</span>
+                {dom && <span className="gens-chip-most">most</span>}
+              </button>
+            )
+          })}
+          <button className="gens-toggle" onClick={() => setOpen((v) => !v)}>
+            {open ? '▾ hide' : '▸ show'} the {offCount} differing
+          </button>
+        </div>
       </div>
-      <div className="gens-align">
-        <label className="gens-setter">
-          <span className="gens-setter-label">Set {param.label} to</span>
-          {param.kind === 'int' ? (
-            <input className="gens-num" type="number" value={pick ?? ''}
-              onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
-          ) : (
-            <select className="gens-select" value={JSON.stringify(pick)}
-              onChange={(e) => setPick(JSON.parse(e.target.value))}>
-              {sorted.map((b, i) => (
-                <option key={i} value={JSON.stringify(b.value)}>{fmt(b.value, param)}</option>
-              ))}
-            </select>
-          )}
-        </label>
+      {/* WRITE row: the one editable thing in this block. */}
+      <div className="gens-row gens-row-action">
+        <span className="gens-microlabel accent">Change all to</span>
+        {param.kind === 'int' ? (
+          <input className="gens-num" type="number" value={pick ?? ''}
+            onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
+        ) : (
+          <select className="gens-select" value={JSON.stringify(pick)}
+            onChange={(e) => setPick(JSON.parse(e.target.value))}>
+            {sorted.map((b, i) => (
+              <option key={i} value={JSON.stringify(b.value)}>{fmt(b.value, param)}</option>
+            ))}
+          </select>
+        )}
         <button className="apply gens-align-btn" disabled={busy || pick === ''}
           title={`Set ${param.label} to ${fmt(pick, param)} on all ${type.count} ${type.label} objects (one undo step)`}
           onClick={() => onApply(param, pick, undefined, type.count)}>
-          ✓ Align all {type.count}
-        </button>
-        <button className="gens-toggle" onClick={() => setOpen((v) => !v)}>
-          {open ? '▾ hide' : '▸ show'} the {offCount} differing
+          ✓ Apply to all {type.count}
         </button>
       </div>
       {open && (
@@ -215,10 +219,10 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
                 {type.label} <span className="gens-count">{type.count}</span>
               </h3>
               {mixed.length === 0 && <span className="gens-uniform">all settings uniform ✓</span>}
-              <button className="ghost gens-selall" disabled={busy}
+              <button className="mini gens-selall" disabled={busy}
                 title={`Select all ${type.count} ${type.label} objects in Cinema 4D`}
                 onClick={() => call('gens_select', { type_key: type.key }).catch(() => {})}>
-                Select all in C4D
+                Select in C4D
               </button>
             </div>
 

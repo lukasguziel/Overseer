@@ -12,18 +12,8 @@
 }
 
 /* Secondary action: small, quiet, pinned to the right edge of the card head. */
-.gens-selall {
-  margin-left: auto;
-  align-self: center;
-  font-size: 11px;
-  line-height: 1;
-  padding: 5px 9px;
-  width: auto;
-  flex: none;
-  white-space: nowrap;
-  color: var(--dim2);
-}
-.gens-selall:hover:not(:disabled) { color: var(--text); }
+.gens-selall { margin-left: auto; align-self: center; width: auto; flex: none;
+  white-space: nowrap; }
 
 /* Splits each card into "what you can change" and "what already agrees". */
 .gens-section {
@@ -73,8 +63,33 @@
 
 .gens-uniform { font-size: 0.8em; color: var(--apply, #4caf50); }
 
-/* The value spread: big readable value, small count. */
-.gens-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Two labeled rows per block: READ (current values) and WRITE (change-to).
+   The micro-labels are what make the roles unmistakable. */
+.gens-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.gens-microlabel {
+  flex: none;
+  width: 108px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--dim2);
+}
+.gens-microlabel.accent { color: var(--accent, #6ea8fe); }
+.gens-row-action {
+  padding-top: 8px;
+  border-top: 1px dashed var(--line2, rgba(127, 127, 127, 0.15));
+}
+
+/* Current values: NEUTRAL, read-only observation — no traffic-light colors.
+   The dominant value just carries a small 'most' tag. */
+.gens-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; min-width: 0; }
 
 .gens-chip {
   font: inherit;
@@ -89,34 +104,15 @@
   color: inherit;
   box-shadow: none;
 }
-.gens-chip-val { font-size: 13px; font-weight: 700; }
+.gens-chip-val { font-size: 13px; font-weight: 700; color: var(--text); }
 .gens-chip-n { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.gens-chip.dom { border-color: var(--apply, #4caf50); }
-.gens-chip.dom .gens-chip-val { color: var(--apply, #4caf50); }
-.gens-chip.warn { border-color: rgba(251, 191, 36, .5); }
-.gens-chip.warn .gens-chip-val { color: var(--warn); }
+.gens-chip.dom { border-color: var(--line, rgba(127, 127, 127, 0.4)); }
+.gens-chip-most {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--dim); background: var(--panel2, rgba(127, 127, 127, 0.14));
+  border-radius: 999px; padding: 1px 6px; align-self: center;
+}
 .gens-chip:hover { filter: brightness(1.15); box-shadow: none; }
-
-.gens-align {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-/* Label + control read as ONE editable field, so the settable part is obvious. */
-.gens-setter {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 3px 4px 3px 10px;
-  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
-  border-radius: 7px;
-  background: var(--bg, #1c1c1c);
-}
-.gens-setter:focus-within { border-color: var(--accent, #6ea8fe); }
-.gens-setter-label { font-size: 12px; color: var(--dim); white-space: nowrap; }
 
 .gens-num,
 .gens-select {
