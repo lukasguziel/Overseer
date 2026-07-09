@@ -174,9 +174,6 @@ export default function NamingTab({ org }: { org: Organizer }) {
         </Workbench>
       </div>
 
-      <AcceptedSection items={Array.from(keeps.naming)}
-        onRestore={(nm) => org.unkeep('naming', nm)} />
-
       {/* Name hygiene: default & duplicate names — click to select in C4D. */}
       <section className="card">
         <div className="card-head">
@@ -187,6 +184,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
           onKeep={(nm) => org.keep('naming', nm)}
           onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
       </section>
+
+      <AcceptedSection items={Array.from(keeps.naming)}
+        onRestore={(nm) => org.unkeep('naming', nm)} />
     </div>
   )
 }
