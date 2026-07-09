@@ -661,6 +661,113 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"fixed": len(targets)}
 
+    def collect_textures(self, materials: list | None = None,
+                         subdir: str = "tex") -> dict:
+        """Copy textures that live OUTSIDE the project folder into
+        <project>/<subdir>/ and relink the shaders relatively. The copy is a
+        plain file operation (not undoable); the relink is one undo step.
+        Files already under the project are skipped — `make_textures_relative`
+        is the cheaper fix for those."""
+        import os
+        import shutil
+        doc = self.doc
+        doc_path = doc.GetDocumentPath() or ""
+        if not doc_path:
+            return {"copied": 0, "relinked": 0, "skipped": 0,
+                    "error": "Project is not saved (nowhere to copy to)."}
+        # Sanitize the target subfolder: relative, no parent escapes.
+        subdir = (subdir or "tex").strip().strip("/\\")
+        if not subdir or os.path.isabs(subdir) or ".." in subdir.split("/") \
+                or ".." in subdir.split("\\"):
+            subdir = "tex"
+        target_dir = os.path.join(doc_path, subdir)
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError as ex:
+            return {"copied": 0, "relinked": 0, "skipped": 0,
+                    "error": "Cannot create %s: %s" % (target_dir, ex)}
+
+        only = set(materials) if materials else None
+        targets: list = []
+        for m in doc.GetMaterials():
+            if only is not None and m.GetName() not in only:
+                continue
+            for sh in self._iter_bitmap_shaders(m):
+                try:
+                    raw = str(sh[c4d.BITMAPSHADER_FILENAME] or "")
+                except Exception:
+                    continue
+                if not raw or not os.path.isabs(raw):
+                    continue
+                try:
+                    resolved = c4d.GenerateTexturePath(doc_path, raw, "") or raw
+                except Exception:
+                    resolved = raw
+                if not os.path.isfile(resolved):
+                    continue
+                try:
+                    rp = os.path.relpath(resolved, doc_path)
+                except Exception:
+                    rp = ".."
+                if not rp.startswith(".."):
+                    continue  # already under the project -> make_textures_relative
+                targets.append((sh, resolved))
+        if not targets:
+            return {"copied": 0, "relinked": 0, "skipped": 0}
+
+        copied = relinked = skipped = 0
+        dest_by_src: dict = {}   # copy each source file only once
+        used_names: set = set()
+        try:
+            used_names = {fn.lower() for fn in os.listdir(target_dir)}
+        except OSError:
+            pass
+
+        def dest_for(src: str) -> str | None:
+            if src in dest_by_src:
+                return dest_by_src[src]
+            base = os.path.basename(src)
+            dst = os.path.join(target_dir, base)
+            try:
+                if os.path.isfile(dst):
+                    if os.path.getsize(dst) == os.path.getsize(src):
+                        dest_by_src[src] = dst   # same file already collected
+                        return dst
+                    stem, ext = os.path.splitext(base)
+                    n = 1
+                    while True:
+                        cand = "%s_%d%s" % (stem, n, ext)
+                        if cand.lower() not in used_names and \
+                                not os.path.isfile(os.path.join(target_dir, cand)):
+                            dst = os.path.join(target_dir, cand)
+                            break
+                        n += 1
+                shutil.copy2(src, dst)
+                used_names.add(os.path.basename(dst).lower())
+                dest_by_src[src] = dst
+                return dst
+            except OSError:
+                return None
+
+        doc.StartUndo()
+        for sh, src in targets:
+            dst = dest_for(src)
+            if dst is None:
+                skipped += 1
+                continue
+            rel = subdir.replace("\\", "/") + "/" + os.path.basename(dst)
+            try:
+                doc.AddUndo(c4d.UNDOTYPE_CHANGE, sh)
+                sh[c4d.BITMAPSHADER_FILENAME] = rel
+                relinked += 1
+            except Exception:
+                skipped += 1
+        doc.EndUndo()
+        copied = len(dest_by_src)
+        c4d.EventAdd()
+        return {"copied": copied, "relinked": relinked, "skipped": skipped,
+                "target": target_dir}
+
     def scan_layers(self) -> list[dict]:
         out: list[dict] = []
         try:

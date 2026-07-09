@@ -715,6 +715,7 @@ _OP_LABELS = {
     "material_previews": "Rendering material previews",
     "texture_previews": "Rendering texture thumbnails",
     "fix_textures_relative": "Rewriting texture paths",
+    "collect_textures": "Copying textures into the project",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
 }
@@ -1021,6 +1022,17 @@ def _handle(payload: dict) -> dict:
         if res.get("fixed"):
             _record_change("textures_relative",
                            "%d texture path(s) made relative" % res["fixed"],
+                           [], revertible=False, doc_name=doc.GetDocumentName())
+        return {"ok": True, **res}
+
+    if op == "collect_textures":
+        adapter = SceneAdapter(doc)
+        res = adapter.collect_textures(payload.get("materials"),
+                                       subdir=payload.get("subdir") or "tex")
+        if res.get("relinked"):
+            _record_change("textures_collect",
+                           "%d texture(s) copied into the project, %d shader(s) relinked"
+                           % (res.get("copied", 0), res["relinked"]),
                            [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
 
