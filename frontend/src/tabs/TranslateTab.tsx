@@ -78,10 +78,9 @@ export default function TranslateTab({ org }: { org: Organizer }) {
               </ul>
               <p className="hint-sm">
                 Mostly <b>{LANG_LABEL[detected.dominant] || detected.dominant}</b> across {detected.total} names.
-                Counts show what language each name <b>looks</b> like — names whose
-                translation would be identical (product names, codes) keep their
-                detected language even when nothing is left to translate. The
-                preview on the right is the actual todo list.
+                A name counts under its source language only while a translation
+                would actually change it — once everything is applied, all
+                counts sit on the target language.
               </p>
             </>
           )

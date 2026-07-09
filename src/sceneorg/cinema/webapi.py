@@ -577,8 +577,20 @@ def _google_plan(tree, scope, target: str, progress=None):
         entry = cache.get(key(node.name))
         new = _gcache_text(entry).strip()
         src = _gcache_src(entry)
-        counts[src] = counts.get(src, 0) + 1
-        if new and new.lower() != node.name.strip().lower():
+        changes = bool(new) and new.lower() != node.name.strip().lower()
+        # A name only counts under its detected source language while a
+        # translation would actually CHANGE it. Names whose translation is
+        # identical (product names, codes) are effectively already in the
+        # target language — otherwise the panel keeps reporting "German"
+        # forever while the preview rightly says there is nothing to do.
+        if changes:
+            bucket = src
+        elif entry is not None:
+            bucket = target
+        else:
+            bucket = "unknown"
+        counts[bucket] = counts.get(bucket, 0) + 1
+        if changes:
             proposals.append(translatemod.TranslateProposal(
                 node=node, new=new, words=[(node.name, new)],
                 lang=src if src != "unknown" else "auto"))
