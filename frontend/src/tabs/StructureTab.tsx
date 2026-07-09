@@ -95,7 +95,8 @@ export default function StructureTab({ org }: { org: Organizer }) {
           <span className="card-hint">click an item to select &amp; frame it</span>
         </div>
         <Cleanup buckets={groupBuckets} onFocus={org.doFocus}
-          onKeep={(nm) => org.keep('structure', nm)} busy={busy} />
+          onKeep={(nm) => org.keep('structure', nm)}
+          onKeepAll={(names) => org.keepMany('structure', names)} busy={busy} />
       </section>
     </div>
   )
