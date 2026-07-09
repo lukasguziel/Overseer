@@ -94,8 +94,8 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Clickable object name inside a non-SuggestionRow list (e.g. no-layer). */
 .fl-clickable { cursor: pointer; }
 .fl-clickable:hover { color: var(--text); text-decoration: underline dotted; }
-/* One-line usage hint under a Workbench header. */
-.wb-hint { margin: 2px 0 8px; }
+/* One-line usage hint under a Workbench header — same inset as wb-note. */
+.wb-hint { margin: 2px 0 8px; padding: 0 16px; }
 .rule-tag { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .04em; padding: 1px 6px; border-radius: 8px; min-width: 62px; text-align: center;
   background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
