@@ -716,6 +716,8 @@ _OP_LABELS = {
     "texture_previews": "Rendering texture thumbnails",
     "fix_textures_relative": "Rewriting texture paths",
     "collect_textures": "Copying textures into the project",
+    "relink_textures": "Relinking missing textures",
+    "clear_missing_textures": "Clearing missing texture references",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
 }
@@ -1033,6 +1035,25 @@ def _handle(payload: dict) -> dict:
             _record_change("textures_collect",
                            "%d texture(s) copied into the project, %d shader(s) relinked"
                            % (res.get("copied", 0), res["relinked"]),
+                           [], revertible=False, doc_name=doc.GetDocumentName())
+        return {"ok": True, **res}
+
+    if op == "relink_textures":
+        adapter = SceneAdapter(doc)
+        res = adapter.relink_textures(payload.get("folder") or "",
+                                      progress=_progress)
+        if res.get("relinked"):
+            _record_change("textures_relink",
+                           "%d missing texture(s) relinked" % res["relinked"],
+                           [], revertible=False, doc_name=doc.GetDocumentName())
+        return {"ok": True, **res}
+
+    if op == "clear_missing_textures":
+        adapter = SceneAdapter(doc)
+        res = adapter.clear_missing_textures()
+        if res.get("cleared"):
+            _record_change("textures_clear",
+                           "%d missing texture reference(s) cleared" % res["cleared"],
                            [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
 

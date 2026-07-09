@@ -105,6 +105,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Copy & relink out-of-project textures: target subfolder + confirm state.
   const [collectDir, setCollectDir] = useState('tex')
   const [collectConfirm, setCollectConfirm] = useState(false)
+  // Missing-texture actions: relink from a search folder / clear dead refs.
+  const [relinkDir, setRelinkDir] = useState('')
+  const [relinkConfirm, setRelinkConfirm] = useState(false)
+  const [clearConfirm, setClearConfirm] = useState(false)
   const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
   const byPath = (e: TextureEntry) =>
     !pathFilter
@@ -170,6 +174,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
   // the file must be copied into the project first (Copy & relink).
   const collectable = allTex.filter((e) => e.absolute && !e.missing && !e.relocatable).length
+  const missingCount = tex?.missing_count ?? 0
   const deletable = mat?.deletable_count ?? (mat?.unused.length ?? 0)
   const acceptedList = mat?.accepted || []
 
@@ -298,6 +303,32 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               the project. <b>Copy &amp; relink</b> first copies out-of-project
               files into the folder above, then relinks relatively.
             </p>
+
+            <div className="rule-group-head"><span>Missing ({missingCount})</span></div>
+            <label>Search folder
+              <input className="nl-input" value={relinkDir} placeholder="D:\assets\textures…"
+                onChange={(e) => setRelinkDir(e.target.value)}
+                title="Folder that is searched recursively for the missing file names" />
+            </label>
+            <button className="ghost" disabled={busy || !missingCount || !relinkDir.trim()}
+              title={missingCount
+                ? 'Search the folder recursively for the missing file names and relink the shaders (undoable)'
+                : 'No missing textures'}
+              onClick={() => setRelinkConfirm(true)}>
+              Relink missing ({missingCount})
+            </button>
+            <button className="ghost" disabled={busy || !missingCount}
+              title={missingCount
+                ? 'Blank the dead path on every shader whose file is missing — the material stays, the broken reference goes (undoable)'
+                : 'No missing textures'}
+              onClick={() => setClearConfirm(true)}>
+              Clear missing refs ({missingCount})
+            </button>
+            <p className="hint-sm">
+              The files themselves are gone — either <b>relink</b> them from a
+              folder that still has them, or <b>clear</b> the dead references
+              so the materials stop pointing at nothing.
+            </p>
             {tex.doc_path
               ? <p className="example">Project: <code>{tex.doc_path}</code></p>
               : <p className="example warn">Project not saved — paths cannot be made relative yet.</p>}
@@ -346,6 +377,24 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           confirmLabel={`✓ Fix ${fixable} path${fixable === 1 ? '' : 's'}`}
           onConfirm={() => { setConfirm(false); org.doFixTexturesRelative() }}
           onCancel={() => setConfirm(false)}
+        />
+      )}
+      {relinkConfirm && (
+        <ConfirmModal
+          title="Relink missing textures"
+          message={`Search “${relinkDir.trim()}” (including subfolders) for the ${missingCount} missing file name${missingCount === 1 ? '' : 's'} and relink every match (project-relative when possible, one undo step). Files not found there are left as-is. Continue?`}
+          confirmLabel={`✓ Relink ${missingCount}`}
+          onConfirm={() => { setRelinkConfirm(false); org.doRelinkTextures(relinkDir.trim()) }}
+          onCancel={() => setRelinkConfirm(false)}
+        />
+      )}
+      {clearConfirm && (
+        <ConfirmModal
+          title="Clear missing references"
+          message={`Blank the dead texture path on ${missingCount} reference${missingCount === 1 ? '' : 's'} whose file is missing. The materials stay — they just stop pointing at files that no longer exist (one undo step). Continue?`}
+          confirmLabel={`✓ Clear ${missingCount} refs`}
+          onConfirm={() => { setClearConfirm(false); org.doClearMissingTextures() }}
+          onCancel={() => setClearConfirm(false)}
         />
       )}
       {collectConfirm && (

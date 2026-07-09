@@ -768,6 +768,146 @@ class SceneAdapter:
         return {"copied": copied, "relinked": relinked, "skipped": skipped,
                 "target": target_dir}
 
+    def _find_path_param(self, owner, raw: str):
+        """DescID of the string parameter on `owner` (shader/material) that
+        currently holds the path `raw`. Fast path for standard bitmap
+        shaders; generic description scan otherwise, so Octane/Redshift
+        image nodes are covered too — we only ever write where we found the
+        exact string, never guess."""
+        try:
+            if owner.CheckType(c4d.Xbitmap):
+                return c4d.BITMAPSHADER_FILENAME
+        except Exception:
+            pass
+        try:
+            description = owner.GetDescription(c4d.DESCFLAGS_DESC_NONE)
+            for _bc, paramid, _group in description:
+                try:
+                    val = owner[paramid]
+                except Exception:
+                    continue
+                if isinstance(val, str) and val == raw:
+                    return paramid
+        except Exception:
+            pass
+        return None
+
+    def _missing_texture_refs(self) -> list:
+        """(owner, raw_path) for every image reference whose file does not
+        exist on disk. Owners come from the asset collector, so third-party
+        shaders are included."""
+        import os
+        doc = self.doc
+        doc_path = doc.GetDocumentPath() or ""
+        out: list = []
+        seen: set = set()
+        filled: list = []
+        try:
+            flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
+                            getattr(c4d, "ASSETDATA_FLAG_0", 0))
+            c4d.documents.GetAllAssetsNew(doc, False, "", flags, filled)
+        except Exception:
+            filled = []
+        for a in filled:
+            if not isinstance(a, dict):
+                continue
+            raw = str(a.get("filename") or "")
+            owner = a.get("owner")
+            if not raw or owner is None or not self._is_texture_file(raw):
+                continue
+            try:
+                resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+            except Exception:
+                resolved = ""
+            if resolved and os.path.isfile(resolved):
+                continue
+            key = (id(owner), raw)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append((owner, raw))
+        return out
+
+    def relink_textures(self, folder: str, progress=None) -> dict:
+        """Search `folder` (recursively) for the missing texture files by
+        their file name and rewrite the owning shaders to the found files
+        (project-relative when possible). One undo step."""
+        import os
+        doc_path = self.doc.GetDocumentPath() or ""
+        folder = (folder or "").strip().strip('"')
+        if not folder or not os.path.isdir(folder):
+            return {"relinked": 0, "not_found": 0, "skipped": 0,
+                    "error": "Folder not found: %s" % (folder or "(empty)")}
+
+        missing = self._missing_texture_refs()
+        if not missing:
+            return {"relinked": 0, "not_found": 0, "skipped": 0}
+
+        # Index the search folder once: basename (lower) -> first full path.
+        index: dict = {}
+        count = 0
+        for root, _dirs, files in os.walk(folder):
+            for fn in files:
+                count += 1
+                if progress and count % 200 == 0:
+                    progress("Indexing search folder", 0, 0, root)
+                index.setdefault(fn.lower(), os.path.join(root, fn))
+
+        relinked = not_found = skipped = 0
+        self.doc.StartUndo()
+        for owner, raw in missing:
+            found = index.get(os.path.basename(raw).lower())
+            if found is None:
+                not_found += 1
+                continue
+            paramid = self._find_path_param(owner, raw)
+            if paramid is None:
+                skipped += 1
+                continue
+            new_path = found
+            if doc_path:
+                try:
+                    rp = os.path.relpath(found, doc_path)
+                    if not rp.startswith(".."):
+                        new_path = rp.replace("\\", "/")
+                except Exception:
+                    pass
+            try:
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
+                owner[paramid] = new_path
+                relinked += 1
+            except Exception:
+                skipped += 1
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"relinked": relinked, "not_found": not_found,
+                "skipped": skipped}
+
+    def clear_missing_textures(self) -> dict:
+        """Blank the path parameter of every reference whose file is missing —
+        the material stays, it just no longer points at a dead file. One
+        undo step. References whose parameter cannot be located are skipped
+        (never guess where to write)."""
+        missing = self._missing_texture_refs()
+        if not missing:
+            return {"cleared": 0, "skipped": 0}
+        cleared = skipped = 0
+        self.doc.StartUndo()
+        for owner, raw in missing:
+            paramid = self._find_path_param(owner, raw)
+            if paramid is None:
+                skipped += 1
+                continue
+            try:
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
+                owner[paramid] = ""
+                cleared += 1
+            except Exception:
+                skipped += 1
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"cleared": cleared, "skipped": skipped}
+
     def scan_layers(self) -> list[dict]:
         out: list[dict] = []
         try:
