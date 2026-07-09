@@ -184,7 +184,8 @@ export default function NamingTab({ org }: { org: Organizer }) {
           <span className="card-hint">click an item to select &amp; frame it · ✎ to rename</span>
         </div>
         <Cleanup buckets={nameBuckets} onFocus={org.doFocus} onRename={org.doRenameObject}
-          onKeep={(nm) => org.keep('naming', nm)} busy={busy} />
+          onKeep={(nm) => org.keep('naming', nm)}
+          onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
       </section>
     </div>
   )

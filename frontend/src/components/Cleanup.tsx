@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FocusFn } from './Treemap'
 import Pager, { usePager } from './Pager'
+import ConfirmModal from './ConfirmModal'
 
 export interface CleanupItem {
   guid: number
@@ -89,32 +90,58 @@ function BucketBody({ b, onFocus, onRename, onKeep, busy }: {
 }
 
 // Cleanup accordion: compact list of problem groups, one open at a time.
-export default function Cleanup({ buckets, onFocus, onRename, onKeep, busy }: {
+// With `onKeepAll`, every bucket head carries a slim "keep all" button that
+// accepts the whole bucket as-is (confirm modal with the exact count).
+export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll, busy }: {
   buckets: CleanupBucket[]
   onFocus?: FocusFn
   onRename?: (guid: number, name: string) => void
   onKeep?: (name: string) => void
+  onKeepAll?: (names: string[], bucket: CleanupBucket) => void
   busy?: boolean
 }) {
   const [open, setOpen] = useState<string | null>(
     () => buckets.find((b) => b.items.length)?.key || null)
+  const [confirm, setConfirm] = useState<CleanupBucket | null>(null)
   return (
     <div className="cleanup">
       {buckets.map((b) => {
         const isOpen = open === b.key
         return (
           <div className={'cl-bucket' + (isOpen ? ' open' : '')} key={b.key}>
-            <button className="cl-head" onClick={() => setOpen(isOpen ? null : b.key)}>
-              <span className="cl-caret">{isOpen ? '▾' : '▸'}</span>
-              <span className="cl-label">{b.label}</span>
-              <span className={'cl-count' + (b.items.length ? ' warn' : '')}>{b.items.length}</span>
-            </button>
+            <div className="cl-head-row">
+              <button className="cl-head" onClick={() => setOpen(isOpen ? null : b.key)}>
+                <span className="cl-caret">{isOpen ? '▾' : '▸'}</span>
+                <span className="cl-label">{b.label}</span>
+                <span className={'cl-count' + (b.items.length ? ' warn' : '')}>{b.items.length}</span>
+              </button>
+              {onKeepAll && b.items.length > 0 && (
+                <button className="mini cl-keepall" disabled={busy}
+                  title={`Accept all ${b.items.length} as-is — they stop counting as todos (restore in the Accepted section)`}
+                  onClick={() => setConfirm(b)}>
+                  = keep all
+                </button>
+              )}
+            </div>
             {isOpen && b.hint && <p className="cl-hint">{b.hint}</p>}
             {isOpen && <BucketBody b={b} onFocus={onFocus} onRename={onRename}
               onKeep={onKeep} busy={busy} />}
           </div>
         )
       })}
+      {confirm && onKeepAll && (
+        <ConfirmModal
+          title={`Keep all as-is — ${confirm.label}`}
+          message={`Accept all ${confirm.items.length} item${confirm.items.length === 1 ? '' : 's'} in “${confirm.label}” as-is. Nothing changes in the scene — they just stop counting as todos (restore any time in the Accepted section). Continue?`}
+          confirmLabel={`= Accept ${confirm.items.length}`}
+          onConfirm={() => {
+            const b = confirm
+            setConfirm(null)
+            onKeepAll(b.items.map((it) => it.name), b)
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   )
 }

@@ -97,6 +97,11 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* One-line usage hint under a Workbench header — same inset as wb-note. */
 .wb-hint { margin: 2px 0 8px; padding: 0 16px; }
 
+/* Cleanup bucket head: accordion toggle + slim keep-all on the right. */
+.cl-head-row { display: flex; align-items: center; gap: 8px; }
+.cl-head-row .cl-head { flex: 1; min-width: 0; }
+.cl-keepall { flex: none; }
+
 /* Small secondary line under a tile's label (e.g. texture size on disk). */
 .tile-sub { font-size: 10px; color: var(--dim2); margin-top: 2px; }
 
