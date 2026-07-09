@@ -65,11 +65,12 @@ export function useOrganizer() {
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<ProgressInfo | null>(null)
 
-  // Preloader: while an operation OR a live preview runs, poll /api/progress
-  // (answered by the bridge's server thread, so it works WHILE the main
-  // thread is busy — e.g. during online translation fetches).
+  // Progress feed: poll /api/progress permanently (answered by the bridge's
+  // server thread, so it works WHILE the C4D main thread is busy). Fast
+  // cadence while an operation or preview runs, slow heartbeat otherwise —
+  // the heartbeat is what catches BACKGROUND work (debounced re-analyses,
+  // batch actions) so the UI can always say what is loading.
   useEffect(() => {
-    if (!busy && !previewing) { setProgress(null); return }
     let stop = false
     const tick = async () => {
       try {
@@ -78,7 +79,7 @@ export function useOrganizer() {
       } catch { /* server busy/gone - keep last state */ }
     }
     tick()
-    const t = setInterval(tick, 250)
+    const t = setInterval(tick, busy || previewing ? 250 : 1000)
     return () => { stop = true; clearInterval(t) }
   }, [busy, previewing])
 

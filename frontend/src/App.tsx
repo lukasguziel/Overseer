@@ -7,6 +7,7 @@ import ScopeToggle from './components/ScopeToggle'
 import VisibilityToggle from './components/VisibilityToggle'
 import { IconRefresh } from './components/icons'
 import Preloader from './components/Preloader'
+import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
 import Ring, { type Tone } from './components/Ring'
@@ -107,6 +108,9 @@ export default function App() {
       {tab === 'rules' && <RulesTab />}
       {tab === 'misc' && <MiscTab org={org} />}
 
+      {/* Background work indicator: progress is active but neither the
+          blocking overlay (busy) nor an inline preview loader owns it. */}
+      {!busy && !previewing && <ProgressChip progress={org.progress} />}
       <StatusBar status={org.status} busy={busy} />
     </div>
   )

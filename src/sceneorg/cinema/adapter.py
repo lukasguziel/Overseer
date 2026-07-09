@@ -307,7 +307,7 @@ class SceneAdapter:
             "missing_textures": len(missing),
         }
 
-    def material_previews(self, names=None, size=48):
+    def material_previews(self, names=None, size=48, progress=None):
         import base64
         import os
         import tempfile
@@ -319,10 +319,12 @@ class SceneAdapter:
             mats = self.doc.GetMaterials()
         except Exception:
             return out
-        for m in mats:
+        wanted = [m for m in mats
+                  if only is None or m.GetName() in only]
+        for i, m in enumerate(wanted):
             name = m.GetName()
-            if only is not None and name not in only:
-                continue
+            if progress:
+                progress(i, len(wanted), name)
             try:
                 bmp = m.GetPreview(0)
                 if bmp is None:
@@ -349,7 +351,7 @@ class SceneAdapter:
             pass
         return out
 
-    def texture_previews(self, paths=None, size=40):
+    def texture_previews(self, paths=None, size=40, progress=None):
         """Tiny data-URL thumbnails of texture image files, keyed by the
         path string the caller sent (resolved absolute paths render; missing
         files are skipped so the UI falls back to a status dot)."""
@@ -359,7 +361,10 @@ class SceneAdapter:
 
         out = {}
         tmp = os.path.join(tempfile.gettempdir(), "so_texprev.png")
-        for p in paths or []:
+        all_paths = list(paths or [])
+        for i, p in enumerate(all_paths):
+            if progress:
+                progress(i, len(all_paths), os.path.basename(str(p or "")))
             try:
                 if not p or not os.path.isfile(p):
                     continue

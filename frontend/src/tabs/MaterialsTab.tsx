@@ -106,14 +106,26 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const visiblePaths = [...missPager.rows, ...absPager.rows, ...relPager.rows]
     .map((e) => e.resolved || e.path).filter(Boolean)
   const visibleKey = visiblePaths.join('\n')
+  // Thumbnails are fetched in SMALL CHUNKS: each chunk is its own request,
+  // so the C4D main thread is free between chunks (other API calls
+  // interleave instead of queueing behind one 15s+ preview job) and the
+  // images pop in progressively. The server caches rendered previews, so
+  // revisiting the tab is instant.
   useEffect(() => {
     const paths = visibleKey ? visibleKey.split('\n') : []
     const missing = paths.filter((p) => !(p in texPreviews))
     if (!missing.length) return
     let alive = true
-    call('texture_previews', { paths: missing, size: 40 })
-      .then((r) => { if (alive) setTexPreviews((prev) => ({ ...prev, ...(r.previews || {}) })) })
-      .catch(() => { /* dots stay as fallback */ })
+    ;(async () => {
+      // 4 per request: big EXR/HDR maps take ~1s each to thumbnail, and each
+      // request blocks the C4D main thread — keep the blocks short.
+      for (let i = 0; i < missing.length && alive; i += 4) {
+        try {
+          const r = await call('texture_previews', { paths: missing.slice(i, i + 4), size: 40 })
+          if (alive) setTexPreviews((prev) => ({ ...prev, ...(r.previews || {}) }))
+        } catch { /* dots stay as fallback */ }
+      }
+    })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleKey])
@@ -125,9 +137,14 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     const names = wanted ? wanted.split('\n') : []
     if (!names.length) { setPreviews({}); return }
     let alive = true
-    call('material_previews', { names, size: 48 })
-      .then((r) => { if (alive) setPreviews(r.previews || {}) })
-      .catch(() => { /* dots stay as fallback */ })
+    ;(async () => {
+      for (let i = 0; i < names.length && alive; i += 8) {
+        try {
+          const r = await call('material_previews', { names: names.slice(i, i + 8), size: 48 })
+          if (alive) setPreviews((prev) => ({ ...prev, ...(r.previews || {}) }))
+        } catch { /* dots stay as fallback */ }
+      }
+    })()
     return () => { alive = false }
   }, [wanted])
 

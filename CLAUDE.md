@@ -52,7 +52,11 @@ src/
       graph.py            node-editor graph incl. nested structure
     cinema/               [c4d] host glue
       adapter.py          doc <-> SceneTree; rename/reparent/plan/layers with undo
-      webapi.py           JSON API; hot-reloaded per request
+      webapi.py           JSON API; hot-reloaded per request. Scene-tree +
+                          preview caches live on the `sceneorg` package
+                          (survive hot-reload; invalidated by the doc dirty
+                          counter, cleared by POST /api/reload). Every slow op
+                          publishes a progress label (_OP_LABELS -> /api/progress).
   presets/  plans/        User-saved preset snapshots (schema 2, no shipped defaults)
                           / frozen restructuring plans (skill artifacts)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)

@@ -1,26 +1,28 @@
 import type { ProgressInfo } from '../types'
 import { humanNum } from '../lib/format'
+import useSteadyProgress from '../hooks/useSteadyProgress'
 
-// Fullscreen overlay while the plugin scans a (large) scene: shows the
-// current phase, a progress bar and the object being read. Data comes from
-// GET /api/progress, which the bridge answers off the main thread.
+// Loading style 1 of 3 — fullscreen overlay for BLOCKING operations
+// (analyze, apply-all, …): shows the current phase, a monotonic progress
+// bar and the item being processed. Data comes from GET /api/progress,
+// which the bridge answers off the main thread.
 export default function Preloader({ progress }: { progress: ProgressInfo }) {
-  const { phase, current, total, detail } = progress
-  const pct = total > 0 ? Math.min(100, Math.round(current / total * 100)) : null
+  const p = useSteadyProgress(progress)
+  if (!p) return null
   return (
     <div className="preloader">
       <div className="pl-box">
         <div className="pl-spinner" />
-        <div className="pl-phase">{phase || 'Working…'}</div>
-        <div className={'pl-track' + (pct == null ? ' indeterminate' : '')}>
-          <div className="pl-fill" style={pct != null ? { width: pct + '%' } : undefined} />
+        <div className="pl-phase">{p.phase}</div>
+        <div className={'pl-track' + (p.pct == null ? ' indeterminate' : '')}>
+          <div className="pl-fill" style={p.pct != null ? { width: p.pct + '%' } : undefined} />
         </div>
         <div className="pl-meta">
-          {pct != null
-            ? <><b>{pct}%</b> · {humanNum(current)} / {humanNum(total)} objects</>
+          {p.pct != null
+            ? <><b>{p.pct}%</b> · {humanNum(p.current)} / {humanNum(p.total)}</>
             : 'Please wait…'}
         </div>
-        {detail && <div className="pl-detail" title={detail}>{detail}</div>}
+        {p.detail && <div className="pl-detail" title={p.detail}>{p.detail}</div>}
       </div>
     </div>
   )

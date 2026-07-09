@@ -556,6 +556,97 @@ def _google_plan(tree, scope, target: str, progress=None):
     return proposals, err
 
 
+def _progress(phase, current=0, total=0, detail=""):
+    """Report op progress to the bridge singleton (web UI polls
+    /api/progress off the main thread) AND the C4D status bar."""
+    from .. import bridge
+    bridge.set_progress(phase, current, total, detail)
+    try:
+        c4d.StatusSetText("Scene Organizer: %s" % phase)
+        if total:
+            c4d.StatusSetBar(int(current * 100 / max(1, total)))
+        else:
+            c4d.StatusSetSpin()
+    except Exception:
+        pass
+
+
+def _clear_progress():
+    from .. import bridge
+    bridge.clear_progress()
+    try:
+        c4d.StatusClear()
+    except Exception:
+        pass
+
+
+def _cache_store() -> dict:
+    """Cross-request cache living on the `sceneorg` package itself: the
+    package module is the one name reload_all() never purges, so the cached
+    tree survives the per-request hot-reload (unlike webapi globals)."""
+    import sceneorg
+    if not hasattr(sceneorg, "_scene_cache"):
+        sceneorg._scene_cache = {}
+    return sceneorg._scene_cache
+
+
+def _refresh_selection(adapter, tree) -> None:
+    """Recompute the adapter's selection sets from the live objects. The
+    scene cache is keyed on the dirty counter, which deliberately ignores
+    selection — so a cache hit must re-read BIT_ACTIVE per object."""
+    adapter._selected_direct.clear()
+    adapter._selected_subtree.clear()
+
+    def visit(node, sel_ancestor):
+        op = adapter._by_guid.get(node.guid)
+        is_sel = False
+        if op is not None:
+            try:
+                is_sel = bool(op.GetBit(c4d.BIT_ACTIVE))
+            except Exception:
+                is_sel = False
+        if is_sel:
+            adapter._selected_direct.add(node.guid)
+        in_scope = sel_ancestor or is_sel
+        if in_scope:
+            adapter._selected_subtree.add(node.guid)
+        for child in node.children:
+            visit(child, in_scope)
+
+    for root in tree.roots:
+        visit(root, False)
+
+
+def _get_scene(doc, label: str):
+    """(adapter, tree) for the current document state, cached across
+    requests. The full tree walk (geometry counts included) is the single
+    most expensive step on big scenes — it must run once per scene CHANGE,
+    not once per API call. Any real edit bumps the dirty counter and
+    invalidates the entry; guids therefore stay stable between a plan and
+    its apply."""
+    cache = _cache_store()
+    key = (doc.GetDocumentPath() or "", doc.GetDocumentName() or "",
+           _scene_dirty(doc))
+    hit = cache.get("scene")
+    if hit is not None and hit.get("key") == key:
+        adapter, tree = hit["adapter"], hit["tree"]
+        adapter.doc = doc
+        _refresh_selection(adapter, tree)
+        return adapter, tree
+
+    adapter = SceneAdapter(doc)
+    phase = "Reading scene — %s" % label
+    _progress(phase)
+    tree = adapter.build_tree(
+        progress=lambda cur, tot, name: _progress(phase, cur, tot, name))
+    cache["scene"] = {"key": key, "adapter": adapter, "tree": tree}
+    return adapter, tree
+
+
+def invalidate_scene_cache() -> None:
+    _cache_store().pop("scene", None)
+
+
 def _scene_dirty(doc) -> int:
     """Cheap change token: C4D's per-document dirty counter for object and
     data changes (add/remove/reparent + geometry/parameter edits). Bumps on
@@ -595,7 +686,52 @@ def _selection_info(doc) -> tuple:
     return token, names, len(objs)
 
 
+# One human-readable label per potentially slow operation. The wrapper
+# publishes it to /api/progress before the op runs and always clears it —
+# so the UI can ALWAYS say what is loading, and a crashed op never leaves
+# a stuck progress state behind.
+_OP_LABELS = {
+    "analyze": "Analyzing scene",
+    "export": "Exporting report",
+    "export_csv": "Exporting CSV",
+    "detect": "Detecting naming convention",
+    "plan_naming": "Building rename preview",
+    "apply_naming": "Applying renames",
+    "plan_structure": "Building structure preview",
+    "apply_structure": "Applying structure",
+    "plan_layers": "Building layer preview",
+    "apply_layers": "Assigning layers",
+    "plan_translate": "Building translation preview",
+    "apply_translate": "Applying translations",
+    "plan_all": "Planning all areas",
+    "apply_all": "Applying everything",
+    "apply_plan": "Applying restructuring plan",
+    "revert_change": "Reverting change",
+    "assign_layer": "Assigning layer",
+    "move_to_group": "Moving objects to group",
+    "focus": "Locating object",
+    "focus_material": "Locating material",
+    "rename_object": "Renaming object",
+    "material_previews": "Rendering material previews",
+    "texture_previews": "Rendering texture thumbnails",
+    "fix_textures_relative": "Rewriting texture paths",
+    "delete_material": "Deleting material",
+    "delete_unused_materials": "Deleting unused materials",
+}
+
+
 def handle(payload: dict) -> dict:
+    label = _OP_LABELS.get(payload.get("op"))
+    if label is None:  # cheap ops (dirty poll, history, presets, config, …)
+        return _handle(payload)
+    try:
+        _progress(label)
+        return _handle(payload)
+    finally:
+        _clear_progress()
+
+
+def _handle(payload: dict) -> dict:
     op = payload.get("op")
     settings = payload.get("settings", {})
     doc = c4d.documents.GetActiveDocument()
@@ -615,79 +751,55 @@ def handle(payload: dict) -> dict:
     cfg, data = _load_cfg()
 
     if op in ("analyze", "export", "export_csv"):
-        from .. import bridge
-
-        def _prog(phase, current=0, total=0, detail=""):
-            bridge.set_progress(phase, current, total, detail)
-            try:
-                c4d.StatusSetText("Scene Organizer: %s" % phase)
-                if total:
-                    c4d.StatusSetBar(int(current * 100 / total))
-                else:
-                    c4d.StatusSetSpin()
-            except Exception:
-                pass
-
+        adapter, tree = _get_scene(doc, "analyzing")
+        _progress("Analyzing structure")
+        scope = _scope(settings, adapter) if op == "analyze" else None
+        if scope is not None and not scope:
+            return {"error": "No objects selected in Cinema 4D."}
+        include_hidden = (op != "analyze"
+                          or bool(settings.get("include_hidden", False)))
+        report = SceneAnalyzer(cfg.standard).analyze(
+            tree, file_name=doc.GetDocumentName(), scope=scope,
+            include_hidden=include_hidden)
+        data_dict = report.to_dict()
+        data_dict["scoped"] = scope is not None
+        data_dict["include_hidden"] = include_hidden
+        # Change token at read time -> the auto-refresh watcher syncs to
+        # this and only re-analyzes once the scene has moved past it.
+        data_dict["dirty"] = _scene_dirty(doc)
+        data_dict["doc_name"] = doc.GetDocumentName()
+        # Selection token at read time so the watcher can tell when the
+        # C4D selection moved on (relevant for selection-scoped analyses).
+        data_dict["sel"] = _selection_info(doc)[0]
         try:
-            _prog("Reading scene objects")
-            adapter = SceneAdapter(doc)
-            tree = adapter.build_tree(
-                progress=lambda cur, tot, name: _prog(
-                    "Reading scene objects", cur, tot, name))
-            _prog("Analyzing structure")
-            scope = _scope(settings, adapter) if op == "analyze" else None
-            if scope is not None and not scope:
-                return {"error": "No objects selected in Cinema 4D."}
-            include_hidden = (op != "analyze"
-                              or bool(settings.get("include_hidden", False)))
-            report = SceneAnalyzer(cfg.standard).analyze(
-                tree, file_name=doc.GetDocumentName(), scope=scope,
+            full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
+            data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
+        except Exception:
+            data_dict["file_size"] = 0
+        try:
+            _progress("Scanning materials")
+            data_dict["materials"] = adapter.scan_materials(
+                include_hidden=include_hidden,
+                accepted=cfg.accepted_unused)
+        except Exception:
+            data_dict["materials"] = None
+        try:
+            _progress("Scanning textures")
+            data_dict["textures"] = adapter.scan_textures(
                 include_hidden=include_hidden)
-            data_dict = report.to_dict()
-            data_dict["scoped"] = scope is not None
-            data_dict["include_hidden"] = include_hidden
-            # Change token at read time -> the auto-refresh watcher syncs to
-            # this and only re-analyzes once the scene has moved past it.
-            data_dict["dirty"] = _scene_dirty(doc)
-            data_dict["doc_name"] = doc.GetDocumentName()
-            # Selection token at read time so the watcher can tell when the
-            # C4D selection moved on (relevant for selection-scoped analyses).
-            data_dict["sel"] = _selection_info(doc)[0]
-            try:
-                full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
-                data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
-            except Exception:
-                data_dict["file_size"] = 0
-            try:
-                _prog("Scanning materials")
-                data_dict["materials"] = adapter.scan_materials(
-                    include_hidden=include_hidden,
-                    accepted=cfg.accepted_unused)
-            except Exception:
-                data_dict["materials"] = None
-            try:
-                _prog("Scanning textures")
-                data_dict["textures"] = adapter.scan_textures(
-                    include_hidden=include_hidden)
-            except Exception as ex:  # noqa: BLE001
-                import traceback
-                data_dict["textures"] = None
-                data_dict["textures_error"] = "%s: %s" % (
-                    type(ex).__name__, ex)
-                data_dict["textures_trace"] = traceback.format_exc()[-1500:]
-            try:
-                _prog("Scanning layers")
-                data_dict["layers_report"] = _merge_layers(
-                    data_dict, adapter.scan_layers())
-            except Exception:
-                data_dict["layers_report"] = None
-            _prog("Writing report")
-        finally:
-            bridge.clear_progress()
-            try:
-                c4d.StatusClear()
-            except Exception:
-                pass
+        except Exception as ex:  # noqa: BLE001
+            import traceback
+            data_dict["textures"] = None
+            data_dict["textures_error"] = "%s: %s" % (
+                type(ex).__name__, ex)
+            data_dict["textures_trace"] = traceback.format_exc()[-1500:]
+        try:
+            _progress("Scanning layers")
+            data_dict["layers_report"] = _merge_layers(
+                data_dict, adapter.scan_layers())
+        except Exception:
+            data_dict["layers_report"] = None
+        _progress("Writing report")
 
         import time
         now = time.time()
@@ -731,8 +843,7 @@ def handle(payload: dict) -> dict:
         return _delete_preset(payload.get("id", ""))
 
     if op in ("plan_all", "apply_all"):
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "one-button plan")
         conv = _convention(settings, cfg)
         scope = _scope(settings, adapter)
         plan = pipeline.plan_combined(
@@ -775,8 +886,7 @@ def handle(payload: dict) -> dict:
             plan = _load_plan(payload["id"])
         if not plan or "operations" not in plan:
             return {"error": "no valid plan (need {operations:[...]})"}
-        adapter = SceneAdapter(doc)
-        adapter.build_tree()
+        adapter, _ = _get_scene(doc, "restructuring plan")
         res = adapter.apply_plan(plan["operations"])
         _record_change("plan", "restructuring plan: %d ops" % res.get("total", 0),
                        [], revertible=False, doc_name=doc.GetDocumentName())
@@ -785,8 +895,7 @@ def handle(payload: dict) -> dict:
     if op == "rename_object":
         # Direct single-object rename (Name cleanup inline edit) — one undo
         # step, recorded in the change history like every other mutation.
-        adapter = SceneAdapter(doc)
-        adapter.build_tree()
+        adapter, _ = _get_scene(doc, "rename")
         new_name = str(payload.get("name") or "").strip()
         if not new_name:
             return {"ok": False, "error": "empty name"}
@@ -797,26 +906,68 @@ def handle(payload: dict) -> dict:
         return {"ok": ok, "applied": 1 if ok else 0}
 
     if op == "focus":
-        adapter = SceneAdapter(doc)
-        adapter.build_tree()
+        adapter, _ = _get_scene(doc, "focus")
         ok = adapter.focus(payload.get("guid"))
         return {"ok": ok}
 
     if op == "material_previews":
+        # Rendering preview bitmaps is the slowest per-item main-thread job
+        # (~0.2s each) — cache them across requests so a preview renders
+        # ONCE per material, and report per-item progress meanwhile.
         adapter = SceneAdapter(doc)
         size = int(payload.get("size") or 48)
-        previews = adapter.material_previews(payload.get("names"), size=size)
+        cache = _cache_store().setdefault("mat_previews", {})
+        doc_key = doc.GetDocumentName() or ""
+        names = payload.get("names") or []
+        previews = {}
+        missing = []
+        for name in names:
+            hit = cache.get((doc_key, name, size))
+            if hit is not None:
+                previews[name] = hit
+            else:
+                missing.append(name)
+        if missing:
+            fresh = adapter.material_previews(
+                missing, size=size,
+                progress=lambda cur, tot, nm: _progress(
+                    "Rendering material previews", cur, tot, nm))
+            for name, data in fresh.items():
+                cache[(doc_key, name, size)] = data
+            previews.update(fresh)
         return {"ok": True, "previews": previews}
 
     if op == "texture_previews":
         adapter = SceneAdapter(doc)
         size = int(payload.get("size") or 40)
-        previews = adapter.texture_previews(payload.get("paths"), size=size)
+        cache = _cache_store().setdefault("tex_previews", {})
+        paths = payload.get("paths") or []
+        previews = {}
+        missing = []
+        for p in paths:
+            try:
+                mtime = os.path.getmtime(p) if p and os.path.isfile(p) else 0
+            except OSError:
+                mtime = 0
+            key = (p, mtime, size)
+            hit = cache.get(key)
+            if hit is not None:
+                previews[p] = hit
+            else:
+                missing.append((p, key))
+        if missing:
+            fresh = adapter.texture_previews(
+                [p for p, _ in missing], size=size,
+                progress=lambda cur, tot, nm: _progress(
+                    "Rendering texture thumbnails", cur, tot, nm))
+            for p, key in missing:
+                if p in fresh:
+                    cache[key] = fresh[p]
+                    previews[p] = fresh[p]
         return {"ok": True, "previews": previews}
 
     if op == "focus_material":
-        adapter = SceneAdapter(doc)
-        adapter.build_tree()
+        adapter, _ = _get_scene(doc, "focus material")
         return {"ok": True, **adapter.focus_material(payload.get("name", ""))}
 
     if op == "delete_material":
@@ -859,8 +1010,7 @@ def handle(payload: dict) -> dict:
             return {"error": "already reverted"}
         if not entry.get("revertible"):
             return {"error": "this change cannot be reverted"}
-        adapter = SceneAdapter(doc)
-        adapter.build_tree()
+        adapter, _ = _get_scene(doc, "revert")
         res = adapter.revert(entry.get("items") or [],
                              canonical=cfg.standard.canonical_group)
         entry["reverted"] = True
@@ -889,7 +1039,7 @@ def handle(payload: dict) -> dict:
                 "keys": merged["keeps"][section]}
 
     if op == "detect":
-        tree = SceneAdapter(doc).build_tree()
+        _, tree = _get_scene(doc, "detect convention")
         res = detectmod.detect_convention([n.name for n in tree.walk()])
         return {"ok": True, "detect": {
             "style": res.style.value, "language": res.language,
@@ -919,8 +1069,7 @@ def handle(payload: dict) -> dict:
         return {"ok": True, "config": data, "defaults": cfgmod.DEFAULT_CONFIG}
 
     if op in ("plan_naming", "apply_naming"):
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "naming")
         conv = _convention(settings, cfg)
         scope = _scope(settings, adapter)
         dedupe = bool(settings.get("dedupe", True))
@@ -944,8 +1093,7 @@ def handle(payload: dict) -> dict:
                 "kept": kept, "keep_names": kept}
 
     if op in ("plan_structure", "apply_structure"):
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "structure")
         scope = _scope(settings, adapter)
         safe = bool(settings.get("safe", True))
         tidy = bool(settings.get("tidy", True))
@@ -973,8 +1121,7 @@ def handle(payload: dict) -> dict:
                 "skipped": skipped, "kept": kept}
 
     if op in ("plan_translate", "apply_translate"):
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "translation")
         scope = _scope(settings, adapter)
         target = payload.get("target") or "en"
         engine = (payload.get("engine") or settings.get("engine")
@@ -982,28 +1129,16 @@ def handle(payload: dict) -> dict:
         if engine == "google":
             # Report fetch progress to the bridge singleton: the web UI polls
             # /api/progress (server thread) and blurs the preview meanwhile.
-            from .. import bridge
-
             def _gprog(cur, tot):
-                bridge.set_progress("Translating online (Google)", cur, tot,
-                                    "%d / %d names" % (cur, tot))
-                try:
-                    c4d.StatusSetText("Scene Organizer: translating %d/%d"
-                                      % (cur, tot))
-                    if tot:
-                        c4d.StatusSetBar(int(cur * 100 / max(1, tot)))
-                except Exception:
-                    pass
+                _progress("Translating online (Google)", cur, tot,
+                          "%d / %d names" % (cur, tot))
 
             try:
                 props, gerr = _google_plan(tree, scope, target,
                                            progress=_gprog)
             finally:
-                bridge.clear_progress()
-                try:
-                    c4d.StatusClear()
-                except Exception:
-                    pass
+                # Back to the op label; the handle() wrapper clears at the end.
+                _progress(_OP_LABELS.get(op, "Translating"))
             if gerr and not props:
                 return {"error": "Google translate failed: %s" % gerr}
         else:
@@ -1029,8 +1164,7 @@ def handle(payload: dict) -> dict:
 
     if op in ("plan_layers", "apply_layers"):
         import collections
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "layers")
         scope = _scope(settings, adapter)
         layerops = ops.plan_layers(tree, scope=scope)
         layerops, kept = keepsmod.filter_kept(
@@ -1054,8 +1188,7 @@ def handle(payload: dict) -> dict:
     if op in ("assign_layer", "move_to_group"):
         # Direct batch actions from the asset browser: the user picked the
         # objects and the target explicitly, so no plan/safety filter runs.
-        adapter = SceneAdapter(doc)
-        tree = adapter.build_tree()
+        adapter, tree = _get_scene(doc, "batch action")
         key = "layer" if op == "assign_layer" else "group"
         target = str(payload.get(key) or "").strip()
         if not target:
