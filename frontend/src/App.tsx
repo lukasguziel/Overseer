@@ -20,6 +20,10 @@ import LayersTab from './tabs/LayersTab'
 import MaterialsTab from './tabs/MaterialsTab'
 import RulesTab from './tabs/RulesTab'
 import MiscTab from './tabs/MiscTab'
+import TagsTab from './tabs/TagsTab'
+import GeneratorsTab from './tabs/GeneratorsTab'
+import FilesTab from './tabs/FilesTab'
+import SimsTab from './tabs/SimsTab'
 
 export default function App() {
   const org = useOrganizer()
@@ -106,6 +110,10 @@ export default function App() {
       {tab === 'layers' && <LayersTab org={org} />}
       {tab === 'materials' && <MaterialsTab org={org} />}
       {tab === 'rules' && <RulesTab />}
+      {tab === 'tags' && <TagsTab org={org} />}
+      {tab === 'generators' && <GeneratorsTab org={org} />}
+      {tab === 'files' && <FilesTab org={org} />}
+      {tab === 'sims' && <SimsTab org={org} />}
       {tab === 'misc' && <MiscTab org={org} />}
 
       {/* Background work indicator: progress is active but neither the
