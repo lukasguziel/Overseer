@@ -11,6 +11,14 @@ function publish(op: string, data: unknown) {
   listeners.forEach((l) => l())
 }
 
+// Fire-and-forget prefetch into the shared cache (e.g. the Overview loads
+// the tags scan so its score ring fills without visiting the Tags tab).
+// Does nothing if a result is already cached.
+export function prefetchAudit(op: string): void {
+  if (cache.has(op)) return
+  call(op).then((r) => publish(op, r)).catch(() => { /* score stays pending */ })
+}
+
 // Read-only subscription to the latest cached result of an audit op
 // (null until the owning tab has run the scan at least once).
 export function useAuditData<T>(op: string): T | null {
