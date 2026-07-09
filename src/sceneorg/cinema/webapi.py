@@ -762,6 +762,19 @@ def _handle(payload: dict) -> dict:
                 "name": doc.GetDocumentName(),
                 "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
 
+    if op == "ui_settings_get":
+        from . import ui_settings as uimod
+        ui = uimod.load_ui(DATA_DIR, doc.GetDocumentPath() or "",
+                           doc.GetDocumentName() or "")
+        return {"ok": True, "found": bool(ui), "ui": ui}
+
+    if op == "ui_settings_set":
+        from . import ui_settings as uimod
+        res = uimod.save_ui(DATA_DIR, doc.GetDocumentPath() or "",
+                            doc.GetDocumentName() or "", payload.get("ui") or {})
+        return {"ok": bool(res.get("ok")), "path": res.get("path"),
+                "error": res.get("error")}
+
     cfg, data = _load_cfg()
 
     if op in ("analyze", "export", "export_csv"):

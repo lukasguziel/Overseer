@@ -69,6 +69,14 @@ Single entry point dispatching on `payload["op"]` against the active document
   materials, textures, and merged layers, records history (non-scoped only), and
   writes the export. `export_csv` additionally writes the flat CSV. `bridge`
   progress and status bar are always cleared in a `finally`.
+- `ui_settings_get` / `ui_settings_set` — per-project UI settings persistence
+  (cheap ops, no config load). `get` returns `{found, ui}` with the stored
+  clickable settings for the ACTIVE document; `set` persists the posted `ui`
+  blob for it. Backed by `cinema/ui_settings.py`, one JSON per project under
+  `DATA_DIR/configs/<slug>.json` (slug = `core/ui_settings_logic.project_slug`
+  of the doc path + name; unsaved docs with neither are skipped). Only the
+  known, well-typed keys survive (`sanitize_ui`). Separate from presets: presets
+  are named GLOBAL snapshots, these files are the silent per-project memory.
 - `history` — reversed history list.
 - `presets` / `apply_preset` / `save_preset` / `delete_preset` — preset CRUD.
 - `plan_all` / `apply_all` — one-button combined plan (naming+structure+layers,
