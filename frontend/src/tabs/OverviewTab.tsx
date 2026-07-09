@@ -56,6 +56,25 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return { data: report?.language || {}, fromEngine: false }
   }, [org.translation, report])
 
+  // Texture budget: resolution mix + estimated UNCOMPRESSED memory (w*h*4
+  // bytes — what actually lands in RAM/VRAM, disk size lies for JPGs) and
+  // the heaviest maps.
+  const texBudget = React.useMemo(() => {
+    const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
+    const withPx = entries.filter((e) => e.width > 0)
+    const tiers: Record<string, number> = {}
+    let mem = 0
+    for (const e of withPx) {
+      const t = Math.max(e.width, e.height) >= 8192 ? '8K'
+        : Math.max(e.width, e.height) >= 4096 ? '4K'
+          : Math.max(e.width, e.height) >= 2048 ? '2K' : '< 2K'
+      tiers[t] = (tiers[t] || 0) + 1
+      mem += e.width * e.height * 4
+    }
+    const top = [...withPx].sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3)
+    return { tiers, mem, top, count: withPx.length }
+  }, [report])
+
   const displayCasing = React.useMemo(() => {
     const raw = report?.casing || {}
     const conv = org.casing
@@ -116,7 +135,8 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     <div className="overview">
       <div className="tiles">
         <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)} />
-        <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)} />
+        <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)}
+          sub={`${humanNum(report.total_points)} points`} />
         <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)}
           sub={(() => {
             const texB = tex?.total_bytes ?? 0
@@ -247,6 +267,42 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           {hyg.outliers.length > 0 && (
             <AssetTable rows={hyg.outliers.slice(0, 5)} onFocus={org.doFocus} />
           )}
+        </section>
+
+        <section className="card">
+          <div className="card-head">
+            <h3>Texture budget</h3>
+            <button className="ghost sm" onClick={() => org.setTab('materials')}>Inspect →</button>
+          </div>
+          {texBudget.count > 0 ? (
+            <>
+              <table className="mini"><tbody>
+                <tr><td>Maps with pixel data</td><td>{texBudget.count}</td></tr>
+                <tr>
+                  <td>Est. uncompressed memory</td>
+                  <td title="width × height × 4 bytes per map — what the maps cost in RAM/VRAM, regardless of JPG compression on disk">
+                    {humanBytes(texBudget.mem)}
+                  </td>
+                </tr>
+                <tr><td>Resolution mix</td><td>
+                  {['8K', '4K', '2K', '< 2K'].filter((t) => texBudget.tiers[t])
+                    .map((t) => `${texBudget.tiers[t]}× ${t}`).join(' · ') || '—'}
+                </td></tr>
+              </tbody></table>
+              <div className="chipgroup-label" style={{ marginTop: 10 }}>Heaviest maps</div>
+              <div className="rename-list">
+                {texBudget.top.map((e, i) => (
+                  <button key={i} className="fl-row fl-click tb-row"
+                    title={`${e.path}\nClick to select material “${e.material}”`}
+                    onClick={() => org.doFocusMaterial(e.material)}>
+                    <span className="fl-name">{e.file}</span>
+                    <span className="dim">{e.width}×{e.height}</span>
+                    <span className="dim">{humanBytes(e.width * e.height * 4)}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : <div className="fl-empty">No texture pixel data (files missing or none referenced).</div>}
         </section>
       </div>
     </div>
