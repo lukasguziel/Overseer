@@ -720,8 +720,22 @@ _OP_LABELS = {
 }
 
 
+# Audit modules (op prefix -> module in sceneorg.cinema). Each module owns
+# every op starting with its prefix ("tags_scan", "gens_apply", …) and
+# exposes: handle(op, payload, doc, adapter, tree, progress) -> dict.
+_AUDIT_MODULES = {
+    "tags": "audit_tags",
+    "gens": "audit_generators",
+    "files": "audit_files",
+    "sims": "audit_sims",
+}
+
+
 def handle(payload: dict) -> dict:
-    label = _OP_LABELS.get(payload.get("op"))
+    op = str(payload.get("op") or "")
+    label = _OP_LABELS.get(op)
+    if label is None and op.split("_", 1)[0] in _AUDIT_MODULES:
+        label = "Scanning scene (%s)" % op.split("_", 1)[0]
     if label is None:  # cheap ops (dirty poll, history, presets, config, …)
         return _handle(payload)
     try:
@@ -1212,5 +1226,14 @@ def _handle(payload: dict) -> dict:
         _record_change("structure", "%d moved to %s" % (applied, target),
                        adapter.last_changes, doc_name=doc.GetDocumentName())
         return {"ok": True, "applied": applied, "group": target}
+
+    prefix = op.split("_", 1)[0] if op else ""
+    if prefix in _AUDIT_MODULES:
+        import importlib
+        mod = importlib.import_module(
+            "sceneorg.cinema." + _AUDIT_MODULES[prefix])
+        adapter, tree = _get_scene(doc, "%s audit" % prefix)
+        return mod.handle(op, payload, doc=doc, adapter=adapter, tree=tree,
+                          progress=_progress)
 
     return {"error": "unknown op: %s" % op}

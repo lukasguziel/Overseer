@@ -15,6 +15,7 @@ export const LANGS: [string, string][] = [
 export type TabId =
   | 'overview' | 'assets' | 'naming' | 'translate'
   | 'structure' | 'layers' | 'materials' | 'rules' | 'misc'
+  | 'tags' | 'generators' | 'files' | 'sims'
 
 // [id, label, soon?] — `soon` tabs are shown disabled with a "soon" badge.
 // Structure & Rules are parked entirely (code stays, nav entry removed) —
@@ -26,6 +27,10 @@ export const TABS: [TabId, string, boolean?][] = [
   ['layers', 'Layers'],
   ['assets', 'Assets'],
   ['materials', 'Materials'],
+  ['tags', 'Tags'],
+  ['generators', 'Generators'],
+  ['files', 'Files'],
+  ['sims', 'Sims'],
   ['misc', 'Misc'],
 ]
 
