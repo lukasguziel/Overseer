@@ -23,10 +23,10 @@ function resTier(e: TextureEntry): string {
 // material line up cleanly; long names and paths get ellipsis-truncated.
 // Rows are clickable: they select the material in C4D and frame the first
 // object carrying it.
-// Row status: missing is broken (err), absolute breaks on move (warn),
-// relative is healthy (ok).
+// Row status: only MISSING is a defect (err). Absolute vs relative is a
+// pipeline preference — both render as healthy, the badge tells which.
 const texDot = (e: TextureEntry): string =>
-  e.missing ? 'var(--err)' : e.absolute ? 'var(--warn)' : 'var(--apply)'
+  e.missing ? 'var(--err)' : 'var(--apply)'
 
 function TexTable({ rows, previews, onFocus }: {
   rows: TextureEntry[]
@@ -58,9 +58,7 @@ function TexTable({ rows, previews, onFocus }: {
                 ? <span className="tex-badge missing">missing</span>
                 : e.relocatable
                   ? <span className="tex-badge fixable">→ relative</span>
-                  : e.absolute
-                    ? <span className="tex-badge unused">absolute</span>
-                    : <span className="tex-badge fixable">relative</span>}
+                  : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
             </span>
             <span className="num">
               {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
@@ -255,7 +253,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               ] as [string, string, number][]).map(([key, label, n]) => (
                 <button key={key || 'all'}
                   className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
-                    + ((key === 'missing' || key === 'absolute') && n > 0 ? ' tf-warn' : '')}
+                    + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
                   title={key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
                   onClick={() => setPathFilter(key)}>
                   {label} <em>{n}</em>

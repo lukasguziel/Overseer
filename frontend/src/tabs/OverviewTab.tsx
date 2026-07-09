@@ -179,7 +179,8 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             <tr><td>Unused materials</td><td className={mat?.unused.length ? 'warn' : ''}>{mat?.unused.length ?? 0}</td></tr>
             <tr><td>Missing textures</td><td className={mat?.missing_textures ? 'warn' : ''}>{mat?.missing_textures ?? 0}</td></tr>
             <tr><td>Textures on disk</td><td>{humanBytes(tex?.total_bytes ?? 0)}</td></tr>
-            <tr><td>Absolute paths</td><td className={tex?.absolute_count ? 'warn' : ''}>{tex?.absolute_count ?? 0}</td></tr>
+            {/* Absolute vs relative is a taste question — shown, never warned. */}
+            <tr><td>Absolute paths</td><td>{tex?.absolute_count ?? 0}</td></tr>
           </tbody></table>
         </section>
 

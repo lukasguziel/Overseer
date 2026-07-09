@@ -653,10 +653,16 @@ export function useOrganizer() {
         return capped(open, (nodes.length - open) / nodes.length)
       }
       case 'materials': {
+        // Unused materials + MISSING textures count against the score.
+        // Absolute vs relative paths deliberately do not — that is a
+        // pipeline preference, not a defect.
         const m = report.materials
-        if (!m?.total) return null
-        const bad = m.deletable_count ?? m.unused.length
-        return capped(bad, (m.total - bad) / m.total)
+        const texTotal = report.textures?.total ?? 0
+        const total = (m?.total ?? 0) + texTotal
+        if (!total) return null
+        const bad = (m?.deletable_count ?? m?.unused?.length ?? 0)
+          + (report.textures?.missing_count ?? 0)
+        return capped(bad, Math.max(0, total - bad) / total)
       }
       case 'structure':
         return Math.round((report.structure_compliance || 0) * 100)
