@@ -8,6 +8,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import ConfirmModal from '../components/ConfirmModal'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -93,6 +94,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // absolute nor relative), the rest split by path style, heaviest first.
   // An active resolution filter narrows all three.
   const [resFilter, setResFilter] = useState('')
+  // Copy & relink out-of-project textures: target subfolder + confirm state.
+  const [collectDir, setCollectDir] = useState('tex')
+  const [collectConfirm, setCollectConfirm] = useState(false)
   const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
   const missPager = usePager(allTex.filter((e) => e.missing && byRes(e)).sort(bySize))
@@ -152,6 +156,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   }
 
   const fixable = tex?.relocatable_count ?? 0
+  // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
+  // the file must be copied into the project first (Copy & relink).
+  const collectable = allTex.filter((e) => e.absolute && !e.missing && !e.relocatable).length
   const deletable = mat?.deletable_count ?? (mat?.unused.length ?? 0)
   const acceptedList = mat?.accepted || []
 
@@ -275,6 +282,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {tex && (
         <>
+          {/* Missing + absolute side by side — the two problem lists. */}
+          <div className={missPager.total > 0 ? 'ov-cols2' : undefined}>
           {missPager.total > 0 && (
             <section className="card">
               <div className="card-head">
@@ -291,7 +300,27 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <div className="card-head">
               <h3>Absolute paths</h3>
               <span className="card-hint">{absPager.total}</span>
+              {collectable > 0 && (
+                <span className="mat-confirm" style={{ marginLeft: 'auto' }}>
+                  <input className="nl-input" style={{ width: 70 }} value={collectDir}
+                    onChange={(e) => setCollectDir(e.target.value)}
+                    title="Project subfolder the textures are copied into" />
+                  <button className="mini" disabled={busy}
+                    title={`Copy the ${collectable} texture file(s) that live OUTSIDE the project into “${collectDir || 'tex'}/” and relink the shaders relatively`}
+                    onClick={() => setCollectConfirm(true)}>
+                    Copy &amp; relink {collectable}
+                  </button>
+                </span>
+              )}
             </div>
+            {(absPager.total > 0 || collectable > 0) && (
+              <p className="hint-sm">
+                Absolute paths break as soon as the project moves to another
+                machine or folder. Paths already inside the project just need
+                <b> Fix paths</b> (rewrite only); files elsewhere need
+                <b> Copy &amp; relink</b> — they are copied into the project first.
+              </p>
+            )}
             {absPager.total
               ? <>
                   <TexTable rows={absPager.rows} dot="var(--warn)"
@@ -300,6 +329,17 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 </>
               : <div className="fl-empty">No absolute texture paths 🎉</div>}
           </section>
+          </div>
+
+          {collectConfirm && (
+            <ConfirmModal
+              title="Copy textures into the project"
+              message={`Copy ${collectable} texture file${collectable === 1 ? '' : 's'} that live outside the project into “${(collectDir || 'tex').trim()}/” and relink the shaders with relative paths. The relink is one undo step; the copied files themselves stay on disk (originals are not touched). Continue?`}
+              confirmLabel={`✓ Copy & relink ${collectable}`}
+              onConfirm={() => { setCollectConfirm(false); org.doCollectTextures((collectDir || 'tex').trim()) }}
+              onCancel={() => setCollectConfirm(false)}
+            />
+          )}
 
           <section className="card">
             <div className="card-head">

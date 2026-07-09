@@ -190,6 +190,17 @@ export default function FilesTab({ org }: { org: Organizer }) {
           <div className="card-head">
             <h3>Missing files</h3>
             <span className="card-hint">{missPager.total}</span>
+            <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
+              title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
+              onClick={async () => {
+                const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
+                try {
+                  const r = await call('files_select', { guids })
+                  setNote(`Selected ${r.selected} object${r.selected === 1 ? '' : 's'} with missing files in C4D ✓`)
+                } catch (e: any) { setNote(String(e.message || e)) }
+              }}>
+              Select all in C4D
+            </button>
           </div>
           <FileTable rows={missPager.rows} onFocus={onFocus} />
           <Pager pager={missPager} />

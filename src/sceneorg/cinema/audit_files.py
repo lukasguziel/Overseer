@@ -188,9 +188,37 @@ def _make_relative(doc, adapter, payload) -> dict:
     return {"ok": True, "fixed": fixed, "skipped": skipped}
 
 
+def _select(doc, adapter, payload) -> dict:
+    """Select the owner objects of the given entries in C4D (batch from the
+    missing-files list: inspect/replace them all at once)."""
+    guids = [g for g in (payload.get("guids") or []) if g is not None]
+    selected = 0
+    first = True
+    for guid in guids:
+        obj = adapter._by_guid.get(guid)
+        if obj is None:
+            continue
+        try:
+            if first:
+                doc.SetActiveObject(obj, c4d.SELECTION_NEW)
+                first = False
+            else:
+                obj.SetBit(c4d.BIT_ACTIVE)
+            selected += 1
+        except Exception:
+            continue
+    try:
+        c4d.EventAdd()
+    except Exception:
+        pass
+    return {"ok": True, "selected": selected}
+
+
 def handle(op, payload, doc, adapter, tree, progress) -> dict:
     if op == "files_scan":
         return _scan(doc, adapter, progress)
     if op == "files_make_relative":
         return _make_relative(doc, adapter, payload)
+    if op == "files_select":
+        return _select(doc, adapter, payload)
     return {"error": "unknown files op: %s" % op}

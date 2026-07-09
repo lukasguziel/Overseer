@@ -250,6 +250,22 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Fix ✗') })
   }, [doAnalyze])
 
+  // Copy out-of-project textures into <project>/<subdir> and relink the
+  // shaders relatively. The copy itself is a file operation (not undoable),
+  // the relink is one undo step — the confirm dialog says so.
+  const doCollectTextures = useCallback((subdir: string) => {
+    setStatus(`Copying textures into “${subdir}”…`)
+    call('collect_textures', { subdir })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(r.relinked
+          ? `Copied ${r.copied} file${r.copied === 1 ? '' : 's'} → ${subdir}/ · relinked ${r.relinked} shader${r.relinked === 1 ? '' : 's'} ✓ (relink undoable)`
+          : 'No out-of-project textures to collect.')
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Collect ✗') })
+  }, [doAnalyze])
+
   // Asset browser batch actions: explicit guids + explicit target, no plan.
   const doAssignLayer = (guids: number[], layer: string) => run('Assign layer', async () => {
     const r = await call('assign_layer', { guids, layer })
@@ -721,7 +737,7 @@ export function useOrganizer() {
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,
-    doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative,
+    doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,
