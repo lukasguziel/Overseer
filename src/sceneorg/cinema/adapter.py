@@ -222,7 +222,22 @@ class SceneAdapter:
             pass
         return True
 
+    @staticmethod
+    def _mat_key(m):
+        """Identity key for a material. Names are NOT unique (scenes carry
+        e.g. two materials called 'snowflake') — keying usage by name makes
+        the unused/on-hidden counts contradict each other, so use C4D's
+        per-object GUID and fall back to the name only if that fails."""
+        try:
+            return m.GetGUID()
+        except Exception:
+            try:
+                return m.GetName()
+            except Exception:
+                return id(m)
+
     def _material_usage(self) -> tuple[set, set]:
+        """(used_any, used_visible) as sets of material IDENTITY keys."""
         used_any: set = set()
         used_visible: set = set()
 
@@ -234,10 +249,10 @@ class SceneAdapter:
                         if tag.IsInstanceOf(c4d.Ttexture):
                             m = tag.GetMaterial()
                             if m is not None:
-                                nm = m.GetName()
-                                used_any.add(nm)
+                                key = self._mat_key(m)
+                                used_any.add(key)
                                 if not hidden:
-                                    used_visible.add(nm)
+                                    used_visible.add(key)
                 except Exception:
                     pass
                 visit(op.GetDown(), hidden)
@@ -246,8 +261,21 @@ class SceneAdapter:
         visit(self.doc.GetFirstObject(), False)
         return used_any, used_visible
 
-    def _used_material_names(self) -> set:
+    def _used_material_keys(self) -> set:
         return self._material_usage()[0]
+
+    def _used_material_names(self) -> set:
+        """Names of used materials (derived from identity keys — display /
+        texture-table use only; deletion logic works on keys)."""
+        used = self._used_material_keys()
+        out: set = set()
+        try:
+            for m in self.doc.GetMaterials():
+                if self._mat_key(m) in used:
+                    out.add(m.GetName())
+        except Exception:
+            pass
+        return out
 
     def _all_material_names(self) -> set:
         try:
@@ -275,12 +303,13 @@ class SceneAdapter:
         missing: list = []
         for m in mats:
             name = m.GetName()
-            if name not in effective:
+            key = self._mat_key(m)
+            if key not in effective:
                 if name in accepted:
                     accepted_out.append(name)
                 else:
                     unused.append(name)
-                    if name in used_any:
+                    if key in used_any:
                         only_hidden.append(name)
             try:
                 sh = m.GetFirstShader()
@@ -547,7 +576,16 @@ class SceneAdapter:
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
         used_any, used_visible = self._material_usage()
-        effective = used_any if include_hidden else used_visible
+        effective_keys = used_any if include_hidden else used_visible
+        # The texture table matches by owner-material NAME — translate the
+        # identity keys back to names for it.
+        effective: set = set()
+        try:
+            for m in doc.GetMaterials():
+                if self._mat_key(m) in effective_keys:
+                    effective.add(m.GetName())
+        except Exception:
+            pass
         entries: list = []
         meta_cache: dict = {}
 
@@ -768,29 +806,67 @@ class SceneAdapter:
         return {"copied": copied, "relinked": relinked, "skipped": skipped,
                 "target": target_dir}
 
-    def _find_path_param(self, owner, raw: str):
-        """DescID of the string parameter on `owner` (shader/material) that
-        currently holds the path `raw`. Fast path for standard bitmap
-        shaders; generic description scan otherwise, so Octane/Redshift
-        image nodes are covered too — we only ever write where we found the
-        exact string, never guess."""
+    def _find_path_params(self, owner, raw: str) -> list:
+        """[(holder, DescID), ...] for EVERY string parameter on `owner` —
+        and on the shaders underneath it — that currently holds the path
+        `raw`. An owner can carry the same path in several parameters
+        (Octane/Redshift nodes do); writing only the first one makes batch
+        fixes shrink the list in random steps instead of clearing it. We
+        only ever write where we found the exact string, never guess."""
+        holders = [owner]
+        # Materials (and some shaders) nest the actual image nodes below
+        # themselves — include the whole shader subtree.
         try:
-            if owner.CheckType(c4d.Xbitmap):
-                return c4d.BITMAPSHADER_FILENAME
+            first = owner.GetFirstShader()
         except Exception:
-            pass
-        try:
-            description = owner.GetDescription(c4d.DESCFLAGS_DESC_NONE)
-            for _bc, paramid, _group in description:
+            first = None
+        stack = [first] if first is not None else []
+        while stack:
+            sh = stack.pop()
+            while sh is not None:
+                holders.append(sh)
                 try:
-                    val = owner[paramid]
+                    down = sh.GetDown()
                 except Exception:
+                    down = None
+                if down is not None:
+                    stack.append(down)
+                sh = sh.GetNext()
+
+        out: list = []
+        for holder in holders:
+            try:
+                if holder.CheckType(c4d.Xbitmap) \
+                        and str(holder[c4d.BITMAPSHADER_FILENAME] or "") == raw:
+                    out.append((holder, c4d.BITMAPSHADER_FILENAME))
                     continue
-                if isinstance(val, str) and val == raw:
-                    return paramid
-        except Exception:
-            pass
-        return None
+            except Exception:
+                pass
+            try:
+                description = holder.GetDescription(c4d.DESCFLAGS_DESC_NONE)
+                for _bc, paramid, _group in description:
+                    try:
+                        val = holder[paramid]
+                    except Exception:
+                        continue
+                    if isinstance(val, str) and val == raw:
+                        out.append((holder, paramid))
+            except Exception:
+                continue
+        return out
+
+    def _write_path_refs(self, owner, raw: str, new_path: str) -> bool:
+        """Rewrite EVERY parameter on owner (+its shader tree) holding `raw`
+        to `new_path`, with undo. True if at least one write succeeded."""
+        wrote = False
+        for holder, paramid in self._find_path_params(owner, raw):
+            try:
+                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, holder)
+                holder[paramid] = new_path
+                wrote = True
+            except Exception:
+                continue
+        return wrote
 
     def _missing_texture_refs(self) -> list:
         """(owner, raw_path) for every image reference whose file does not
@@ -860,10 +936,6 @@ class SceneAdapter:
             if found is None:
                 not_found += 1
                 continue
-            paramid = self._find_path_param(owner, raw)
-            if paramid is None:
-                skipped += 1
-                continue
             new_path = found
             if doc_path:
                 try:
@@ -872,11 +944,9 @@ class SceneAdapter:
                         new_path = rp.replace("\\", "/")
                 except Exception:
                     pass
-            try:
-                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
-                owner[paramid] = new_path
+            if self._write_path_refs(owner, raw, new_path):
                 relinked += 1
-            except Exception:
+            else:
                 skipped += 1
         self.doc.EndUndo()
         c4d.EventAdd()
@@ -928,15 +998,9 @@ class SceneAdapter:
         changed = skipped = 0
         doc.StartUndo()
         for owner in targets:
-            paramid = self._find_path_param(owner, raw)
-            if paramid is None:
-                skipped += 1
-                continue
-            try:
-                doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
-                owner[paramid] = write_path
+            if self._write_path_refs(owner, raw, write_path):
                 changed += 1
-            except Exception:
+            else:
                 skipped += 1
         doc.EndUndo()
         c4d.EventAdd()
@@ -953,15 +1017,9 @@ class SceneAdapter:
         cleared = skipped = 0
         self.doc.StartUndo()
         for owner, raw in missing:
-            paramid = self._find_path_param(owner, raw)
-            if paramid is None:
-                skipped += 1
-                continue
-            try:
-                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, owner)
-                owner[paramid] = ""
+            if self._write_path_refs(owner, raw, ""):
                 cleared += 1
-            except Exception:
+            else:
                 skipped += 1
         self.doc.EndUndo()
         c4d.EventAdd()
@@ -996,10 +1054,11 @@ class SceneAdapter:
 
     def delete_material(self, name: str) -> int:
         doc = self.doc
-        used_names = self._used_material_names()
-        if name in used_names:
-            return 0
-        targets = [m for m in doc.GetMaterials() if m.GetName() == name]
+        used_keys = self._used_material_keys()
+        # Identity-based: with duplicate names only the truly unused
+        # instances are deleted, used namesakes stay.
+        targets = [m for m in doc.GetMaterials()
+                   if m.GetName() == name and self._mat_key(m) not in used_keys]
         if not targets:
             return 0
 
@@ -1013,8 +1072,9 @@ class SceneAdapter:
 
     def delete_unused_materials(self) -> int:
         doc = self.doc
-        used_names = self._used_material_names()
-        targets = [m for m in doc.GetMaterials() if m.GetName() not in used_names]
+        used_keys = self._used_material_keys()
+        targets = [m for m in doc.GetMaterials()
+                   if self._mat_key(m) not in used_keys]
         if not targets:
             return 0
 

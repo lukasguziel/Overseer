@@ -719,6 +719,8 @@ _OP_LABELS = {
     "relink_textures": "Relinking missing textures",
     "clear_missing_textures": "Clearing missing texture references",
     "set_texture_path": "Rewriting texture reference",
+    "pick_texture_path": "Waiting for the file picker (switch to Cinema 4D)",
+    "pick_folder": "Waiting for the folder picker (switch to Cinema 4D)",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
 }
@@ -1081,6 +1083,54 @@ def _handle(payload: dict) -> dict:
                            "%d missing texture(s) relinked" % res["relinked"],
                            [], revertible=False, doc_name=doc.GetDocumentName())
         return {"ok": True, **res}
+
+    if op == "open_file":
+        # Open an existing file with the user's default app (image viewer
+        # for textures). Windows host — the plugin runs where the files are.
+        p = str(payload.get("path") or "")
+        if not p or not os.path.isfile(p):
+            return {"error": "file not found: %s" % (p or "(empty)")}
+        try:
+            os.startfile(p)  # noqa: S606 - intentional, user-invoked
+        except Exception as ex:  # noqa: BLE001
+            return {"error": "could not open: %s" % ex}
+        return {"ok": True}
+
+    if op == "pick_texture_path":
+        # Open C4D's NATIVE file dialog (we run on the main thread) so the
+        # user picks the replacement file instead of typing a path. The
+        # request simply waits until the dialog closes.
+        raw = str(payload.get("path") or "")
+        try:
+            chosen = c4d.storage.LoadDialog(
+                type=c4d.FILESELECTTYPE_IMAGES,
+                title="Pick replacement for %s" % os.path.basename(raw),
+                flags=c4d.FILESELECT_LOAD,
+                def_path=doc.GetDocumentPath() or "")
+        except Exception as ex:  # noqa: BLE001
+            return {"error": "file dialog failed: %s" % ex}
+        if not chosen:
+            return {"ok": True, "cancelled": True}
+        adapter = SceneAdapter(doc)
+        res = adapter.set_texture_path(raw, chosen,
+                                       material=payload.get("material") or None)
+        if res.get("changed"):
+            _record_change("textures_edit",
+                           "texture reference relinked to %s"
+                           % os.path.basename(chosen),
+                           [], revertible=False, doc_name=doc.GetDocumentName())
+        return {"ok": True, "picked": chosen, **res}
+
+    if op == "pick_folder":
+        try:
+            chosen = c4d.storage.LoadDialog(
+                type=c4d.FILESELECTTYPE_ANYTHING,
+                title=str(payload.get("title") or "Pick a folder"),
+                flags=c4d.FILESELECT_DIRECTORY,
+                def_path=doc.GetDocumentPath() or "")
+        except Exception as ex:  # noqa: BLE001
+            return {"error": "folder dialog failed: %s" % ex}
+        return {"ok": True, "path": chosen or "", "cancelled": not chosen}
 
     if op == "set_texture_path":
         adapter = SceneAdapter(doc)
