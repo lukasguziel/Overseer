@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 // in the C4D viewport — the same affordance as every other list in the app.
 export default function SuggestionRow({ onApply, onAcceptAsIs, onFocus, busy, applyTitle, children }: {
   onApply: () => void
-  onAcceptAsIs: () => void
+  onAcceptAsIs?: () => void // omit where "keep as-is" has no meaning (e.g. tag fixes)
   onFocus?: () => void
   busy: boolean
   applyTitle: string
@@ -21,8 +21,10 @@ export default function SuggestionRow({ onApply, onAcceptAsIs, onFocus, busy, ap
       </span>
       <span className="rn-actions">
         <button className="rn-ok" title={applyTitle} onClick={onApply} disabled={busy}>✓</button>
-        <button className="rn-keep" title="Accept as-is — no longer counts as a todo (restore below)"
-          onClick={onAcceptAsIs} disabled={busy}>=</button>
+        {onAcceptAsIs && (
+          <button className="rn-keep" title="Accept as-is — no longer counts as a todo (restore below)"
+            onClick={onAcceptAsIs} disabled={busy}>=</button>
+        )}
       </span>
     </div>
   )

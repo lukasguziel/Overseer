@@ -130,7 +130,8 @@ export default function TagsTab({ org }: { org: Organizer }) {
         {note && <p className="wb-note">{note}</p>}
       </section>
 
-      {/* ---- Findings ------------------------------------------------- */}
+      {/* ---- Findings: side by side ----------------------------------- */}
+      <div className="ov-cols2">
       <section className="card">
         <div className="card-head"><h3>Missing phong tags</h3></div>
         <p className="hint-sm">
@@ -157,9 +158,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
               <SuggestionRow key={m.guid} busy={busy}
                 applyTitle="Apply — add a Phong tag to this object (undoable)"
                 onApply={() => run(
-                  () => call('tags_add_phong', { guids: [m.guid] }),
-                  (r) => `Added ${r.applied} Phong tag ✓ (undoable)`)}
-                onAcceptAsIs={() => run(
                   () => call('tags_add_phong', { guids: [m.guid] }),
                   (r) => `Added ${r.applied} Phong tag ✓ (undoable)`)}
                 onFocus={() => org.doFocus(m.guid, m.name)}
@@ -202,9 +200,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
                 onApply={() => run(
                   () => call('tags_delete_duplicates', { guids: [d.guid] }),
                   (r) => `Deleted ${r.deleted} duplicate material tag${r.deleted === 1 ? '' : 's'} ✓ (undoable)`)}
-                onAcceptAsIs={() => run(
-                  () => call('tags_delete_duplicates', { guids: [d.guid] }),
-                  (r) => `Deleted ${r.deleted} duplicate material tag${r.deleted === 1 ? '' : 's'} ✓ (undoable)`)}
                 onFocus={() => org.doFocus(d.guid, d.name)}
               >
                 <span className="rn-old" title={d.name}>{d.name}</span>
@@ -216,8 +211,10 @@ export default function TagsTab({ org }: { org: Organizer }) {
           <Pager pager={dupPager} />
         </Workbench>
       </section>
+      </div>
 
-      {/* ---- Phong angle distribution -------------------------------- */}
+      {/* ---- Phong angles + all tag types: side by side ---------------- */}
+      <div className="ov-cols2">
       <section className="card">
         <div className="card-head">
           <h3>Phong angles</h3>
@@ -271,6 +268,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
             </div>
           )}
       </section>
+      </div>
     </div>
   )
 }

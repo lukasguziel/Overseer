@@ -113,13 +113,15 @@ class NamingConvention:
         return base + self._format_number(int(m.group(2)))
 
     def _normalize_keep(self, stripped: str) -> str:
-        # Recase word tokens but keep the original separators between them.
-        # No split_camel -> camel/Pascal words stay whole (no invented seps).
+        # Recase word tokens but keep every non-token character verbatim —
+        # separators between tokens AND enclosing specials like the brackets
+        # in "[test]" -> "[Test]". No split_camel -> camel/Pascal words stay
+        # whole (no invented seps).
         matches = list(_TOKEN_RE.finditer(stripped))
         if not matches:
             return stripped
         last = len(matches) - 1
-        out: list[str] = []
+        out: list[str] = [stripped[:matches[0].start()]]  # verbatim prefix
         word_i = 0
         prev_end = matches[0].start()
         for i, m in enumerate(matches):
@@ -135,6 +137,7 @@ class NamingConvention:
             else:
                 out.append(text)  # number kept verbatim (decimal safe)
             prev_end = m.end()
+        out.append(stripped[matches[last].end():])  # verbatim suffix
         if word_i == 0:
             return stripped  # numbers/symbols only -> never fabricate a name
         return "".join(out)

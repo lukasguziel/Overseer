@@ -173,6 +173,23 @@ def test_keep_separators_no_synthetic_seps_for_camel():
     assert c.normalize("fooBar") == "FOOBAR"
 
 
+def test_keep_separators_preserves_enclosing_specials():
+    # setup
+    c = NamingConvention(style=Casing.PASCAL, language=None, number_pad=2,
+                         keep_separators=True)
+
+    # postcondition: leading/trailing specials like brackets survive verbatim
+    assert c.normalize("[test]") == "[Test]"
+    assert c.normalize("[wand-01]") == "[Wand-01]"
+    assert c.normalize("(temp) light_05") == "(Temp) Light_05"
+    assert c.normalize("*ref*") == "*Ref*"
+    assert c.is_compliant("[Test]")  # idempotent
+
+    # default mode still strips them (full normalization)
+    off = NamingConvention(style=Casing.PASCAL, language=None, number_pad=2)
+    assert off.normalize("[test]") == "Test"
+
+
 def test_invalid_style_rejected():
     # postcondition: SPACED is not a producible target style
     with pytest.raises(ValueError):
