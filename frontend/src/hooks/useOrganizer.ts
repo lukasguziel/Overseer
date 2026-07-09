@@ -5,6 +5,7 @@ import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import { dominantCasing } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
+import { useAuditData } from './useAudit'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult,
   Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
@@ -677,6 +678,12 @@ export function useOrganizer() {
         { casing, kept: keeps.naming })
     : null, [report, casing, keeps.naming])
 
+  // Latest tags scan, shared from the Tags tab via the audit cache — feeds
+  // the tags area score without re-running the scan here.
+  const tagsScan = useAuditData<{
+    summary?: { missing_phong?: number; duplicate_material_tags?: number }
+  }>('tags_scan')
+
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null
     switch (t) {
@@ -722,10 +729,21 @@ export function useOrganizer() {
       }
       case 'structure':
         return Math.round((report.structure_compliance || 0) * 100)
+      case 'tags': {
+        // Missing phong tags and duplicate material tags are defects; a
+        // scene without either scores 100. Needs the tags scan (runs when
+        // the Tags tab opens) — no ring before that.
+        const t = tagsScan?.summary
+        if (!t) return null
+        const bad = (t.missing_phong || 0) + (t.duplicate_material_tags || 0)
+        const total = report.nodes?.length || report.object_count || 0
+        if (!total) return bad ? 0 : 100
+        return capped(bad, Math.max(0, total - bad) / total)
+      }
       default:
         return null
     }
-  }, [report, namingHyg, naming, translation, keeps.layers])
+  }, [report, namingHyg, naming, translation, keeps.layers, tagsScan])
 
   // The Overview shows every area's score: quietly preload the plans it
   // needs (naming for the plan-based score, translate for the counts).

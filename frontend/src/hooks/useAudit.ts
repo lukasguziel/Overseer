@@ -33,7 +33,9 @@ export default function useAudit<T>(op: string, active: boolean) {
     setLoading(true)
     setError('')
     try {
-      setData(await call<T>(op))
+      const r = await call<T>(op)
+      setData(r)
+      publish(op, r)
     } catch (e: any) {
       setError(String(e.message || e))
     } finally {
