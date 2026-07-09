@@ -813,6 +813,17 @@ class SceneAdapter:
         return {"copied": copied, "relinked": relinked, "skipped": skipped,
                 "target": target_dir}
 
+    @staticmethod
+    def _same_path(a: str, b: str) -> bool:
+        """Path equality tolerant to slash direction and case — the asset
+        collector normalizes paths, shader parameters often keep the raw
+        form, and an exact string compare misses those (that made batch
+        clears skip entries)."""
+        import os
+        na = os.path.normcase(os.path.normpath((a or "").strip()))
+        nb = os.path.normcase(os.path.normpath((b or "").strip()))
+        return bool(na) and na == nb
+
     def _find_path_params(self, owner, raw: str) -> list:
         """[(holder, DescID), ...] for EVERY string parameter on `owner` —
         and on the shaders underneath it — that currently holds the path
@@ -843,8 +854,8 @@ class SceneAdapter:
         out: list = []
         for holder in holders:
             try:
-                if holder.CheckType(c4d.Xbitmap) \
-                        and str(holder[c4d.BITMAPSHADER_FILENAME] or "") == raw:
+                if holder.CheckType(c4d.Xbitmap) and self._same_path(
+                        str(holder[c4d.BITMAPSHADER_FILENAME] or ""), raw):
                     out.append((holder, c4d.BITMAPSHADER_FILENAME))
                     continue
             except Exception:
@@ -856,17 +867,61 @@ class SceneAdapter:
                         val = holder[paramid]
                     except Exception:
                         continue
-                    if isinstance(val, str) and val == raw:
+                    if isinstance(val, str) and self._same_path(val, raw):
                         out.append((holder, paramid))
             except Exception:
                 continue
         return out
 
+    def _all_material_holders(self):
+        """Every material in the document plus its full shader subtree —
+        the fallback search space when the asset owner itself does not
+        carry the path parameter (Octane/Redshift node setups)."""
+        try:
+            mats = self.doc.GetMaterials()
+        except Exception:
+            mats = []
+        for m in mats:
+            yield m
+            try:
+                first = m.GetFirstShader()
+            except Exception:
+                first = None
+            stack = [first] if first is not None else []
+            while stack:
+                sh = stack.pop()
+                while sh is not None:
+                    yield sh
+                    try:
+                        down = sh.GetDown()
+                    except Exception:
+                        down = None
+                    if down is not None:
+                        stack.append(down)
+                    sh = sh.GetNext()
+
     def _write_path_refs(self, owner, raw: str, new_path: str) -> bool:
         """Rewrite EVERY parameter on owner (+its shader tree) holding `raw`
-        to `new_path`, with undo. True if at least one write succeeded."""
+        to `new_path`, with undo. If the owner subtree yields nothing, sweep
+        every material + shader in the document — asset owners are not
+        always the node that actually stores the path. True if at least one
+        write succeeded."""
+        targets = self._find_path_params(owner, raw)
+        if not targets:
+            seen: set = set()
+            targets = []
+            for holder in self._all_material_holders():
+                if id(holder) in seen:
+                    continue
+                seen.add(id(holder))
+                targets.extend(self._find_path_params(holder, raw))
         wrote = False
-        for holder, paramid in self._find_path_params(owner, raw):
+        done: set = set()
+        for holder, paramid in targets:
+            key = (id(holder), str(paramid))
+            if key in done:
+                continue
+            done.add(key)
             try:
                 self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, holder)
                 holder[paramid] = new_path
