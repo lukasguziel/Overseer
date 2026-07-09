@@ -483,13 +483,28 @@ def _save_gcache(cache: dict) -> None:
         pass
 
 
+def _gcache_text(entry):
+    """Cache values are plain strings (legacy) or {"t": text, "src": lang}."""
+    if isinstance(entry, dict):
+        return str(entry.get("t") or "")
+    return str(entry or "")
+
+
+def _gcache_src(entry) -> str:
+    if isinstance(entry, dict):
+        return str(entry.get("src") or "unknown")
+    return "unknown"
+
+
 def _google_plan(tree, scope, target: str, progress=None):
     """Online translation via Google's public endpoint (stdlib urllib, no
     dependencies to install into C4D's Python). Opt-in engine: names leave
     the machine and it needs internet. Results are cached persistently, so
     only NEW names hit the network -- apply after a preview is instant.
+    Google's detected SOURCE language is cached per name too, so the
+    "Detected in scene" panel can reflect the engine's own detection.
     `progress(current, total)` reports fetched names for the preloader.
-    Returns (proposals, error)."""
+    Returns (proposals, error, detected_dict)."""
     import json as _json
     import urllib.parse
     import urllib.request
@@ -505,11 +520,14 @@ def _google_plan(tree, scope, target: str, progress=None):
         return target + "\x00" + name.strip()
 
     # Only names the cache does not know yet go online (deduplicated).
+    # Legacy entries (plain strings, no source language) are re-fetched
+    # once so the detected-language panel gets real data for them too.
     todo: list = []
     seen: set = set()
     for n in nodes:
         k = key(n.name)
-        if k not in cache and k not in seen:
+        entry = cache.get(k)
+        if (entry is None or isinstance(entry, str)) and k not in seen:
             seen.add(k)
             todo.append(n.name.strip())
 
@@ -531,6 +549,11 @@ def _google_plan(tree, scope, target: str, progress=None):
                 data = _json.loads(r.read().decode("utf-8"))
             text = "".join(s[0] for s in (data[0] or []) if s and s[0])
             lines = text.split("\n")
+            # data[2] is Google's detected SOURCE language for the batch.
+            try:
+                src = str(data[2] or "unknown")
+            except Exception:
+                src = "unknown"
         except Exception as ex:  # noqa: BLE001 - network is best-effort
             err = str(ex)
             break
@@ -541,7 +564,7 @@ def _google_plan(tree, scope, target: str, progress=None):
         # NB: no zip(strict=) -- C4D 2023 embeds Python 3.9. Lengths are
         # already verified equal by the batch-mismatch guard above.
         for name, new in zip(chunk, lines):  # noqa: B905
-            cache[key(name)] = new.strip()
+            cache[key(name)] = {"t": new.strip(), "src": src}
         fetched += len(chunk)
     if todo:
         _save_gcache(cache)
@@ -549,13 +572,19 @@ def _google_plan(tree, scope, target: str, progress=None):
         progress(len(todo), len(todo))
 
     proposals = []
+    counts: dict = {}
     for node in nodes:
-        new = (cache.get(key(node.name)) or "").strip()
+        entry = cache.get(key(node.name))
+        new = _gcache_text(entry).strip()
+        src = _gcache_src(entry)
+        counts[src] = counts.get(src, 0) + 1
         if new and new.lower() != node.name.strip().lower():
             proposals.append(translatemod.TranslateProposal(
                 node=node, new=new, words=[(node.name, new)],
-                lang="auto"))
-    return proposals, err
+                lang=src if src != "unknown" else "auto"))
+    dominant = max(counts, key=counts.get) if counts else "unknown"
+    detected = {"total": len(nodes), "counts": counts, "dominant": dominant}
+    return proposals, err, detected
 
 
 def _progress(phase, current=0, total=0, detail=""):
@@ -1315,14 +1344,15 @@ def _handle(payload: dict) -> dict:
                           "%d / %d names" % (cur, tot))
 
             try:
-                props, gerr = _google_plan(tree, scope, target,
-                                           progress=_gprog)
+                props, gerr, gdetected = _google_plan(tree, scope, target,
+                                                      progress=_gprog)
             finally:
                 # Back to the op label; the handle() wrapper clears at the end.
                 _progress(_OP_LABELS.get(op, "Translating"))
             if gerr and not props:
                 return {"error": "Google translate failed: %s" % gerr}
         else:
+            gdetected = None
             props = translatemod.plan_translations(
                 tree, scope=scope, target=target)
         props, kept = keepsmod.filter_kept(
@@ -1339,7 +1369,13 @@ def _handle(payload: dict) -> dict:
             return {"ok": True, "applied": applied, "count": len(renames)}
         diff = [{"guid": p.guid, "old": p.old, "new": p.new,
                  "words": p.words, "lang": p.lang} for p in props]
-        detected = translatemod.detect_languages(tree, scope=scope).to_dict()
+        # Detected panel: Google's own per-name source detection when that
+        # engine is active (cached alongside the translations), the offline
+        # DE/EN heuristic otherwise — so it reacts to every engine switch.
+        if engine == "google" and gdetected and gdetected.get("total"):
+            detected = gdetected
+        else:
+            detected = translatemod.detect_languages(tree, scope=scope).to_dict()
         return {"ok": True, "count": len(props), "diff": diff, "kept": kept,
                 "target": target, "detected": detected, "engine": engine}
 
