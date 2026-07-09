@@ -45,6 +45,17 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     camelCase: ['lower'],
     kebab: ['lower'],
   }
+  // Language distribution: prefer the translate plan's detection (the same
+  // engine + numbers the Translate tab shows — preloaded on the Overview);
+  // the offline dictionary heuristic is only the fallback before it loads.
+  const displayLanguage = React.useMemo(() => {
+    const det = org.translation?.detected
+    if (det?.counts && det.total > 0) {
+      return { data: det.counts as Record<string, number>, fromEngine: true }
+    }
+    return { data: report?.language || {}, fromEngine: false }
+  }, [org.translation, report])
+
   const displayCasing = React.useMemo(() => {
     const raw = report?.casing || {}
     const conv = org.casing
@@ -196,9 +207,11 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             “kebab” are names whose separators you chose to keep.
           </p>
           <div className="chipgroup-label" style={{ marginTop: 10 }}>Language</div>
-          <Strip data={report.language} legendMax={3} />
+          <Strip data={displayLanguage.data} legendMax={3} />
           <p className="mini-note dim">
-            “Unknown” = names without dictionary words (codes, product names).
+            {displayLanguage.fromEngine
+              ? `Detected by the ${org.translateEngine} translate engine — same numbers as the Translate tab.`
+              : '“Unknown” = names without dictionary words (codes, product names).'}
           </p>
         </section>
 
