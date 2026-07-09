@@ -23,9 +23,13 @@ function resTier(e: TextureEntry): string {
 // material line up cleanly; long names and paths get ellipsis-truncated.
 // Rows are clickable: they select the material in C4D and frame the first
 // object carrying it.
-function TexTable({ rows, dot, previews, onFocus }: {
+// Row status: missing is broken (err), absolute breaks on move (warn),
+// relative is healthy (ok).
+const texDot = (e: TextureEntry): string =>
+  e.missing ? 'var(--err)' : e.absolute ? 'var(--warn)' : 'var(--apply)'
+
+function TexTable({ rows, previews, onFocus }: {
   rows: TextureEntry[]
-  dot: string
   previews: Record<string, string>
   onFocus: (material: string) => void
 }) {
@@ -44,13 +48,19 @@ function TexTable({ rows, dot, previews, onFocus }: {
             <span className="tex-cell-file">
               {thumb
                 ? <img className="tex-thumb" src={thumb} alt="" draggable={false} />
-                : <span className="fl-dot" style={{ background: dot }} />}
+                : <span className="fl-dot" style={{ background: texDot(e) }} />}
               <span className="tex-cut">{e.file}</span>
               {!e.used && <span className="tex-badge unused">unused</span>}
             </span>
             <span className="tex-cell-path dim">
               <span className="tex-cut">{e.path}</span>
-              {e.relocatable && <span className="tex-badge fixable">→ relative</span>}
+              {e.missing
+                ? <span className="tex-badge missing">missing</span>
+                : e.relocatable
+                  ? <span className="tex-badge fixable">→ relative</span>
+                  : e.absolute
+                    ? <span className="tex-badge unused">absolute</span>
+                    : <span className="tex-badge fixable">relative</span>}
             </span>
             <span className="num">
               {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
@@ -90,23 +100,26 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Hooks before the early return (Rules of Hooks).
   const unusedPager = usePager(
     (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
-  // Three clean sections: missing first (a missing map is neither usable as
-  // absolute nor relative), the rest split by path style, heaviest first.
-  // An active resolution filter narrows all three.
+  // ONE paths list, narrowed by two filters in the settings panel:
+  // resolution tier and path status (absolute / relative / missing).
   const [resFilter, setResFilter] = useState('')
+  const [pathFilter, setPathFilter] = useState('')  // '' | 'absolute' | 'relative' | 'missing'
   // Copy & relink out-of-project textures: target subfolder + confirm state.
   const [collectDir, setCollectDir] = useState('tex')
   const [collectConfirm, setCollectConfirm] = useState(false)
   const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
+  const byPath = (e: TextureEntry) =>
+    !pathFilter
+    || (pathFilter === 'missing' && e.missing)
+    || (pathFilter === 'absolute' && e.absolute && !e.missing)
+    || (pathFilter === 'relative' && !e.absolute && !e.missing)
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
-  const missPager = usePager(allTex.filter((e) => e.missing && byRes(e)).sort(bySize))
-  const absPager = usePager(tex ? tex.absolute.filter((e) => !e.missing && byRes(e)).sort(bySize) : [])
-  const relPager = usePager(tex ? tex.relative.filter((e) => !e.missing && byRes(e)).sort(bySize) : [])
+  const pathPager = usePager(allTex.filter((e) => byRes(e) && byPath(e)).sort(bySize))
 
   // Mini image previews for the texture rows currently on screen (keyed by
   // resolved path; missing files simply keep their status dot).
   const [texPreviews, setTexPreviews] = useState<Record<string, string>>({})
-  const visiblePaths = [...missPager.rows, ...absPager.rows, ...relPager.rows]
+  const visiblePaths = pathPager.rows
     .map((e) => e.resolved || e.path).filter(Boolean)
   const visibleKey = visiblePaths.join('\n')
   // Thumbnails are fetched in SMALL CHUNKS: each chunk is its own request,
@@ -218,143 +231,133 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
         ) : <div className="fl-empty">No material data.</div>}
       </section>
 
-      {/* ---- Textures (image files on disk) -------------------------- */}
-      <section className="card">
-        <div className="card-head">
-          <h3>Textures</h3>
-          {fixable > 0 && (
-            confirm ? (
-              <span className="mat-confirm">
-                make {fixable} relative?
-                <button className="mat-yes" title="Confirm — rewrite absolute paths to relative"
-                  onClick={() => { org.doFixTexturesRelative(); setConfirm(false) }}>✓</button>
-                <button className="mat-no" title="Cancel" onClick={() => setConfirm(false)}>✕</button>
-              </span>
-            ) : (
-              <button className="trash-btn fix-btn" disabled={busy}
-                title={`Rewrite ${fixable} absolute path(s) that live under the project folder to relative (undoable)`}
-                onClick={() => setConfirm(true)}>
-                Fix paths<span className="trash-count">{fixable}</span>
-              </button>
-            )
-          )}
-        </div>
-        {tex ? (
-          <>
+      {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
+      {tex ? (
+        <div className="workbench">
+          <aside className="wb-side">
+            <h3>Textures</h3>
             <p className="hint-sm">
-              Real pixel size, disk size and a resolution tag per map — spot the 8K
-              textures eating memory that could be 4K, and the <b>absolute</b> paths
-              that break when the project moves. Sorted by file size (heaviest first).
+              Real pixel size, disk size and a resolution tag per map — spot the
+              8K textures eating memory that could be 4K, and the paths that
+              break when the project moves. Heaviest first.
             </p>
-            <div className="substats" style={{ marginBottom: 4 }}>
-              <span><b>{tex.total}</b> textures</span>
+            <div className="substats" style={{ marginBottom: 12 }}>
+              <span><b>{tex.total}</b> maps</span>
               <span><b>{humanBytes(tex.total_bytes)}</b> on disk</span>
-              <span className={tex.absolute_count ? 'warn' : ''}><b>{tex.absolute_count}</b> absolute</span>
-              <span><b>{tex.relative_count}</b> relative</span>
-              <span className={tex.missing_count ? 'warn' : ''}><b>{tex.missing_count}</b> missing</span>
             </div>
-            <div className="tex-filter">
-              <span className="tex-filter-label">Resolution</span>
-              {RES_TIERS.map(([key, label]) => (
+
+            <div className="rule-group-head"><span>Path status</span></div>
+            <div className="tex-filter tex-filter-col">
+              {([['', 'All', allTex.length],
+                ['absolute', 'Absolute', allTex.filter((e) => e.absolute && !e.missing).length],
+                ['relative', 'Relative', allTex.filter((e) => !e.absolute && !e.missing).length],
+                ['missing', 'Missing', allTex.filter((e) => e.missing).length],
+              ] as [string, string, number][]).map(([key, label, n]) => (
                 <button key={key || 'all'}
-                  className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
-                  title={key ? `Show only ${label} textures in the lists below` : 'Show all resolutions'}
-                  onClick={() => setResFilter(key)}>
-                  {label} {key ? <em>{allTex.filter((e) => resTier(e) === key).length}</em> : <em>{allTex.length}</em>}
+                  className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
+                    + ((key === 'missing' || key === 'absolute') && n > 0 ? ' tf-warn' : '')}
+                  title={key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
+                  onClick={() => setPathFilter(key)}>
+                  {label} <em>{n}</em>
                 </button>
               ))}
             </div>
+
+            <div className="rule-group-head"><span>Resolution</span></div>
+            <div className="tex-filter tex-filter-col">
+              {RES_TIERS.map(([key, label]) => (
+                <button key={key || 'all'}
+                  className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
+                  title={key ? `Show only ${label} textures` : 'Show all resolutions'}
+                  onClick={() => setResFilter(key)}>
+                  {label} <em>{key ? allTex.filter((e) => resTier(e) === key).length : allTex.length}</em>
+                </button>
+              ))}
+            </div>
+
+            <div className="rule-group-head"><span>Actions</span></div>
+            <button className="ghost" disabled={busy || !fixable}
+              title={fixable
+                ? `Rewrite ${fixable} absolute path(s) that live under the project folder to relative (undoable)`
+                : 'No absolute paths inside the project folder'}
+              onClick={() => setConfirm(true)}>
+              Fix paths ({fixable})
+            </button>
+            <label style={{ marginTop: 8 }}>Copy target folder
+              <input className="nl-input" value={collectDir}
+                onChange={(e) => setCollectDir(e.target.value)}
+                title="Project subfolder out-of-project textures are copied into" />
+            </label>
+            <button className="ghost" disabled={busy || !collectable}
+              title={collectable
+                ? `Copy the ${collectable} texture file(s) that live OUTSIDE the project into “${collectDir || 'tex'}/” and relink the shaders relatively`
+                : 'No existing textures outside the project folder'}
+              onClick={() => setCollectConfirm(true)}>
+              Copy &amp; relink ({collectable})
+            </button>
+            <p className="hint-sm">
+              <b>Fix paths</b> rewrites absolute paths that already point inside
+              the project. <b>Copy &amp; relink</b> first copies out-of-project
+              files into the folder above, then relinks relatively.
+            </p>
             {tex.doc_path
-              ? <p className="example" style={{ marginTop: 8 }}>Project: <code>{tex.doc_path}</code></p>
-              : <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>}
-          </>
-        ) : (
-          <>
-            <div className="fl-empty">No texture data.</div>
-            {report.textures_error && (
-              <p className="example warn" style={{ marginTop: 8 }}>
-                Texture scan failed: <code>{report.textures_error}</code>
-              </p>
-            )}
-          </>
-        )}
-      </section>
+              ? <p className="example">Project: <code>{tex.doc_path}</code></p>
+              : <p className="example warn">Project not saved — paths cannot be made relative yet.</p>}
+          </aside>
 
-      {tex && (
-        <>
-          {/* Missing + absolute side by side — the two problem lists. */}
-          <div className={missPager.total > 0 ? 'ov-cols2' : undefined}>
-          {missPager.total > 0 && (
-            <section className="card">
-              <div className="card-head">
-                <h3>Missing textures</h3>
-                <span className="card-hint">{missPager.total}</span>
-              </div>
-              <TexTable rows={missPager.rows} dot="var(--err)"
-                previews={texPreviews} onFocus={org.doFocusMaterial} />
-              <Pager pager={missPager} />
-            </section>
-          )}
-
-          <section className="card">
-            <div className="card-head">
-              <h3>Absolute paths</h3>
-              <span className="card-hint">{absPager.total}</span>
-              {collectable > 0 && (
-                <span className="mat-confirm" style={{ marginLeft: 'auto' }}>
-                  <input className="nl-input" style={{ width: 70 }} value={collectDir}
-                    onChange={(e) => setCollectDir(e.target.value)}
-                    title="Project subfolder the textures are copied into" />
-                  <button className="mini" disabled={busy}
-                    title={`Copy the ${collectable} texture file(s) that live OUTSIDE the project into “${collectDir || 'tex'}/” and relink the shaders relatively`}
-                    onClick={() => setCollectConfirm(true)}>
-                    Copy &amp; relink {collectable}
-                  </button>
-                </span>
-              )}
+          <div className="wb-preview">
+            <div className="wb-preview-head">
+              <h3>Paths</h3>
+              <span className="wb-count">
+                {pathPager.total === 0 ? 'nothing to show'
+                  : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
+              </span>
             </div>
-            {(absPager.total > 0 || collectable > 0) && (
-              <p className="hint-sm">
-                Absolute paths break as soon as the project moves to another
-                machine or folder. Paths already inside the project just need
-                <b> Fix paths</b> (rewrite only); files elsewhere need
-                <b> Copy &amp; relink</b> — they are copied into the project first.
-              </p>
-            )}
-            {absPager.total
-              ? <>
-                  <TexTable rows={absPager.rows} dot="var(--warn)"
-                    previews={texPreviews} onFocus={org.doFocusMaterial} />
-                  <Pager pager={absPager} />
-                </>
-              : <div className="fl-empty">No absolute texture paths 🎉</div>}
-          </section>
+            <p className="hint-sm wb-hint">Click a row to select its material in Cinema 4D and frame the first object using it.</p>
+            <div className="wb-scroll">
+              {pathPager.total
+                ? <>
+                    <TexTable rows={pathPager.rows}
+                      previews={texPreviews} onFocus={org.doFocusMaterial} />
+                    <Pager pager={pathPager} />
+                  </>
+                : <div className="wb-empty">
+                    {pathFilter === 'missing' ? 'No missing textures 🎉'
+                      : pathFilter === 'absolute' ? 'No absolute texture paths 🎉'
+                        : 'No textures match the filters.'}
+                  </div>}
+            </div>
           </div>
-
-          {collectConfirm && (
-            <ConfirmModal
-              title="Copy textures into the project"
-              message={`Copy ${collectable} texture file${collectable === 1 ? '' : 's'} that live outside the project into “${(collectDir || 'tex').trim()}/” and relink the shaders with relative paths. The relink is one undo step; the copied files themselves stay on disk (originals are not touched). Continue?`}
-              confirmLabel={`✓ Copy & relink ${collectable}`}
-              onConfirm={() => { setCollectConfirm(false); org.doCollectTextures((collectDir || 'tex').trim()) }}
-              onCancel={() => setCollectConfirm(false)}
-            />
+        </div>
+      ) : (
+        <section className="card">
+          <div className="card-head"><h3>Textures</h3></div>
+          <div className="fl-empty">No texture data.</div>
+          {report.textures_error && (
+            <p className="example warn" style={{ marginTop: 8 }}>
+              Texture scan failed: <code>{report.textures_error}</code>
+            </p>
           )}
+        </section>
+      )}
 
-          <section className="card">
-            <div className="card-head">
-              <h3>Relative paths</h3>
-              <span className="card-hint">{relPager.total}</span>
-            </div>
-            {relPager.total
-              ? <>
-                  <TexTable rows={relPager.rows} dot="var(--apply)"
-                    previews={texPreviews} onFocus={org.doFocusMaterial} />
-                  <Pager pager={relPager} />
-                </>
-              : <div className="fl-empty">No relative texture paths.</div>}
-          </section>
-        </>
+      {confirm && (
+        <ConfirmModal
+          title="Fix paths"
+          message={`Rewrite ${fixable} absolute texture path${fixable === 1 ? '' : 's'} that already live under the project folder to project-relative paths (one undo step). Continue?`}
+          confirmLabel={`✓ Fix ${fixable} path${fixable === 1 ? '' : 's'}`}
+          onConfirm={() => { setConfirm(false); org.doFixTexturesRelative() }}
+          onCancel={() => setConfirm(false)}
+        />
+      )}
+      {collectConfirm && (
+        <ConfirmModal
+          title="Copy textures into the project"
+          message={`Copy ${collectable} texture file${collectable === 1 ? '' : 's'} that live outside the project into “${(collectDir || 'tex').trim()}/” and relink the shaders with relative paths. The relink is one undo step; the copied files themselves stay on disk (originals are not touched). Continue?`}
+          confirmLabel={`✓ Copy & relink ${collectable}`}
+          onConfirm={() => { setCollectConfirm(false); org.doCollectTextures((collectDir || 'tex').trim()) }}
+          onCancel={() => setCollectConfirm(false)}
+        />
       )}
     </div>
   )
