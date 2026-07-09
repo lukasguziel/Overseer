@@ -97,6 +97,19 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* One-line usage hint under a Workbench header — same inset as wb-note. */
 .wb-hint { margin: 2px 0 8px; padding: 0 16px; }
 
+/* Per-tab progress underline: the area score as a hairline bar. */
+.tab { position: relative; }
+.tab-progress {
+  position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px;
+  border-radius: 1px; background: var(--line2, rgba(127, 127, 127, .18));
+  overflow: hidden; pointer-events: none;
+}
+.tab-progress-fill { display: block; height: 100%; border-radius: 1px;
+  transition: width .3s ease; }
+.tab-progress-fill.tp-good { background: var(--apply, #34d399); }
+.tab-progress-fill.tp-mid { background: var(--warn, #fbbf24); }
+.tab-progress-fill.tp-low { background: var(--err, #f87171); }
+
 /* Cleanup bucket head: accordion toggle + slim keep-all on the right. */
 .cl-head-row { display: flex; align-items: center; gap: 8px; }
 .cl-head-row .cl-head { flex: 1; min-width: 0; }

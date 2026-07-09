@@ -72,14 +72,24 @@ export default function App() {
             const disabled = !!soon
             // Uniform todo badge per area (live plan count, report fallback).
             const todo = org.planCount(id) ?? 0
+            // Thin progress underline: the area's score as a mini bar, same
+            // color scale as the health ring — glanceable progress per tab.
+            const pct = disabled ? null : org.areaScore(id)
+            const tpTone = pct == null ? '' : pct >= 80 ? ' tp-good' : pct >= 50 ? ' tp-mid' : ' tp-low'
             return (
               <button key={id} disabled={disabled}
                 className={'tab' + (tab === id ? ' on' : '') + (disabled ? ' off' : '')}
                 onClick={() => !disabled && org.setTab(id)}
-                title={disabled ? 'Coming soon — being reworked' : undefined}>
+                title={disabled ? 'Coming soon — being reworked'
+                  : pct != null ? `${label}: ${pct}% worked through` : undefined}>
                 {label}
                 {disabled && <span className="soon">soon</span>}
                 {!disabled && todo > 0 && <span className="badge">{todo}</span>}
+                {pct != null && (
+                  <span className="tab-progress">
+                    <span className={'tab-progress-fill' + tpTone} style={{ width: pct + '%' }} />
+                  </span>
+                )}
               </button>
             )
           })}
