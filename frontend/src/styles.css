@@ -86,6 +86,16 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .rename-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px;
   border-bottom: 1px solid var(--line2); }
 .rename-row:last-child { border-bottom: none; }
+/* Row body wrapper (SuggestionRow): keeps the original flex layout and,
+   when focusable, makes the whole row select & frame the object in C4D. */
+.sg-body { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
+.sg-focusable .sg-body { cursor: pointer; }
+.sg-focusable:hover { background: var(--panel2); border-radius: 6px; }
+/* Clickable object name inside a non-SuggestionRow list (e.g. no-layer). */
+.fl-clickable { cursor: pointer; }
+.fl-clickable:hover { color: var(--text); text-decoration: underline dotted; }
+/* One-line usage hint under a Workbench header. */
+.wb-hint { margin: 2px 0 8px; }
 .rule-tag { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .04em; padding: 1px 6px; border-radius: 8px; min-width: 62px; text-align: center;
   background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
@@ -409,6 +419,12 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .subscore-bar i.good { background: var(--apply); } .subscore-bar i.mid { background: var(--warn); } .subscore-bar i.low { background: var(--err); }
 @media (max-width: 720px) { .subscores { grid-template-columns: 1fr; } }
 .ov-cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+/* Grid/flex items refuse to shrink below their content by default — without
+   min-width:0 one long nowrap line (e.g. a change-history summary) widens
+   the whole column past the viewport. */
+.ov-cols > *, .ov-cols2 > *, .workbench > * { min-width: 0; }
+.ch-summary { min-width: 0; }
+table.diff td { word-break: break-word; }
 /* A tab that stacks a workbench with a cleanup/aux card below it */
 .stacked { display: flex; flex-direction: column; gap: 16px; }
 .ov-links { display: flex; gap: 8px; margin-top: 12px; }
@@ -808,6 +824,21 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   .cleanup-grid { grid-template-columns: repeat(2, 1fr); }
   .bar-row { grid-template-columns: 110px 1fr auto; }
   .wb-side { position: static; }
+}
+
+/* Narrow windows (half-screen next to C4D): the topbar wraps, the toggle
+   subtitles drop, and wide rows scroll inside their own container instead
+   of the page growing a horizontal scrollbar. */
+@media (max-width: 820px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; }
+  .topbar-right { flex-wrap: wrap; row-gap: 8px; }
+  .scope-toggle button small, .vis-toggle button small { display: none; }
+  .scene-name { max-width: 180px; }
+  .tabs-row { row-gap: 8px; }
+  .tabs { max-width: 100%; overflow-x: auto; }
+  .asset-table-wrap { overflow-x: auto; }
+  .asset-table { min-width: 640px; }
+  .cleanup-grid { grid-template-columns: 1fr; }
 }
 
 /* --- Workbench inline progress (blur + bar, e.g. online translation) ----- */

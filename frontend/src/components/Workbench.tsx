@@ -9,7 +9,7 @@ import useSteadyProgress from '../hooks/useSteadyProgress'
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
 // progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, progress, children }: {
+export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, hint, progress, children }: {
   title: string
   count: number
   loading: boolean
@@ -19,6 +19,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   onAcceptAll?: () => void
   busy: boolean
   note?: string | null
+  hint?: string
   progress?: ProgressInfo | null
   children?: ReactNode
 }) {
@@ -46,6 +47,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
         )}
       </div>
       {note && <p className="wb-note">{note}</p>}
+      {hint && count > 0 && !loading && <p className="hint-sm wb-hint">{hint}</p>}
       <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>
         {count === 0 && !loading
           ? <div className="wb-empty">{empty}</div>

@@ -5,6 +5,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
+import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 
 export default function StructureTab({ org }: { org: Organizer }) {
@@ -19,6 +20,10 @@ export default function StructureTab({ org }: { org: Organizer }) {
     { key: 'empty', label: 'Empty groups', items: hyg.emptyGroups.filter(notKept).map((n) => ({ guid: n.guid, name: n.name })) },
     { key: 'root', label: 'Root clutter', items: hyg.rootClutter.filter(notKept).map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
   ]
+
+  if (!report) {
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
+  }
 
   return (
     <div className="stacked">
@@ -53,6 +58,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
           empty="Everything is already in the right group 🎉"
+          hint="Click a row to select & frame the object in Cinema 4D · ✓ moves it · = keeps its place"
           applyLabel="Apply all" onApply={org.applyStructure}
           onAcceptAll={() => org.keepAll('structure')} busy={busy}
           progress={org.progress}
@@ -67,6 +73,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
                 applyTitle="Apply — move into its group now (undoable)"
                 onApply={() => org.applyStructureOne(d.guid, d.name)}
                 onAcceptAsIs={() => org.keep('structure', d.name)}
+                onFocus={() => org.doFocus(d.guid, d.name)}
               >
                 <span className="rn-old" title={d.from || '(root)'}>{d.name}</span>
                 <span className="rn-arrow">→</span>

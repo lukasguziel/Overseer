@@ -6,16 +6,18 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import LayerTree from '../components/LayerTree'
+import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
 // "no layer" as fine for this object (score counts it as decided).
-function NoLayerRow({ n, busy, onAssign, onKeep }: {
+function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
   n: SceneNode
   busy: boolean
   onAssign: (guid: number, layer: string) => void
   onKeep: (name: string) => void
+  onFocus: (guid: number, name: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -26,7 +28,8 @@ function NoLayerRow({ n, busy, onAssign, onKeep }: {
   return (
     <div className="rename-row">
       <span className="cat-dot" style={{ background: catColor(n.category) }} />
-      <span className="rn-old" title={n.name}>{n.name}</span>
+      <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
+        onClick={() => onFocus(n.guid, n.name)}>{n.name}</span>
       <span className="rn-arrow">→</span>
       {editing
         ? (
@@ -80,6 +83,10 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setBatchLayer('')
   }
 
+  if (!report) {
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
+  }
+
   return (
     <div className="layers-tab">
       {/* ---- Side by side: layer overview (left) / no-layer worklist --- */}
@@ -109,7 +116,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
           title="No layer" count={noLayer.length} loading={previewing}
           empty="Every object is on a layer or accepted 🎉"
           onAcceptAll={() => org.keepMany('layers', noLayer.map((n) => n.name))}
-          busy={busy}
+          busy={busy} progress={org.progress}
         >
           <datalist id="nl-layers">
             {layerNames.map((l) => <option key={l} value={l} />)}
@@ -128,7 +135,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
             {nlPager.rows.map((n) => (
               <NoLayerRow key={n.guid} n={n} busy={busy}
                 onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
-                onKeep={(nm) => org.keep('layers', nm)} />
+                onKeep={(nm) => org.keep('layers', nm)}
+                onFocus={(guid, nm) => org.doFocus(guid, nm)} />
             ))}
           </div>
           <Pager pager={nlPager} />
@@ -165,6 +173,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
         <Workbench
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
           empty="Every light, camera and instance is already on its layer 🎉"
+          hint="Click a row to select & frame the object in Cinema 4D · ✓ tags it · = keeps it layerless"
           applyLabel="Apply all" onApply={org.applyLayers}
           onAcceptAll={() => org.keepAll('layers')} busy={busy}
           progress={org.progress}
@@ -176,6 +185,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 applyTitle="Apply — tag now (undoable)"
                 onApply={() => org.applyLayerOne(d.guid, d.name)}
                 onAcceptAsIs={() => org.keep('layers', d.name)}
+                onFocus={() => org.doFocus(d.guid, d.name)}
               >
                 <span className="rn-old" title={d.name}>{d.name}</span>
                 <span className="rn-arrow">→</span>

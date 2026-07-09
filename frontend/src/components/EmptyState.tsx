@@ -7,7 +7,7 @@ export default function EmptyState({ message, actionLabel, onAction, busy }: {
 }) {
   return (
     <div className="empty-state">
-      <p>{message || 'No scene analyzed yet.'}</p>
+      <p>{message || 'No scene analyzed yet — open your scene in Cinema 4D, then run an analysis.'}</p>
       {onAction && (
         <button onClick={onAction} disabled={busy}>{actionLabel || 'Analyze scene'}</button>
       )}
