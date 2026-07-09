@@ -64,6 +64,10 @@ function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
   )
 }
 
+// Scheme-based layer tagging (Lights/Cameras/Proxies preview) is parked —
+// the tab focuses on the no-layer worklist. Kept behind this flag.
+const SHOW_TAGGING = false
+
 export default function LayersTab({ org }: { org: Organizer }) {
   const { layers, keeps, report, busy, previewing } = org
   const lr = report?.layers_report
@@ -156,7 +160,11 @@ export default function LayersTab({ org }: { org: Organizer }) {
         </Workbench>
       </div>
 
-      {/* ---- Layer tagging (write) ----------------------------------- */}
+      {/* ---- Layer tagging (scheme-based auto-assignment) --------------
+          Parked for now: the tab's job is simply "give layerless objects a
+          layer" via the worklist above. Flip SHOW_TAGGING to bring the
+          scheme preview back. */}
+      {SHOW_TAGGING && (
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Layer tagging</h3>
@@ -209,6 +217,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
           <Pager pager={pager} />
         </Workbench>
       </div>
+      )}
 
       <AcceptedSection items={Array.from(keeps.layers)}
         onRestore={(nm) => org.unkeep('layers', nm)} />
