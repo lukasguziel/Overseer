@@ -1,0 +1,16 @@
+.sim-badges { display: inline-flex; gap: 4px; margin-left: 8px; flex-wrap: wrap; }
+
+.tex-badge.sim-ok { background: rgba(52,211,153,.14); color: var(--apply); }
+.tex-badge.sim-warn { background: rgba(251,191,36,.16); color: var(--warn); }
+.tex-badge.sim-dim { background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
+.tex-badge.sim-kind { background: var(--panel2); color: var(--dim2); border: 1px solid var(--line); }
+
+.sim-find-warn { color: var(--warn); }
+.sim-find-info { color: var(--accent); }
+.sim-find-dim { color: var(--dim); }
+
+.sim-group { margin-bottom: 4px; }
+.sim-select { font-size: 10px; padding: 2px 8px; }
+.sim-carrier { font-size: 10px; margin-left: 6px; text-transform: uppercase; letter-spacing: .04em; }
+
+.sim-group .rule-group-head { margin-bottom: 6px; }
