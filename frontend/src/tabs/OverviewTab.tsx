@@ -35,6 +35,29 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   // prefetched while the Overview is open.
   const filesScan = useAuditData<{ summary?: { total_bytes?: number } }>('files_scan')
 
+  // Casing distribution for display: detection classes that are COMPATIBLE
+  // with the chosen convention fold into it — a single-word ALL-CAPS name
+  // cannot be anything but "UPPER", yet it fully matches UPPER_SNAKE.
+  const COMPAT: Record<string, string[]> = {
+    UPPER_SNAKE: ['UPPER'],
+    lower_snake: ['lower'],
+    PascalCase: ['Capitalized'],
+    camelCase: ['lower'],
+    kebab: ['lower'],
+  }
+  const displayCasing = React.useMemo(() => {
+    const raw = report?.casing || {}
+    const conv = org.casing
+    const fold = new Set(COMPAT[conv] || [])
+    const out: Record<string, number> = {}
+    for (const [k, v] of Object.entries(raw)) {
+      const key = k === conv || fold.has(k) ? conv || k : k
+      out[key] = (out[key] || 0) + (v as number)
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report, org.casing])
+
   if (!report || compliance == null) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
@@ -161,11 +184,22 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           number table is gone — the health tile + nav underlines cover it). */}
       <div className="ov-cols2">
         <section className="card">
-          <div className="card-head"><h3>Naming consistency</h3></div>
+          <div className="card-head">
+            <h3>Naming consistency</h3>
+            {org.casing && <span className="card-hint">convention: {org.casing}</span>}
+          </div>
           <div className="chipgroup-label">Casing</div>
-          <Strip data={report.casing} />
-          <div className="chipgroup-label" style={{ marginTop: 14 }}>Language</div>
+          <Strip data={displayCasing} />
+          <p className="mini-note dim">
+            Detection classes compatible with your convention are merged —
+            e.g. single-word ALL-CAPS names count as UPPER_SNAKE. “spaced” /
+            “kebab” are names whose separators you chose to keep.
+          </p>
+          <div className="chipgroup-label" style={{ marginTop: 10 }}>Language</div>
           <Strip data={report.language} legendMax={3} />
+          <p className="mini-note dim">
+            “Unknown” = names without dictionary words (codes, product names).
+          </p>
         </section>
 
         <section className="card">
