@@ -2,6 +2,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
+import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import { DiffOld, DiffNew } from '../components/DiffText'
 
@@ -22,6 +23,10 @@ export default function TranslateTab({ org }: { org: Organizer }) {
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
   const pager = usePager(translation?.diff || [])
   const detected = translation?.detected
+
+  if (!org.report) {
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
+  }
 
   return (
     <div className="stacked">
@@ -82,6 +87,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
       <Workbench
         title="Translation preview" count={translation?.count ?? 0} loading={previewing}
         empty={`Every name is already ${LANG_LABEL[translateTarget]} 🎉`}
+        hint="Click a row to select & frame the object in Cinema 4D · ✓ translates it · = keeps the name"
         applyLabel="Apply all" onApply={org.applyTranslate}
         onAcceptAll={() => org.keepAll('translate')} busy={busy}
         progress={org.progress}
@@ -93,6 +99,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
               applyTitle="Apply — translate now (undoable)"
               onApply={() => org.applyTranslateOne(d.guid, d.old)}
               onAcceptAsIs={() => org.keep('translate', d.old)}
+              onFocus={() => org.doFocus(d.guid, d.old)}
             >
               {d.lang && d.lang !== 'unknown'
                 ? <span className="rule-tag">{d.lang.toUpperCase()}</span>

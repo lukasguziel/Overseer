@@ -175,6 +175,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <Workbench
               title="Unused materials" count={deletable} loading={busy}
               empty="Every material is in use 🎉"
+              hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
               applyLabel={bulkConfirm ? `Really delete ${deletable}?` : 'Delete all'}
               onApply={() => {
                 if (bulkConfirm) { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }
@@ -190,6 +191,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     applyTitle="Apply — delete this material (undoable)"
                     onApply={() => org.doDeleteMaterial(nm)}
                     onAcceptAsIs={() => org.keep('materials', nm)}
+                    onFocus={() => org.doFocusMaterial(nm)}
                   >
                     <MatThumb src={previews[nm]} fallback="var(--dim2)" />
                     <span className="rn-old" title={nm}>{nm}</span>

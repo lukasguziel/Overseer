@@ -6,6 +6,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
+import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import { DiffOld, DiffNew } from '../components/DiffText'
 
@@ -50,13 +51,18 @@ export default function NamingTab({ org }: { org: Organizer }) {
   ]
   const pager = usePager(naming?.diff || [])
 
+  if (!report) {
+    return <EmptyState onAction={org.doAnalyze} busy={busy} />
+  }
+
   return (
     <div className="stacked">
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Settings</h3>
-          <p className="hint-sm">Toggle the settings to apply — all active by
-            default. Each row shows which setting changed it, so you decide.</p>
+          <p className="hint-sm">Toggle which rules apply — all are active by
+            default. Every preview row is tagged with the rule that caused it,
+            so you always see why a name would change.</p>
 
           <div className="rule-group-head"><span>Casing</span></div>
           <label className="check">
@@ -123,6 +129,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
         <Workbench
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty="Every name already matches your rules 🎉"
+          hint="Click a row to select & frame the object in Cinema 4D · ✓ renames it · = keeps the name"
           applyLabel="Apply all" onApply={org.applyNaming}
           onAcceptAll={() => org.keepAll('naming')} busy={busy}
           progress={org.progress}
@@ -134,6 +141,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
                 applyTitle="Apply — rename now (undoable)"
                 onApply={() => org.applyNamingOne(d.guid, d.old)}
                 onAcceptAsIs={() => org.keep('naming', d.old)}
+                onFocus={() => org.doFocus(d.guid, d.old)}
               >
                 <RuleTags rules={d.rules || ['casing']} />
                 <span className="rn-old" title={d.old}><DiffOld oldS={d.old} newS={d.new} /></span>
