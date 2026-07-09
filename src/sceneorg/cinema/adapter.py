@@ -294,11 +294,12 @@ class SceneAdapter:
             return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
                     "deletable_count": 0, "missing": [], "missing_textures": 0}
 
-        # Both perspectives are always reported so the lists never vanish
-        # when the visibility toggle flips:
-        #   unused      = used NOWHERE -> safely deletable
-        #   only_hidden = used, but exclusively by hidden objects -> listed
-        #                 separately and protected from deletion
+        # The visibility toggle is a SCOPE filter:
+        #   Visible only (include_hidden=False): unused = used NOWHERE.
+        #   All objects  (include_hidden=True):  additionally lists the
+        #     materials used exclusively by hidden objects — fully actionable
+        #     (delete/accept), flagged via `only_hidden` for the badge.
+        # Materials used by any VISIBLE object are never listed.
         used_any, used_visible = self._material_usage()
         doc_path = doc.GetDocumentPath() or ""
         unused: list = []
@@ -308,13 +309,15 @@ class SceneAdapter:
         for m in mats:
             name = m.GetName()
             key = self._mat_key(m)
-            if key not in used_any:
+            nowhere = key not in used_any
+            hidden_only = (not nowhere) and key not in used_visible
+            if nowhere or (hidden_only and include_hidden):
                 if name in accepted:
                     accepted_out.append(name)
                 else:
                     unused.append(name)
-            elif key not in used_visible:
-                only_hidden.append(name)
+                    if hidden_only:
+                        only_hidden.append(name)
             try:
                 sh = m.GetFirstShader()
                 while sh:
@@ -1056,13 +1059,16 @@ class SceneAdapter:
             lay = lay.GetNext()
         return out
 
-    def delete_material(self, name: str) -> int:
+    def delete_material(self, name: str, include_hidden: bool = False) -> int:
         doc = self.doc
-        used_keys = self._used_material_keys()
-        # Identity-based: with duplicate names only the truly unused
-        # instances are deleted, used namesakes stay.
+        used_any, used_visible = self._material_usage()
+        # Identity-based: with duplicate names only deletable instances go,
+        # namesakes in use stay. With include_hidden (All-objects view) the
+        # user may also delete materials used ONLY by hidden objects;
+        # anything a VISIBLE object uses is always protected.
+        protected = used_visible if include_hidden else used_any
         targets = [m for m in doc.GetMaterials()
-                   if m.GetName() == name and self._mat_key(m) not in used_keys]
+                   if m.GetName() == name and self._mat_key(m) not in protected]
         if not targets:
             return 0
 
@@ -1074,11 +1080,12 @@ class SceneAdapter:
         c4d.EventAdd()
         return len(targets)
 
-    def delete_unused_materials(self) -> int:
+    def delete_unused_materials(self, include_hidden: bool = False) -> int:
         doc = self.doc
-        used_keys = self._used_material_keys()
+        used_any, used_visible = self._material_usage()
+        protected = used_visible if include_hidden else used_any
         targets = [m for m in doc.GetMaterials()
-                   if self._mat_key(m) not in used_keys]
+                   if self._mat_key(m) not in protected]
         if not targets:
             return 0
 

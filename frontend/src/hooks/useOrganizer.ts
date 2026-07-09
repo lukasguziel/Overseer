@@ -223,23 +223,23 @@ export function useOrganizer() {
 
   const doDeleteMaterial = useCallback((name: string) => {
     setStatus(`Deleting ${name}…`)
-    call('delete_material', { name })
+    call('delete_material', { name, include_hidden: includeHidden })
       .then((r) => {
         setStatus(r.deleted ? `Deleted material “${name}” ✓ (undoable)` : `“${name}” is in use — kept`)
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
-  }, [doAnalyze])
+  }, [doAnalyze, includeHidden])
 
   const doDeleteAllUnused = useCallback((count: number) => {
     setStatus(`Deleting ${count} unused material${count === 1 ? '' : 's'}…`)
-    call('delete_unused_materials')
+    call('delete_unused_materials', { include_hidden: includeHidden })
       .then((r) => {
         setStatus(`Deleted ${r.deleted} unused material${r.deleted === 1 ? '' : 's'} ✓ (undoable)`)
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
-  }, [doAnalyze])
+  }, [doAnalyze, includeHidden])
 
   const doFixTexturesRelative = useCallback((materials?: string[]) => {
     setStatus('Making texture paths relative…')

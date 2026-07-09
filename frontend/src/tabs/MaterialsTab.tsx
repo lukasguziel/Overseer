@@ -134,10 +134,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const mat = report?.materials
   const tex = report?.textures
 
-  // unused (deletable, used nowhere) and only_hidden (used exclusively by
-  // hidden objects, protected) are independent lists since the identity fix
-  // — both are always shown, regardless of the visibility toggle.
+  // mat.unused is scope-aware (All objects additionally contains the
+  // hidden-only materials); only_hidden just marks which rows get the badge.
   const unusedPager = usePager(mat?.unused || [])
+  const onHiddenSet = new Set(mat?.only_hidden || [])
   // ONE paths list, narrowed by two filters in the settings panel:
   // resolution tier and path status (absolute / relative / missing).
   const [resFilter, setResFilter] = useState('')
@@ -227,56 +227,55 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
         </div>
         {mat ? (
           <>
-            {/* The headline number matches what the list below offers to
-                delete; only-on-hidden materials are their own count. */}
+            {/* Visibility toggle = scope: 'Visible only' lists materials used
+                NOWHERE; 'All objects' additionally lists the ones used only
+                by hidden objects — same list, fully actionable, badge marks
+                them. Materials any visible object uses never show up. */}
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{mat.total}</b> total</span>
               <span className={deletable ? 'warn' : ''}><b>{deletable}</b> unused</span>
-              {!org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
-                // Count from the LIST (names can repeat), not the name set.
-                <span><b>{mat.only_hidden?.length}</b> only on hidden</span>
+              {(mat.only_hidden?.length ?? 0) > 0 && (
+                <span><b>{mat.only_hidden?.length}</b> of them only on hidden</span>
               )}
               {acceptedList.length > 0 && <span><b>{acceptedList.length}</b> accepted</span>}
               <span className={mat.missing_textures ? 'warn' : ''}><b>{mat.missing_textures || 0}</b> missing tex</span>
             </div>
             <Workbench
               title="Unused materials" count={deletable} loading={busy}
-              empty="Every material is in use 🎉"
+              empty={org.includeHidden
+                ? 'Every material is in use 🎉'
+                : 'Every material is used by a visible object 🎉 (switch to All objects to include hidden usage)'}
               hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
               applyLabel="Delete all"
               onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
               busy={busy} progress={org.progress}
-              extra={!org.includeHidden && (mat.only_hidden?.length ?? 0) > 0
-                ? { count: mat.only_hidden!.length, label: 'only on hidden (protected)' }
-                : null}
             >
               <div className="rename-list">
-                {unusedPager.rows.map((nm) => (
-                  <SuggestionRow key={nm} busy={busy}
-                    applyTitle="Apply — delete this material (undoable)"
-                    onApply={() => org.doDeleteMaterial(nm)}
-                    onAcceptAsIs={() => org.keep('materials', nm)}
-                    onFocus={() => org.doFocusMaterial(nm)}
-                  >
-                    <MatThumb src={previews[nm]} fallback="var(--dim2)" />
-                    <span className="rn-old" title={nm}>{nm}</span>
-                    <span className="rn-arrow">→</span>
-                    <span className="rn-new dim">delete</span>
-                  </SuggestionRow>
-                ))}
-                {/* Only-on-hidden materials, IN the same list — visible-only
-                    perspective counts them as unused too, but deleting would
-                    break the hidden objects, so they carry a badge instead of
-                    action buttons. Under All objects they count as used and
-                    are not listed. */}
-                {!org.includeHidden && (mat.only_hidden || []).map((nm, i) => (
-                  <div className="fl-row static mat-row" key={nm + i}>
-                    <MatThumb src={previews[nm]} fallback="var(--warn)" />
-                    <span className="fl-name">{nm}</span>
-                    <span className="tex-badge unused" title="Used only by objects that are hidden in the editor — kept safe from deletion">only on hidden</span>
-                  </div>
-                ))}
+                {unusedPager.rows.map((nm) => {
+                  const onHidden = onHiddenSet.has(nm)
+                  return (
+                    <SuggestionRow key={nm} busy={busy}
+                      applyTitle={onHidden
+                        ? 'Apply — delete this material. Careful: hidden objects still use it and will lose it (undoable)'
+                        : 'Apply — delete this material (undoable)'}
+                      onApply={() => org.doDeleteMaterial(nm)}
+                      onAcceptAsIs={() => org.keep('materials', nm)}
+                      onFocus={() => org.doFocusMaterial(nm)}
+                    >
+                      <MatThumb src={previews[nm]} fallback={onHidden ? 'var(--warn)' : 'var(--dim2)'} />
+                      <span className="rn-old" title={nm}>{nm}</span>
+                      {onHidden && (
+                        <span className="tex-badge unused"
+                          title="Used only by objects that are hidden in the editor — deleting removes it from them too">
+                          on hidden
+                        </span>
+                      )}
+                      <span className="rn-arrow">→</span>
+                      <span className="rn-new dim">delete</span>
+                    </SuggestionRow>
+                  )
+                })}
               </div>
               <Pager pager={unusedPager} />
             </Workbench>
