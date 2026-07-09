@@ -25,7 +25,7 @@ const FLOW = ([
 ] as const).filter((s) => !PARKED.has(s.tab))
 
 export default function OverviewTab({ org }: { org: Organizer }) {
-  const { report, detectInfo, compliance, busy, history } = org
+  const { report, compliance, busy, history } = org
   // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -157,22 +157,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <Treemap nodes={report.nodes || []} onFocus={org.doFocus} />
       </section>
 
-      {/* Row 1: health + naming consistency */}
+      {/* Row 1: naming consistency + materials summary (the scene-health
+          number table is gone — the health tile + nav underlines cover it). */}
       <div className="ov-cols2">
-        <section className="card">
-          <div className="card-head"><h3>Scene health</h3></div>
-          <table className="mini"><tbody>
-            <tr><td>Misplaced</td><td className={misplaced ? 'warn' : ''}>{misplaced}</td></tr>
-            <tr><td>Default names</td><td className={hyg.defaults.length ? 'warn' : ''}>{hyg.defaults.length}</td></tr>
-            <tr><td>Duplicate names</td><td className={hyg.dupTotal ? 'warn' : ''}>{hyg.dupTotal}</td></tr>
-            <tr><td>Empty groups</td><td className={hyg.emptyGroups.length ? 'warn' : ''}>{hyg.emptyGroups.length}</td></tr>
-          </tbody></table>
-          <div className="ov-links">
-            <button className="ghost sm" onClick={() => org.setTab('naming')}>Fix naming →</button>
-          </div>
-          {detectInfo && <p className="mini-note dim">detected: {detectInfo.style} / {String(detectInfo.language)} / pad {detectInfo.number_pad} · {Math.round(detectInfo.confidence * 100)}%</p>}
-        </section>
-
         <section className="card">
           <div className="card-head"><h3>Naming consistency</h3></div>
           <div className="chipgroup-label">Casing</div>
@@ -180,10 +167,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           <div className="chipgroup-label" style={{ marginTop: 14 }}>Language</div>
           <Strip data={report.language} legendMax={3} />
         </section>
-      </div>
 
-      {/* Row 2: materials summary + polygon concentration (read-only) */}
-      <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
             <h3>Materials &amp; textures</h3>
@@ -198,7 +182,10 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             <tr><td>Absolute paths</td><td>{tex?.absolute_count ?? 0}</td></tr>
           </tbody></table>
         </section>
+      </div>
 
+      {/* Row 2: polygon concentration (read-only) */}
+      <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
             <h3>Polygon concentration</h3>
