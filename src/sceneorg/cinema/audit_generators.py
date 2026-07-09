@@ -88,8 +88,8 @@ def _resolve_registry():
                 continue
             params.append({"key": p["key"], "label": p["label"],
                            "kind": p["kind"], "id": pid})
-        params.append({"key": _ENABLED, "label": "Enabled",
-                       "kind": "bool", "id": None})
+        # NOTE: no 'enabled' pseudo-param — whether a generator is on/off is
+        # a per-shot artistic choice, diffing it is noise, not a finding.
         resolved[type_id] = {"key": entry["key"], "label": entry["label"],
                              "type_id": type_id, "params": params}
     return resolved
