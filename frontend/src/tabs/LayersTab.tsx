@@ -7,6 +7,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import LayerTree from '../components/LayerTree'
 import EmptyState from '../components/EmptyState'
+import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
@@ -76,10 +77,15 @@ export default function LayersTab({ org }: { org: Organizer }) {
   const nlPager = usePager(noLayer)
   const layerNames = (lr?.layers || []).map((l) => l.name)
   const [batchLayer, setBatchLayer] = useState('')
+  const [confirmAssign, setConfirmAssign] = useState(false)
   const assignAll = () => {
     const v = batchLayer.trim()
     if (!v || !noLayer.length) return
-    org.doAssignLayer(noLayer.map((n) => n.guid), v)
+    setConfirmAssign(true)
+  }
+  const doAssignAll = () => {
+    setConfirmAssign(false)
+    org.doAssignLayer(noLayer.map((n) => n.guid), batchLayer.trim())
     setBatchLayer('')
   }
 
@@ -131,6 +137,13 @@ export default function LayersTab({ org }: { org: Organizer }) {
               ✓ Assign all
             </button>
           </div>
+          {confirmAssign && (
+            <ConfirmModal title="Assign all"
+              message={`You are about to assign ${noLayer.length} object${noLayer.length === 1 ? '' : 's'} to the layer “${batchLayer.trim()}” (created if missing, one undo step). Continue?`}
+              confirmLabel={`✓ Assign ${noLayer.length}`}
+              onConfirm={doAssignAll}
+              onCancel={() => setConfirmAssign(false)} />
+          )}
           <div className="rename-list">
             {nlPager.rows.map((n) => (
               <NoLayerRow key={n.guid} n={n} busy={busy}

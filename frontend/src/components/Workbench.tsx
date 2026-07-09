@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { ProgressInfo } from '../types'
 import useSteadyProgress from '../hooks/useSteadyProgress'
+import ConfirmModal from './ConfirmModal'
 
 // Live preview panel — loading style 2 of 3: the inline preview loader.
 // Header carries the change count and the batch pair
@@ -26,6 +27,9 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   const steady = useSteadyProgress(progress)
   const prog = loading ? steady : null
   const pct = prog?.pct ?? null
+  // Batch actions always confirm first — with the exact count on the table.
+  const [confirm, setConfirm] = useState<'apply' | 'accept' | null>(null)
+  const n = `${count} item${count === 1 ? '' : 's'}`
   return (
     <div className="wb-preview">
       <div className="wb-preview-head">
@@ -34,18 +38,32 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
           {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
         </span>
         {onApply && (
-          <button className="apply wb-apply" disabled={busy || !count} onClick={onApply}
+          <button className="apply wb-apply" disabled={busy || !count} onClick={() => setConfirm('apply')}
             title="Apply every suggestion in the list (one undo step)">
             ✓ {applyLabel || 'Apply all'}
           </button>
         )}
         {onAcceptAll && (
-          <button className="wb-accept-all" disabled={busy || !count} onClick={onAcceptAll}
+          <button className="wb-accept-all" disabled={busy || !count} onClick={() => setConfirm('accept')}
             title="Keep everything exactly as it is — nothing changes in the scene, the items stop counting as todos (restore below)">
             = Keep all as-is
           </button>
         )}
       </div>
+      {confirm === 'apply' && onApply && (
+        <ConfirmModal title={applyLabel || 'Apply all'}
+          message={`You are about to process ${n} in one go (one undo step in Cinema 4D). Continue?`}
+          confirmLabel={`✓ ${applyLabel || 'Apply'} ${n}`}
+          onConfirm={() => { setConfirm(null); onApply() }}
+          onCancel={() => setConfirm(null)} />
+      )}
+      {confirm === 'accept' && onAcceptAll && (
+        <ConfirmModal title="Keep all as-is"
+          message={`You are about to accept ${n} as-is. Nothing changes in the scene — they just stop counting as todos (restore any time below). Continue?`}
+          confirmLabel={`= Accept ${n}`}
+          onConfirm={() => { setConfirm(null); onAcceptAll() }}
+          onCancel={() => setConfirm(null)} />
+      )}
       {note && <p className="wb-note">{note}</p>}
       {hint && count > 0 && !loading && <p className="hint-sm wb-hint">{hint}</p>}
       <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>

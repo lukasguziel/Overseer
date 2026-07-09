@@ -82,7 +82,6 @@ function MatThumb({ src, fallback }: { src?: string; fallback: string }) {
 export default function MaterialsTab({ org }: { org: Organizer }) {
   const { report, busy } = org
   const [confirm, setConfirm] = useState(false)         // make textures relative
-  const [bulkConfirm, setBulkConfirm] = useState(false) // delete unused materials
   const mat = report?.materials
   const tex = report?.textures
 
@@ -176,14 +175,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               title="Unused materials" count={deletable} loading={busy}
               empty="Every material is in use 🎉"
               hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
-              applyLabel={bulkConfirm ? `Really delete ${deletable}?` : 'Delete all'}
-              onApply={() => {
-                if (bulkConfirm) { org.doDeleteAllUnused(deletable); setBulkConfirm(false) }
-                else setBulkConfirm(true)
-              }}
+              applyLabel="Delete all"
+              onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
               busy={busy} progress={org.progress}
-              note={bulkConfirm ? 'Click again to delete all unused materials (undoable).' : null}
             >
               <div className="rename-list">
                 {unusedPager.rows.map((nm) => (

@@ -899,6 +899,24 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   font-size: 11px; color: var(--dim2, #6f6f76); font-family: monospace;
 }
 
+/* --- Confirm modal (batch actions) --------------------------------------- */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: color-mix(in srgb, var(--bg, #1b1b1d) 65%, transparent);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-box {
+  width: 380px; max-width: calc(100vw - 32px); padding: 20px 22px;
+  border-radius: 12px; background: var(--panel, #242427);
+  border: 1px solid var(--line, #3a3a3e);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+}
+.confirm-title { margin: 0 0 8px; font-size: 14px; }
+.confirm-msg { margin: 0 0 16px; font-size: 12px; color: var(--dim, #9a9aa2); line-height: 1.5; }
+.confirm-msg b { color: var(--text, #e8e8ea); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 /* --- Background progress chip (non-blocking work, bottom left) ----------- */
 .progress-chip {
   position: fixed; left: 16px; bottom: 16px; z-index: 900;
