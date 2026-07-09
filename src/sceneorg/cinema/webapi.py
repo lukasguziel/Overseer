@@ -1091,7 +1091,8 @@ def _handle(payload: dict) -> dict:
     if op == "delete_material":
         adapter = SceneAdapter(doc)
         name = payload.get("name", "")
-        deleted = adapter.delete_material(name)
+        deleted = adapter.delete_material(
+            name, include_hidden=bool(payload.get("include_hidden")))
         if deleted:
             _record_change("materials_delete", "deleted material '%s'" % name,
                            [], revertible=False, doc_name=doc.GetDocumentName())
@@ -1099,7 +1100,8 @@ def _handle(payload: dict) -> dict:
 
     if op == "delete_unused_materials":
         adapter = SceneAdapter(doc)
-        deleted = adapter.delete_unused_materials()
+        deleted = adapter.delete_unused_materials(
+            include_hidden=bool(payload.get("include_hidden")))
         if deleted:
             _record_change("materials_delete",
                            "deleted %d unused material(s)" % deleted,
