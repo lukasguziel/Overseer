@@ -4,6 +4,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import useAudit from '../hooks/useAudit'
 import { humanBytes } from '../lib/format'
 import ConfirmModal from '../components/ConfirmModal'
+import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import './files.css'
@@ -27,6 +28,7 @@ interface FilesScan {
   ok: boolean
   doc_path: string
   entries: FileEntry[]
+  accepted?: string[]   // raw paths accepted as missing (keeps section 'files')
   summary: {
     total: number
     by_kind: Record<string, number>
@@ -53,9 +55,11 @@ function statusColor(e: FileEntry): string {
   return e.missing ? 'var(--err)' : 'var(--apply)'
 }
 
-function FileTable({ rows, onFocus }: {
+function FileTable({ rows, onFocus, onPick, onAccept }: {
   rows: FileEntry[]
   onFocus: (e: FileEntry) => void
+  onPick?: (e: FileEntry) => void
+  onAccept?: (e: FileEntry) => void
 }) {
   return (
     <div className="fa-table">
@@ -63,27 +67,43 @@ function FileTable({ rows, onFocus }: {
         <span>File</span><span>Owner</span>
         <span className="num">Size</span><span>Path</span>
       </div>
-      {rows.map((e, i) => (
-        <button className="fa-tr fa-click" key={e.path + '|' + e.owner + '|' + i}
-          title={`${e.path}\nClick to select ${e.guid != null ? `“${e.owner}” in the viewport` : `material “${e.owner}”`}`}
-          onClick={() => onFocus(e)}>
-          <span className="fa-cell-file">
-            <span className="fl-dot" style={{ background: statusColor(e) }} />
-            <span className={'fa-kind fk-' + e.kind}>{KIND_LABEL[e.kind] || e.kind}</span>
-            <span className="fa-cut">{e.file}</span>
-          </span>
-          <span className="dim fa-cut">{e.owner || '—'}</span>
-          <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
-          <span className="fa-cell-path dim">
-            <span className="fa-cut">{e.path}</span>
-            {e.missing
-              ? <span className="tex-badge missing">missing</span>
-              : e.relocatable
-                ? <span className="tex-badge fixable">→ relative</span>
-                : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
-          </span>
-        </button>
-      ))}
+      {rows.map((e, i) => {
+        const actionable = e.missing && (onPick || onAccept)
+        return (
+          <div className={'fa-tr fa-click' + (actionable ? ' fa-actionable' : '')}
+            key={e.path + '|' + e.owner + '|' + i}
+            title={`${e.path}\nClick to select ${e.guid != null ? `“${e.owner}” in the viewport` : `material “${e.owner}”`}`}
+            onClick={() => onFocus(e)}>
+            <span className="fa-cell-file">
+              <span className="fl-dot" style={{ background: statusColor(e) }} />
+              <span className={'fa-kind fk-' + e.kind}>{KIND_LABEL[e.kind] || e.kind}</span>
+              <span className="fa-cut">{e.file}</span>
+            </span>
+            <span className="dim fa-cut">{e.owner || '—'}</span>
+            <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
+            <span className="fa-cell-path dim">
+              <span className="fa-cut">{e.path}</span>
+              {e.missing
+                ? <span className="tex-badge missing">missing</span>
+                : e.relocatable
+                  ? <span className="tex-badge fixable">→ relative</span>
+                  : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
+            </span>
+            {actionable && (
+              <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
+                {onPick && (
+                  <button className="rn-ok" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
+                    onClick={() => onPick(e)}>…</button>
+                )}
+                {onAccept && (
+                  <button className="rn-keep" title="Accept as missing — stops counting as a problem (restore below)"
+                    onClick={() => onAccept(e)}>=</button>
+                )}
+              </span>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -94,6 +114,43 @@ export default function FilesTab({ org }: { org: Organizer }) {
   const [kind, setKind] = useState('')
   const [confirm, setConfirm] = useState(false)
   const [note, setNote] = useState('')
+  // Missing-files batching: relink after folder pick / accept-all confirm.
+  const [relinkDir, setRelinkDir] = useState('')
+  const [relinkConfirm, setRelinkConfirm] = useState(false)
+  const [acceptConfirm, setAcceptConfirm] = useState(false)
+
+  const accepted = data?.accepted || []
+  const setFileKeeps = async (keys: string[]) => {
+    try {
+      await call('set_keeps', { section: 'files', keys })
+      await reload()
+    } catch (e: any) { setNote(String(e.message || e)) }
+  }
+  const acceptOne = (e: FileEntry) => {
+    setNote(`Accepted “${e.file}” as missing ✓ (restore below)`)
+    setFileKeeps([...accepted, e.path])
+  }
+  const pickOne = async (e: FileEntry) => {
+    setNote('Pick the file in the Cinema 4D window…')
+    try {
+      const r = await call('files_pick_path', { path: e.path })
+      if (r.error) { setNote(r.error); return }
+      if (r.cancelled) { setNote('File picker cancelled.'); return }
+      setNote(`Reference → “${r.picked}” ✓ (undoable)`)
+      await reload()
+    } catch (err: any) { setNote(String(err.message || err)) }
+  }
+  const doRelink = async () => {
+    setRelinkConfirm(false)
+    setNote('Searching for the missing files…')
+    try {
+      const r = await call('files_relink', { folder: relinkDir })
+      if (r.error) { setNote(r.error); return }
+      setNote(`Relinked ${r.relinked} file${r.relinked === 1 ? '' : 's'} ✓ (undoable)`
+        + (r.not_found ? ` · ${r.not_found} not found there` : ''))
+      await reload()
+    } catch (e: any) { setNote(String(e.message || e)) }
+  }
 
   const entries = data?.entries || []
   const byKind = (e: FileEntry) => !kind || e.kind === kind
@@ -189,19 +246,37 @@ export default function FilesTab({ org }: { org: Organizer }) {
               <div className="card-head">
                 <h3>Missing files</h3>
                 <span className="card-hint">{missPager.total}</span>
-                <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
-                  title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
-                  onClick={async () => {
-                    const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
-                    try {
-                      const r = await call('files_select', { guids })
-                      setNote(`Selected ${r.selected} object${r.selected === 1 ? '' : 's'} with missing files in C4D ✓`)
-                    } catch (e: any) { setNote(String(e.message || e)) }
-                  }}>
-                  Select all in C4D
-                </button>
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  <button className="mini" disabled={loading}
+                    title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
+                    onClick={() => {
+                      call('pick_folder', { title: 'Folder to search for the missing files' })
+                        .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
+                        .catch(() => {})
+                    }}>
+                    … Relink {missPager.total}
+                  </button>
+                  <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
+                    title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
+                    onClick={async () => {
+                      const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
+                      try {
+                        const r = await call('files_select', { guids })
+                        setNote(`Selected ${r.selected} object${r.selected === 1 ? '' : 's'} with missing files in C4D ✓`)
+                      } catch (e: any) { setNote(String(e.message || e)) }
+                    }}>
+                    Select in C4D
+                  </button>
+                  <button className="mini" disabled={loading}
+                    title="Accept all as missing — they stop counting as problems (restore below)"
+                    onClick={() => setAcceptConfirm(true)}>
+                    = Accept {missPager.total}
+                  </button>
+                </span>
               </div>
-              <FileTable rows={missPager.rows} onFocus={onFocus} />
+              <p className="hint-sm">Per row: … pick the replacement file in C4D's file dialog · = accept it as missing.</p>
+              <FileTable rows={missPager.rows} onFocus={onFocus}
+                onPick={pickOne} onAccept={acceptOne} />
               <Pager pager={missPager} />
             </section>
           )}
@@ -218,8 +293,34 @@ export default function FilesTab({ org }: { org: Organizer }) {
                 </>
               : <div className="fl-empty">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
           </section>
+
+          <AcceptedSection items={accepted}
+            onRestore={(p) => setFileKeeps(accepted.filter((a) => a !== p))}
+            hint="Accepted-as-missing files are remembered (config) and no longer count as problems — restore to treat them as missing again." />
         </div>
       </div>
+
+      {relinkConfirm && (
+        <ConfirmModal
+          title="Relink missing files"
+          message={`Search “${relinkDir}” (including subfolders) for the ${missPager.total} missing file name${missPager.total === 1 ? '' : 's'} and relink every match (project-relative when possible, one undo step). Files not found there are left as-is. Continue?`}
+          confirmLabel={`✓ Relink ${missPager.total}`}
+          onConfirm={doRelink}
+          onCancel={() => setRelinkConfirm(false)}
+        />
+      )}
+      {acceptConfirm && (
+        <ConfirmModal
+          title="Accept all as missing"
+          message={`Accept all ${missPager.total} missing file${missPager.total === 1 ? '' : 's'} as missing. Nothing changes in the scene — they just stop counting as problems (restore any time below). Continue?`}
+          confirmLabel={`= Accept ${missPager.total}`}
+          onConfirm={() => {
+            setAcceptConfirm(false)
+            setFileKeeps([...accepted, ...missing.map((e) => e.path)])
+          }}
+          onCancel={() => setAcceptConfirm(false)}
+        />
+      )}
 
       {confirm && (
         <ConfirmModal

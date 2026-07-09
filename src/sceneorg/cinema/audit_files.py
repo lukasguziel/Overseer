@@ -122,6 +122,17 @@ def _alembic_entries(adapter, doc_path: str) -> list:
     return out
 
 
+def _kept_files() -> set:
+    """The 'files' accepted-as-is list from config (keys = raw paths)."""
+    try:
+        from ..core import keeps as keepsmod
+        from . import webapi
+        data = webapi._read_config_data()
+        return set(keepsmod.normalize_keeps(data.get("keeps")).get("files", []))
+    except Exception:
+        return set()
+
+
 def _scan(doc, adapter, progress=None) -> dict:
     import os
     doc_path = doc.GetDocumentPath() or ""
@@ -143,9 +154,124 @@ def _scan(doc, adapter, progress=None) -> dict:
         seen.add(key)
         entries.append(e)
 
+    # Missing files the user ACCEPTED as missing stop counting as problems
+    # (uniform keeps mechanism, section 'files', keyed by raw path).
+    kept = _kept_files()
+    accepted = sorted({e["path"] for e in entries
+                       if e["missing"] and e["path"] in kept})
+    entries = [e for e in entries
+               if not (e["missing"] and e["path"] in kept)]
+
     entries.sort(key=lambda e: e["bytes"], reverse=True)
     return {"ok": True, "doc_path": doc_path, "entries": entries,
-            "summary": fl.summarize(entries)}
+            "accepted": accepted, "summary": fl.summarize(entries)}
+
+
+def _holders(adapter):
+    """Every possible path holder: all scene objects (alembic generators,
+    IES lights, sound objects …) plus all materials with their shader
+    trees."""
+    seen: set = set()
+    for obj in adapter._by_guid.values():
+        if id(obj) not in seen:
+            seen.add(id(obj))
+            yield obj
+    for holder in adapter._all_material_holders():
+        if id(holder) not in seen:
+            seen.add(id(holder))
+            yield holder
+
+
+def _rewrite_everywhere(doc, adapter, raw: str, new_path: str) -> int:
+    """Rewrite every parameter in the scene holding `raw` (path-normalized
+    match) to `new_path`. Caller wraps StartUndo/EndUndo."""
+    written = 0
+    done: set = set()
+    for holder in _holders(adapter):
+        for h, pid in adapter._find_path_params(holder, raw):
+            key = (id(h), str(pid))
+            if key in done:
+                continue
+            done.add(key)
+            try:
+                doc.AddUndo(c4d.UNDOTYPE_CHANGE, h)
+                h[pid] = new_path
+                written += 1
+            except Exception:
+                continue
+    return written
+
+
+def _prefer_relative(doc, path: str) -> str:
+    doc_path = doc.GetDocumentPath() or ""
+    if doc_path and os.path.isabs(path):
+        try:
+            rp = os.path.relpath(path, doc_path)
+            if not rp.startswith(".."):
+                return rp.replace("\\", "/")
+        except Exception:
+            pass
+    return path
+
+
+def _pick_path(doc, adapter, payload) -> dict:
+    """Native C4D file dialog to resolve ONE missing reference."""
+    raw = str(payload.get("path") or "")
+    try:
+        chosen = c4d.storage.LoadDialog(
+            type=c4d.FILESELECTTYPE_ANYTHING,
+            title="Pick replacement for %s" % os.path.basename(raw),
+            flags=c4d.FILESELECT_LOAD,
+            def_path=doc.GetDocumentPath() or "")
+    except Exception as ex:  # noqa: BLE001
+        return {"error": "file dialog failed: %s" % ex}
+    if not chosen:
+        return {"ok": True, "cancelled": True}
+    doc.StartUndo()
+    changed = _rewrite_everywhere(doc, adapter, raw,
+                                  _prefer_relative(doc, chosen))
+    doc.EndUndo()
+    c4d.EventAdd()
+    if not changed:
+        return {"error": "reference not found in the scene"}
+    return {"ok": True, "picked": chosen, "changed": changed}
+
+
+def _relink(doc, adapter, payload, progress) -> dict:
+    """Search a folder recursively for the missing file NAMES and relink
+    every match (one undo step)."""
+    folder = str(payload.get("folder") or "").strip().strip('"')
+    if not folder or not os.path.isdir(folder):
+        return {"error": "Folder not found: %s" % (folder or "(empty)")}
+    scan = _scan(doc, adapter)
+    missing = [e for e in scan["entries"] if e["missing"]]
+    if not missing:
+        return {"ok": True, "relinked": 0, "not_found": 0}
+
+    index: dict = {}
+    count = 0
+    for root, _dirs, files in os.walk(folder):
+        for fn in files:
+            count += 1
+            if progress and count % 200 == 0:
+                progress("Indexing search folder", 0, 0, root)
+            index.setdefault(fn.lower(), os.path.join(root, fn))
+
+    relinked = not_found = 0
+    doc.StartUndo()
+    for e in missing:
+        found = index.get(os.path.basename(e["path"]).lower())
+        if found is None:
+            not_found += 1
+            continue
+        if _rewrite_everywhere(doc, adapter, e["path"],
+                               _prefer_relative(doc, found)):
+            relinked += 1
+        else:
+            not_found += 1
+    doc.EndUndo()
+    c4d.EventAdd()
+    return {"ok": True, "relinked": relinked, "not_found": not_found}
 
 
 def _make_relative(doc, adapter, payload) -> dict:
@@ -221,4 +347,8 @@ def handle(op, payload, doc, adapter, tree, progress) -> dict:
         return _make_relative(doc, adapter, payload)
     if op == "files_select":
         return _select(doc, adapter, payload)
+    if op == "files_pick_path":
+        return _pick_path(doc, adapter, payload)
+    if op == "files_relink":
+        return _relink(doc, adapter, payload, progress)
     return {"error": "unknown files op: %s" % op}

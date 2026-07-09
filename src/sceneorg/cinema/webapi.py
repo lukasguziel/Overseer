@@ -763,6 +763,8 @@ _OP_LABELS = {
     "clear_missing_textures": "Clearing missing texture references",
     "set_texture_path": "Rewriting texture reference",
     "pick_texture_path": "Waiting for the file picker (switch to Cinema 4D)",
+    "files_pick_path": "Waiting for the file picker (switch to Cinema 4D)",
+    "files_relink": "Relinking missing files",
     "pick_folder": "Waiting for the folder picker (switch to Cinema 4D)",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
@@ -792,6 +794,7 @@ _MUTATING_OPS = {
     "clear_missing_textures", "set_texture_path", "pick_texture_path",
     "tags_add_phong", "tags_set_phong_angle", "tags_delete_duplicates",
     "gens_apply", "sims_set_enabled", "files_make_relative",
+    "files_pick_path", "files_relink",
 }
 
 
