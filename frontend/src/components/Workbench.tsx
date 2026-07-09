@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
 import type { ProgressInfo } from '../types'
+import useSteadyProgress from '../hooks/useSteadyProgress'
 
-// Live preview panel. Header carries the change count and the batch pair
+// Live preview panel — loading style 2 of 3: the inline preview loader.
+// Header carries the change count and the batch pair
 // (top right): ✓ apply everything, = accept everything as-is — both valid
 // ways to clear an area. Either action is optional, so worklists without a
 // batch apply (e.g. the no-layer list) reuse the same panel. While
-// `loading` with server `progress`, the content blurs and a progress bar
-// shows what the plugin is fetching.
+// `loading` with server `progress`, the content blurs and a monotonic
+// progress bar shows what the plugin is fetching.
 export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, progress, children }: {
   title: string
   count: number
@@ -20,9 +22,9 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   progress?: ProgressInfo | null
   children?: ReactNode
 }) {
-  const prog = loading && progress?.active ? progress : null
-  const pct = prog && prog.total > 0
-    ? Math.min(100, Math.round(prog.current / prog.total * 100)) : null
+  const steady = useSteadyProgress(progress)
+  const prog = loading ? steady : null
+  const pct = prog?.pct ?? null
   return (
     <div className="wb-preview">
       <div className="wb-preview-head">

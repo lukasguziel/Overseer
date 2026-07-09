@@ -868,6 +868,28 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   font-size: 11px; color: var(--dim2, #6f6f76); font-family: monospace;
 }
 
+/* --- Background progress chip (non-blocking work, bottom left) ----------- */
+.progress-chip {
+  position: fixed; left: 16px; bottom: 16px; z-index: 900;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+  column-gap: 10px; row-gap: 4px;
+  min-width: 240px; max-width: 360px; padding: 10px 14px; border-radius: 10px;
+  background: var(--panel, #242427); border: 1px solid var(--line, #3a3a3e);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
+}
+.pc-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--panel2, #2e2e30); border-top-color: var(--accent);
+  animation: pl-spin .8s linear infinite;
+}
+.pc-text { display: flex; flex-direction: column; min-width: 0; }
+.pc-phase { font-size: 12px; font-weight: 600; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.pc-detail { font-size: 10px; color: var(--dim2, #6f6f76); font-family: monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-pct { font-size: 11px; color: var(--dim, #9a9aa2); font-variant-numeric: tabular-nums; }
+.pc-track { grid-column: 1 / -1; height: 4px; }
+
 /* ---------- Layers tab: overview tree ---------- */
 .layers-tab { display: flex; flex-direction: column; gap: 16px; }
 .ly-overview .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

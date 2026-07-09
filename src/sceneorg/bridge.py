@@ -58,7 +58,7 @@ class _Request:
         self.error = None
 
 
-def submit(payload, timeout=60):
+def submit(payload, timeout=300):
     req = _Request(payload)
     _queue.put(req)
 
@@ -102,6 +102,14 @@ def drain():
             dropped = reload_all()
             from .cinema import webapi
             if req.payload.get("op") == "reload":
+                # Also drop the cross-request scene cache (it lives on the
+                # sceneorg package so it survives the module purge): a forced
+                # reload should re-read the scene with the NEW code.
+                try:
+                    import sceneorg
+                    getattr(sceneorg, "_scene_cache", {}).clear()
+                except Exception:
+                    pass
                 req.result = {"ok": True, "reloaded": dropped}
             else:
                 req.result = webapi.handle(req.payload)
