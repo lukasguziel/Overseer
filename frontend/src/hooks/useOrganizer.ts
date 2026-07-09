@@ -59,6 +59,10 @@ export function useOrganizer() {
   // 'offline' = bundled dictionaries (10 languages, local); 'google' = online
   const [translateEngine, setTranslateEngine] = useState('offline')
 
+  // Active document name (from the cheap `dirty` poll). Drives per-project
+  // settings hydration: switching projects reloads the stored settings.
+  const [docName, setDocName] = useState<string | null>(null)
+
   const [busy, setBusy] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [status, setStatus] = useState('Ready.')
@@ -421,12 +425,72 @@ export function useOrganizer() {
     keepMany(section, keys)
   }, [naming, translation, layers, structure, report, keepMany])
 
+  // --- Per-project settings persistence ------------------------------------
+  // Every clickable setting is stored automatically in a per-project JSON
+  // (configs/<slug>.json in the plugin's writable data dir) and restored when
+  // the same project is reopened. `scope` is deliberately NOT persisted — the
+  // selection scope is a session-specific choice, not a project preference.
+  const currentUi = useCallback(() => ({
+    casing, applyCasing, keepSeparators, language, numberPad,
+    applyNumbering, dedupe, safe, tidy, translateTarget,
+    translateEngine, includeHidden,
+  }), [casing, applyCasing, keepSeparators, language, numberPad, applyNumbering,
+    dedupe, safe, tidy, translateTarget, translateEngine, includeHidden])
+
+  const applyStoredUi = useCallback((ui: any) => {
+    if (typeof ui.casing === 'string') setCasing(ui.casing)
+    if (typeof ui.applyCasing === 'boolean') setApplyCasing(ui.applyCasing)
+    if (typeof ui.keepSeparators === 'boolean') setKeepSeparators(ui.keepSeparators)
+    if (typeof ui.language === 'string') setLanguage(ui.language)
+    if (typeof ui.numberPad === 'number') setNumberPad(ui.numberPad)
+    if (typeof ui.applyNumbering === 'boolean') setApplyNumbering(ui.applyNumbering)
+    if (typeof ui.dedupe === 'boolean') setDedupe(ui.dedupe)
+    if (typeof ui.safe === 'boolean') setSafe(ui.safe)
+    if (typeof ui.tidy === 'boolean') setTidy(ui.tidy)
+    if (typeof ui.translateTarget === 'string') setTranslateTarget(ui.translateTarget)
+    if (typeof ui.translateEngine === 'string') setTranslateEngine(ui.translateEngine)
+    if (typeof ui.includeHidden === 'boolean') setIncludeHidden(ui.includeHidden)
+  }, [])
+
   const applyPreset = (id: string) => run('Apply preset', async () => {
     const r = await call('apply_preset', { id })
     setActivePreset(r.applied || id)
     setRules(null)  // Let the Rules tab reload
+    // The preset is the global config; reflect the current UI into the
+    // project file so reopening the project keeps this choice.
+    call('ui_settings_set', { ui: currentUi() }).catch(() => {})
     setStatus(`Preset “${r.applied || id}” applied (${r.groups} groups) — open Rules to see it.`)
   })
+
+  // Hydrate stored settings on startup and whenever the active document
+  // changes. `hydrated` gates the auto-save below so mount-time defaults never
+  // clobber the stored file before the initial load has finished.
+  const hydrated = useRef(false)
+  useEffect(() => {
+    if (docName === null) return
+    hydrated.current = false
+    let cancel = false
+    call('ui_settings_get')
+      .then((r) => {
+        if (cancel) return
+        if (r.found && r.ui) applyStoredUi(r.ui)
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancel) hydrated.current = true })
+    return () => { cancel = true }
+  }, [docName, applyStoredUi])
+
+  // Debounced auto-save: persist the current settings ~800ms after any change,
+  // but only once the initial hydration for this document has completed.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!hydrated.current) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      call('ui_settings_set', { ui: currentUi() }).catch(() => {})
+    }, 800)
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
+  }, [currentUi])
 
   // Auto-analyze on first load.
   useEffect(() => { doAnalyze() }, [doAnalyze])
@@ -446,6 +510,7 @@ export function useOrganizer() {
         const d = await call('dirty')
         if (stop) return
         setSel({ count: d.sel_count ?? 0, names: d.sel_names ?? [] })
+        setDocName(d.name ?? null)  // triggers per-project settings hydration on switch
         const last = lastDirty.current
         if (!last) return
         const sceneChanged = d.dirty !== last.dirty || d.name !== last.name
