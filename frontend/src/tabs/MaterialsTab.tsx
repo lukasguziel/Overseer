@@ -232,7 +232,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{mat.total}</b> total</span>
               <span className={deletable ? 'warn' : ''}><b>{deletable}</b> unused</span>
-              {org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
+              {!org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
                 // Count from the LIST (names can repeat), not the name set.
                 <span><b>{mat.only_hidden?.length}</b> only on hidden</span>
               )}
@@ -247,6 +247,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
               busy={busy} progress={org.progress}
+              extra={!org.includeHidden && (mat.only_hidden?.length ?? 0) > 0
+                ? { count: mat.only_hidden!.length, label: 'only on hidden (protected)' }
+                : null}
             >
               <div className="rename-list">
                 {unusedPager.rows.map((nm) => (
@@ -262,16 +265,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     <span className="rn-new dim">delete</span>
                   </SuggestionRow>
                 ))}
-              </div>
-              <Pager pager={unusedPager} />
-            </Workbench>
-            {/* Only-on-hidden materials belong to the ALL-OBJECTS view: with
-                'Visible only' active, hidden usage is out of scope, so these
-                rows disappear along with it. Rendered directly under the
-                unused list (same card) as protected rows. */}
-            {org.includeHidden && (mat.only_hidden?.length ?? 0) > 0 && (
-              <div className="rename-list" style={{ marginTop: 10 }}>
-                {(mat.only_hidden || []).map((nm, i) => (
+                {/* Only-on-hidden materials, IN the same list — visible-only
+                    perspective counts them as unused too, but deleting would
+                    break the hidden objects, so they carry a badge instead of
+                    action buttons. Under All objects they count as used and
+                    are not listed. */}
+                {!org.includeHidden && (mat.only_hidden || []).map((nm, i) => (
                   <div className="fl-row static mat-row" key={nm + i}>
                     <MatThumb src={previews[nm]} fallback="var(--warn)" />
                     <span className="fl-name">{nm}</span>
@@ -279,7 +278,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   </div>
                 ))}
               </div>
-            )}
+              <Pager pager={unusedPager} />
+            </Workbench>
             <AcceptedSection items={mat.accepted_all || []}
               onRestore={(nm) => org.unkeep('materials', nm)}
               hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />

@@ -10,7 +10,7 @@ import ConfirmModal from './ConfirmModal'
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
 // progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, hint, progress, children }: {
+export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, hint, progress, extra, children }: {
   title: string
   count: number
   loading: boolean
@@ -22,6 +22,10 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   note?: string | null
   hint?: string
   progress?: ProgressInfo | null
+  // Protected/informational rows rendered alongside the actionable ones
+  // (e.g. only-on-hidden materials): counted in the header, keep the list
+  // visible even when nothing is actionable, but batch buttons ignore them.
+  extra?: { count: number; label: string } | null
   children?: ReactNode
 }) {
   const steady = useSteadyProgress(progress)
@@ -36,6 +40,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
         <h3>{title}</h3>
         <span className="wb-count">
           {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
+          {!loading && (extra?.count ?? 0) > 0 && ` · ${extra!.count} ${extra!.label}`}
         </span>
         {onApply && (
           <button className="apply wb-apply" disabled={busy || !count} onClick={() => setConfirm('apply')}
@@ -67,7 +72,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
       {note && <p className="wb-note">{note}</p>}
       {hint && count > 0 && !loading && <p className="hint-sm wb-hint">{hint}</p>}
       <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>
-        {count === 0 && !loading
+        {count === 0 && (extra?.count ?? 0) === 0 && !loading
           ? <div className="wb-empty">{empty}</div>
           : children}
         {prog && (
