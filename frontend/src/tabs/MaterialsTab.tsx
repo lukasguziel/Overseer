@@ -252,10 +252,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               busy={busy} progress={org.progress}
             >
               <div className="rename-list">
-                {unusedPager.rows.map((nm) => {
+                {unusedPager.rows.map((nm, i) => {
                   const onHidden = onHiddenSet.has(nm)
                   return (
-                    <SuggestionRow key={nm} busy={busy}
+                    // Names can legitimately repeat (duplicate materials) —
+                    // the index keeps React keys unique, no ghost rows.
+                    <SuggestionRow key={`${nm}|${i}`} busy={busy}
                       applyTitle={onHidden
                         ? 'Apply — delete this material. Careful: hidden objects still use it and will lose it (undoable)'
                         : 'Apply — delete this material (undoable)'}

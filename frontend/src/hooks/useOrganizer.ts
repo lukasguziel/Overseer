@@ -155,19 +155,27 @@ export function useOrganizer() {
   // Background re-analysis after optimistic per-row actions: refreshes the
   // report + previews WITHOUT the global busy lock, debounced so a burst of
   // row clicks causes one refresh. sceneVersion bump re-plans the open tab.
+  // Scope/visibility are read through refs AT FIRE TIME — a pending timer
+  // created before a toggle flip must not overwrite the fresh report with
+  // the OLD perspective (that made stale on-hidden rows reappear).
+  const scopeRef = useRef(scope)
+  scopeRef.current = scope
+  const includeHiddenRef = useRef(includeHidden)
+  includeHiddenRef.current = includeHidden
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const refreshSoon = useCallback((delay = 700) => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current)
     refreshTimer.current = setTimeout(async () => {
       refreshTimer.current = null
       try {
-        const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
+        const r = await call('analyze', {
+          settings: { selection: scopeRef.current, include_hidden: includeHiddenRef.current } })
         setReport(r.report)
         lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '', sel: r.report?.sel ?? 0 }
         setSceneVersion((v) => v + 1)
       } catch { /* the next manual analyze catches up */ }
     }, delay)
-  }, [scope, includeHidden])
+  }, [])
 
   // Optimistically remove rows from a section's plan (per-row apply/accept):
   // the row disappears instantly, the server re-plan follows via refreshSoon.
