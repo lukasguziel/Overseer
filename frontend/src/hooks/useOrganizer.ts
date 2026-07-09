@@ -651,9 +651,9 @@ export function useOrganizer() {
     await reloadTranslate()
   }, [scope, settings, translateTarget, translateEngine, reloadTranslate, sceneVersion])
 
-  usePreview('layers', 250, async () => {
-    await reloadLayers()
-  }, [scope, settings, reloadLayers, sceneVersion])
+  // NOTE: the scheme-based layer-tagging preview is parked (LayersTab
+  // SHOW_TAGGING) — the tab works off the report's no-layer list only, so
+  // no plan_layers preview is fetched any more.
 
   // Materials keeps live in the analyze report (accepted_all), not a plan.
   useEffect(() => {
@@ -666,12 +666,19 @@ export function useOrganizer() {
     switch (t) {
       case 'naming': return naming?.count
       case 'translate': return translation?.count
-      case 'layers': return layers?.count ?? report?.layers_report?.no_layer
+      case 'layers': {
+        // Badge = objects without a layer that the user has not accepted —
+        // exactly what the no-layer worklist shows (tagging preview parked).
+        const nodes = report?.nodes
+        if (!nodes) return undefined
+        return nodes.reduce((c, n) =>
+          c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
+      }
       case 'structure': return structure?.count ?? report?.misplaced?.length
       case 'materials': return report?.materials?.unused?.length
       default: return undefined
     }
-  }, [naming, translation, layers, structure, report])
+  }, [naming, translation, layers, structure, report, keeps.layers])
 
   // Per-area score (0..100) for the ring next to the navigation. The score
   // measures DECISIONS, not absolute cleanliness: an open todo counts
@@ -755,8 +762,7 @@ export function useOrganizer() {
     if (tab !== 'overview' || !report) return
     if (!naming) reloadNaming().catch(() => {})
     if (!translation) reloadTranslate().catch(() => {})
-    if (!layers) reloadLayers().catch(() => {})
-  }, [tab, report, naming, translation, layers, reloadNaming, reloadTranslate, reloadLayers])
+  }, [tab, report, naming, translation, reloadNaming, reloadTranslate])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
