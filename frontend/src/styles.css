@@ -387,8 +387,11 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .tile--low .tile-value { color: var(--err); }
 .spark { color: var(--dim2); flex: none; opacity: .85; }
 .tile-delta { font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; }
-.tile-delta.up { color: var(--apply); }
-.tile-delta.down { color: var(--err); }
+/* The tiles measure scene WEIGHT (objects/polys/size): growing is the
+   direction worth noticing (amber), shrinking is neutral-to-good (blue) —
+   a red "down" read like an error when e.g. the visibility scope shrank. */
+.tile-delta.up { color: var(--warn); }
+.tile-delta.down { color: var(--accent); }
 
 /* Composition / consistency strip */
 .strip-wrap { display: flex; flex-direction: column; gap: 8px; }
