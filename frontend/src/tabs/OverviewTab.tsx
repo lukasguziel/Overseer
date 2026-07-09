@@ -93,7 +93,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   }
 
   const toneOf = (pct: number): Tone => pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'low'
-  const misplaced = report.misplaced?.length || 0
   const mat = report.materials
   const tex = report.textures
 
@@ -134,9 +133,12 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   return (
     <div className="overview">
       <div className="tiles">
-        <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)} />
+        <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)}
+          sub={[`${Object.keys(report.types || {}).length} distinct types`,
+            `${report.max_depth} levels deep`]} />
         <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)}
-          sub={`${humanNum(report.total_points)} points`} />
+          sub={[`${humanNum(report.total_points)} points`,
+            `${hyg.top10pct}% in the top 10 objects`]} />
         <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)}
           sub={(() => {
             const texB = tex?.total_bytes ?? 0
@@ -166,14 +168,8 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         </div>
       </div>
 
-      <div className="substats">
-        <span><b>{humanNum(report.total_points)}</b> points</span>
-        <span><b>{report.max_depth}</b> max depth</span>
-        <span><b>{Object.keys(report.types || {}).length}</b> distinct types</span>
-        <span className={misplaced ? 'warn' : ''}><b>{misplaced}</b> misplaced</span>
-      </div>
-
-      {/* Composition strip: scene makeup at a glance */}
+      {/* Composition strip: scene makeup at a glance (the old substats line
+          folded into the tiles above; misplaced lives with Structure). */}
       <Strip data={report.categories} colorFn={(k) => catColor(k)} />
 
       {/* Guided workflow: the cleanup steps in order, with live todo counts.
