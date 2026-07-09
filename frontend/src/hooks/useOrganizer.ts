@@ -58,8 +58,9 @@ export function useOrganizer() {
   const [safe, setSafe] = useState(true)
   const [tidy, setTidy] = useState(true)           // only collect loose objects
   const [translateTarget, setTranslateTarget] = useState('en')  // Translate tab: target language
-  // 'offline' = bundled dictionaries (10 languages, local); 'google' = online
-  const [translateEngine, setTranslateEngine] = useState('offline')
+  // 'google' = online (default — any language, real source detection);
+  // 'offline' = bundled dictionaries (10 languages, local, no network)
+  const [translateEngine, setTranslateEngine] = useState('google')
 
   // Active document name (from the cheap `dirty` poll). Drives per-project
   // settings hydration: switching projects reloads the stored settings.

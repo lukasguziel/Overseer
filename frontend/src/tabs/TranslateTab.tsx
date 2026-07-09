@@ -78,6 +78,10 @@ export default function TranslateTab({ org }: { org: Organizer }) {
               </ul>
               <p className="hint-sm">
                 Mostly <b>{LANG_LABEL[detected.dominant] || detected.dominant}</b> across {detected.total} names.
+                Counts show what language each name <b>looks</b> like — names whose
+                translation would be identical (product names, codes) keep their
+                detected language even when nothing is left to translate. The
+                preview on the right is the actual todo list.
               </p>
             </>
           )
