@@ -140,19 +140,22 @@ export default function SimsTab({ org }: { org: Organizer }) {
         hits={data.findings.unbaked} tone="info" onFocus={doFocus}
       />
 
-      <FindingCard
-        title="Disabled leftovers"
-        hint="Disabled simulation tags left in the scene — clutter you may want to delete by hand (deleting a sim is your call, not the tool's)."
-        hits={data.findings.disabled_leftovers} tone="dim" onFocus={doFocus}
-      />
+      {/* Leftovers next to the full roster: same width, read side by side. */}
+      <div className={'sim-split' + (data.findings.disabled_leftovers.length ? '' : ' single')}>
+        <FindingCard
+          title="Disabled leftovers"
+          hint="Disabled simulation tags left in the scene — clutter you may want to delete by hand (deleting a sim is your call, not the tool's)."
+          hits={data.findings.disabled_leftovers} tone="dim" onFocus={doFocus}
+        />
 
-      <section className="card">
-        <div className="card-head"><h3>All simulation participants</h3></div>
-        {groups.map(([kind, hits]) => (
-          <KindGroup key={kind} kind={kind} hits={hits}
-            onFocus={doFocus} onSelect={() => doSelect(kind, hits.length)} />
-        ))}
-      </section>
+        <section className="card">
+          <div className="card-head"><h3>All simulation participants</h3></div>
+          {groups.map(([kind, hits]) => (
+            <KindGroup key={kind} kind={kind} hits={hits}
+              onFocus={doFocus} onSelect={() => doSelect(kind, hits.length)} />
+          ))}
+        </section>
+      </div>
 
       {confirmDisable && (
         <ConfirmModal title="Disable simulations"

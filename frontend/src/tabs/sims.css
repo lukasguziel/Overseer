@@ -14,3 +14,19 @@
 .sim-carrier { font-size: 10px; margin-left: 6px; text-transform: uppercase; letter-spacing: .04em; }
 
 .sim-group .rule-group-head { margin-bottom: 6px; }
+
+/* Leftovers | full roster, equal halves. Collapses to one column when the
+   leftovers card is absent (it renders nothing when empty) or on narrow views. */
+.sim-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+.sim-split.single { grid-template-columns: 1fr; }
+.sim-split > .card { min-width: 0; margin: 0; }
+
+@media (max-width: 900px) {
+  .sim-split { grid-template-columns: 1fr; }
+}
