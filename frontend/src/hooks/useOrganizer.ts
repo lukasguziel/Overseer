@@ -489,8 +489,8 @@ export function useOrganizer() {
   const keepAll = useCallback((section: KeepSection) => {
     let keys: string[] = []
     if (section === 'materials') {
-      const hidden = new Set(report?.materials?.only_hidden || [])
-      keys = (report?.materials?.unused || []).filter((nm) => !hidden.has(nm))
+      // unused and only_hidden are separate lists — accept the deletable ones.
+      keys = report?.materials?.unused || []
     } else {
       const plan = section === 'naming' ? naming
         : section === 'translate' ? translation

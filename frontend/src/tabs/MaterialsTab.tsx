@@ -134,10 +134,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const mat = report?.materials
   const tex = report?.textures
 
-  const onHidden = new Set(mat?.only_hidden || [])
-  // Hooks before the early return (Rules of Hooks).
-  const unusedPager = usePager(
-    (mat?.unused || []).filter((nm) => !onHidden.has(nm)))
+  // unused (deletable, used nowhere) and only_hidden (used exclusively by
+  // hidden objects, protected) are independent lists since the identity fix
+  // — both are always shown, regardless of the visibility toggle.
+  const unusedPager = usePager(mat?.unused || [])
   // ONE paths list, narrowed by two filters in the settings panel:
   // resolution tier and path status (absolute / relative / missing).
   const [resFilter, setResFilter] = useState('')
@@ -190,7 +190,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
   // Preview spheres for the unused list, fetched once per material set.
   const [previews, setPreviews] = useState<Record<string, string>>({})
-  const wanted = (mat?.unused || []).join('\n')
+  const wanted = [...(mat?.unused || []), ...(mat?.only_hidden || [])].join('\n')
   useEffect(() => {
     const names = wanted ? wanted.split('\n') : []
     if (!names.length) { setPreviews({}); return }
@@ -268,9 +268,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             {/* Only-on-hidden materials OUTSIDE the workbench: they must stay
                 visible even when the deletable list is empty (otherwise the
                 🎉 empty state contradicts the counts). */}
-            {onHidden.size > 0 && (
+            {(mat.only_hidden?.length ?? 0) > 0 && (
               <div className="rename-list" style={{ marginTop: 10 }}>
-                {mat.unused.filter((nm) => onHidden.has(nm)).map((nm, i) => (
+                {(mat.only_hidden || []).map((nm, i) => (
                   <div className="fl-row static mat-row" key={nm + i}>
                     <MatThumb src={previews[nm]} fallback="var(--warn)" />
                     <span className="fl-name">{nm}</span>

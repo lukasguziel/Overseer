@@ -43,7 +43,7 @@ export interface MissingTexture {
 export interface MaterialReport {
   total: number
   unused: string[]              // unused + not accepted (the "problem" set)
-  only_hidden?: string[]        // subset of unused only used by hidden objects (protected)
+  only_hidden?: string[]        // used exclusively by hidden objects (own list, protected)
   accepted?: string[]           // accepted-as-unused AND currently unused (for display)
   accepted_all?: string[]       // full accepted-unused set from config (toggle source of truth)
   deletable_count?: number      // unused minus only_hidden (drives the materials score)

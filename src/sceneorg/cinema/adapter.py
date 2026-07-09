@@ -294,8 +294,12 @@ class SceneAdapter:
             return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
                     "deletable_count": 0, "missing": [], "missing_textures": 0}
 
+        # Both perspectives are always reported so the lists never vanish
+        # when the visibility toggle flips:
+        #   unused      = used NOWHERE -> safely deletable
+        #   only_hidden = used, but exclusively by hidden objects -> listed
+        #                 separately and protected from deletion
         used_any, used_visible = self._material_usage()
-        effective = used_any if include_hidden else used_visible
         doc_path = doc.GetDocumentPath() or ""
         unused: list = []
         only_hidden: list = []
@@ -304,13 +308,13 @@ class SceneAdapter:
         for m in mats:
             name = m.GetName()
             key = self._mat_key(m)
-            if key not in effective:
+            if key not in used_any:
                 if name in accepted:
                     accepted_out.append(name)
                 else:
                     unused.append(name)
-                    if key in used_any:
-                        only_hidden.append(name)
+            elif key not in used_visible:
+                only_hidden.append(name)
             try:
                 sh = m.GetFirstShader()
                 while sh:
@@ -331,7 +335,7 @@ class SceneAdapter:
             "only_hidden": only_hidden,
             "accepted": accepted_out,
             "accepted_all": sorted(accepted),
-            "deletable_count": len(unused) - len(only_hidden),
+            "deletable_count": len(unused),  # only_hidden is a separate list now
             "missing": missing[:50],
             "missing_textures": len(missing),
         }
