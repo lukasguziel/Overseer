@@ -9,6 +9,8 @@ TAG_SPECS = [
     (100004020, "cloth", "Cloth", "sim"),
     (getattr(c4d, "Tcloth", None), "cloth", "Cloth", "sim"),
     (180000103, "collider", "Collider", "sim"),
+    (100004021, "collider", "Cloth Collider", "sim"),
+    (getattr(c4d, "Tclothbelt", None), "cloth", "Cloth Belt", "sim"),
     (getattr(c4d, "Tpyroobject", None) or 1059247, "pyro", "Pyro", "sim"),
     (getattr(c4d, "Tmgcache", None) or 1019337, "mocache", "MoGraph Cache", "cache"),
     (getattr(c4d, "Tpointcache", None) or 1021302, "pointcache", "Point Cache", "cache"),
