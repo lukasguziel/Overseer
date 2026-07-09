@@ -185,9 +185,26 @@ def test_keep_separators_preserves_enclosing_specials():
     assert c.normalize("*ref*") == "*Ref*"
     assert c.is_compliant("[Test]")  # idempotent
 
-    # default mode still strips them (full normalization)
-    off = NamingConvention(style=Casing.PASCAL, language=None, number_pad=2)
+
+def test_keep_specials_in_full_normalization():
+    # setup: keep_separators OFF -> full normalization; keep_specials
+    # defaults to ON, so brackets & co. still survive
+    on = NamingConvention(style=Casing.PASCAL, language=None, number_pad=2)
+    assert on.normalize("[test]") == "[Test]"
+    assert on.normalize("[wand kante]") == "[WandKante]"      # sep gap -> style sep
+    # a gap MIXING specials and separators is preserved whole ("(…) ")
+    assert on.normalize("(temp) light_05") == "(Temp) Light05"
+    assert on.is_compliant("[Test]")  # idempotent
+
+    snake = NamingConvention(style=Casing.UPPER_SNAKE, language=None,
+                             number_pad=2)
+    assert snake.normalize("[wand-01_test]") == "[WAND_01_TEST]"
+
+    # explicit opt-out strips the specials like the old full normalization
+    off = NamingConvention(style=Casing.PASCAL, language=None, number_pad=2,
+                           keep_specials=False)
     assert off.normalize("[test]") == "Test"
+    assert off.normalize("(temp) light_05") == "TempLight05"
 
 
 def test_invalid_style_rejected():

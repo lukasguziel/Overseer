@@ -430,9 +430,11 @@ def _convention(settings: dict, cfg) -> NamingConvention:
     apply_numbering = bool(settings.get("apply_numbering", True))
     apply_casing = bool(settings.get("apply_casing", True))
     keep_separators = bool(settings.get("keep_separators", False))
+    keep_specials = bool(settings.get("keep_specials", True))
     return NamingConvention(style=Casing(casing), language=None, number_pad=pad,
                             apply_numbering=apply_numbering, apply_casing=apply_casing,
-                            keep_separators=keep_separators)
+                            keep_separators=keep_separators,
+                            keep_specials=keep_specials)
 
 
 def _scope(settings: dict, adapter: SceneAdapter):
