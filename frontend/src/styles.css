@@ -97,6 +97,9 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* One-line usage hint under a Workbench header — same inset as wb-note. */
 .wb-hint { margin: 2px 0 8px; padding: 0 16px; }
 
+/* Small secondary line under a tile's label (e.g. texture size on disk). */
+.tile-sub { font-size: 10px; color: var(--dim2); margin-top: 2px; }
+
 /* Filter chip group inside a settings sidebar (textures workbench). */
 .tex-filter-col { flex-wrap: wrap; row-gap: 4px; margin-bottom: 10px; }
 .tex-filter-btn.tf-warn:not(.on) em { color: var(--warn); }

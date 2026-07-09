@@ -5,12 +5,13 @@ export interface Delta {
   dir: number
 }
 
-export default function Tile({ value, label, tone, spark, delta }: {
+export default function Tile({ value, label, tone, spark, delta, sub }: {
   value: string | number
   label: string
   tone?: string
   spark?: number[]
   delta?: Delta | null
+  sub?: string | null   // small secondary line (e.g. texture size under project size)
 }) {
   return (
     <div className={'tile' + (tone ? ' tile--' + tone : '')}>
@@ -26,6 +27,7 @@ export default function Tile({ value, label, tone, spark, delta }: {
           </span>
         )}
       </div>
+      {sub && <div className="tile-sub">{sub}</div>}
     </div>
   )
 }

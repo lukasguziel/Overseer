@@ -5,7 +5,7 @@ import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import { dominantCasing } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
-import { useAuditData } from './useAudit'
+import { prefetchAudit, useAuditData } from './useAudit'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult,
   Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
@@ -770,6 +770,7 @@ export function useOrganizer() {
     if (tab !== 'overview' || !report) return
     if (!naming) reloadNaming().catch(() => {})
     if (!translation) reloadTranslate().catch(() => {})
+    prefetchAudit('tags_scan')  // tags score without visiting the Tags tab
   }, [tab, report, naming, translation, reloadNaming, reloadTranslate])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the

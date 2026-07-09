@@ -49,6 +49,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     { key: 'translate', label: 'Translate', tab: 'translate' as const },
     { key: 'layers', label: 'Layers', tab: 'layers' as const },
     { key: 'materials', label: 'Materials', tab: 'materials' as const },
+    { key: 'tags', label: 'Tags', tab: 'tags' as const },
   ]
   const subScores = AREAS.map((a) => ({ ...a, pct: org.areaScore(a.tab) }))
   const known = subScores.filter((s): s is typeof s & { pct: number } => s.pct != null)
@@ -77,7 +78,8 @@ export default function OverviewTab({ org }: { org: Organizer }) {
       <div className="tiles">
         <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)} />
         <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)} />
-        <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)} />
+        <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)}
+          sub={tex?.total_bytes ? `+ ${humanBytes(tex.total_bytes)} textures on disk` : null} />
 
         {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
         <div className={'tile health-tile tile--' + healthTone}>
