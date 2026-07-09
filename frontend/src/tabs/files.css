@@ -1,0 +1,28 @@
+.fa-table { display: flex; flex-direction: column; }
+.fa-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr);
+  border-bottom: 1px solid var(--line2); font-size: 12px; }
+.fa-tr:last-child { border-bottom: none; }
+.fa-tr > span { min-width: 0; }
+.fa-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fa-thead { color: var(--dim2); font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; padding-bottom: 5px; }
+.fa-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fa-cell-file { display: flex; align-items: center; gap: 7px; }
+.fa-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
+  font-variant-numeric: tabular-nums; }
+
+button.fa-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
+  width: 100%; border-radius: 0; }
+button.fa-click:last-child { border-bottom: none; }
+button.fa-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+
+.fa-kind { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 6px; border-radius: 6px; flex: none; white-space: nowrap;
+  background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
+.fa-kind.fk-alembic { background: rgba(52,211,153,.14); color: var(--apply); border-color: transparent; }
+.fa-kind.fk-cache { background: rgba(96,165,250,.14); color: #93c5fd; border-color: transparent; }
+.fa-kind.fk-ies { background: rgba(251,191,36,.14); color: var(--warn); border-color: transparent; }
+
+.substats .fa-hi b { color: var(--apply); }
