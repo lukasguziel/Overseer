@@ -556,6 +556,14 @@ table.diff td { word-break: break-word; }
 .tex-tr .rn-actions { flex: none; }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
+/* Hover eye on texture thumbnails: click opens the image in the user's
+   default picture viewer (backend os.startfile). */
+.tex-thumb-wrap { position: relative; flex: none; display: inline-flex; }
+.tex-thumb-wrap.openable { cursor: zoom-in; }
+.tex-thumb-eye { position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center; font-size: 12px;
+  background: rgba(0, 0, 0, .55); border-radius: 4px; }
+.tex-thumb-wrap.openable:hover .tex-thumb-eye { display: flex; }
 
 /* Resolution filter chips above the texture sections */
 .tex-filter { display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap; }

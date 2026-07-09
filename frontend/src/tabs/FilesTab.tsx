@@ -138,83 +138,88 @@ export default function FilesTab({ org }: { org: Organizer }) {
 
   return (
     <div className="stacked">
-      <section className="card">
-        <div className="card-head">
+      {/* Workbench layout like Textures: settings/filters left, lists right. */}
+      <div className="workbench">
+        <aside className="wb-side">
           <h3>External files</h3>
-          {canFix && (
-            <button className="trash-btn fix-btn" disabled={loading}
-              title={`Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`}
-              onClick={() => setConfirm(true)}>
-              Make relative<span className="trash-count">{reloc}</span>
-            </button>
-          )}
-        </div>
-        <p className="hint-sm">
-          Every external file the scene references — Alembic caches, referenced
-          scenes, volume/point caches, IES profiles, audio and video — excluding
-          image textures (see the Materials tab). Sorted by size, heaviest first.
-        </p>
-        <div className="substats" style={{ marginBottom: 4 }}>
-          <span><b>{s.total}</b> external files</span>
-          <span className="fa-hi"><b>{s.by_kind.alembic || 0}</b> alembic</span>
-          <span><b>{humanBytes(s.total_bytes)}</b> on disk</span>
-          <span className={s.missing_count ? 'warn' : ''}><b>{s.missing_count}</b> missing</span>
-          <span><b>{s.absolute_count}</b> absolute</span>
-        </div>
-        <div className="tex-filter">
-          <span className="tex-filter-label">Kind</span>
-          {KINDS.map(([key, label]) => {
-            const n = key ? (s.by_kind[key] || 0) : s.total
-            if (key && !n) return null
-            return (
-              <button key={key || 'all'}
-                className={'tex-filter-btn' + (kind === key ? ' on' : '')}
-                onClick={() => setKind(key)}>
-                {label} <em>{n}</em>
-              </button>
-            )
-          })}
-        </div>
-        {data.doc_path
-          ? <p className="example" style={{ marginTop: 8 }}>Project: <code>{data.doc_path}</code></p>
-          : <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>}
-        {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
-      </section>
-
-      {missPager.total > 0 && (
-        <section className="card">
-          <div className="card-head">
-            <h3>Missing files</h3>
-            <span className="card-hint">{missPager.total}</span>
-            <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
-              title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
-              onClick={async () => {
-                const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
-                try {
-                  const r = await call('files_select', { guids })
-                  setNote(`Selected ${r.selected} object${r.selected === 1 ? '' : 's'} with missing files in C4D ✓`)
-                } catch (e: any) { setNote(String(e.message || e)) }
-              }}>
-              Select all in C4D
-            </button>
+          <p className="hint-sm">
+            Every external file the scene references — Alembic caches,
+            referenced scenes, volume/point caches, IES profiles, audio and
+            video — excluding image textures (see the Materials tab).
+            Heaviest first.
+          </p>
+          <div className="substats" style={{ marginBottom: 12 }}>
+            <span><b>{s.total}</b> files</span>
+            <span><b>{humanBytes(s.total_bytes)}</b> on disk</span>
+            <span className={s.missing_count ? 'warn' : ''}><b>{s.missing_count}</b> missing</span>
           </div>
-          <FileTable rows={missPager.rows} onFocus={onFocus} />
-          <Pager pager={missPager} />
-        </section>
-      )}
 
-      <section className="card">
-        <div className="card-head">
-          <h3>Referenced files</h3>
-          <span className="card-hint">{pager.total}</span>
+          <div className="rule-group-head"><span>Kind</span></div>
+          <div className="tex-filter tex-filter-col">
+            {KINDS.map(([key, label]) => {
+              const n = key ? (s.by_kind[key] || 0) : s.total
+              if (key && !n) return null
+              return (
+                <button key={key || 'all'}
+                  className={'tex-filter-btn' + (kind === key ? ' on' : '')}
+                  onClick={() => setKind(key)}>
+                  {label} <em>{n}</em>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="rule-group-head"><span>Actions</span></div>
+          <button className="ghost" disabled={loading || !canFix}
+            title={canFix
+              ? `Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`
+              : 'No absolute paths inside the project folder'}
+            onClick={() => setConfirm(true)}>
+            Make relative ({reloc})
+          </button>
+          {!data.doc_path && (
+            <p className="example warn">Project not saved — paths cannot be made relative yet.</p>
+          )}
+          {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
+        </aside>
+
+        <div className="stacked" style={{ minWidth: 0 }}>
+          {missPager.total > 0 && (
+            <section className="card">
+              <div className="card-head">
+                <h3>Missing files</h3>
+                <span className="card-hint">{missPager.total}</span>
+                <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
+                  title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
+                  onClick={async () => {
+                    const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
+                    try {
+                      const r = await call('files_select', { guids })
+                      setNote(`Selected ${r.selected} object${r.selected === 1 ? '' : 's'} with missing files in C4D ✓`)
+                    } catch (e: any) { setNote(String(e.message || e)) }
+                  }}>
+                  Select all in C4D
+                </button>
+              </div>
+              <FileTable rows={missPager.rows} onFocus={onFocus} />
+              <Pager pager={missPager} />
+            </section>
+          )}
+
+          <section className="card">
+            <div className="card-head">
+              <h3>Referenced files</h3>
+              <span className="card-hint">{pager.total}</span>
+            </div>
+            {pager.total
+              ? <>
+                  <FileTable rows={pager.rows} onFocus={onFocus} />
+                  <Pager pager={pager} />
+                </>
+              : <div className="fl-empty">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
+          </section>
         </div>
-        {pager.total
-          ? <>
-              <FileTable rows={pager.rows} onFocus={onFocus} />
-              <Pager pager={pager} />
-            </>
-          : <div className="fl-empty">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
-      </section>
+      </div>
 
       {confirm && (
         <ConfirmModal

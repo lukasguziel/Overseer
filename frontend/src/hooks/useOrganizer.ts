@@ -296,6 +296,20 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Edit ✗') })
   }, [refreshSoon])
 
+  // Pick a replacement file for ONE reference via C4D's native file dialog
+  // (the request waits while the dialog is open inside Cinema 4D).
+  const doPickTexturePath = useCallback((path: string, material?: string) => {
+    setStatus('Pick the file in the Cinema 4D window…')
+    call('pick_texture_path', { path, material })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        if (r.cancelled) { setStatus('File picker cancelled.'); return }
+        setStatus(`Reference → “${r.picked}” ✓ (undoable)`)
+        refreshSoon(300)
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Pick ✗') })
+  }, [refreshSoon])
+
   // Clear dead references: blank the path on shaders whose file is missing.
   const doClearMissingTextures = useCallback(() => {
     setStatus('Clearing missing texture references…')
@@ -786,7 +800,7 @@ export function useOrganizer() {
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
-    doRelinkTextures, doClearMissingTextures, doSetTexturePath,
+    doRelinkTextures, doClearMissingTextures, doSetTexturePath, doPickTexturePath,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,
