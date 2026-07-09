@@ -35,6 +35,16 @@ const API = {
   plan_layers: () => fx.planLayers,
   plan_structure: () => fx.planStructure,
   config: () => ({ ok: true, config: {}, defaults: {} }),
+  // Audit areas + misc endpoints the newer tabs call.
+  tags_scan: () => fx.tagsScan,
+  gens_scan: () => fx.gensScan,
+  files_scan: () => fx.filesScan,
+  sims_scan: () => fx.simsScan,
+  type_icons: () => ({ ok: true, icons: {} }),
+  material_previews: () => ({ ok: true, previews: {} }),
+  texture_previews: () => ({ ok: true, previews: {} }),
+  ui_settings_get: () => ({ ok: true, found: false, ui: {} }),
+  ui_settings_set: () => ({ ok: true }),
 }
 
 const server = http.createServer(async (req, res) => {

@@ -11,10 +11,10 @@ dead weight.**
 
 Scene Organizer is a Cinema 4D plugin for any kind of project. It analyzes
 your scene and helps you keep it in shape: consistent object names,
-translated wording, layers for lights and cameras, grouped hierarchy, and
+translated wording, layers, tags, generator settings, external files and
 materials & textures without leftovers. Every change is previewed first,
 applied per row or in bulk, undoable, and logged — so batch cleanup stops
-being scary.
+being scary. Your settings persist per project, presets make them portable.
 
 ![Scene Organizer](docs/screenshots/overview.png)
 
@@ -22,20 +22,27 @@ being scary.
 
 Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 
-- **Overview** — dashboard with size/health trends, a polygon treemap and a
-  guided cleanup workflow.
+- **Overview** — dashboard with per-area health scores, size trends, a
+  polygon treemap and a texture budget.
 - **Naming** — normalizes names to your convention (casing, numbering,
-  duplicates) with a live preview.
-- **Translate** — rewrites names into your target language, offline for 10
-  languages or via Google.
+  duplicates, kept special characters) with a live preview.
+- **Translate** — rewrites names into your target language, via Google or
+  offline dictionaries, with real source-language detection.
+- **Layers** — gives every layerless object a layer, single or in one
+  batch, without moving anything.
+- **Materials** — finds unused materials, oversized textures and missing
+  maps — relink via file dialog, copy into the project, or clear dead refs.
+- **Tags** — audits every tag: missing Phong tags, duplicate material tags,
+  phong-angle spread with one-click alignment.
+- **Files** — inventory of external references (Alembic, caches, IES,
+  audio/video) with missing-file relink and accept.
 - **Assets** — searchable, sortable object inventory with batch actions
   (assign layer, move to group).
-- **Layers** — tags lights, cameras and proxies onto C4D layers without
-  moving a single object.
-- **Materials** — finds unused materials, oversized textures, missing maps
-  and absolute paths (with a one-click fix).
-- **Misc** — presets, change history with revert, and JSON/CSV scene
-  exports.
+- **Generators** — compares settings across same-type generators (SDS
+  subdivisions & co.) and aligns them in one undoable step.
+- **Sims** — finds simulation setups that cost you silently: active on
+  hidden objects, unbaked, or disabled leftovers.
+- **Misc** — change history with revert and analysis history per scene.
 
 ## Installation
 

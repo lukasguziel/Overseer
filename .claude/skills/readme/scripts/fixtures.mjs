@@ -134,8 +134,10 @@ export const report = {
   sel: 0,
   materials: {
     total: 84,
-    unused: ['Old_Wood_Oak', 'Brass_v1', 'Test_Red', 'Fabric_Sample_02', 'Concrete_old'],
-    only_hidden: ['Concrete_old'],
+    // Visible-only scope: unused = used NOWHERE; hidden-only usage shows up
+    // once "All objects" is active (only_hidden stays empty here).
+    unused: ['Old_Wood_Oak', 'Brass_v1', 'Test_Red', 'Fabric_Sample_02'],
+    only_hidden: [],
     accepted: ['Chrome_Spare'],
     accepted_all: ['Chrome_Spare'],
     deletable_count: 4,
@@ -344,4 +346,146 @@ export const changes = {
 export const detect = {
   ok: true,
   detect: { style: 'PascalCase', language: 'en', number_pad: 2, confidence: 0.83 },
+}
+
+// ---- audit areas (Tags / Generators / Files / Sims) ------------------------
+export const tagsScan = {
+  ok: true,
+  types: [
+    { type_id: 5612, label: 'Phong', count: 1176,
+      objects: nodes.filter((n) => n.category === 'mesh').slice(0, 12)
+        .map((n) => ({ guid: n.guid, name: n.name, tag_name: 'Phong' })) },
+    { type_id: 5671, label: 'UVW', count: 1049, objects: [] },
+    { type_id: 5616, label: 'Material', count: 954, objects: [] },
+    { type_id: 5673, label: 'Polygon Selection', count: 63, objects: [] },
+    { type_id: 5682, label: 'Vertex Map', count: 18, objects: [] },
+    { type_id: 180000102, label: 'Dynamics Body', count: 6, objects: [] },
+  ],
+  findings: {
+    missing_phong: [
+      { guid: g('Cube'), name: 'Cube' },
+      { guid: g('Cube.1'), name: 'Cube.1' },
+      { guid: g('deco_vase'), name: 'deco_vase' },
+    ],
+    duplicate_material_tags: [
+      { guid: g('CoffeeTable'), name: 'CoffeeTable', material: 'Wood_Walnut', count: 2 },
+      { guid: g('Rug'), name: 'Rug', material: 'Rug_Wool', count: 3 },
+    ],
+    phong_angles: {
+      distribution: [
+        { angle_deg: 20, count: 84 }, { angle_deg: 40, count: 981 },
+        { angle_deg: 60, count: 66 }, { angle_deg: 80, count: 45 },
+      ],
+      dominant_angle: 40,
+    },
+  },
+  summary: { total_tags: 3266, tag_types: 6, missing_phong: 3, duplicate_material_tags: 2 },
+}
+
+export const gensScan = {
+  ok: true,
+  types: [
+    { key: 'sds', label: 'Subdivision Surface', type_id: 1007455, count: 64,
+      params: [
+        { key: 'editor_sub', label: 'Editor subdivisions', kind: 'int', choices: {},
+          values: [], uniform: false, dominant: 2,
+          distribution: [{ value: 2, count: 41 }, { value: 1, count: 17 }, { value: 4, count: 6 }],
+          outliers: [
+            { guid: g('Sofa_Body_Hi'), name: 'Sofa_Body_Hi', value: 4 },
+            { guid: g('Mattress'), name: 'Mattress', value: 4 },
+            { guid: g('plant_large'), name: 'plant_large', value: 1 },
+          ] },
+        { key: 'render_sub', label: 'Render subdivisions', kind: 'int', choices: {},
+          values: [], uniform: false, dominant: 3,
+          distribution: [{ value: 3, count: 52 }, { value: 5, count: 12 }],
+          outliers: [
+            { guid: g('Sofa_Body_Hi'), name: 'Sofa_Body_Hi', value: 5 },
+            { guid: g('Blanket_Wool'), name: 'Blanket_Wool', value: 5 },
+          ] },
+        { key: 'algo', label: 'Subdivision algorithm', kind: 'choice',
+          choices: { 2102: 'Catmull-Clark (N-Gons)' },
+          values: [], uniform: true, dominant: 2102,
+          distribution: [{ value: 2102, count: 64 }], outliers: [] },
+      ] },
+    { key: 'instance', label: 'Instance', type_id: 5126, count: 214,
+      params: [
+        { key: 'render_instance', label: 'Render instance', kind: 'choice',
+          choices: { 0: 'Instance', 1: 'Render Instance', 2: 'Multi-Instance' },
+          values: [], uniform: false, dominant: 1,
+          distribution: [{ value: 1, count: 196 }, { value: 0, count: 18 }],
+          outliers: [
+            { guid: g('Proxy_Tree_Outdoor'), name: 'Proxy_Tree_Outdoor', value: 0 },
+          ] },
+      ] },
+    { key: 'extrude', label: 'Extrude', type_id: 5116, count: 9,
+      params: [
+        { key: 'subdivision', label: 'Subdivisions', kind: 'int', choices: {},
+          values: [], uniform: true, dominant: 1,
+          distribution: [{ value: 1, count: 9 }], outliers: [] },
+      ] },
+  ],
+  summary: { total_generators: 287, types_found: 3, non_uniform_params: 3 },
+}
+
+export const filesScan = {
+  ok: true,
+  doc_path: 'D:/3D/PROJECTS/PENTHOUSE',
+  accepted: ['Q:/OLD_LIB/city_bg.abc'],
+  entries: [
+    { kind: 'alembic', file: 'curtain_sim_v04.abc', path: 'caches/curtain_sim_v04.abc',
+      resolved: 'D:/3D/PROJECTS/PENTHOUSE/caches/curtain_sim_v04.abc',
+      exists: true, missing: false, absolute: false, relocatable: false,
+      rel_target: '', bytes: 2.4 * GB, owner: 'Curtain_left', guid: g('Curtain_left') },
+    { kind: 'alembic', file: 'blanket_sim_v02.abc', path: 'caches/blanket_sim_v02.abc',
+      resolved: 'D:/3D/PROJECTS/PENTHOUSE/caches/blanket_sim_v02.abc',
+      exists: true, missing: false, absolute: false, relocatable: false,
+      rel_target: '', bytes: 1.1 * GB, owner: 'Blanket_Wool', guid: g('Blanket_Wool') },
+    { kind: 'alembic', file: 'plant_scan_hero.abc', path: 'Q:/SCANS/plants/plant_scan_hero.abc',
+      resolved: '', exists: false, missing: true, absolute: true, relocatable: false,
+      rel_target: '', bytes: 0, owner: 'plant_large', guid: g('plant_large') },
+    { kind: 'ies', file: 'spot_narrow_25deg.ies', path: 'tex/ies/spot_narrow_25deg.ies',
+      resolved: 'D:/3D/PROJECTS/PENTHOUSE/tex/ies/spot_narrow_25deg.ies',
+      exists: true, missing: false, absolute: false, relocatable: false,
+      rel_target: '', bytes: 0.2 * MB, owner: 'LGT_Spot_Shelf', guid: g('LGT_Spot_Shelf') },
+    { kind: 'cache', file: 'fireplace_smoke.vdb', path: 'C:/Users/artist/Desktop/fireplace_smoke.vdb',
+      resolved: '', exists: false, missing: true, absolute: true, relocatable: false,
+      rel_target: '', bytes: 0, owner: 'Fireplace_Pyro', guid: null },
+  ],
+  summary: {
+    total: 5, by_kind: { alembic: 3, ies: 1, cache: 1 },
+    missing_count: 2, absolute_count: 2, relocatable_count: 0,
+    total_bytes: Math.round(3.5 * GB),
+  },
+}
+
+export const simsScan = {
+  ok: true,
+  hits: [
+    { guid: g('Curtain_left'), object: 'Curtain_left', carrier: 'tag', kind: 'cloth',
+      label: 'Cloth', enabled: true, cached: true, hidden: false, notes: [] },
+    { guid: g('Curtain_right'), object: 'Curtain_right', carrier: 'tag', kind: 'cloth',
+      label: 'Cloth', enabled: true, cached: false, hidden: false, notes: [] },
+    { guid: g('Blanket_Wool'), object: 'Blanket_Wool', carrier: 'tag', kind: 'cloth',
+      label: 'Cloth', enabled: true, cached: true, hidden: false, notes: [] },
+    { guid: g('OldSet_backup'), object: 'OldSet_backup', carrier: 'tag', kind: 'dynamics',
+      label: 'Dynamics Body', enabled: true, cached: false, hidden: true, notes: [] },
+    { guid: g('Rug'), object: 'Rug', carrier: 'tag', kind: 'collider',
+      label: 'Collider', enabled: false, cached: null, hidden: false, notes: [] },
+    { guid: g('floor_parquet'), object: 'floor_parquet', carrier: 'tag', kind: 'collider',
+      label: 'Collider', enabled: false, cached: null, hidden: false, notes: [] },
+  ],
+  findings: {
+    active_hidden: [
+      { guid: g('OldSet_backup'), object: 'OldSet_backup', kind: 'dynamics', label: 'Dynamics Body' },
+    ],
+    unbaked: [
+      { guid: g('Curtain_right'), object: 'Curtain_right', kind: 'cloth', label: 'Cloth' },
+    ],
+    disabled_leftovers: [
+      { guid: g('Rug'), object: 'Rug', kind: 'collider', label: 'Collider' },
+      { guid: g('floor_parquet'), object: 'floor_parquet', kind: 'collider', label: 'Collider' },
+    ],
+  },
+  summary: { total: 6, by_kind: { cloth: 3, dynamics: 1, collider: 2 },
+    active_hidden: 1, unbaked: 1, disabled: 2 },
 }
