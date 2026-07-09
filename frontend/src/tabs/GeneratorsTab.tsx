@@ -86,22 +86,24 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
         })}
       </div>
       <div className="gens-align">
-        <span className="gens-align-label">Align all {type.count} to</span>
-        {param.kind === 'int' ? (
-          <input className="gens-num" type="number" value={pick ?? ''}
-            onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
-        ) : (
-          <select className="gens-select" value={JSON.stringify(pick)}
-            onChange={(e) => setPick(JSON.parse(e.target.value))}>
-            {sorted.map((b, i) => (
-              <option key={i} value={JSON.stringify(b.value)}>{fmt(b.value, param)}</option>
-            ))}
-          </select>
-        )}
+        <label className="gens-setter">
+          <span className="gens-setter-label">Set {param.label} to</span>
+          {param.kind === 'int' ? (
+            <input className="gens-num" type="number" value={pick ?? ''}
+              onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
+          ) : (
+            <select className="gens-select" value={JSON.stringify(pick)}
+              onChange={(e) => setPick(JSON.parse(e.target.value))}>
+              {sorted.map((b, i) => (
+                <option key={i} value={JSON.stringify(b.value)}>{fmt(b.value, param)}</option>
+              ))}
+            </select>
+          )}
+        </label>
         <button className="apply gens-align-btn" disabled={busy || pick === ''}
           title={`Set ${param.label} to ${fmt(pick, param)} on all ${type.count} ${type.label} objects (one undo step)`}
           onClick={() => onApply(param, pick, undefined, type.count)}>
-          ✓ Align
+          ✓ Align all {type.count}
         </button>
         <button className="gens-toggle" onClick={() => setOpen((v) => !v)}>
           {open ? '▾ hide' : '▸ show'} the {offCount} differing
@@ -220,6 +222,12 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
               </button>
             </div>
 
+            {mixed.length > 0 && (
+              <div className="gens-section">
+                Settings you can change
+                <span className="gens-section-n">{mixed.length} mixed</span>
+              </div>
+            )}
             {mixed.map((param) => (
               <MixedParam key={param.key} type={type} param={param} busy={busy}
                 onApply={(p, v, g, c) => setConfirm({ type, param: p, value: v, guids: g, count: c })}
@@ -227,14 +235,19 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
             ))}
 
             {uniform.length > 0 && (
-              <div className="gens-uniform-row">
-                {uniform.map((p) => (
-                  <span className="gens-uniform-item" key={p.key}
-                    title={`All ${type.count} objects share this value`}>
-                    {p.label}: <b>{fmt(p.dominant, p)}</b> ✓
-                  </span>
-                ))}
-              </div>
+              <>
+                <div className="gens-section quiet">
+                  Already the same on all {type.count}
+                </div>
+                <div className="gens-uniform-row">
+                  {uniform.map((p) => (
+                    <span className="gens-uniform-item" key={p.key}
+                      title={`All ${type.count} objects share this value`}>
+                      {p.label}: <b>{fmt(p.dominant, p)}</b> ✓
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
           </section>
         )

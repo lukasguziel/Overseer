@@ -11,7 +11,43 @@
   margin-left: 2px;
 }
 
-.gens-selall { margin-left: auto; font-size: 0.85em; width: auto; flex: none; }
+/* Secondary action: small, quiet, pinned to the right edge of the card head. */
+.gens-selall {
+  margin-left: auto;
+  align-self: center;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 9px;
+  width: auto;
+  flex: none;
+  white-space: nowrap;
+  color: var(--dim2);
+}
+.gens-selall:hover:not(:disabled) { color: var(--text); }
+
+/* Splits each card into "what you can change" and "what already agrees". */
+.gens-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.gens-section.quiet { color: var(--dim2); margin-top: 16px; font-weight: 500; }
+.gens-section-n {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--warn);
+  border: 1px solid rgba(251, 191, 36, .45);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
 
 /* One mixed setting = one block: headline sentence, value chips, fix row. */
 .gens-param {
@@ -68,17 +104,32 @@
   flex-wrap: wrap;
   margin-top: 10px;
 }
-.gens-align-label { font-size: 12px; color: var(--dim); }
+/* Label + control read as ONE editable field, so the settable part is obvious. */
+.gens-setter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  border-radius: 7px;
+  background: var(--bg, #1c1c1c);
+}
+.gens-setter:focus-within { border-color: var(--accent, #6ea8fe); }
+.gens-setter-label { font-size: 12px; color: var(--dim); white-space: nowrap; }
 
 .gens-num,
 .gens-select {
   font: inherit;
-  background: var(--bg, #1c1c1c);
+  font-weight: 600;
+  background: var(--panel2, rgba(127, 127, 127, 0.12));
   color: inherit;
   border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
   border-radius: 5px;
   padding: 3px 7px;
 }
+.gens-num:focus,
+.gens-select:focus { outline: none; border-color: var(--accent, #6ea8fe); }
 .gens-num { width: 5em; }
 .gens-select { max-width: 240px; }
 .gens-align-btn { font-size: 0.85em; width: auto; flex: none; }
