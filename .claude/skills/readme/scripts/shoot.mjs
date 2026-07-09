@@ -31,9 +31,13 @@ const TABS = [
     await side.nth(0).selectOption('fr')
     await page.waitForTimeout(800)
   }],
-  ['Assets', 'assets.png'],
   ['Layers', 'layers.png'],
   ['Materials', 'materials.png'],
+  ['Tags', 'tags.png'],
+  ['Files', 'files.png'],
+  ['Assets', 'assets.png'],
+  ['Generators', 'generators.png'],
+  ['Sims', 'sims.png'],
   ['Misc', 'misc.png'],
 ]
 
