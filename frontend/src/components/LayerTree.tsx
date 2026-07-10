@@ -55,7 +55,12 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
     else byLayer.set(key, [n])
   }
 
-  const rows: LayerInfo[] = [...layers]
+  // Non-empty layers first, then empty layers, then the synthetic "No layer"
+  // bucket last — so the things that need attention sit together at the bottom.
+  const rows: LayerInfo[] = [
+    ...layers.filter((l) => !l.empty),
+    ...layers.filter((l) => l.empty),
+  ]
   if (noLayer > 0) {
     rows.push({
       name: NO_LAYER, color: null, solo: false, view: true, render: true,
@@ -75,7 +80,7 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
         const isOpen = open.has(l.name)
         const emptyActions = !isNo && l.empty && !keptEmpty?.has(l.name) && (onDeleteLayer || onKeepLayer)
         return (
-          <div key={l.name} className={`ly-group${isNo ? ' orphan' : ''}`}>
+          <div key={l.name} className={`ly-group${isNo ? ' orphan' : ''}${!isNo && l.empty ? ' ly-empty' : ''}`}>
             <div className="ly-row">
               <button className="ly-head" disabled={!expandable}
                 onClick={() => expandable && toggle(l.name)}
