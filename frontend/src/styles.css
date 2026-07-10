@@ -146,8 +146,9 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .rn-arrow { flex: none; color: var(--accent); }
 .rn-new { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .rn-actions { flex: none; display: flex; gap: 4px; }
-.rn-ok, .rn-no { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+.rn-ok, .rn-no { width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid var(--line); background: var(--panel2); }
+.rn-ok svg, .rn-no svg { flex: none; }
 .rn-ok { color: var(--apply); }
 .rn-ok:hover:not(:disabled) { background: var(--apply); color: #06231a; border-color: transparent; }
 .rn-no { color: var(--dim2); }
@@ -331,7 +332,7 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .cl-item .cl-keep { flex: none; }
 
 /* Neutral accept-as-is action (=): gray, never red — nothing is deleted */
-.rn-keep { width: 24px; height: 24px; display: inline-flex; align-items: center;
+.rn-keep { width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center;
   justify-content: center; border-radius: 6px; font-size: 13px; font-weight: 800;
   cursor: pointer; border: 1px solid var(--line); background: var(--panel2);
   color: var(--dim2); }
