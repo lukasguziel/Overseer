@@ -14,7 +14,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
   title: string
   count: number
   loading: boolean
-  empty: string
+  empty: ReactNode
   applyLabel?: string
   onApply?: () => void
   onAcceptAll?: () => void
