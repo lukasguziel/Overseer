@@ -44,13 +44,25 @@ function specText(e: TextureEntry): string {
   return parts.join(' · ')
 }
 
+// What a map was resized FROM — annotated onto the resized (relinked) row so
+// the swap is visible right where it happened.
+interface ResizeInfo { fromFile: string; fromDims: string; percent: number }
+
+// Predict the relinked copy's path (stem_<percent>.ext) — mirrors the backend's
+// textures.resize_target so we can match the resized row after the re-analyze.
+function resizeTargetPath(path: string, percent: number): string {
+  const dot = path.lastIndexOf('.')
+  return dot < 0 ? `${path}_${percent}` : `${path.slice(0, dot)}_${percent}${path.slice(dot)}`
+}
+
 // One texture row. Missing rows carry their own decision buttons:
 // … browse for a replacement file (opens C4D's native file dialog),
 // ✕ clear THIS dead reference.
-function TexRow({ e, thumb, selected, onToggle, onFocus, onPick, onClear }: {
+function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClear }: {
   e: TextureEntry
   thumb?: string
   selected: boolean
+  resized?: ResizeInfo
   onToggle: () => void
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
@@ -59,7 +71,9 @@ function TexRow({ e, thumb, selected, onToggle, onFocus, onPick, onClear }: {
   const actionable = e.missing && (onPick || onClear)
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
-    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '') + (selected ? ' tex-sel' : '')}
+    <>
+    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '') + (selected ? ' tex-sel' : '')
+        + (resized ? ' tex-resized' : '')}
       title={`${pathTip}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
       <input type="checkbox" className="tex-cb" checked={selected}
@@ -82,6 +96,7 @@ function TexRow({ e, thumb, selected, onToggle, onFocus, onPick, onClear }: {
           : <span className="fl-dot" style={{ background: texDot(e) }} />}
         <span className="tex-cut">{e.file}</span>
         {!e.used && <span className="tex-badge unused">unused</span>}
+        {resized && <span className="tex-badge resized">resized</span>}
       </span>
       <span className="tex-cell-path dim">
         {e.missing
@@ -121,14 +136,23 @@ function TexRow({ e, thumb, selected, onToggle, onFocus, onPick, onClear }: {
         </span>
       )}
     </div>
+    {resized && (
+      <div className="tex-resized-note"
+        title="This map was just resized — the material now links to this smaller copy. Undo in Cinema 4D to go back.">
+        ↳ resized to {resized.percent}% · replaced <b>{resized.fromFile}</b> ({resized.fromDims}
+        {' → '}{e.width > 0 ? `${e.width}×${e.height}` : 'smaller'})
+      </div>
+    )}
+    </>
   )
 }
 
-function TexTable({ rows, previews, selected, rowKey, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear }: {
+function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear }: {
   rows: TextureEntry[]
   previews: Record<string, string>
   selected: Set<string>
   rowKey: (e: TextureEntry) => string
+  resized: Record<string, ResizeInfo>
   onToggle: (e: TextureEntry) => void
   allChecked: boolean
   onToggleAll: () => void
@@ -151,7 +175,7 @@ function TexTable({ rows, previews, selected, rowKey, onToggle, allChecked, onTo
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
           thumb={previews[e.resolved || e.path]}
-          selected={selected.has(rowKey(e))} onToggle={() => onToggle(e)}
+          selected={selected.has(rowKey(e))} resized={resized[e.path]} onToggle={() => onToggle(e)}
           onFocus={onFocus} onPick={onPick} onClear={onClear} />
       ))}
     </div>
@@ -219,6 +243,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // filtered set, as before. Keyed by path+material so it survives paging.
   const rowKey = (e: TextureEntry) => e.path + '\n' + e.material
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Recently resized maps, keyed by the relinked copy's path — annotates that
+  // row with a "resized" badge + a note showing what it replaced.
+  const [resizedInfo, setResizedInfo] = useState<Record<string, ResizeInfo>>({})
   const toggleRow = (e: TextureEntry) => setSelected((s) => {
     const next = new Set(s); const k = rowKey(e)
     next.has(k) ? next.delete(k) : next.add(k)
@@ -657,6 +684,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     <TexTable rows={pathPager.rows}
                       previews={texPreviews}
                       selected={selected} rowKey={rowKey} onToggle={toggleRow}
+                      resized={resizedInfo}
                       allChecked={allFilteredChecked} onToggleAll={toggleAll}
                       onFocus={org.doFocusMaterial}
                       onPick={(e) => org.doPickTexturePath(e.path, e.material)}
@@ -724,7 +752,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           title={`Resize ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} to ${resizePercent}%`}
           message={`Write resized copies (suffix _${resizePercent}) of ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} next to the originals and relink the materials to them. The original files are never overwritten; the relink is one undo step. Formats without a resizer are skipped with a note. Continue?`}
           confirmLabel={`✓ Resize to ${resizePercent}%`}
-          onConfirm={() => { setResizeConfirm(false); org.doTextureResize(resizeTargets.map((e) => e.path), resizePercent) }}
+          onConfirm={() => {
+            setResizeConfirm(false)
+            // Remember what each map is being resized from, keyed by the copy's
+            // predicted path, so the relinked row shows the swap after re-analyze.
+            const map: Record<string, ResizeInfo> = { ...resizedInfo }
+            for (const e of resizeTargets) {
+              map[resizeTargetPath(e.path, resizePercent)] =
+                { fromFile: e.file, fromDims: `${e.width}×${e.height}`, percent: resizePercent }
+            }
+            setResizedInfo(map)
+            setSelected(new Set())
+            org.doTextureResize(resizeTargets.map((e) => e.path), resizePercent)
+          }}
           onCancel={() => setResizeConfirm(false)}
         />
       )}
