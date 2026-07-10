@@ -531,6 +531,8 @@ table.diff td { word-break: break-word; }
 .health-main { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
 .health-main .ring { width: 64px; height: 64px; }
 .health-main .ring-text { font-size: 16px; }
+.health-ring-btn { display: inline-flex; line-height: 0; }
+.health-ring-btn.clickable { cursor: pointer; }
 /* Perfect health (100): the green ring breathes a soft glow. */
 .health-main.health-perfect .ring { animation: health-glow 2.4s ease-in-out infinite; }
 @keyframes health-glow {
