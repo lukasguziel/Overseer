@@ -60,7 +60,7 @@ function resizeTargetPath(path: string, percent: number): string {
 // One texture row. Missing rows carry their own decision buttons:
 // … browse for a replacement file (opens C4D's native file dialog),
 // ✕ clear THIS dead reference.
-function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClear }: {
+function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClear, onAccept }: {
   e: TextureEntry
   thumb?: string
   selected: boolean
@@ -69,8 +69,11 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
+  onAccept?: (e: TextureEntry) => void
 }) {
-  const actionable = e.missing && (onPick || onClear)
+  // Only unaccepted missing maps carry the decision buttons; accepted ones are
+  // acknowledged and just show a badge (restore from the panel below).
+  const actionable = e.missing && !e.accepted && (onPick || onClear || onAccept)
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
     <>
@@ -102,7 +105,9 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
       </span>
       <span className="tex-cell-path dim">
         {e.missing
-          ? <span className="tex-badge missing">missing</span>
+          ? (e.accepted
+              ? <span className="tex-badge" title="Accepted as missing — no longer counted as a problem">accepted</span>
+              : <span className="tex-badge missing">missing</span>)
           : e.relocatable
             ? <span className="tex-badge fixable">→ relative</span>
             : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
@@ -135,6 +140,10 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
             <button className="rn-no" title="Clear this dead reference — the material stops pointing at the missing file (undoable)"
               onClick={() => onClear(e)}>✕</button>
           )}
+          {onAccept && (
+            <button className="rn-keep" title="Accept as-is — acknowledge the missing file; it stops counting as a problem (restore below)"
+              onClick={() => onAccept(e)}>=</button>
+          )}
         </span>
       )}
     </div>
@@ -149,7 +158,7 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
   )
 }
 
-function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear }: {
+function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear, onAccept }: {
   rows: TextureEntry[]
   previews: Record<string, string>
   selected: Set<string>
@@ -161,6 +170,7 @@ function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChec
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
+  onAccept?: (e: TextureEntry) => void
 }) {
   return (
     <div className="tex-table">
@@ -178,7 +188,7 @@ function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChec
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
           thumb={previews[e.resolved || e.path]}
           selected={selected.has(rowKey(e))} resized={resized[e.path]} onToggle={() => onToggle(e)}
-          onFocus={onFocus} onPick={onPick} onClear={onClear} />
+          onFocus={onFocus} onPick={onPick} onClear={onClear} onAccept={onAccept} />
       ))}
     </div>
   )
@@ -250,6 +260,15 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Recently resized maps, keyed by the relinked copy's path — annotates that
   // row with a "resized" badge + a note showing what it replaced.
   const [resizedInfo, setResizedInfo] = useState<Record<string, ResizeInfo>>({})
+  // Accepted-as-missing textures (persisted in config under the 'textures' keep
+  // section); accepting one drops it out of the missing count + score.
+  const texAccepted = tex?.accepted_all || []
+  const setTexKeeps = (keys: string[]) => {
+    call('set_keeps', { section: 'textures', keys })
+      .then(() => org.doAnalyze())
+      .catch(() => { /* next analyze reconciles */ })
+  }
+  const acceptTexture = (e: TextureEntry) => setTexKeeps([...texAccepted, e.path])
   const toggleRow = (e: TextureEntry) => setSelected((s) => {
     const next = new Set(s); const k = rowKey(e)
     next.has(k) ? next.delete(k) : next.add(k)
@@ -695,7 +714,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                       allChecked={allFilteredChecked} onToggleAll={toggleAll}
                       onFocus={org.doFocusMaterial}
                       onPick={(e) => org.doPickTexturePath(e.path, e.material)}
-                      onClear={(e) => org.doSetTexturePath(e.path, '', e.material)} />
+                      onClear={(e) => org.doSetTexturePath(e.path, '', e.material)}
+                      onAccept={acceptTexture} />
                     <Pager pager={pathPager} />
                   </>
                 : <div className="wb-empty">
@@ -706,6 +726,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
           </div>
         </div>
+        <AcceptedSection items={texAccepted}
+          onRestore={(p) => setTexKeeps(texAccepted.filter((a) => a !== p))}
+          onRestoreAll={() => setTexKeeps([])}
+          hint="Accepted-as-missing textures are remembered (config) and no longer count as problems — restore to treat them as missing again." />
         </>
       ) : (
         <section className="card">

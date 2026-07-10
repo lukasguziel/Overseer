@@ -791,7 +791,8 @@ def _handle(payload: dict) -> dict:
         try:
             _progress("Scanning textures")
             data_dict["textures"] = adapter.scan_textures(
-                include_hidden=include_hidden)
+                include_hidden=include_hidden,
+                accepted=cfg.kept("textures"))
         except Exception as ex:  # noqa: BLE001
             import traceback
             data_dict["textures"] = None
