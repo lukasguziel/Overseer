@@ -110,7 +110,6 @@ class SceneAnalyzer:
             if n.depth > max_depth:
                 max_depth = n.depth
             cas = naming.detect_casing(n.name).value
-            # Multi-language detection across all bundled dictionary packs.
             lang = translatemod.detect_name_language(n.name)
 
             types[n.type_name] += 1

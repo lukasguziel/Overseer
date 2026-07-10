@@ -69,17 +69,10 @@ def submit(payload, timeout=300):
     return req.result
 
 
-# Process singletons that must survive a hot-reload: this module holds the
-# HTTP server, the main-thread queue and the progress state. Everything else
-# under sceneorg.* is stateless (config is read from disk per request) and
-# safe to drop so the next import re-reads the edited source.
 _RELOAD_KEEP = (__name__,)
 
 
 def reload_all() -> int:
-    """Purge every sceneorg submodule except the singletons so the next
-    import picks up edited source. Returns how many modules were dropped.
-    Must run on the main thread (submodules import c4d)."""
     dropped = 0
     for name in list(sys.modules):
         if name == "sceneorg" or not name.startswith("sceneorg."):
@@ -102,9 +95,6 @@ def drain():
             dropped = reload_all()
             from .cinema import webapi
             if req.payload.get("op") == "reload":
-                # Also drop the cross-request scene cache (it lives on the
-                # sceneorg package so it survives the module purge): a forced
-                # reload should re-read the scene with the NEW code.
                 try:
                     import sceneorg
                     getattr(sceneorg, "_scene_cache", {}).clear()

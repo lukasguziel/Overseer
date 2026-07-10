@@ -43,8 +43,6 @@ class Operation(ABC):
 class RenameOp(Operation):
     node: model.SceneNode = field(compare=False)
     new_name: str = ""
-    # Every rule that contributed to this rename (a rename can trigger more
-    # than one, e.g. casing + numbering + unique). For the UI.
     rules: list = field(default_factory=lambda: ["casing"])
 
     @property
@@ -99,9 +97,6 @@ def is_safe_to_reparent(node: model.SceneNode) -> bool:
 
 def _rename_rules(convention: NamingConvention, raw: str, prefix: str,
                   orig: str, base: str, final: str) -> list[str]:
-    """Every rule that contributed to a rename (casing / numbering / prefix /
-    unique). More than one can apply at once."""
-    # Casing-only result (numbering disabled) to separate the two effects.
     prev = convention.apply_numbering
     convention.apply_numbering = False
     try:
@@ -119,7 +114,7 @@ def _rename_rules(convention: NamingConvention, raw: str, prefix: str,
     if prefix and not orig.startswith(prefix):
         rules.append("prefix")
     if final != base:
-        rules.append("unique")   # a counter was appended to break a duplicate
+        rules.append("unique")
     return rules or ["casing"]
 
 
@@ -211,8 +206,30 @@ def plan_layers(
         if scope is not None and n.guid not in scope:
             continue
         layer = layer_for(n, scheme)
-        # Skip objects already on their target layer, so applied rows drop
-        # out of the preview instead of being proposed again.
         if layer and getattr(n, "layer", None) != layer:
             ops.append(LayerOp(node=n, layer=layer))
+    return ops
+
+
+def plan_layer_suggestions(
+    tree: model.SceneTree,
+    scope: set | None = None,
+    keep: set | None = None,
+) -> list[LayerOp]:
+    keep = keep or set()
+    ops: list[LayerOp] = []
+    for n in tree.walk():
+        if getattr(n, "layer", None):
+            continue
+        if scope is not None and n.guid not in scope:
+            continue
+        if n.name in keep:
+            continue
+        suggested = None
+        for anc in n.ancestors():
+            if getattr(anc, "layer", None):
+                suggested = anc.layer
+                break
+        if suggested:
+            ops.append(LayerOp(node=n, layer=suggested))
     return ops

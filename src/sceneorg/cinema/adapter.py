@@ -4,10 +4,11 @@ import collections
 
 import c4d
 
+from ..core import journal as journalmod
 from ..core import model
 from ..core.defaults import LAYER_COLORS, RS_CAMERA_IDS, RS_LIGHT_IDS
 from ..core.ops import LayerOp, RenameOp, ReparentOp
-from .constants import KNOWN_TYPES
+from .constants import DOC_JOURNAL_ID, KNOWN_TYPES
 
 
 def type_name(op) -> str:
@@ -224,10 +225,6 @@ class SceneAdapter:
 
     @staticmethod
     def _mat_key(m):
-        """Identity key for a material. Names are NOT unique (scenes carry
-        e.g. two materials called 'snowflake') — keying usage by name makes
-        the unused/on-hidden counts contradict each other, so use C4D's
-        per-object GUID and fall back to the name only if that fails."""
         try:
             return m.GetGUID()
         except Exception:
@@ -237,7 +234,6 @@ class SceneAdapter:
                 return id(m)
 
     def _material_usage(self) -> tuple[set, set]:
-        """(used_any, used_visible) as sets of material IDENTITY keys."""
         used_any: set = set()
         used_visible: set = set()
 
@@ -265,8 +261,6 @@ class SceneAdapter:
         return self._material_usage()[0]
 
     def _used_material_names(self) -> set:
-        """Names of used materials (derived from identity keys — display /
-        texture-table use only; deletion logic works on keys)."""
         used = self._used_material_keys()
         out: set = set()
         try:
@@ -294,12 +288,6 @@ class SceneAdapter:
             return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
                     "deletable_count": 0, "missing": [], "missing_textures": 0}
 
-        # The visibility toggle is a SCOPE filter:
-        #   Visible only (include_hidden=False): unused = used NOWHERE.
-        #   All objects  (include_hidden=True):  additionally lists the
-        #     materials used exclusively by hidden objects — fully actionable
-        #     (delete/accept), flagged via `only_hidden` for the badge.
-        # Materials used by any VISIBLE object are never listed.
         used_any, used_visible = self._material_usage()
         doc_path = doc.GetDocumentPath() or ""
         unused: list = []
@@ -338,7 +326,7 @@ class SceneAdapter:
             "only_hidden": only_hidden,
             "accepted": accepted_out,
             "accepted_all": sorted(accepted),
-            "deletable_count": len(unused),  # only_hidden is a separate list now
+            "deletable_count": len(unused),
             "missing": missing[:50],
             "missing_textures": len(missing),
         }
@@ -388,9 +376,6 @@ class SceneAdapter:
         return out
 
     def texture_previews(self, paths=None, size=40, progress=None):
-        """Tiny data-URL thumbnails of texture image files, keyed by the
-        path string the caller sent (resolved absolute paths render; missing
-        files are skipped so the UI falls back to a status dot)."""
         import base64
         import os
         import tempfile
@@ -428,8 +413,6 @@ class SceneAdapter:
         return out
 
     def focus_material(self, name: str) -> dict:
-        """Select the material in the material manager and, if it is assigned
-        anywhere, select & frame the first object carrying it."""
         target = None
         try:
             for m in self.doc.GetMaterials():
@@ -474,8 +457,6 @@ class SceneAdapter:
         except Exception:
             return
 
-    # Image file extensions we treat as textures (asset API returns every
-    # asset kind, incl. scenes/caches/sounds -- we only want image maps).
     _TEX_EXTS = frozenset({
         ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".exr", ".hdr", ".tga",
         ".psd", ".bmp", ".gif", ".iff", ".dds", ".webp", ".pict", ".pct",
@@ -488,7 +469,6 @@ class SceneAdapter:
         return ext in self._TEX_EXTS
 
     def _owner_material_name(self, owner):
-        """Best-effort material name for an asset owner (material or shader)."""
         if owner is None:
             return ""
         try:
@@ -497,7 +477,7 @@ class SceneAdapter:
         except Exception:
             pass
         try:
-            main = owner.GetMain()  # shader -> its host material/object
+            main = owner.GetMain()
             if main is not None:
                 return main.GetName()
         except Exception:
@@ -508,24 +488,12 @@ class SceneAdapter:
             return ""
 
     def _texture_refs(self, effective_used: set | None = None) -> list:
-        """(material_name, raw_path, used) for every texture reference.
-
-        Primary source is c4d's own asset collector (GetAllAssetsNew) so
-        Redshift / Arnold / node materials and IES lights are covered -- not
-        just standard Xbitmap channels. Falls back to walking the material
-        shader trees when the asset API yields nothing. `effective_used` is the
-        set of material names counting as used (visibility-aware); defaults to
-        whole-scene usage.
-        """
         doc = self.doc
         used_names = (effective_used if effective_used is not None
                       else self._used_material_names())
         all_names = self._all_material_names()
         refs: list = []
         seen: set = set()
-        # GetAllAssetsNew RETURNS an int status code (GETALLASSETSRESULT) and
-        # fills the assetList argument with dicts -- iterating the return
-        # value is the classic "'int' object is not iterable" crash.
         assets: list = []
         try:
             flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
@@ -548,13 +516,10 @@ class SceneAdapter:
             if key in seen:
                 continue
             seen.add(key)
-            # The asset collector only lists referenced assets; treat them as
-            # in-use unless the owning material is a known-unused one.
             used = name in used_names or name not in all_names
             refs.append((name, raw, used))
         if refs:
             return refs
-        # Fallback: standard material shader walk (older / standard-only docs).
         try:
             mats = doc.GetMaterials()
         except Exception:
@@ -580,12 +545,11 @@ class SceneAdapter:
         import os
 
         from ..core import imagesize
+        from ..core import textures as texmod
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
         used_any, used_visible = self._material_usage()
         effective_keys = used_any if include_hidden else used_visible
-        # The texture table matches by owner-material NAME — translate the
-        # identity keys back to names for it.
         effective: set = set()
         try:
             for m in doc.GetMaterials():
@@ -604,8 +568,8 @@ class SceneAdapter:
                 size = os.path.getsize(path)
             except Exception:
                 size = 0
-            dims = imagesize.image_size(path)
-            meta_cache[path] = (size, dims)
+            info = texmod.analyze_image(path)
+            meta_cache[path] = (size, info)
             return meta_cache[path]
 
         for name, raw, used in self._texture_refs(effective):
@@ -628,12 +592,13 @@ class SceneAdapter:
             disk_bytes = 0
             width = height = 0
             res_tag = ""
+            info = None
             if exists:
-                disk_bytes, dims = file_meta(resolved)
-                if dims:
-                    width, height = dims
+                disk_bytes, info = file_meta(resolved)
+                if info is not None:
+                    width, height = info.width, info.height
                     res_tag = imagesize.resolution_tag(max(width, height))
-            entries.append({
+            entry = {
                 "material": name,
                 "used": used,
                 "file": os.path.basename(raw),
@@ -648,10 +613,20 @@ class SceneAdapter:
                 "width": width,
                 "height": height,
                 "res_tag": res_tag,
-            })
+                "bit_depth": info.bit_depth if info else 0,
+                "channels": info.channels if info else 0,
+                "has_alpha": bool(info.has_alpha) if info else False,
+                "greyscale": bool(info.greyscale) if info else False,
+                "colorspace": info.colorspace if info else "",
+                "vram": texmod.vram_bytes(width, height) if info else 0,
+            }
+            entries.append(entry)
         absolute = [e for e in entries if e["absolute"]]
         relative = [e for e in entries if not e["absolute"]]
         total_bytes = sum(size for size, _ in meta_cache.values())
+        total_vram = sum(texmod.vram_bytes(info.width, info.height)
+                         for _size, info in meta_cache.values()
+                         if info is not None)
         return {
             "doc_path": doc_path,
             "total": len(entries),
@@ -660,6 +635,7 @@ class SceneAdapter:
             "missing_count": sum(1 for e in entries if e["missing"]),
             "relocatable_count": sum(1 for e in entries if e["relocatable"]),
             "total_bytes": total_bytes,
+            "total_vram": total_vram,
             "absolute": absolute,
             "relative": relative,
         }
@@ -708,11 +684,6 @@ class SceneAdapter:
 
     def collect_textures(self, materials: list | None = None,
                          subdir: str = "tex") -> dict:
-        """Copy textures that live OUTSIDE the project folder into
-        <project>/<subdir>/ and relink the shaders relatively. The copy is a
-        plain file operation (not undoable); the relink is one undo step.
-        Files already under the project are skipped — `make_textures_relative`
-        is the cheaper fix for those."""
         import os
         import shutil
         doc = self.doc
@@ -720,7 +691,6 @@ class SceneAdapter:
         if not doc_path:
             return {"copied": 0, "relinked": 0, "skipped": 0,
                     "error": "Project is not saved (nowhere to copy to)."}
-        # Sanitize the target subfolder: relative, no parent escapes.
         subdir = (subdir or "tex").strip().strip("/\\")
         if not subdir or os.path.isabs(subdir) or ".." in subdir.split("/") \
                 or ".." in subdir.split("\\"):
@@ -755,13 +725,13 @@ class SceneAdapter:
                 except Exception:
                     rp = ".."
                 if not rp.startswith(".."):
-                    continue  # already under the project -> make_textures_relative
+                    continue
                 targets.append((sh, resolved))
         if not targets:
             return {"copied": 0, "relinked": 0, "skipped": 0}
 
         copied = relinked = skipped = 0
-        dest_by_src: dict = {}   # copy each source file only once
+        dest_by_src: dict = {}
         used_names: set = set()
         try:
             used_names = {fn.lower() for fn in os.listdir(target_dir)}
@@ -776,7 +746,7 @@ class SceneAdapter:
             try:
                 if os.path.isfile(dst):
                     if os.path.getsize(dst) == os.path.getsize(src):
-                        dest_by_src[src] = dst   # same file already collected
+                        dest_by_src[src] = dst
                         return dst
                     stem, ext = os.path.splitext(base)
                     n = 1
@@ -815,25 +785,13 @@ class SceneAdapter:
 
     @staticmethod
     def _same_path(a: str, b: str) -> bool:
-        """Path equality tolerant to slash direction and case — the asset
-        collector normalizes paths, shader parameters often keep the raw
-        form, and an exact string compare misses those (that made batch
-        clears skip entries)."""
         import os
         na = os.path.normcase(os.path.normpath((a or "").strip()))
         nb = os.path.normcase(os.path.normpath((b or "").strip()))
         return bool(na) and na == nb
 
     def _find_path_params(self, owner, raw: str) -> list:
-        """[(holder, DescID), ...] for EVERY string parameter on `owner` —
-        and on the shaders underneath it — that currently holds the path
-        `raw`. An owner can carry the same path in several parameters
-        (Octane/Redshift nodes do); writing only the first one makes batch
-        fixes shrink the list in random steps instead of clearing it. We
-        only ever write where we found the exact string, never guess."""
         holders = [owner]
-        # Materials (and some shaders) nest the actual image nodes below
-        # themselves — include the whole shader subtree.
         try:
             first = owner.GetFirstShader()
         except Exception:
@@ -874,9 +832,6 @@ class SceneAdapter:
         return out
 
     def _all_material_holders(self):
-        """Every material in the document plus its full shader subtree —
-        the fallback search space when the asset owner itself does not
-        carry the path parameter (Octane/Redshift node setups)."""
         try:
             mats = self.doc.GetMaterials()
         except Exception:
@@ -901,11 +856,6 @@ class SceneAdapter:
                     sh = sh.GetNext()
 
     def _write_path_refs(self, owner, raw: str, new_path: str) -> bool:
-        """Rewrite EVERY parameter on owner (+its shader tree) holding `raw`
-        to `new_path`, with undo. If the owner subtree yields nothing, sweep
-        every material + shader in the document — asset owners are not
-        always the node that actually stores the path. True if at least one
-        write succeeded."""
         targets = self._find_path_params(owner, raw)
         if not targets:
             seen: set = set()
@@ -931,9 +881,6 @@ class SceneAdapter:
         return wrote
 
     def _missing_texture_refs(self) -> list:
-        """(owner, raw_path) for every image reference whose file does not
-        exist on disk. Owners come from the asset collector, so third-party
-        shaders are included."""
         import os
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
@@ -967,9 +914,6 @@ class SceneAdapter:
         return out
 
     def relink_textures(self, folder: str, progress=None) -> dict:
-        """Search `folder` (recursively) for the missing texture files by
-        their file name and rewrite the owning shaders to the found files
-        (project-relative when possible). One undo step."""
         import os
         doc_path = self.doc.GetDocumentPath() or ""
         folder = (folder or "").strip().strip('"')
@@ -981,7 +925,6 @@ class SceneAdapter:
         if not missing:
             return {"relinked": 0, "not_found": 0, "skipped": 0}
 
-        # Index the search folder once: basename (lower) -> first full path.
         index: dict = {}
         count = 0
         for root, _dirs, files in os.walk(folder):
@@ -1017,9 +960,6 @@ class SceneAdapter:
 
     def set_texture_path(self, raw: str, new_path: str,
                          material: str | None = None) -> dict:
-        """Rewrite (or blank, new_path='') ONE texture reference identified by
-        its current raw path — optionally narrowed to one material — across
-        every shader holding it. Per-row action from the paths list."""
         import os
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
@@ -1047,7 +987,6 @@ class SceneAdapter:
         if not targets:
             return {"changed": 0, "skipped": 0, "error": "reference not found"}
 
-        # Prefer a project-relative form when the new file lives under it.
         write_path = new_path.strip()
         if write_path and doc_path and os.path.isabs(write_path):
             try:
@@ -1068,11 +1007,169 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"changed": changed, "skipped": skipped}
 
+    def _owners_for_path(self, raw: str, material: str | None = None) -> list:
+        filled: list = []
+        try:
+            flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
+                            getattr(c4d, "ASSETDATA_FLAG_0", 0))
+            c4d.documents.GetAllAssetsNew(self.doc, False, "", flags, filled)
+        except Exception:
+            filled = []
+        owners: list = []
+        seen: set = set()
+        for a in filled:
+            if not isinstance(a, dict):
+                continue
+            owner = a.get("owner")
+            if owner is None or str(a.get("filename") or "") != raw:
+                continue
+            if material and self._owner_material_name(owner) != material:
+                continue
+            if id(owner) in seen:
+                continue
+            seen.add(id(owner))
+            owners.append(owner)
+        return owners
+
+    def _repath_targets(self, raws, mode: str) -> list:
+        import os
+        doc_path = self.doc.GetDocumentPath() or ""
+        out: list = []
+        seen: set = set()
+        for raw in raws:
+            if not raw or raw in seen:
+                continue
+            seen.add(raw)
+            try:
+                resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+            except Exception:
+                resolved = ""
+            if not resolved or not os.path.isfile(resolved):
+                continue
+            if mode == "absolute":
+                if os.path.isabs(raw):
+                    continue
+                out.append((raw, os.path.normpath(resolved)))
+            else:
+                if not os.path.isabs(raw) or not doc_path:
+                    continue
+                try:
+                    rp = os.path.relpath(resolved, doc_path)
+                except Exception:
+                    continue
+                if rp.startswith(".."):
+                    continue
+                out.append((raw, rp.replace("\\", "/")))
+        return out
+
+    def texture_repath(self, paths, mode: str = "relative",
+                       material: str | None = None) -> dict:
+        mode = "absolute" if str(mode).lower() == "absolute" else "relative"
+        targets = self._repath_targets(list(paths or []), mode)
+        self.last_changes = []
+        if not targets:
+            return {"changed": 0, "skipped": 0}
+
+        changed = skipped = 0
+        self.doc.StartUndo()
+        for raw, new_path in targets:
+            wrote = False
+            for owner in self._owners_for_path(raw, material):
+                if self._write_path_refs(owner, raw, new_path):
+                    wrote = True
+            if wrote:
+                changed += 1
+                self._log_texpath(raw, new_path)
+            else:
+                skipped += 1
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"changed": changed, "skipped": skipped, "mode": mode}
+
+    def texture_resize(self, paths, percent: int) -> dict:
+        import os
+
+        from ..core import textures as texmod
+        try:
+            percent = int(percent)
+        except (TypeError, ValueError):
+            percent = 0
+        if percent not in texmod.RESIZE_PERCENTS:
+            return {"resized": 0, "skipped": 0, "relinked": 0,
+                    "error": "percent must be one of %s"
+                    % (texmod.RESIZE_PERCENTS,)}
+        has_pillow = False
+        try:
+            import PIL  # noqa: F401
+            has_pillow = True
+        except Exception:
+            has_pillow = False
+
+        doc_path = self.doc.GetDocumentPath() or ""
+        results: list = []
+        resized = skipped = relinked = 0
+        done_copies: dict = {}
+        self.last_changes = []
+        seen_raw: set = set()
+
+        self.doc.StartUndo()
+        for raw in (paths or []):
+            if not raw or raw in seen_raw:
+                continue
+            seen_raw.add(raw)
+            base = os.path.basename(raw)
+            try:
+                resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+            except Exception:
+                resolved = ""
+            ext = os.path.splitext(raw)[1].lower()
+            ok, note = texmod.resize_decision(ext, has_pillow)
+            if not resolved or not os.path.isfile(resolved):
+                results.append({"file": base, "status": "skipped",
+                                "note": "Datei fehlt"})
+                skipped += 1
+                continue
+            if not ok:
+                results.append({"file": base, "status": "skipped", "note": note})
+                skipped += 1
+                continue
+
+            dst = texmod.resize_target(resolved, percent)
+            wrote = done_copies.get(resolved)
+            if wrote is None:
+                wrote = texmod.resize_file(resolved, dst, percent, has_pillow)
+                done_copies[resolved] = wrote
+            if not wrote:
+                results.append({"file": base, "status": "skipped",
+                                "note": "Verkleinern fehlgeschlagen"})
+                skipped += 1
+                continue
+
+            new_raw = texmod.resize_target(raw, percent)
+            relinked_here = False
+            for owner in self._owners_for_path(raw):
+                if self._write_path_refs(owner, raw, new_raw):
+                    relinked_here = True
+            if relinked_here:
+                relinked += 1
+                self._log_texpath(raw, new_raw)
+            resized += 1
+            results.append({"file": base, "status": "resized",
+                            "note": "", "to": os.path.basename(new_raw)})
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return {"resized": resized, "skipped": skipped, "relinked": relinked,
+                "results": results}
+
+    def _log_texpath(self, before: str, after: str) -> None:
+        self.last_changes.append({
+            "field": "texpath",
+            "name": before,
+            "before": before,
+            "after": after,
+        })
+
     def clear_missing_textures(self) -> dict:
-        """Blank the path parameter of every reference whose file is missing —
-        the material stays, it just no longer points at a dead file. One
-        undo step. References whose parameter cannot be located are skipped
-        (never guess where to write)."""
         missing = self._missing_texture_refs()
         if not missing:
             return {"cleared": 0, "skipped": 0}
@@ -1087,17 +1184,68 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"cleared": cleared, "skipped": skipped}
 
+    @staticmethod
+    def _linked_layer_name(node) -> str | None:
+        try:
+            lay = node[c4d.ID_LAYER_LINK]
+            return lay.GetName() if lay is not None else None
+        except Exception:
+            return None
+
+    def _layer_ref_counts(self) -> tuple[dict, dict]:
+        mats: dict = {}
+        tags: dict = {}
+        try:
+            for m in self.doc.GetMaterials():
+                nm = self._linked_layer_name(m)
+                if nm:
+                    mats[nm] = mats.get(nm, 0) + 1
+        except Exception:
+            pass
+
+        def visit(op):
+            while op:
+                try:
+                    for tag in op.GetTags():
+                        nm = self._linked_layer_name(tag)
+                        if nm:
+                            tags[nm] = tags.get(nm, 0) + 1
+                except Exception:
+                    pass
+                visit(op.GetDown())
+                op = op.GetNext()
+
+        visit(self.doc.GetFirstObject())
+        return mats, tags
+
+    def _layer_object_counts(self) -> dict:
+        counts: dict = {}
+
+        def visit(op):
+            while op:
+                nm = layer_name(op)
+                if nm:
+                    counts[nm] = counts.get(nm, 0) + 1
+                visit(op.GetDown())
+                op = op.GetNext()
+
+        visit(self.doc.GetFirstObject())
+        return counts
+
     def scan_layers(self) -> list[dict]:
         out: list[dict] = []
         try:
             root = self.doc.GetLayerObjectRoot()
         except Exception:
             return out
+        mats, tags = self._layer_ref_counts()
         lay = root.GetDown() if root is not None else None
         while lay:
-            entry = {"name": lay.GetName(), "color": None,
+            name = lay.GetName()
+            entry = {"name": name, "color": None,
                      "solo": False, "view": True, "render": True,
-                     "locked": False}
+                     "locked": False,
+                     "materials": mats.get(name, 0), "tags": tags.get(name, 0)}
             try:
                 d = lay.GetLayerData(self.doc) or {}
                 col = d.get("color")
@@ -1114,13 +1262,68 @@ class SceneAdapter:
             lay = lay.GetNext()
         return out
 
+    def _is_layer_empty(self, name: str, obj_counts: dict,
+                        mats: dict, tags: dict) -> bool:
+        return (obj_counts.get(name, 0) == 0 and mats.get(name, 0) == 0
+                and tags.get(name, 0) == 0)
+
+    def delete_empty_layers(self) -> int:
+        try:
+            root = self.doc.GetLayerObjectRoot()
+        except Exception:
+            root = None
+        if root is None:
+            return 0
+        obj_counts = self._layer_object_counts()
+        mats, tags = self._layer_ref_counts()
+        targets: list = []
+        lay = root.GetDown()
+        while lay:
+            nxt = lay.GetNext()
+            if self._is_layer_empty(lay.GetName(), obj_counts, mats, tags):
+                targets.append(lay)
+            lay = nxt
+        if not targets:
+            return 0
+
+        self.doc.StartUndo()
+        for lay in targets:
+            self.doc.AddUndo(c4d.UNDOTYPE_DELETE, lay)
+            lay.Remove()
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return len(targets)
+
+    def delete_layer(self, name: str) -> int:
+        try:
+            root = self.doc.GetLayerObjectRoot()
+        except Exception:
+            root = None
+        if root is None:
+            return 0
+        obj_counts = self._layer_object_counts()
+        mats, tags = self._layer_ref_counts()
+        target = None
+        lay = root.GetDown()
+        while lay:
+            if lay.GetName() == name and self._is_layer_empty(
+                    name, obj_counts, mats, tags):
+                target = lay
+                break
+            lay = lay.GetNext()
+        if target is None:
+            return 0
+
+        self.doc.StartUndo()
+        self.doc.AddUndo(c4d.UNDOTYPE_DELETE, target)
+        target.Remove()
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return 1
+
     def delete_material(self, name: str, include_hidden: bool = False) -> int:
         doc = self.doc
         used_any, used_visible = self._material_usage()
-        # Identity-based: with duplicate names only deletable instances go,
-        # namesakes in use stay. With include_hidden (All-objects view) the
-        # user may also delete materials used ONLY by hidden objects;
-        # anything a VISIBLE object uses is always protected.
         protected = used_visible if include_hidden else used_any
         targets = [m for m in doc.GetMaterials()
                    if m.GetName() == name and self._mat_key(m) not in protected]
@@ -1216,7 +1419,6 @@ class SceneAdapter:
         return count
 
     def rename_object(self, guid: int, new_name: str) -> bool:
-        """Rename one object directly (inline edit), with undo + change log."""
         obj = self._by_guid.get(guid)
         if obj is None:
             return False
@@ -1364,15 +1566,34 @@ class SceneAdapter:
     def revert(self, items: list[dict], canonical=None) -> dict:
         reverted = 0
         missing = 0
+        results: list = []
         self.doc.StartUndo()
         created: list = []
         cache: dict = {}
         for item in items:
+            field = item.get("field")
+            note = {"name": item.get("name"), "field": field}
+
+            if field == "texpath":
+                before = item.get("before")
+                after = item.get("after")
+                wrote = False
+                for owner in self._owners_for_path(after):
+                    if self._write_path_refs(owner, after, before):
+                        wrote = True
+                if wrote:
+                    reverted += 1
+                    results.append({**note, "status": "reverted"})
+                else:
+                    missing += 1
+                    results.append({**note, "status": "missing"})
+                continue
+
             obj = self._resolve_change(item)
             if obj is None:
                 missing += 1
+                results.append({**note, "status": "missing"})
                 continue
-            field = item.get("field")
             before = item.get("before")
 
             if field == "name":
@@ -1396,12 +1617,14 @@ class SceneAdapter:
                     self.doc.InsertObject(obj)
                 obj.SetMg(mg)
             else:
+                results.append({**note, "status": "skipped"})
                 continue
             reverted += 1
+            results.append({**note, "status": "reverted"})
 
         self.doc.EndUndo()
         c4d.EventAdd()
-        return {"reverted": reverted, "missing": missing}
+        return {"reverted": reverted, "missing": missing, "results": results}
 
     def apply_plan(self, operations: list[dict]) -> dict:
         refs: dict = {}
@@ -1475,3 +1698,77 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"applied": dict(applied), "errors": errors,
                 "total": sum(applied.values())}
+
+
+def _sidecar_path(doc) -> str | None:
+    import os
+    try:
+        path = doc.GetDocumentPath() or ""
+        name = doc.GetDocumentName() or ""
+    except Exception:
+        return None
+    if not path or not name:
+        return None
+    return os.path.join(path, name + ".sohistory.json")
+
+
+def _read_json_file(path: str) -> list:
+    import json
+    import os
+    try:
+        if path and os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                return json.load(f) or []
+    except Exception:
+        pass
+    return []
+
+
+def _write_json_file(path: str, entries: list) -> None:
+    import json
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(entries, f, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
+
+
+def _container_read(doc) -> list:
+    import json
+    try:
+        bc = doc.GetDataInstance()
+        raw = bc.GetString(DOC_JOURNAL_ID) if bc is not None else ""
+        if raw:
+            return json.loads(raw) or []
+    except Exception:
+        pass
+    return []
+
+
+def _container_write(doc, entries: list) -> None:
+    import json
+    try:
+        bc = doc.GetDataInstance()
+        if bc is not None:
+            bc.SetString(DOC_JOURNAL_ID, json.dumps(entries, ensure_ascii=False))
+            doc.SetChanged()
+    except Exception:
+        pass
+
+
+def load_journal(doc, fallback_path: str) -> list:
+    entries = journalmod.merge_journals(
+        _container_read(doc), _read_json_file(_sidecar_path(doc) or ""))
+    if not entries:
+        entries = _read_json_file(fallback_path)
+    return journalmod.normalize_journal(entries)
+
+
+def save_journal(doc, entries: list, fallback_path: str) -> None:
+    entries = journalmod.normalize_journal(entries)
+    _container_write(doc, entries)
+    side = _sidecar_path(doc)
+    if side:
+        _write_json_file(side, entries)
+    else:
+        _write_json_file(fallback_path, entries)

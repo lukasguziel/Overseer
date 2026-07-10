@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import c4d
 
+DOC_JOURNAL_ID = 1069221
+
 KNOWN_TYPES = {
     c4d.Onull: "Null",
     c4d.Ocamera: "Camera",

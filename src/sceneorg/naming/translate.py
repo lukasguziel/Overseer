@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from . import casing as naming
 from . import translations
 
-# Any-script word tokenizer (Latin incl. diacritics, Cyrillic, ...).
 _WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 AMBIGUOUS_DE = {
@@ -15,8 +14,6 @@ AMBIGUOUS_DE = {
     "man", "fast", "gut", "rock", "stern",
 }
 
-# Characters that are strong evidence for a source language (a name
-# containing one of these is very unlikely to be plain English).
 LANG_CHARS = {
     "de": "äöüß",
     "fr": "éèêëàâçîïôûùœ",
@@ -58,9 +55,6 @@ def _match_case(src: str, tgt: str) -> str:
 
 
 def _evidence_langs(name: str) -> set[str]:
-    """Languages this name shows hard evidence for: language-specific
-    characters, or a token that exists in exactly one language (and is not
-    an English word)."""
     low = name.lower()
     out: set[str] = set()
     for lang, chars in LANG_CHARS.items():
@@ -69,7 +63,6 @@ def _evidence_langs(name: str) -> set[str]:
     for tok in _WORD.findall(low):
         lang = translations.UNIQUE_LANG.get(tok)
         if lang is None:
-            # German umlaut transcription ('staender' -> 'ständer').
             alt = translations._deumlauted(tok)
             if alt != tok and translations.UNIQUE_LANG.get(alt) == "de":
                 lang = "de"
@@ -83,8 +76,6 @@ def _has_german_evidence(name: str) -> bool:
 
 
 def detect_name_language(name: str) -> str:
-    """Best guess of the name's source language across all bundled packs.
-    English wins only if no other language has evidence."""
     low = name.lower()
     evidence = _evidence_langs(name)
     if len(evidence) == 1:
@@ -130,7 +121,6 @@ def translate_preserving(name: str, target: str = naming.LANG_EN,
         low = word.lower()
         candidates = translations.candidate_langs(low)
         if not candidates:
-            # German umlaut transcription fallback (kueche -> küche).
             tgt = translations.to_english(low, include_ambiguous=False)
             if tgt != low and ("de" in evidence
                                or low in translations.UNIQUE_LANG):
@@ -138,8 +128,6 @@ def translate_preserving(name: str, target: str = naming.LANG_EN,
                 changed.append((word, cased))
                 return cased
             return word
-        # Pick the language: evidence first (in priority order), then a
-        # unique unambiguous hit.
         pick = None
         for lang in translations.BULK_LANGS:
             if lang in candidates and lang in evidence:
@@ -151,7 +139,6 @@ def translate_preserving(name: str, target: str = naming.LANG_EN,
                 pick = unique
         if pick is None:
             return word
-        # Hand-picked German ambiguity list needs explicit evidence.
         if pick == "de" and low in AMBIGUOUS_DE and "de" not in evidence:
             return word
         tgt = translations.lookup_en(low, pick, include_ambiguous=True)
@@ -181,11 +168,10 @@ def plan_translations(tree, scope: set | None = None,
 
 @dataclass
 class LanguageSummary:
-    counts: dict = field(default_factory=dict)   # lang code -> object count
+    counts: dict = field(default_factory=dict)
     total: int = 0
     dominant: str = naming.LANG_UNKNOWN
 
-    # Backwards-compatible accessors (older tests/UI used .de/.en/.unknown).
     @property
     def de(self) -> int:
         return self.counts.get("de", 0)
@@ -201,7 +187,6 @@ class LanguageSummary:
     def to_dict(self) -> dict:
         return {"counts": dict(self.counts), "total": self.total,
                 "dominant": self.dominant,
-                # legacy keys, kept for older consumers
                 "de": self.de, "en": self.en, "unknown": self.unknown}
 
 
