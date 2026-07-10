@@ -522,6 +522,37 @@ export function useOrganizer() {
       .then((r) => { setStatus(r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed'); refreshSoon() })
       .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗'); reloadNaming().catch(() => {}) })
   }
+  // Batch apply for the guided mode: N rows at once, same optimistic pattern
+  // as the One-variants (rows vanish instantly, background call + debounced
+  // refresh — no global busy lock).
+  const applyNamingMany = useCallback((guids: number[], label: string) => {
+    const gs = new Set(guids)
+    dropRows('naming', (d) => gs.has(d.guid))
+    setStatus(`Renaming ${label}…`)
+    call('apply_naming', { settings: settings(), guids })
+      .then((r) => { setStatus(`${r.applied} renamed ✓ (undoable)`); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗'); reloadNaming().catch(() => {}) })
+  }, [dropRows, settings, refreshSoon, reloadNaming])
+
+  const applyTranslateMany = useCallback((guids: number[], label: string) => {
+    const gs = new Set(guids)
+    dropRows('translate', (d) => gs.has(d.guid))
+    setStatus(`Translating ${label}…`)
+    call('apply_translate', {
+      settings: settings(), target: translateTarget, engine: translateEngine, guids })
+      .then((r) => { setStatus(`${r.applied} translated ✓ (undoable)`); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Translate ✗'); reloadTranslate().catch(() => {}) })
+  }, [dropRows, settings, translateTarget, translateEngine, refreshSoon, reloadTranslate])
+
+  const applyStructureMany = useCallback((guids: number[], label: string) => {
+    const gs = new Set(guids)
+    dropRows('structure', (d) => gs.has(d.guid))
+    setStatus(`Moving ${label}…`)
+    call('apply_structure', { settings: settings(), guids })
+      .then((r) => { setStatus(`${r.applied} moved ✓ (undoable)`); refreshSoon() })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Move ✗'); reloadStructure().catch(() => {}) })
+  }, [dropRows, settings, refreshSoon, reloadStructure])
+
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
     setStructure(r); doAnalyze()

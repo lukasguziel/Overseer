@@ -211,7 +211,8 @@ export default function NamingTab({ org }: { org: Organizer }) {
       </section>
 
       <AcceptedSection items={Array.from(keeps.naming)}
-        onRestore={(nm) => org.unkeep('naming', nm)} />
+        onRestore={(nm) => org.unkeep('naming', nm)}
+        onRestoreAll={() => org.unkeepAll('naming')} />
     </div>
   )
 }

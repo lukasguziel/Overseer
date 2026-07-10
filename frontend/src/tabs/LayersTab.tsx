@@ -345,7 +345,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
       )}
 
       <AcceptedSection items={Array.from(keeps.layers)}
-        onRestore={(nm) => org.unkeep('layers', nm)} />
+        onRestore={(nm) => org.unkeep('layers', nm)}
+        onRestoreAll={() => org.unkeepAll('layers')} />
     </div>
   )
 }

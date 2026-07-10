@@ -91,7 +91,8 @@ export default function StructureTab({ org }: { org: Organizer }) {
       </div>
 
       <AcceptedSection items={Array.from(keeps.structure)}
-        onRestore={(nm) => org.unkeep('structure', nm)} />
+        onRestore={(nm) => org.unkeep('structure', nm)}
+        onRestoreAll={() => org.unkeepAll('structure')} />
 
       {/* Structure hygiene: empty containers & loose root objects. */}
       <section className="card">

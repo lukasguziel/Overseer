@@ -299,6 +299,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
 
           <AcceptedSection items={accepted}
             onRestore={(p) => setFileKeeps(accepted.filter((a) => a !== p))}
+            onRestoreAll={() => setFileKeeps([])}
             hint="Accepted-as-missing files are remembered (config) and no longer count as problems — restore to treat them as missing again." />
         </div>
       </div>

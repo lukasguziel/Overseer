@@ -130,7 +130,8 @@ export default function TranslateTab({ org }: { org: Organizer }) {
     </div>
 
     <AcceptedSection items={Array.from(keeps.translate)}
-      onRestore={(nm) => org.unkeep('translate', nm)} />
+      onRestore={(nm) => org.unkeep('translate', nm)}
+      onRestoreAll={() => org.unkeepAll('translate')} />
     </div>
   )
 }

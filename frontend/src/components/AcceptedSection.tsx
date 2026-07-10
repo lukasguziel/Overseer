@@ -3,9 +3,10 @@ import Pager, { usePager } from './Pager'
 
 // Collapsed accordion listing everything the user accepted as-is in this
 // area. Identical in every tab; entries can be pulled back with "restore".
-export default function AcceptedSection({ items, onRestore, hint }: {
+export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }: {
   items: string[]
   onRestore: (key: string) => void
+  onRestoreAll?: () => void
   hint?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -13,10 +14,17 @@ export default function AcceptedSection({ items, onRestore, hint }: {
   if (!items.length) return null
   return (
     <section className="card">
-      <button className="kept-head" onClick={() => setOpen(!open)}>
-        <span className="cl-caret">{open ? '▾' : '▸'}</span>
-        Accepted as-is <span className="kept-count">{pager.total}</span>
-      </button>
+      <div className="kept-head-row">
+        <button className="kept-head" onClick={() => setOpen(!open)}>
+          <span className="cl-caret">{open ? '▾' : '▸'}</span>
+          Accepted as-is <span className="kept-count">{pager.total}</span>
+        </button>
+        {onRestoreAll && (
+          <button className="kept-restore-all"
+            title="Restore every accepted item in this area — they all become todos again"
+            onClick={onRestoreAll}>restore all ✕</button>
+        )}
+      </div>
       {open && (
         <>
           <div className="kept-list">

@@ -818,6 +818,13 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .kept-restore { background: transparent; border: none; color: var(--dim2); font-size: 10px;
   padding: 1px 4px; box-shadow: none; cursor: pointer; flex: none; }
 .kept-restore:hover { color: var(--accent); box-shadow: none; border-color: transparent; }
+/* Header row: the collapse toggle plus a "restore all" button on the right. */
+.kept-head-row { display: flex; align-items: center; gap: 10px; }
+.kept-head-row .kept-head { width: auto; flex: 1; }
+.kept-restore-all { background: transparent; border: 1px solid var(--line); color: var(--dim);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em; border-radius: 7px;
+  padding: 3px 8px; cursor: pointer; flex: none; box-shadow: none; white-space: nowrap; }
+.kept-restore-all:hover { color: var(--accent); border-color: var(--accent); box-shadow: none; }
 
 /* ---------- Change history ---------- */
 .ch-list { display: flex; flex-direction: column; gap: 6px; }
