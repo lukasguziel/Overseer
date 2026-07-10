@@ -527,15 +527,22 @@ export function useOrganizer() {
 
   // Toggling the All-objects / Visible-only filter changes what EVERY stat
   // counts (report, all plans, open audits), so it must trigger a full reload —
-  // nothing else has `includeHidden` in its deps. Skip the initial mount (the
-  // boot preload already analyzed once) and wait until the app is ready.
-  const visFilterFirst = useRef(true)
+  // nothing else has `includeHidden` in its deps. Deterministic instead of a
+  // skip-first heuristic: the report records which perspective it was computed
+  // with (`include_hidden`); whenever that disagrees with the toggle, reload.
+  // Self-healing — a transition can never be silently lost — and loop-free:
+  // after the reload both sides agree again. `reloading` guards re-entry while
+  // a reload is already in flight (report stays stale until it lands).
+  const visReloading = useRef(false)
   useEffect(() => {
-    if (!ready) return
-    if (visFilterFirst.current) { visFilterFirst.current = false; return }
-    reloadEverythingRef.current()
+    if (!ready || visReloading.current) return
+    const cur = report?.include_hidden
+    if (cur == null || Boolean(cur) === includeHidden) return
+    visReloading.current = true
+    Promise.resolve(reloadEverythingRef.current())
+      .finally(() => { visReloading.current = false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeHidden, ready])
+  }, [includeHidden, ready, report])
 
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
