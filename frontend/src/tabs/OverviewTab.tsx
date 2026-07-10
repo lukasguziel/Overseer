@@ -1,11 +1,11 @@
 import React from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene } from '../lib/hygiene'
-import { catColor } from '../lib/colors'
+import { catColor, resTierColor } from '../lib/colors'
 import { humanNum, humanBytes } from '../lib/format'
 import Tile, { type Delta } from '../components/Tile'
 import Strip from '../components/Strip'
-import Treemap from '../components/Treemap'
+import Treemap, { TreemapChart, type TreemapDatum } from '../components/Treemap'
 import Ring from '../components/Ring'
 import { scoreRating, scoreTone } from '../lib/score'
 import Tip from '../components/Tip'
@@ -80,6 +80,32 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return { tiers, mem, top, count: withPx.length }
   }, [report])
 
+  // Texture map: area = pixel count (VRAM cost, NOT disk bytes — an 8K JPG is
+  // tiny on disk but huge in memory), color = resolution tier, click -> select
+  // the material. Dedupe by resolved path so one file shared across materials
+  // is one tile.
+  const texMap = React.useMemo<TreemapDatum[]>(() => {
+    const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
+    const seen = new Set<string>()
+    const out: TreemapDatum[] = []
+    for (const e of entries) {
+      if (e.width <= 0 || e.height <= 0) continue
+      const id = e.resolved || e.path
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push({
+        key: id,
+        value: e.width * e.height,
+        label: e.file,
+        detail: `${e.width}×${e.height}`,
+        color: resTierColor(Math.max(e.width, e.height)),
+        title: `${e.path}\n${e.width}×${e.height} · ${humanBytes(e.width * e.height * 4)} VRAM\nClick to select material “${e.material}”`,
+        onClick: () => org.doFocusMaterial(e.material),
+      })
+    }
+    return out.sort((a, b) => b.value - a.value).slice(0, 40)
+  }, [report, org])
+
   const displayCasing = React.useMemo(() => {
     const raw = report?.casing || {}
     const conv = org.casing
@@ -138,20 +164,20 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   return (
     <div className="overview">
       <div className="tiles">
-        <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)}
-          sub={[`${Object.keys(report.types || {}).length} distinct types`,
-            `${report.max_depth} levels deep`]} />
-        <Tile value={humanNum(report.total_polys)} label="Polygons" spark={sPoly} delta={deltaOf(sPoly)}
-          sub={[`${humanNum(report.total_points)} points`,
-            `${hyg.top10pct}% in the top 10 objects`]} />
-        <Tile value={humanBytes(report.file_size)} label="Project size" spark={sSize} delta={deltaOf(sSize)}
+        <Tile value={humanNum(report.object_count)} label="Objekte" spark={sObj} delta={deltaOf(sObj)}
+          sub={[`${Object.keys(report.types || {}).length} verschiedene Typen`,
+            `${report.max_depth} Ebenen tief`]} />
+        <Tile value={humanNum(report.total_polys)} label="Polygone" spark={sPoly} delta={deltaOf(sPoly)}
+          sub={[`${humanNum(report.total_points)} Punkte`,
+            `${hyg.top10pct}% in den Top-10-Objekten`]} />
+        <Tile value={humanBytes(report.file_size)} label="Projektgröße" spark={sSize} delta={deltaOf(sSize)}
           sub={(() => {
             const texB = tex?.total_bytes ?? 0
             const extB = filesScan?.summary?.total_bytes ?? 0
             const lines: string[] = []
-            if (texB) lines.push(`+ ${humanBytes(texB)} textures on disk`)
-            if (extB) lines.push(`+ ${humanBytes(extB)} external files (Alembic & caches)`)
-            if (texB || extB) lines.push(`= ${humanBytes((report.file_size || 0) + texB + extB)} total footprint`)
+            if (texB) lines.push(`+ ${humanBytes(texB)} Texturen auf der Platte`)
+            if (extB) lines.push(`+ ${humanBytes(extB)} externe Dateien (Alembic & Caches)`)
+            if (texB || extB) lines.push(`= ${humanBytes((report.file_size || 0) + texB + extB)} Gesamtgröße`)
             return lines.length ? lines : null
           })()} />
 
@@ -160,12 +186,12 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           <div className="health-main">
             <Ring pct={health} tone={healthTone} />
             <Tip text="Gesamt-Gesundheit = Durchschnitt der Bereichs-Scores (Naming, Layers, Materials …), 0–100. Ab 80 gilt ein Bereich als gut, ab 95 als top. Ein Wert zählt erst, wenn sein Bereich einmal geladen wurde.">
-              <div className="tile-label">Health · {scoreRating(health)}</div>
+              <div className="tile-label">Gesundheit · {scoreRating(health)}</div>
             </Tip>
           </div>
           <div className="health-subs">
             {subScores.map((s) => (
-              <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
+              <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`${s.label} öffnen`}>
                 <Ring pct={s.pct ?? 0} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
                 <span className="hs-pct">{s.pct == null ? '…' : s.pct}</span>
                 <span className="hs-label">{s.label}</span>
@@ -205,51 +231,65 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         </div>
       </section>}
 
-      {/* Hero: Poly-Treemap */}
-      <section className="card">
-        <div className="card-head">
-          <h3>Geometry map — polygons by object</h3>
-          <span className="card-hint">click a tile to select &amp; frame</span>
-        </div>
-        <Treemap nodes={report.nodes || []} onFocus={org.doFocus} />
-      </section>
+      {/* Hero: the two things that eat VRAM, side by side — geometry (polys by
+          object) and textures (maps by pixel count). */}
+      <div className="ov-cols2">
+        <section className="card">
+          <div className="card-head">
+            <h3>Geometry map — polygons by object</h3>
+            <span className="card-hint">click a tile to select &amp; frame</span>
+          </div>
+          <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={40} />
+        </section>
+
+        <section className="card">
+          <div className="card-head">
+            <Tip text="Fläche = Pixelanzahl der Map (Breite × Höhe) — der VRAM-Kostenfaktor, unabhängig von der JPG-Größe auf der Platte. Farbe = Auflösungsstufe (rot 8K, amber 4K, blau 2K). Klick wählt das Material.">
+              <h3>Texture map — image sizes</h3>
+            </Tip>
+            <span className="card-hint">area = pixels · color = resolution</span>
+          </div>
+          <TreemapChart data={texMap} empty="No texture pixel data (files missing or none referenced)." />
+        </section>
+      </div>
 
       {/* Row 1: naming consistency + materials summary (the scene-health
           number table is gone — the health tile + nav underlines cover it). */}
       <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
-            <h3>Naming consistency</h3>
-            {org.casing && <span className="card-hint">convention: {org.casing}</span>}
+            <h3>Naming-Konsistenz</h3>
+            {org.casing && <span className="card-hint">Konvention: {org.casing}</span>}
           </div>
           <div className="chipgroup-label">Casing</div>
           <Strip data={displayCasing} />
           <p className="mini-note dim">
-            Detection classes compatible with your convention are merged —
-            e.g. single-word ALL-CAPS names count as UPPER_SNAKE. “spaced” /
-            “kebab” are names whose separators you chose to keep.
+            Mit deiner Konvention kompatible Erkennungsklassen werden
+            zusammengefasst — z. B. zählen Ein-Wort-GROSSBUCHSTABEN-Namen als
+            UPPER_SNAKE. „spaced“ / „kebab“ sind Namen, deren Trennzeichen du
+            behalten hast.
           </p>
-          <div className="chipgroup-label" style={{ marginTop: 10 }}>Language</div>
+          <div className="chipgroup-label" style={{ marginTop: 10 }}>Sprache</div>
           <Strip data={displayLanguage.data} legendMax={3} />
           <p className="mini-note dim">
             {displayLanguage.fromEngine
-              ? `Detected by the ${org.translateEngine} translate engine — same numbers as the Translate tab.`
-              : '“Unknown” = names without dictionary words (codes, product names).'}
+              ? `Erkannt von der ${org.translateEngine}-Übersetzungs-Engine — dieselben Zahlen wie im Translate-Tab.`
+              : '„Unknown“ = Namen ohne Wörterbuch-Wörter (Codes, Produktnamen).'}
           </p>
         </section>
 
         <section className="card">
           <div className="card-head">
-            <h3>Materials &amp; textures</h3>
-            <button className="ghost sm" onClick={() => org.setTab('materials')}>Manage →</button>
+            <h3>Materialien &amp; Texturen</h3>
+            <button className="ghost sm" onClick={() => org.setTab('materials')}>Verwalten →</button>
           </div>
           <table className="mini"><tbody>
-            <tr><td>Materials</td><td>{mat?.total ?? 0}</td></tr>
-            <tr><td>Unused materials</td><td className={mat?.unused.length ? 'warn' : ''}>{mat?.unused.length ?? 0}</td></tr>
-            <tr><td>Missing textures</td><td className={mat?.missing_textures ? 'warn' : ''}>{mat?.missing_textures ?? 0}</td></tr>
-            <tr><td>Textures on disk</td><td>{humanBytes(tex?.total_bytes ?? 0)}</td></tr>
+            <tr><td>Materialien</td><td>{mat?.total ?? 0}</td></tr>
+            <tr><td>Unbenutzte Materialien</td><td className={mat?.unused.length ? 'warn' : ''}>{mat?.unused.length ?? 0}</td></tr>
+            <tr><td>Fehlende Texturen</td><td className={mat?.missing_textures ? 'warn' : ''}>{mat?.missing_textures ?? 0}</td></tr>
+            <tr><td>Texturen auf der Platte</td><td>{humanBytes(tex?.total_bytes ?? 0)}</td></tr>
             {/* Absolute vs relative is a taste question — shown, never warned. */}
-            <tr><td>Absolute paths</td><td>{tex?.absolute_count ?? 0}</td></tr>
+            <tr><td>Absolute Pfade</td><td>{tex?.absolute_count ?? 0}</td></tr>
           </tbody></table>
         </section>
       </div>
@@ -258,14 +298,14 @@ export default function OverviewTab({ org }: { org: Organizer }) {
       <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
-            <h3>Polygon concentration</h3>
-            <button className="ghost sm" onClick={() => org.setTab('assets')}>Browse all →</button>
+            <h3>Polygon-Konzentration</h3>
+            <button className="ghost sm" onClick={() => org.setTab('assets')}>Alle ansehen →</button>
           </div>
           <table className="mini"><tbody>
-            <tr><td>Total polygons</td><td>{humanNum(report.total_polys)}</td></tr>
-            <tr><td>Top 10 objects</td><td>{hyg.top10pct}%</td></tr>
-            <tr><td>Objects for 80%</td><td>{hyg.p80}</td></tr>
-            <tr><td>Heavy outliers (&gt;5%)</td><td className={hyg.outliers.length ? 'warn' : ''}>{hyg.outliers.length}</td></tr>
+            <tr><td>Polygone gesamt</td><td>{humanNum(report.total_polys)}</td></tr>
+            <tr><td>Top-10-Objekte</td><td>{hyg.top10pct}%</td></tr>
+            <tr><td>Objekte für 80 %</td><td>{hyg.p80}</td></tr>
+            <tr><td>Schwere Ausreißer (&gt;5 %)</td><td className={hyg.outliers.length ? 'warn' : ''}>{hyg.outliers.length}</td></tr>
           </tbody></table>
           {hyg.outliers.length > 0 && (
             <AssetTable rows={hyg.outliers.slice(0, 5)} onFocus={org.doFocus} />
