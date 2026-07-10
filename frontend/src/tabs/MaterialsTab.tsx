@@ -152,6 +152,16 @@ const RES_TIERS: [string, string][] = [
 
 const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
 
+// Spec filter keys, mirroring the per-row spec badge (e.g. "RGB 32b linear"):
+// channel mode, bit depth and colorspace. null = no pixel data (unknown) —
+// such rows only show while the respective filter is off.
+const modeOf = (e: TextureEntry): string | null =>
+  e.width > 0 ? (e.greyscale ? 'grau' : (e.channels ?? 0) >= 4 ? 'rgba' : 'rgb') : null
+const depthOf = (e: TextureEntry): number | null =>
+  e.width > 0 && e.bit_depth ? e.bit_depth : null
+const spaceOf = (e: TextureEntry): string | null =>
+  e.width > 0 && e.colorspace ? e.colorspace : null
+
 // Material preview sphere (as in the C4D material manager); falls back to the
 // plain status dot until the thumbnail arrives (or if C4D can't render one).
 function MatThumb({ src, fallback }: { src?: string; fallback: string }) {
@@ -174,6 +184,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // resolution tier and path status (absolute / relative / missing).
   const [resFilter, setResFilter] = useState('')
   const [pathFilter, setPathFilter] = useState('')  // '' | 'absolute' | 'relative' | 'missing'
+  // Spec filters (channel mode / bit depth / colorspace) — the values shown
+  // in the per-row spec badge, e.g. "RGB 32b linear".
+  const [modeFilter, setModeFilter] = useState('')   // '' | 'rgb' | 'rgba' | 'grau'
+  const [depthFilter, setDepthFilter] = useState(0)  // 0 = all, else bits/channel
+  const [spaceFilter, setSpaceFilter] = useState('') // '' | colorspace tag
   // Copy & relink out-of-project textures: target subfolder + confirm state.
   const [collectDir, setCollectDir] = useState('tex')
   const [collectConfirm, setCollectConfirm] = useState(false)
@@ -191,10 +206,17 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     || (pathFilter === 'missing' && e.missing)
     || (pathFilter === 'absolute' && e.absolute && !e.missing)
     || (pathFilter === 'relative' && !e.absolute && !e.missing)
+  const bySpec = (e: TextureEntry) =>
+    (!modeFilter || modeOf(e) === modeFilter)
+    && (!depthFilter || depthOf(e) === depthFilter)
+    && (!spaceFilter || spaceOf(e) === spaceFilter)
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
+  // Distinct bit depths / colorspaces actually present, for the filter chips.
+  const depths = [...new Set(allTex.map(depthOf).filter((d): d is number => d != null))].sort((a, b) => a - b)
+  const spaces = [...new Set(allTex.map(spaceOf).filter((s): s is string => s != null))].sort()
   const pathPager = usePager(
-    allTex.filter((e) => byRes(e) && byPath(e)).sort(bySize),
-    undefined, resFilter + '|' + pathFilter)
+    allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e)).sort(bySize),
+    undefined, [resFilter, pathFilter, modeFilter, depthFilter, spaceFilter].join('|'))
 
   // Mini image previews for the texture rows currently on screen (keyed by
   // resolved path; missing files simply keep their status dot).
@@ -252,7 +274,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // to an existing file. Batch resize operates on the CURRENTLY FILTERED maps
   // that exist on disk and carry pixel data.
   const makeAbsolute = allTex.filter((e) => !e.absolute && !e.missing)
-  const resizeTargets = allTex.filter((e) => byRes(e) && byPath(e) && e.exists && e.width > 0)
+  const resizeTargets = allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e) && e.exists && e.width > 0)
   const totalVram = tex?.total_vram ?? 0
   const fixable = tex?.relocatable_count ?? 0
   // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
@@ -380,6 +402,58 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 </button>
               ))}
             </div>
+
+            <div className="rule-group-head">
+              <Tip text="Nach den Bild-Eigenschaften aus dem Spec-Badge filtern — Kanalmodus (RGB/RGBA/Graustufen), Bittiefe und Colorspace. Maps ohne lesbare Pixeldaten fallen bei aktivem Filter heraus.">
+                <span>Image spec</span>
+              </Tip>
+            </div>
+            <div className="tex-filter tex-filter-col">
+              {([['', 'All', allTex.length],
+                ['rgb', 'RGB', allTex.filter((e) => modeOf(e) === 'rgb').length],
+                ['rgba', 'RGBA', allTex.filter((e) => modeOf(e) === 'rgba').length],
+                ['grau', 'Graustufen', allTex.filter((e) => modeOf(e) === 'grau').length],
+              ] as [string, string, number][]).map(([key, label, n]) => (
+                <button key={key || 'all'}
+                  className={'tex-filter-btn' + (modeFilter === key ? ' on' : '')}
+                  title={key ? `Show only ${label} textures` : 'Show every channel mode'}
+                  onClick={() => setModeFilter(key)}>
+                  {label} <em>{n}</em>
+                </button>
+              ))}
+            </div>
+            {depths.length > 1 && (
+              <div className="tex-filter tex-filter-col">
+                <button className={'tex-filter-btn' + (depthFilter === 0 ? ' on' : '')}
+                  title="Show every bit depth" onClick={() => setDepthFilter(0)}>
+                  All <em>{allTex.length}</em>
+                </button>
+                {depths.map((d) => (
+                  <button key={d}
+                    className={'tex-filter-btn' + (depthFilter === d ? ' on' : '')}
+                    title={`Show only ${d}-bit textures`}
+                    onClick={() => setDepthFilter(d)}>
+                    {d} bit <em>{allTex.filter((e) => depthOf(e) === d).length}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+            {spaces.length > 1 && (
+              <div className="tex-filter tex-filter-col">
+                <button className={'tex-filter-btn' + (spaceFilter === '' ? ' on' : '')}
+                  title="Show every colorspace" onClick={() => setSpaceFilter('')}>
+                  All <em>{allTex.length}</em>
+                </button>
+                {spaces.map((s) => (
+                  <button key={s}
+                    className={'tex-filter-btn' + (spaceFilter === s ? ' on' : '')}
+                    title={`Show only ${s} textures`}
+                    onClick={() => setSpaceFilter(s)}>
+                    {s} <em>{allTex.filter((e) => spaceOf(e) === s).length}</em>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="rule-group-head"><span>Actions</span></div>
             <button className="ghost" disabled={busy || !fixable}
