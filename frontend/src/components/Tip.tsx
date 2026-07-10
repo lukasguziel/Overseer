@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 
-// Shared hover tooltip. Wraps any control or header label and shows a small
-// positioned bubble on hover/focus (CSS-only, no dependency). `text` is German
-// UI copy. A native `title` mirror keeps it accessible and works before the
-// CSS bubble paints.
+// Shared hover tooltip. Wraps any control or header label and exposes the copy
+// as a `title` — the app-wide <GlobalTooltip> intercepts every title on the
+// page and renders one nicely styled dark bubble on hover/focus, so this stays
+// a thin, semantic wrapper. `text` is German UI copy.
 export default function Tip({ text, children, className }: {
   text: string
   children: ReactNode
@@ -12,7 +12,6 @@ export default function Tip({ text, children, className }: {
   return (
     <span className={'tip' + (className ? ' ' + className : '')} tabIndex={0} title={text}>
       {children}
-      <span className="tip-bubble" role="tooltip">{text}</span>
     </span>
   )
 }
