@@ -1040,7 +1040,12 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .ly-overview .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .layertree { display: flex; flex-direction: column; gap: 1px; }
 .ly-group.orphan .ly-name { color: var(--warn); }
-.ly-head { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent;
+.ly-row { display: flex; align-items: center; gap: 4px; }
+.ly-row .ly-actions { flex: none; opacity: 0; transition: opacity 90ms var(--ease); }
+.ly-row:hover .ly-actions, .ly-actions:focus-within { opacity: 1; }
+.ly-actions .rn-ok, .ly-actions .rn-keep { width: 22px; height: 22px; }
+.ly-actions .rn-ok svg { width: 13px; height: 13px; }
+.ly-head { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; background: transparent;
   border: none; border-radius: 6px; padding: 5px 8px; cursor: pointer; text-align: left; }
 .ly-head:hover:not(:disabled) { background: var(--panel2); }
 .ly-head:disabled { cursor: default; }

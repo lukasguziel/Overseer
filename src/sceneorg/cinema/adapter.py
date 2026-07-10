@@ -1267,7 +1267,8 @@ class SceneAdapter:
         return (obj_counts.get(name, 0) == 0 and mats.get(name, 0) == 0
                 and tags.get(name, 0) == 0)
 
-    def delete_empty_layers(self) -> int:
+    def delete_empty_layers(self, keep: set | None = None) -> int:
+        keep = keep or set()
         try:
             root = self.doc.GetLayerObjectRoot()
         except Exception:
@@ -1280,7 +1281,7 @@ class SceneAdapter:
         lay = root.GetDown()
         while lay:
             nxt = lay.GetNext()
-            if self._is_layer_empty(lay.GetName(), obj_counts, mats, tags):
+            if lay.GetName() not in keep and self._is_layer_empty(lay.GetName(), obj_counts, mats, tags):
                 targets.append(lay)
             lay = nxt
         if not targets:
