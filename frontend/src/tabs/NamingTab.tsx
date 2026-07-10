@@ -35,6 +35,17 @@ function RuleTags({ rules }: { rules: string[] }) {
 
 const pad = (n: number, p: number) => (p > 0 ? String(n).padStart(p, '0') : String(n))
 
+// Labelled divider between the tab's two areas — same rule/line look as the
+// Misc tab, with a one-line description so each area explains itself.
+function SectionBand({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="sec-band">
+      <div className="misc-sec"><span>{title}</span><hr /></div>
+      <p className="sec-desc">{desc}</p>
+    </div>
+  )
+}
+
 export default function NamingTab({ org }: { org: Organizer }) {
   const { report, casing, applyCasing, keepSeparators, keepSpecials, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
 
@@ -58,6 +69,8 @@ export default function NamingTab({ org }: { org: Organizer }) {
 
   return (
     <div className="stacked">
+      <SectionBand title="Rename rules"
+        desc="Set the naming convention on the left; every rename is previewed on the right before you apply anything." />
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Settings</h3>
@@ -182,6 +195,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
           <Pager pager={pager} />
         </Workbench>
       </div>
+
+      <SectionBand title="Cleanup"
+        desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates — rename them by hand or accept them as-is." />
 
       {/* Name hygiene: default & duplicate names — click to select in C4D. */}
       <section className="card">
