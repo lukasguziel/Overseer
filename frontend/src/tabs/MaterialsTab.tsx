@@ -159,8 +159,9 @@ function TexTable({ rows, previews, selected, rowKey, onToggle, allChecked, onTo
 }
 
 // Resolution filter chips: narrow all three texture sections to one tier.
+// No "All" entry — an unset facet means all (chips toggle off on re-click).
 const RES_TIERS: [string, string][] = [
-  ['', 'All'], ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
+  ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
 ]
 
 const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
@@ -431,22 +432,25 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               )}
             </div>
 
+            {/* Facet chips: no "All" entry — an unset facet means all, and
+                clicking the active chip toggles it back off. */}
             <div className="rule-group-head"><span>Path status</span></div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'All'],
-                ['absolute', 'Absolute'],
+              {([['absolute', 'Absolute'],
                 ['relative', 'Relative'],
                 ['missing', 'Missing'],
               ] as [string, string][]).map(([key, label]) => {
                 const n = nPath(key)
-                const off = n === 0 && pathFilter !== key
+                const on = pathFilter === key
+                const off = n === 0 && !on
                 return (
-                  <button key={key || 'all'} disabled={off}
-                    className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
+                  <button key={key} disabled={off}
+                    className={'tex-filter-btn' + (on ? ' on' : '')
                       + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
                     title={off ? 'No matches with the current filters'
-                      : key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
-                    onClick={() => setPathFilter(key)}>
+                      : on ? 'Click again to clear this filter'
+                        : `Show only ${label.toLowerCase()} paths`}
+                    onClick={() => setPathFilter(on ? '' : key)}>
                     {label} <em>{n}</em>
                   </button>
                 )
@@ -457,13 +461,15 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <div className="tex-filter tex-filter-col">
               {RES_TIERS.map(([key, label]) => {
                 const n = nRes(key)
-                const off = n === 0 && resFilter !== key
+                const on = resFilter === key
+                const off = n === 0 && !on
                 return (
-                  <button key={key || 'all'} disabled={off}
-                    className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
+                  <button key={key} disabled={off}
+                    className={'tex-filter-btn' + (on ? ' on' : '')}
                     title={off ? 'No matches with the current filters'
-                      : key ? `Show only ${label} textures` : 'Show all resolutions'}
-                    onClick={() => setResFilter(key)}>
+                      : on ? 'Click again to clear this filter'
+                        : `Show only ${label} textures`}
+                    onClick={() => setResFilter(on ? '' : key)}>
                     {label} <em>{n}</em>
                   </button>
                 )
@@ -476,19 +482,20 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </Tip>
             </div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'All'],
-                ['rgb', 'RGB'],
+              {([['rgb', 'RGB'],
                 ['rgba', 'RGBA'],
                 ['grey', 'Greyscale'],
               ] as [string, string][]).map(([key, label]) => {
                 const n = nMode(key)
-                const off = n === 0 && modeFilter !== key
+                const on = modeFilter === key
+                const off = n === 0 && !on
                 return (
-                  <button key={key || 'all'} disabled={off}
-                    className={'tex-filter-btn' + (modeFilter === key ? ' on' : '')}
+                  <button key={key} disabled={off}
+                    className={'tex-filter-btn' + (on ? ' on' : '')}
                     title={off ? 'No matches with the current filters'
-                      : key ? `Show only ${label} textures` : 'Show every channel mode'}
-                    onClick={() => setModeFilter(key)}>
+                      : on ? 'Click again to clear this filter'
+                        : `Show only ${label} textures`}
+                    onClick={() => setModeFilter(on ? '' : key)}>
                     {label} <em>{n}</em>
                   </button>
                 )
@@ -503,16 +510,18 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             )}
             {depths.length > 1 && (
               <div className="tex-filter tex-filter-col">
-                {[0, ...depths].map((d) => {
+                {depths.map((d) => {
                   const n = nDepth(d)
-                  const off = n === 0 && depthFilter !== d
+                  const on = depthFilter === d
+                  const off = n === 0 && !on
                   return (
                     <button key={d} disabled={off}
-                      className={'tex-filter-btn' + (depthFilter === d ? ' on' : '')}
+                      className={'tex-filter-btn' + (on ? ' on' : '')}
                       title={off ? 'No matches with the current filters'
-                        : d ? `Show only ${d}-bit textures` : 'Show every bit depth'}
-                      onClick={() => setDepthFilter(d)}>
-                      {d ? `${d} bit` : 'All'} <em>{n}</em>
+                        : on ? 'Click again to clear this filter'
+                          : `Show only ${d}-bit textures`}
+                      onClick={() => setDepthFilter(on ? 0 : d)}>
+                      {d} bit <em>{n}</em>
                     </button>
                   )
                 })}
@@ -527,16 +536,18 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             )}
             {spaces.length > 1 && (
               <div className="tex-filter tex-filter-col">
-                {['', ...spaces].map((s) => {
+                {spaces.map((s) => {
                   const n = nSpace(s)
-                  const off = n === 0 && spaceFilter !== s
+                  const on = spaceFilter === s
+                  const off = n === 0 && !on
                   return (
-                    <button key={s || 'all'} disabled={off}
-                      className={'tex-filter-btn' + (spaceFilter === s ? ' on' : '')}
+                    <button key={s} disabled={off}
+                      className={'tex-filter-btn' + (on ? ' on' : '')}
                       title={off ? 'No matches with the current filters'
-                        : s ? `Show only ${s} textures` : 'Show every colorspace'}
-                      onClick={() => setSpaceFilter(s)}>
-                      {s || 'All'} <em>{n}</em>
+                        : on ? 'Click again to clear this filter'
+                          : `Show only ${s} textures`}
+                      onClick={() => setSpaceFilter(on ? '' : s)}>
+                      {s} <em>{n}</em>
                     </button>
                   )
                 })}
