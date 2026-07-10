@@ -855,6 +855,116 @@ class SceneAdapter:
                         stack.append(down)
                     sh = sh.GetNext()
 
+    _NODE_SPACE_IDS = (
+        "com.redshift3d.redshift4c4d.class.nodespace",
+        "net.maxon.nodespace.standard",
+        "com.autodesk.arnold.nodespace",
+        "com.chaos.vantage.class.nodespace",
+    )
+
+    @staticmethod
+    def _url_to_syspath(s: str) -> str:
+        import os
+        from urllib.parse import unquote
+        s = str(s or "")
+        if s.lower().startswith("file:///"):
+            return unquote(s[len("file:///"):]).replace("/", os.sep)
+        if s.lower().startswith("file://"):
+            return unquote(s[len("file://"):]).replace("/", os.sep)
+        return s
+
+    @staticmethod
+    def _syspath_to_url_string(p: str) -> str:
+        import os
+        p = (p or "").strip()
+        if not p:
+            return ""
+        if "://" in p:
+            return p
+        q = p.replace("\\", "/")
+        if os.path.isabs(p):
+            return "file:///" + q.lstrip("/")
+        return q
+
+    def _node_path_ports(self, mat, raw: str) -> list:
+        try:
+            import maxon
+        except ImportError:
+            return []
+        try:
+            node_mat = mat.GetNodeMaterialReference()
+        except Exception:
+            return []
+        if node_mat is None:
+            return []
+        out: list = []
+        for sid in self._NODE_SPACE_IDS:
+            try:
+                spid = maxon.Id(sid)
+                if not node_mat.HasSpace(spid):
+                    continue
+                graph = node_mat.GetGraph(spid)
+                root = graph.GetViewRoot()
+                nodes = list(root.GetInnerNodes(maxon.NODE_KIND.NODE, False))
+            except Exception:
+                continue
+            for node in nodes:
+                try:
+                    stack = list(node.GetInputs().GetChildren())
+                except Exception:
+                    continue
+                while stack:
+                    port = stack.pop()
+                    try:
+                        stack.extend(port.GetChildren())
+                    except Exception:
+                        pass
+                    try:
+                        val = port.GetDefaultValue()
+                    except Exception:
+                        continue
+                    is_url = isinstance(val, maxon.Url)
+                    if is_url:
+                        sval = self._url_to_syspath(str(val))
+                    elif isinstance(val, str):
+                        sval = val
+                    else:
+                        continue
+                    if sval and self._same_path(sval, raw):
+                        out.append((graph, port, is_url))
+        return out
+
+    def _write_node_paths(self, mat, raw: str, new_path: str) -> bool:
+        ports = self._node_path_ports(mat, raw)
+        if not ports:
+            return False
+        import maxon
+        try:
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, mat)
+        except Exception:
+            pass
+        wrote = False
+        by_graph: dict = {}
+        for graph, port, is_url in ports:
+            by_graph.setdefault(id(graph), (graph, []))[1].append((port, is_url))
+        for graph, plist in by_graph.values():
+            try:
+                with graph.BeginTransaction() as tr:
+                    for port, is_url in plist:
+                        try:
+                            if is_url:
+                                port.SetDefaultValue(
+                                    maxon.Url(self._syspath_to_url_string(new_path)))
+                            else:
+                                port.SetDefaultValue(new_path)
+                            wrote = True
+                        except Exception:
+                            continue
+                    tr.Commit()
+            except Exception:
+                continue
+        return wrote
+
     def _write_path_refs(self, owner, raw: str, new_path: str) -> bool:
         targets = self._find_path_params(owner, raw)
         if not targets:
@@ -878,6 +988,19 @@ class SceneAdapter:
                 wrote = True
             except Exception:
                 continue
+        if not wrote:
+            try:
+                if isinstance(owner, c4d.BaseMaterial):
+                    wrote = self._write_node_paths(owner, raw, new_path)
+            except Exception:
+                pass
+        if not wrote:
+            try:
+                for m in self.doc.GetMaterials():
+                    if self._write_node_paths(m, raw, new_path):
+                        wrote = True
+            except Exception:
+                pass
         return wrote
 
     def _missing_texture_refs(self) -> list:

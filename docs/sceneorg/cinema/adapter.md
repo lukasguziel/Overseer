@@ -160,3 +160,21 @@ Bidirectional bridge document <-> SceneTree.
 - `revert` handles the `texpath` field: it rewrites the current (after) path
   back to the recorded (before) path across every shader holding it — so resize
   and repath are selectively revertible through the M2 history.
+
+## Node-material path writes
+
+`_write_path_refs` covers classic references (Xbitmap `BITMAPSHADER_FILENAME`
+plus any string description parameter). Node materials (Redshift, the standard
+node space, Arnold …) keep their texture path inside a node PORT, which
+`GetAllAssetsNew` reports as an asset but the description walk cannot write —
+that used to leave "missing" rows that clear/relink/repath silently skipped.
+
+When the classic walk writes nothing, `_write_path_refs` now falls back to
+`_write_node_paths`: it walks every node space the material has
+(`_NODE_SPACE_IDS`), recurses all input ports (bundles included), matches
+`maxon.Url` / string values via `_same_path` (URLs converted with
+`_url_to_syspath`), and writes the new value inside a graph transaction
+(`maxon.Url` values get `_syspath_to_url_string`, e.g. `file:///Q:/...`).
+If the direct owner is not the holding material, a last-resort pass tries every
+document material. Undo: `AddUndo(UNDOTYPE_CHANGE, mat)` before the transaction,
+inside the caller's existing `StartUndo/EndUndo` bracket.
