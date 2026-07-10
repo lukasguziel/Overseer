@@ -21,15 +21,14 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 
 ## Language
 
-- **All code, commit messages, and internal log/error strings are written in
-  ENGLISH.** No German in source files. (Docs in `docs/` are English too.)
+- **All code, text, and commit messages are written in ENGLISH.** No German in
+  source files, docs, or UI strings. (Includes comments, log/error strings,
+  docstrings, and frontend UI copy.) Python sources stay ASCII-only (encoding
+  safety).
 - Exceptions (deliberate German, do NOT "fix"):
   - `sceneorg/translations.py` — the DE→EN dictionary keys ARE German.
   - Test fixtures/asserts with German object names ("Möbel", "Küche", …) —
     they are inputs for language-detection/translation tests.
-  - User-visible UI copy (web frontend texts) stays German — product
-    decision, only change when asked.
-- Python sources stay ASCII-only (encoding safety); UI strings may use umlauts.
 
 ## Code conventions
 
