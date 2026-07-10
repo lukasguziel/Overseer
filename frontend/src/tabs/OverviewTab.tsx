@@ -45,6 +45,16 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, compliance, busy, history } = org
   // Which hero map is expanded to the full-screen overlay (null = none).
   const [zoom, setZoom] = React.useState<null | 'geo' | 'tex'>(null)
+  // Health-ring glow at 100 is on by default; clicking the ring toggles it and
+  // the choice is remembered (localStorage) so it stays off across sessions.
+  const [glow, setGlow] = React.useState(() => {
+    try { return localStorage.getItem('so.healthGlow') !== 'off' } catch { return true }
+  })
+  const toggleGlow = () => setGlow((on) => {
+    const next = !on
+    try { localStorage.setItem('so.healthGlow', next ? 'on' : 'off') } catch { /* ignore */ }
+    return next
+  })
   // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -214,8 +224,12 @@ export default function OverviewTab({ org }: { org: Organizer }) {
 
         {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
         <div className={'tile health-tile tile--' + healthTone}>
-          <div className={'health-main' + (health >= 100 ? ' health-perfect' : '')}>
-            <Ring pct={health} tone={healthTone} />
+          <div className={'health-main' + (health >= 100 && glow ? ' health-perfect' : '')}>
+            <span className={'health-ring-btn' + (health >= 100 ? ' clickable' : '')}
+              title={health >= 100 ? (glow ? 'Click to turn off the glow' : 'Click to turn the glow back on') : undefined}
+              onClick={health >= 100 ? toggleGlow : undefined}>
+              <Ring pct={health} tone={healthTone} />
+            </span>
             <Tip text="Overall health = average of the per-area scores (Naming, Layers, Materials …), 0–100. From 80 an area counts as good, from 95 as top. A value only counts once its area has been loaded.">
               <div className="tile-label">Health · {scoreRating(health)}</div>
             </Tip>
