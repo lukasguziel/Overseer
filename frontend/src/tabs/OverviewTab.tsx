@@ -128,6 +128,15 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return { data: out.slice(0, 40), full: out.slice(0, 150), tiers }
   }, [report, org])
 
+  // Category legend for the geometry map — only the categories present among
+  // objects that carry polygons (same order as the fixed category palette).
+  const geoLegend = React.useMemo(() => {
+    const order = ['mesh', 'spline', 'light', 'camera', 'null', 'other']
+    const present = new Set((report?.nodes || []).filter((n) => n.polygons > 0).map((n) => n.category))
+    return order.filter((c) => present.has(c as never))
+      .map((c) => ({ label: c, color: catColor(c) }))
+  }, [report, org])
+
   const displayCasing = React.useMemo(() => {
     const raw = report?.casing || {}
     const conv = org.casing
@@ -265,6 +274,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             </div>
           </div>
           <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={40} />
+          <MapLegend items={geoLegend} />
         </section>
 
         <section className="card">
@@ -278,7 +288,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             </div>
           </div>
           <TreemapChart data={texMap.data} empty="No texture pixel data (files missing or none referenced)." />
-          <TexLegend tiers={texMap.tiers} />
+          <MapLegend items={texMap.tiers} />
         </section>
       </div>
 
@@ -387,10 +397,13 @@ export default function OverviewTab({ org }: { org: Organizer }) {
               <button className="expand-btn" title="Close" onClick={() => setZoom(null)}>✕</button>
             </div>
             {zoom === 'geo'
-              ? <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" />
+              ? <>
+                <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" />
+                <MapLegend items={geoLegend} />
+              </>
               : <>
                 <TreemapChart data={texMap.full} height="62vh" empty="No texture pixel data." />
-                <TexLegend tiers={texMap.tiers} />
+                <MapLegend items={texMap.tiers} />
               </>}
           </div>
         </div>
