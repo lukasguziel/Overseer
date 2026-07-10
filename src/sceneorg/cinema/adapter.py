@@ -619,14 +619,19 @@ class SceneAdapter:
                 "has_alpha": bool(info.has_alpha) if info else False,
                 "greyscale": bool(info.greyscale) if info else False,
                 "colorspace": info.colorspace if info else "",
-                "vram": texmod.vram_bytes(width, height) if info else 0,
+                "vram": texmod.vram_bytes(
+                    width, height,
+                    channels=info.channels,
+                    bit_depth=info.bit_depth) if info else 0,
                 "accepted": raw in accepted_set,
             }
             entries.append(entry)
         absolute = [e for e in entries if e["absolute"]]
         relative = [e for e in entries if not e["absolute"]]
         total_bytes = sum(size for size, _ in meta_cache.values())
-        total_vram = sum(texmod.vram_bytes(info.width, info.height)
+        total_vram = sum(texmod.vram_bytes(info.width, info.height,
+                                           channels=info.channels,
+                                           bit_depth=info.bit_depth)
                          for _size, info in meta_cache.values()
                          if info is not None)
         return {

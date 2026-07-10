@@ -31,14 +31,19 @@ class ImageInfo:
             "has_alpha": self.has_alpha,
             "greyscale": self.greyscale,
             "colorspace": self.colorspace,
-            "vram": vram_bytes(self.width, self.height),
+            "vram": vram_bytes(self.width, self.height,
+                               channels=self.channels,
+                               bit_depth=self.bit_depth),
         }
 
 
-def vram_bytes(width: int, height: int, mipmaps: bool = True) -> int:
+def vram_bytes(width: int, height: int, mipmaps: bool = True,
+               channels: int = 0, bit_depth: int = 0) -> int:
     if width <= 0 or height <= 0:
         return 0
-    base = width * height * 4
+    ch = channels if channels > 0 else 4
+    bpc = bit_depth if bit_depth > 0 else 8
+    base = int(width * height * ch * bpc / 8)
     return int(round(base * MIP_FACTOR)) if mipmaps else base
 
 
@@ -52,7 +57,9 @@ def aggregate(infos) -> dict:
             continue
         count += 1
         total_pixels += info.width * info.height
-        total_vram += vram_bytes(info.width, info.height)
+        total_vram += vram_bytes(info.width, info.height,
+                                 channels=info.channels,
+                                 bit_depth=info.bit_depth)
         px = max(info.width, info.height)
         tier = "8K" if px >= 8192 else "4K" if px >= 4096 \
             else "2K" if px >= 2048 else "< 2K"
