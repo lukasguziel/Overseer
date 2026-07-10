@@ -29,6 +29,28 @@ def test_layer_is_empty_only_without_objects_materials_and_tags():
     assert rep["empty_layers"] == 1
 
 
+def test_hidden_only_layer_is_not_empty_under_visible_perspective():
+    # setup: PARTICLES holds only hidden objects — 0 visible, 13 in total
+    meta = [
+        {"name": "PARTICLES", "materials": 0, "tags": 0},
+        {"name": "Truly Empty", "materials": 0, "tags": 0},
+    ]
+
+    # do it: visible-only object_counts, full counts via all_object_counts
+    rep = layers.build_layer_report(
+        meta, object_counts={},
+        all_object_counts={"PARTICLES": 13})
+
+    # postcondition: hidden objects keep the layer alive; the surfaced
+    # objects_all lets the UI explain why
+    by = {ly["name"]: ly for ly in rep["layers"]}
+    assert by["PARTICLES"]["empty"] is False
+    assert by["PARTICLES"]["objects"] == 0
+    assert by["PARTICLES"]["objects_all"] == 13
+    assert by["Truly Empty"]["empty"] is True
+    assert rep["empty_layers"] == 1
+
+
 def test_layer_report_surfaces_material_and_tag_counts():
     # setup
     meta = [{"name": "Sorting", "materials": 4, "tags": 1}]

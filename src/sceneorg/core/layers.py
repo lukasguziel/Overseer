@@ -17,11 +17,13 @@ class LayerInfo:
     material_count: int = 0
     tag_count: int = 0
     poly_count: int = 0
+    all_object_count: int | None = None
 
     @property
     def empty(self) -> bool:
-        return (self.object_count == 0 and self.material_count == 0
-                and self.tag_count == 0)
+        objs = (self.object_count if self.all_object_count is None
+                else self.all_object_count)
+        return objs == 0 and self.material_count == 0 and self.tag_count == 0
 
     def to_dict(self) -> dict:
         return {
@@ -32,6 +34,8 @@ class LayerInfo:
             "render": self.render,
             "locked": self.locked,
             "objects": self.object_count,
+            "objects_all": (self.object_count if self.all_object_count is None
+                            else self.all_object_count),
             "materials": self.material_count,
             "tags": self.tag_count,
             "polys": self.poly_count,
@@ -41,9 +45,16 @@ class LayerInfo:
 
 def build_layer_report(layer_meta: list, object_counts: dict | None = None,
                        poly_counts: dict | None = None,
-                       no_layer: int = 0) -> dict:
+                       no_layer: int = 0,
+                       all_object_counts: dict | None = None) -> dict:
     object_counts = object_counts or {}
     poly_counts = poly_counts or {}
+
+    def all_count(name: str) -> int | None:
+        if all_object_counts is None:
+            return None
+        return all_object_counts.get(name, 0)
+
     layers: list[LayerInfo] = []
     seen: set = set()
     for m in layer_meta:
@@ -59,13 +70,15 @@ def build_layer_report(layer_meta: list, object_counts: dict | None = None,
             object_count=object_counts.get(name, 0),
             material_count=int(m.get("materials", 0)),
             tag_count=int(m.get("tags", 0)),
-            poly_count=poly_counts.get(name, 0)))
+            poly_count=poly_counts.get(name, 0),
+            all_object_count=all_count(name)))
     for name, n in object_counts.items():
         if name not in seen:
             seen.add(name)
             layers.append(LayerInfo(
                 name=name, object_count=n,
-                poly_count=poly_counts.get(name, 0)))
+                poly_count=poly_counts.get(name, 0),
+                all_object_count=all_count(name)))
     return {
         "layers": [ly.to_dict() for ly in layers],
         "no_layer": no_layer,
