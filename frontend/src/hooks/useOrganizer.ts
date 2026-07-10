@@ -1083,9 +1083,10 @@ export function useOrganizer() {
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
     doRelinkTextures, doClearMissingTextures, doSetTexturePath, doPickTexturePath,
     doTextureResize, doTextureRepath,
-    applyNaming, applyNamingOne, applyStructure, applyStructureOne,
+    applyNaming, applyNamingOne, applyNamingMany,
+    applyStructure, applyStructureOne, applyStructureMany,
     applyLayers, applyLayerOne,
-    applyTranslate, applyTranslateOne, applyPreset,
+    applyTranslate, applyTranslateOne, applyTranslateMany, applyPreset,
   }
 }
 
