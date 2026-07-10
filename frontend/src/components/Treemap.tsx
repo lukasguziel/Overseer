@@ -43,9 +43,12 @@ function treemapBinary(items: TreemapItem[], x: number, y: number, w: number, h:
   }
 }
 
-// Generic weighted treemap: area = value, driven by the caller's data.
-export function TreemapChart({ data, height = 300, empty = 'Nothing to map.' }: {
-  data: TreemapDatum[]; height?: number | string; empty?: string
+// Generic weighted treemap: area = value, driven by the caller's data. In
+// `dense` mode (large overlay with many tiles) labels appear on much smaller
+// tiles and the font shrinks, so file names still show — truncated with an
+// ellipsis — where a normal card would drop them.
+export function TreemapChart({ data, height = 300, empty = 'Nothing to map.', dense = false }: {
+  data: TreemapDatum[]; height?: number | string; empty?: string; dense?: boolean
 }) {
   const cells = React.useMemo(() => {
     const items = data.filter((d) => d.value > 0)
@@ -56,11 +59,13 @@ export function TreemapChart({ data, height = 300, empty = 'Nothing to map.' }: 
     return out
   }, [data])
   if (!cells.length) return <div className="wb-empty">{empty}</div>
+  const minW = dense ? 3.5 : 13
+  const minH = dense ? 4.5 : 11
   return (
-    <div className="treemap" style={{ height }}>
+    <div className={dense ? 'treemap treemap--dense' : 'treemap'} style={{ height }}>
       {cells.map((c, i) => {
         const d = c.datum
-        const big = c.w > 13 && c.h > 11
+        const big = c.w > minW && c.h > minH
         return (
           <button key={d.key ?? i} className="tm-cell"
             style={{ left: c.x + '%', top: c.y + '%', width: c.w + '%', height: c.h + '%', background: d.color }}
@@ -74,8 +79,8 @@ export function TreemapChart({ data, height = 300, empty = 'Nothing to map.' }: 
 }
 
 // Poly treemap: area = polygons, color = category, click -> frame object.
-export default function Treemap({ nodes, onFocus, height = 300, count = 60 }: {
-  nodes: SceneNode[]; onFocus?: FocusFn; height?: number | string; count?: number
+export default function Treemap({ nodes, onFocus, height = 300, count = 60, dense = false }: {
+  nodes: SceneNode[]; onFocus?: FocusFn; height?: number | string; count?: number; dense?: boolean
 }) {
   const data: TreemapDatum[] = React.useMemo(
     () => nodes.filter((n) => n.polygons > 0)
@@ -90,5 +95,5 @@ export default function Treemap({ nodes, onFocus, height = 300, count = 60 }: {
         onClick: () => onFocus?.(n.guid, n.name),
       })),
     [nodes, onFocus, count])
-  return <TreemapChart data={data} height={height} empty="No geometry to map." />
+  return <TreemapChart data={data} height={height} dense={dense} empty="No geometry to map." />
 }
