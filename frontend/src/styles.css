@@ -531,6 +531,16 @@ table.diff td { word-break: break-word; }
 .health-main { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
 .health-main .ring { width: 64px; height: 64px; }
 .health-main .ring-text { font-size: 16px; }
+/* Perfect health (100): the green ring breathes a soft glow. */
+.health-main.health-perfect .ring { animation: health-glow 2.4s ease-in-out infinite; }
+@keyframes health-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--apply) 45%, transparent)); }
+  50%      { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--apply) 85%, transparent)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .health-main.health-perfect .ring { animation: none;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--apply) 65%, transparent)); }
+}
 /* Compact: six sub-scores have to fit the tile without growing it. */
 .health-subs { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;
   justify-content: center; }

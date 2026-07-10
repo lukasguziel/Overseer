@@ -214,7 +214,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
 
         {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
         <div className={'tile health-tile tile--' + healthTone}>
-          <div className="health-main">
+          <div className={'health-main' + (health >= 100 ? ' health-perfect' : '')}>
             <Ring pct={health} tone={healthTone} />
             <Tip text="Overall health = average of the per-area scores (Naming, Layers, Materials …), 0–100. From 80 an area counts as good, from 95 as top. A value only counts once its area has been loaded.">
               <div className="tile-label">Health · {scoreRating(health)}</div>
