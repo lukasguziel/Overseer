@@ -416,9 +416,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             <Workbench
               title="Unused materials" count={deletable} loading={busy}
-              empty={org.includeHidden
-                ? 'Every material is in use 🎉'
-                : 'Every material is used by a visible object 🎉 (switch to All objects to include hidden usage)'}
+              empty={
+                <>
+                  {org.includeHidden
+                    ? 'Every material is in use 🎉'
+                    : 'Every material is used by a visible object 🎉 (switch to All objects to include hidden usage)'}
+                  {missingCount > 0 && (
+                    <span className="wb-empty-more">
+                      Check the missing texture paths below — {missingCount} still need{missingCount === 1 ? 's' : ''} attention
+                      <span className="wb-empty-arrow">↓</span>
+                    </span>
+                  )}
+                </>
+              }
               hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
               applyLabel="Delete all"
               onApply={() => org.doDeleteAllUnused(deletable)}
