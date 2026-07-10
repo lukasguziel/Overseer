@@ -189,7 +189,9 @@ const RES_TIERS: [string, string][] = [
   ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
 ]
 
-const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
+// Missing maps first (they need a decision), then heaviest first.
+const bySize = (a: TextureEntry, b: TextureEntry) =>
+  Number(b.missing) - Number(a.missing) || b.bytes - a.bytes
 
 // Spec filter keys, mirroring the per-row spec badge (e.g. "RGB 32b linear"):
 // channel mode, bit depth and colorspace. null = no pixel data (unknown) —
