@@ -10,8 +10,6 @@ import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
-import GuideFlow, { type GuideCard } from '../components/GuideFlow'
-import { buildLayerGuideSteps } from '../lib/layerGuide'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
@@ -124,72 +122,12 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setBatchLayer('')
   }
 
-  // Guided mode: freeze the current findings into a card list so the walk
-  // does not reshuffle as accepted/assigned rows drop out of the live report.
-  const [guided, setGuided] = useState(false)
-  const [guideCards, setGuideCards] = useState<GuideCard[]>([])
-  const startGuide = () => {
-    const steps = buildLayerGuideSteps(noLayer, suggestionByGuid, layerMismatches)
-    setGuideCards(steps.map((s): GuideCard => {
-      if (s.kind === 'suggestion') {
-        return {
-          key: 'sug-' + s.guid,
-          headline: <>Object “{s.name}” has no layer</>,
-          body: <>The nearest parent container is on the layer “{s.layer}”.
-            Should this object get the same layer?</>,
-          yesLabel: `Yes, assign layer “${s.layer}”`,
-          onYes: () => org.doAssignLayer([s.guid], s.layer!),
-        }
-      }
-      if (s.kind === 'mismatch') {
-        return {
-          key: 'mix-' + s.guid,
-          headline: <>Mixed-layer hierarchy</>,
-          body: <>“{s.name}” is on layer “{s.childLayer}”, its parent
-            “{s.parent}” on “{s.parentLayer}”. This is often intentional.
-            Keep it as-is and remove it from the list?</>,
-          yesLabel: 'Yes, keep as-is',
-          onYes: () => org.keep('layers', s.name),
-        }
-      }
-      return {
-        key: 'nl-' + s.guid,
-        headline: <>Object “{s.name}” has no layer</>,
-        body: <>There is no layer suggestion for this object.
-          Is it fine without a layer?</>,
-        yesLabel: 'Yes, fine without a layer',
-        onYes: () => org.keep('layers', s.name),
-      }
-    }))
-    setGuided(true)
-  }
-
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
-  const guideCount = noLayer.length + layerMismatches.length
-
   return (
     <div className="layers-tab">
-      <div className="guide-toggle-bar">
-        <Tip text="Guided mode: walks through every layer finding one by one — suggestions, objects without a layer and mixed hierarchies. Each card offers only Yes / No / Skip; “Yes” runs exactly the matching action.">
-          <button className="sm" disabled={busy || guided || !guideCount}
-            onClick={startGuide}>
-            ▶ Guided mode{guideCount ? ` (${guideCount})` : ''}
-          </button>
-        </Tip>
-      </div>
-
-      {guided && (
-        <GuideFlow cards={guideCards} onExit={() => setGuided(false)}
-          labels={{
-            no: 'No', skip: 'Skip', exit: 'Done',
-            done: 'All layer findings worked through 🎉',
-            empty: 'Nothing to decide right now.',
-          }} />
-      )}
-
       {/* ---- Side by side: layer overview (left) / no-layer worklist --- */}
       <div className="ov-cols2">
         <section className="card ly-overview">
