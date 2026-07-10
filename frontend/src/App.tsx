@@ -48,6 +48,10 @@ const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string }>> = {
   assets: { title: 'Assets', desc: 'Browse and filter every object in the scene; batch-assign layers or move objects into groups.' },
 }
 
+// "Take my hand" is parked for now — flip to bring the guide button back
+// (the whole feature stays wired underneath).
+const SHOW_HAND_GUIDE = false
+
 export default function App() {
   const org = useOrganizer()
   const { tab, report, error, busy, previewing } = org
@@ -152,7 +156,7 @@ export default function App() {
             "Take my hand" entry point; every other tab keeps its score ring. */}
         <div className="tabs-right">
           {tab === 'overview'
-            ? (
+            ? SHOW_HAND_GUIDE && (
               <button className="hand-nav-btn" onClick={() => setHand(true)}
                 title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
                 🫱
