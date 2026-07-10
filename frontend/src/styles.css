@@ -163,6 +163,9 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .misc-sec span { font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .09em; color: var(--dim2); white-space: nowrap; }
 .misc-sec hr { flex: 1; border: none; border-top: 1px solid var(--line); margin: 0; }
+/* Labelled area divider (Naming tab): the misc rule/line plus a description. */
+.sec-band { display: flex; flex-direction: column; gap: 4px; }
+.sec-desc { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.4; }
 /* About card (Misc tab): links + donate */
 .about-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .about-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
@@ -347,12 +350,19 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .rename-row .nl-input { padding: 3px 8px; border-radius: 6px; }
 
 /* Shared pagination (previews, accepted lists): 25 rows per page */
-.pager { display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 8px 0 6px; }
+.pager { position: relative; display: flex; align-items: center;
+  justify-content: center; gap: 10px; min-height: 30px; padding: 8px 0 6px; }
+.pager-nav { display: inline-flex; align-items: center; gap: 10px; }
 .pager-btn { width: 26px; height: 24px; padding: 0; display: inline-flex;
   align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
 .pager-btn:hover:not(:disabled) { color: var(--text); }
 .pager-info { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* Rows-per-page selector: always pinned bottom-right of the pager row,
+   independent of whether the prev/next nav is shown (which stays centered). */
+.pager-size { position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  background: var(--panel2); color: var(--dim); border: 1px solid var(--line);
+  border-radius: 6px; font-size: 11px; padding: 3px 6px; cursor: pointer; }
+.pager-size:hover { color: var(--text); }
 
 /* Transient status toast (bottom right): success/progress feedback */
 .statusbar { position: fixed; right: 18px; bottom: 16px; z-index: 900;
