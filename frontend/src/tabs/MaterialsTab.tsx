@@ -217,7 +217,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Row selection: check maps in the paths list to scope the batch actions
   // (Resize / Make absolute) to just those rows. Empty = act on the whole
   // filtered set, as before. Keyed by path+material so it survives paging.
-  const rowKey = (e: TextureEntry) => e.path + ' ' + e.material
+  const rowKey = (e: TextureEntry) => e.path + '\n' + e.material
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const toggleRow = (e: TextureEntry) => setSelected((s) => {
     const next = new Set(s); const k = rowKey(e)
@@ -407,6 +407,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </Workbench>
             <AcceptedSection items={mat.accepted_all || []}
               onRestore={(nm) => org.unkeep('materials', nm)}
+              onRestoreAll={() => org.unkeepAll('materials')}
               hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
           </>
         ) : <div className="fl-empty">No material data.</div>}
