@@ -246,7 +246,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
         <div className="stacked" style={{ minWidth: 0 }}>
           {missPager.total > 0 && (
             <section className="card">
-              <div className="card-head">
+              <div className="card-head" style={{ gap: 10 }}>
                 <h3>Missing files</h3>
                 <span className="card-hint">{missPager.total}</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
