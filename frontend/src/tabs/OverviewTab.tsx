@@ -6,7 +6,9 @@ import { humanNum, humanBytes } from '../lib/format'
 import Tile, { type Delta } from '../components/Tile'
 import Strip from '../components/Strip'
 import Treemap from '../components/Treemap'
-import Ring, { type Tone } from '../components/Ring'
+import Ring from '../components/Ring'
+import { scoreRating, scoreTone } from '../lib/score'
+import Tip from '../components/Tip'
 import AssetTable from '../components/AssetTable'
 import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
@@ -63,14 +65,17 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
     const withPx = entries.filter((e) => e.width > 0)
     const tiers: Record<string, number> = {}
-    let mem = 0
+    let clientMem = 0
     for (const e of withPx) {
       const t = Math.max(e.width, e.height) >= 8192 ? '8K'
         : Math.max(e.width, e.height) >= 4096 ? '4K'
           : Math.max(e.width, e.height) >= 2048 ? '2K' : '< 2K'
       tiers[t] = (tiers[t] || 0) + 1
-      mem += e.width * e.height * 4
+      clientMem += e.width * e.height * 4
     }
+    // Prefer the server aggregate (per physical file, counted once, incl. the
+    // mip chain); the per-row client sum is the fallback before it arrives.
+    const mem = report?.textures?.total_vram ?? clientMem
     const top = [...withPx].sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3)
     return { tiers, mem, top, count: withPx.length }
   }, [report])
@@ -92,7 +97,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
-  const toneOf = (pct: number): Tone => pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'low'
+  const toneOf = scoreTone
   const mat = report.materials
   const tex = report.textures
 
@@ -154,14 +159,15 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <div className={'tile health-tile tile--' + healthTone}>
           <div className="health-main">
             <Ring pct={health} tone={healthTone} />
-            <div className="tile-label">Health</div>
+            <Tip text="Gesamt-Gesundheit = Durchschnitt der Bereichs-Scores (Naming, Layers, Materials …), 0–100. Ab 80 gilt ein Bereich als gut, ab 95 als top. Ein Wert zählt erst, wenn sein Bereich einmal geladen wurde.">
+              <div className="tile-label">Health · {scoreRating(health)}</div>
+            </Tip>
           </div>
           <div className="health-subs">
             {subScores.map((s) => (
               <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
                 <Ring pct={s.pct ?? 0} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
-                <span className="hs-label">{s.label}</span>
-                <span className="hs-pct">{s.pct == null ? '…' : `${s.pct}%`}</span>
+                <span className="hs-pct">{s.pct == null ? '…' : s.pct}</span>
               </button>
             ))}
           </div>
@@ -267,7 +273,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
 
         <section className="card">
           <div className="card-head">
-            <h3>Texture budget</h3>
+            <Tip text="Geschätzter Speicherbedarf der Texturen: Breite × Höhe × 4 Byte pro Map, inkl. Mip-Maps (~1,33×) — was die Maps unkomprimiert in RAM/VRAM kosten, unabhängig von der JPG-Größe auf der Platte.">
+              <h3>Texture budget</h3>
+            </Tip>
             <button className="ghost sm" onClick={() => org.setTab('materials')}>Inspect →</button>
           </div>
           {texBudget.count > 0 ? (
@@ -276,7 +284,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
                 <tr><td>Maps with pixel data</td><td>{texBudget.count}</td></tr>
                 <tr>
                   <td>Est. uncompressed memory</td>
-                  <td title="width × height × 4 bytes per map — what the maps cost in RAM/VRAM, regardless of JPG compression on disk">
+                  <td title="width × height × 4 bytes per map incl. mipmaps (~1.33×) — what the maps cost in RAM/VRAM, regardless of JPG compression on disk">
                     {humanBytes(texBudget.mem)}
                   </td>
                 </tr>
