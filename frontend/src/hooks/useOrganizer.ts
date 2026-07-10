@@ -378,11 +378,27 @@ export function useOrganizer() {
   }, [doAnalyze])
 
   // Asset browser batch actions: explicit guids + explicit target, no plan.
-  const doAssignLayer = (guids: number[], layer: string) => run('Assign layer', async () => {
-    const r = await call('assign_layer', { guids, layer })
-    setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → layer “${layer}” ✓ (undoable)`)
-    doAnalyze()
-  })
+  // Layer assignment is OPTIMISTIC: the report's nodes get the new layer
+  // immediately (the no-layer worklist row disappears in the same frame),
+  // the server call runs in the background and a debounced re-analysis
+  // reconciles counts — no global busy lock, no blocking overlay.
+  const doAssignLayer = useCallback((guids: number[], layer: string) => {
+    const gs = new Set(guids)
+    setReport((r) => r
+      ? { ...r, nodes: (r.nodes || []).map((n) => gs.has(n.guid) ? { ...n, layer } : n) }
+      : r)
+    setStatus(`Assigning layer “${layer}”…`)
+    call('assign_layer', { guids, layer })
+      .then((r) => {
+        setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → layer “${layer}” ✓ (undoable)`)
+        refreshSoon()
+      })
+      .catch((e) => {
+        // Roll back by re-analyzing — the optimistic state was wrong.
+        setError(String(e.message || e)); setStatus('Assign layer ✗')
+        doAnalyze()
+      })
+  }, [refreshSoon, doAnalyze])
 
   const doMoveToGroup = (guids: number[], group: string) => run('Move to group', async () => {
     const r = await call('move_to_group', { guids, group })
