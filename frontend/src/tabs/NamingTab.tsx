@@ -62,6 +62,9 @@ export default function NamingTab({ org }: { org: Organizer }) {
       items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
   ]
   const pager = usePager(naming?.diff || [], 10)
+  // Open cleanup items (default + duplicate names not yet renamed/accepted) —
+  // when the rename preview is empty but these remain, nudge the user down.
+  const openCleanup = hyg.defaults.length + hyg.dupes.length
 
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
@@ -170,7 +173,17 @@ export default function NamingTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
-          empty="Every name already matches your rules 🎉"
+          empty={
+            <>
+              Every name already matches your rules 🎉
+              {openCleanup > 0 && (
+                <span className="wb-empty-more">
+                  Check the cleanup area below for {openCleanup} open item{openCleanup === 1 ? '' : 's'}
+                  <span className="wb-empty-arrow">↓</span>
+                </span>
+              )}
+            </>
+          }
           hint="Click a row to select & frame the object in Cinema 4D · ✓ renames it · = keeps the name"
           applyLabel="Apply all" onApply={org.applyNaming}
           onAcceptAll={() => org.keepAll('naming')} busy={busy}
