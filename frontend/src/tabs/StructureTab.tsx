@@ -33,7 +33,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
           <h3>Options</h3>
           <label className="check">
             <input type="checkbox" checked={tidy} onChange={(e) => org.setTidy(e.target.checked)} />
-            <Tip text="Sammelt nur lose Objekte in ihre Gruppe. Objekte, die bereits in einer (auch verschachtelten) Gruppe liegen, bleiben unangetastet — die Hierarchie wird nie plattgemacht.">
+            <Tip text="Collects only loose objects into their group. Objects already inside a group (even nested) are left untouched — the hierarchy is never flattened.">
               <span>Tidy mode</span>
             </Tip>
           </label>
@@ -44,7 +44,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
           </p>
           <label className="check">
             <input type="checkbox" checked={safe} onChange={(e) => org.setSafe(e.target.checked)} />
-            <Tip text="Schützt Generator-Kinder (Cloner, Boole, Sweep …) davor, verschoben zu werden.">
+            <Tip text="Protects generator children (Cloner, Boole, Sweep …) from being moved.">
               <span>Safety filter</span>
             </Tip>
           </label>

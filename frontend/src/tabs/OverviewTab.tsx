@@ -14,16 +14,15 @@ import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 import { IconExpand } from '../components/icons'
-import type { ResTier } from '../lib/colors'
 
-// Color legend for the texture map — only the tiers actually present.
-function TexLegend({ tiers }: { tiers: ResTier[] }) {
-  if (!tiers.length) return null
+// Color legend for a map — only ever lists the swatches actually present.
+function MapLegend({ items }: { items: { label: string; color: string }[] }) {
+  if (!items.length) return null
   return (
     <div className="tex-legend">
-      {tiers.map((t) => (
-        <span key={t.label} className="tex-legend-item">
-          <span className="tex-legend-dot" style={{ background: t.color }} />{t.label}
+      {items.map((it) => (
+        <span key={it.label} className="tex-legend-item">
+          <span className="tex-legend-dot" style={{ background: it.color }} />{it.label}
         </span>
       ))}
     </div>
@@ -124,9 +123,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         onClick: () => org.doFocusMaterial(e.material),
       })
     }
-    const data = out.sort((a, b) => b.value - a.value).slice(0, 40)
+    out.sort((a, b) => b.value - a.value)
     const tiers = RES_TIERS.filter((t) => usedTiers.has(t.color))
-    return { data, tiers }
+    return { data: out.slice(0, 40), full: out.slice(0, 150), tiers }
   }, [report, org])
 
   const displayCasing = React.useMemo(() => {
@@ -390,7 +389,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             {zoom === 'geo'
               ? <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" />
               : <>
-                <TreemapChart data={texMap.data} height="62vh" empty="No texture pixel data." />
+                <TreemapChart data={texMap.full} height="62vh" empty="No texture pixel data." />
                 <TexLegend tiers={texMap.tiers} />
               </>}
           </div>

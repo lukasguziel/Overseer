@@ -127,30 +127,30 @@ export default function LayersTab({ org }: { org: Organizer }) {
       if (s.kind === 'suggestion') {
         return {
           key: 'sug-' + s.guid,
-          headline: <>Objekt „{s.name}“ hat keine Ebene</>,
-          body: <>Der nächste übergeordnete Container liegt auf der Ebene „{s.layer}“.
-            Soll dieses Objekt dieselbe Ebene erhalten?</>,
-          yesLabel: `Ja, Ebene „${s.layer}“ zuweisen`,
+          headline: <>Object “{s.name}” has no layer</>,
+          body: <>The nearest parent container is on the layer “{s.layer}”.
+            Should this object get the same layer?</>,
+          yesLabel: `Yes, assign layer “${s.layer}”`,
           onYes: () => org.doAssignLayer([s.guid], s.layer!),
         }
       }
       if (s.kind === 'mismatch') {
         return {
           key: 'mix-' + s.guid,
-          headline: <>Gemischte Ebenen-Hierarchie</>,
-          body: <>„{s.name}“ liegt auf Ebene „{s.childLayer}“, das übergeordnete
-            „{s.parent}“ auf „{s.parentLayer}“. Das ist häufig gewollt.
-            So belassen und aus der Liste nehmen?</>,
-          yesLabel: 'Ja, so belassen',
+          headline: <>Mixed-layer hierarchy</>,
+          body: <>“{s.name}” is on layer “{s.childLayer}”, its parent
+            “{s.parent}” on “{s.parentLayer}”. This is often intentional.
+            Keep it as-is and remove it from the list?</>,
+          yesLabel: 'Yes, keep as-is',
           onYes: () => org.keep('layers', s.name),
         }
       }
       return {
         key: 'nl-' + s.guid,
-        headline: <>Objekt „{s.name}“ hat keine Ebene</>,
-        body: <>Für dieses Objekt gibt es keinen Ebenen-Vorschlag.
-          Ist es ohne Ebene in Ordnung?</>,
-        yesLabel: 'Ja, ohne Ebene in Ordnung',
+        headline: <>Object “{s.name}” has no layer</>,
+        body: <>There is no layer suggestion for this object.
+          Is it fine without a layer?</>,
+        yesLabel: 'Yes, fine without a layer',
         onYes: () => org.keep('layers', s.name),
       }
     }))
@@ -166,10 +166,10 @@ export default function LayersTab({ org }: { org: Organizer }) {
   return (
     <div className="layers-tab">
       <div className="guide-toggle-bar">
-        <Tip text="Geführter Modus: geht alle Ebenen-Funde einzeln durch — Vorschläge, Objekte ohne Ebene und gemischte Hierarchien. Pro Karte nur Ja / Nein / Überspringen; „Ja“ führt genau die passende Aktion aus.">
+        <Tip text="Guided mode: walks through every layer finding one by one — suggestions, objects without a layer and mixed hierarchies. Each card offers only Yes / No / Skip; “Yes” runs exactly the matching action.">
           <button className="sm" disabled={busy || guided || !guideCount}
             onClick={startGuide}>
-            ▶ Geführter Modus{guideCount ? ` (${guideCount})` : ''}
+            ▶ Guided mode{guideCount ? ` (${guideCount})` : ''}
           </button>
         </Tip>
       </div>
@@ -177,9 +177,9 @@ export default function LayersTab({ org }: { org: Organizer }) {
       {guided && (
         <GuideFlow cards={guideCards} onExit={() => setGuided(false)}
           labels={{
-            no: 'Nein', skip: 'Überspringen', exit: 'Fertig',
-            done: 'Alle Ebenen-Funde durchgearbeitet 🎉',
-            empty: 'Aktuell gibt es nichts zu entscheiden.',
+            no: 'No', skip: 'Skip', exit: 'Done',
+            done: 'All layer findings worked through 🎉',
+            empty: 'Nothing to decide right now.',
           }} />
       )}
 
@@ -314,7 +314,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
       {layerMismatches.length > 0 && (
         <section className="card ly-mismatches">
           <div className="card-head">
-            <Tip text="Objekt liegt auf einer anderen Ebene als sein übergeordnetes Objekt. Rein informativ — oft absichtlich; hier wird nie automatisch etwas geändert.">
+            <Tip text="Object sits on a different layer than its parent. Informational only — often intentional; nothing here is ever changed automatically.">
               <h3>Mixed-layer hierarchies</h3>
             </Tip>
             <span className="hint-sm" style={{ margin: 0 }}>

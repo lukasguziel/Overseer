@@ -143,13 +143,13 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
       <div className="asset-controls">
         <input className="search" placeholder="Search name, type or layer…" value={query}
           onChange={(e) => setQuery(e.target.value)} />
-        <Tip text="Nur Objekte mit Polygonen zeigen — blendet Nulls, Splines und leere Container aus.">
+        <Tip text="Show only objects with polygons — hides nulls, splines and empty containers.">
           <label className="check inline">
             <input type="checkbox" checked={onlyGeo} onChange={(e) => setOnlyGeo(e.target.checked)} />
             only geometry
           </label>
         </Tip>
-        <Tip text="Nur Objekte zeigen, die keiner Ebene zugeordnet sind.">
+        <Tip text="Show only objects that are not assigned to any layer.">
           <label className="check inline">
             <input type="checkbox" checked={noLayer} onChange={(e) => setNoLayer(e.target.checked)} />
             no layer
@@ -241,12 +241,12 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
           <thead><tr>
             <th className="sel"><input ref={headRef} type="checkbox" checked={allShownSel}
               onChange={toggleAllShown} title="Select all shown rows" /></th>
-            <th className="l"><Tip text="Objektname. Zeile anklicken wählt das Objekt in Cinema 4D aus und rahmt es ein."><span>Name</span></Tip></th>
-            <th><Tip text="Objekttyp in Cinema 4D (z. B. Polygon-Objekt, Null, Licht)."><span>Type</span></Tip></th>
-            {th('layer', 'Layer', undefined, 'Ebene, auf der das Objekt liegt. „—“ heißt: keiner Ebene zugeordnet.')}
-            {th('polygons', 'Polygons', 'r', 'Anzahl Polygone des Objekts. Spaltenkopf klicken sortiert danach.')}
-            {th('points', 'Points', 'r', 'Anzahl Punkte des Objekts. Spaltenkopf klicken sortiert danach.')}
-            {th('children', 'Children', 'r', 'Anzahl direkt untergeordneter Objekte in der Hierarchie.')}
+            <th className="l"><Tip text="Object name. Click a row to select & frame the object in Cinema 4D."><span>Name</span></Tip></th>
+            <th><Tip text="Object type in Cinema 4D (e.g. polygon object, null, light)."><span>Type</span></Tip></th>
+            {th('layer', 'Layer', undefined, 'Layer the object sits on. “—” means: not assigned to any layer.')}
+            {th('polygons', 'Polygons', 'r', 'Polygon count of the object. Click the column header to sort by it.')}
+            {th('points', 'Points', 'r', 'Point count of the object. Click the column header to sort by it.')}
+            {th('children', 'Children', 'r', 'Number of direct children in the hierarchy.')}
           </tr></thead>
           <tbody>
             {shown.map((n) => (

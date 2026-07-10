@@ -6,21 +6,21 @@ export const RULE_CATEGORIES: Category[] = ['light', 'camera', 'null', 'mesh', '
 
 export const RULE_TYPE_LABELS: Record<RuleType, string> = {
   prefix: 'Prefix',
-  renumber: 'Nummerierung',
-  condition: 'Wenn/Dann',
+  renumber: 'Numbering',
+  condition: 'If/Then',
   layer: 'Layer',
 }
 
-// German phrase describing which objects a match selects (UI copy).
+// Plain-language phrase describing which objects a match selects (UI copy).
 export function matchLabel(m?: MatchJson): string {
-  if (!m) return 'alle Objekte'
+  if (!m) return 'all objects'
   const parts: string[] = []
   if (m.categories?.length) parts.push(m.categories.join(', '))
-  if (m.keywords?.length) parts.push('Namen mit ' + m.keywords.map((k) => `„${k}“`).join('/'))
-  if (m.types?.length) parts.push('Typ ' + m.types.join('/'))
-  if (m.name_regex) parts.push(`Regex /${m.name_regex}/`)
-  let s = parts.length ? parts.join(', ') : 'alle Objekte'
-  if (m.under_group) s += ` unter „${m.under_group}“`
+  if (m.keywords?.length) parts.push('names containing ' + m.keywords.map((k) => `“${k}”`).join('/'))
+  if (m.types?.length) parts.push('type ' + m.types.join('/'))
+  if (m.name_regex) parts.push(`regex /${m.name_regex}/`)
+  let s = parts.length ? parts.join(', ') : 'all objects'
+  if (m.under_group) s += ` under “${m.under_group}”`
   return s
 }
 
@@ -28,23 +28,23 @@ export function matchLabel(m?: MatchJson): string {
 export function ruleLabel(r: RuleV2): string {
   switch (r.type) {
     case 'prefix':
-      return `Prefix „${r.prefix}“ für ${matchLabel(r.match)}`
+      return `Prefix “${r.prefix}” for ${matchLabel(r.match)}`
     case 'renumber':
-      return `Nummerierung: Lücken schließen, Padding ${r.pad}`
-        + (r.per_parent ? ', pro Elternobjekt' : '')
+      return `Numbering: close gaps, padding ${r.pad}`
+        + (r.per_parent ? ', per parent' : '')
         + ` (${matchLabel(r.match)})`
     case 'condition': {
       const conds: string[] = []
-      if (r.when.duplicates_gt != null) conds.push(`Duplikate > ${r.when.duplicates_gt}`)
+      if (r.when.duplicates_gt != null) conds.push(`duplicates > ${r.when.duplicates_gt}`)
       if (r.when.match) conds.push(matchLabel(r.when.match))
       const acts: string[] = []
-      if (r.then.suffix_scheme) acts.push(r.then.suffix_scheme === 'alpha' ? 'Suffix A/B/C' : 'Suffix 1/2/3')
-      if (r.then.apply_prefix) acts.push(`Prefix „${r.then.apply_prefix}“`)
-      if (r.then.assign_layer) acts.push(`Layer „${r.then.assign_layer}“`)
-      return `Wenn ${conds.join(' & ') || 'immer'} → ${acts.join(', ') || '(keine Aktion)'}`
+      if (r.then.suffix_scheme) acts.push(r.then.suffix_scheme === 'alpha' ? 'suffix A/B/C' : 'suffix 1/2/3')
+      if (r.then.apply_prefix) acts.push(`prefix “${r.then.apply_prefix}”`)
+      if (r.then.assign_layer) acts.push(`layer “${r.then.assign_layer}”`)
+      return `If ${conds.join(' & ') || 'always'} → ${acts.join(', ') || '(no action)'}`
     }
     case 'layer':
-      return `Layer „${r.layer}“ für ${matchLabel(r.match)}`
+      return `Layer “${r.layer}” for ${matchLabel(r.match)}`
   }
 }
 

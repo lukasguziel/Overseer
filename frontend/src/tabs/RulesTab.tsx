@@ -176,16 +176,16 @@ export default function RulesTab() {
   return (
     <GraphCtx.Provider value={{ update, remove }}>
       <div className="rf-toolbar">
-        <Tip text="Schlüsselwort-Knoten: Objekte, deren Name eines dieser Wörter enthält, werden der verbundenen Gruppe zugeordnet.">
+        <Tip text="Keyword node: objects whose name contains one of these words are assigned to the connected group.">
           <button onClick={() => addNode('keyword')}>+ Keyword</button>
         </Tip>
-        <Tip text="Kategorie-Knoten: ordnet alle Objekte eines Typs (Licht, Kamera, Mesh …) der verbundenen Gruppe zu.">
+        <Tip text="Category node: assigns all objects of one type (light, camera, mesh …) to the connected group.">
           <button onClick={() => addNode('category')}>+ Category</button>
         </Tip>
-        <Tip text="Gruppen-Knoten: das Ziel, unter dem passende Objekte gesammelt werden. Verbinde Keyword-/Kategorie-Knoten damit.">
+        <Tip text="Group node: the target under which matching objects are collected. Connect keyword/category nodes to it.">
           <button onClick={() => addNode('group')}>+ Group</button>
         </Tip>
-        <Tip text="Schreibt die Regeln in config.json — das Plugin nutzt sie sofort.">
+        <Tip text="Writes the rules to config.json — the plugin uses them immediately.">
           <button className="apply" onClick={save}>Save → config.json</button>
         </Tip>
         <span className="status">{status}</span>

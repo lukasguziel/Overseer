@@ -75,7 +75,7 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
       {/* READ row: the values as they are right now — neutral chips, purely
           informational (click = select those objects in C4D). */}
       <div className="gens-row">
-        <Tip text="Die aktuell gesetzten Werte in der Szene — nur informativ. Ein Wert-Chip anklicken wählt die betroffenen Objekte in Cinema 4D aus.">
+        <Tip text="The values currently set in the scene — informational only. Click a value chip to select the affected objects in Cinema 4D.">
           <span className="gens-microlabel">Current values</span>
         </Tip>
         <div className="gens-chips">
@@ -98,7 +98,7 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
       </div>
       {/* WRITE row: the one editable thing in this block. */}
       <div className="gens-row gens-row-action">
-        <Tip text="Setzt diese Einstellung bei allen Objekten dieses Generatortyps auf den gewählten Wert — in einem einzigen widerrufbaren Schritt.">
+        <Tip text="Sets this setting on all objects of this generator type to the chosen value — in a single undoable step.">
           <span className="gens-microlabel accent">Change all to</span>
         </Tip>
         {param.kind === 'int' ? (
@@ -203,7 +203,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
         <div className="substats">
           <span><b>{s.total_generators}</b> generators</span>
           <span><b>{s.types_found}</b> types</span>
-          <Tip text="Einstellungen, bei denen gleichartige Generatoren unterschiedliche Werte haben — z. B. verschiedene Unterteilungsstufen. Lassen sich unten auf einen Wert angleichen.">
+          <Tip text="Settings where generators of the same type have different values — e.g. different subdivision levels. They can be unified to one value below.">
             <span className={s.non_uniform_params ? 'warn' : ''}>
               <b>{s.non_uniform_params}</b> mixed setting{s.non_uniform_params === 1 ? '' : 's'}
             </span>

@@ -65,10 +65,10 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
   return (
     <div className="fa-table">
       <div className="fa-tr fa-thead">
-        <Tip text="Dateiname der externen Referenz. Farbiges Kürzel = Art (Alembic, Cache, IES …)."><span>File</span></Tip>
-        <Tip text="Objekt oder Material, das die Datei referenziert. Zeile anklicken wählt es in Cinema 4D aus."><span>Owner</span></Tip>
-        <Tip text="Dateigröße auf der Festplatte."><span className="num">Size</span></Tip>
-        <Tip text="Gespeicherter Pfad. Badge zeigt absolut / relativ / fehlend."><span>Path</span></Tip>
+        <Tip text="File name of the external reference. Colored badge = kind (Alembic, cache, IES …)."><span>File</span></Tip>
+        <Tip text="Object or material that references the file. Click a row to select it in Cinema 4D."><span>Owner</span></Tip>
+        <Tip text="File size on disk."><span className="num">Size</span></Tip>
+        <Tip text="Stored path. Badge shows absolute / relative / missing."><span>Path</span></Tip>
       </div>
       {rows.map((e, i) => {
         const actionable = e.missing && (onPick || onAccept)
