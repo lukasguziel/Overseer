@@ -467,7 +467,7 @@ def _google_plan(tree, scope, target: str, progress=None):
     nodes = [n for n in tree.walk()
              if (scope is None or n.guid in scope) and n.name.strip()]
     if not nodes:
-        return [], None
+        return [], None, {"total": 0, "counts": {}, "dominant": "unknown"}
 
     cache = _load_gcache()
 

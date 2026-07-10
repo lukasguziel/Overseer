@@ -849,12 +849,13 @@ export function useOrganizer() {
         setDocName(d.name ?? null)  // triggers per-project settings hydration on switch
         const last = lastDirty.current
         if (!last) return
-        const sceneChanged = d.dirty !== last.dirty || d.name !== last.name
+        const docChanged = d.name !== last.name
+        const sceneChanged = d.dirty !== last.dirty || docChanged
         const selChanged = d.sel !== last.sel
-        if (autoRefresh && (sceneChanged || (scope && selChanged))) {
-          // Refresh ALL areas (not just the report): under selection scope a
-          // selection change should update every tab and nav badge at once,
-          // shown behind the stepped reload overlay.
+        // A DOCUMENT switch always reloads everything, even in manual mode —
+        // the server now answers for a different scene, so every displayed
+        // number (report, plans, audits, health) is stale, not merely old.
+        if (docChanged || (autoRefresh && (sceneChanged || (scope && selChanged)))) {
           refreshing.current = true
           Promise.resolve(reloadEverythingRef.current())
             .finally(() => { refreshing.current = false })
