@@ -11,6 +11,7 @@ import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
 import Tip from '../components/Tip'
 import TabIntro from '../components/TabIntro'
+import { IconFolder } from '../components/icons'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -127,8 +128,8 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
       {actionable && (
         <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
           {onPick && (
-            <button className="rn-ok" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
-              onClick={() => onPick(e)}>…</button>
+            <button className="rn-ok rn-icon" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
+              onClick={() => onPick(e)}><IconFolder /></button>
           )}
           {onClear && (
             <button className="rn-no" title="Clear this dead reference — the material stops pointing at the missing file (undoable)"
@@ -673,7 +674,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                         .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
                         .catch(() => {})
                     }}>
-                    … Relink {missingCount} missing
+                    <IconFolder /> Relink {missingCount} missing
                   </button>
                   <button className="wb-accept-all" disabled={busy}
                     title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
