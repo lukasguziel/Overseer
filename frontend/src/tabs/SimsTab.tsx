@@ -47,7 +47,7 @@ function groupByKind(hits: SimHit[]): Record<string, number[]> {
 
 function StateBadges({ hit }: { hit: SimHit }) {
   return (
-    <Tip className="sim-badges-tip" text="Zustand dieser Simulation: aktiviert/deaktiviert, ob ein Cache gebacken ist (ohne Cache läuft sie live) und ob das Objekt ausgeblendet ist.">
+    <Tip className="sim-badges-tip" text="State of this simulation: enabled/disabled, whether a cache is baked (without a cache it solves live) and whether the object is hidden.">
     <span className="sim-badges">
       {hit.enabled === true && <span className="tex-badge sim-ok">enabled</span>}
       {hit.enabled === false && <span className="tex-badge sim-dim">disabled</span>}
@@ -115,7 +115,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
           {Object.entries(s.by_kind).map(([k, n]) => (
             <span key={k}><b>{n}</b> {k}</span>
           ))}
-          <Tip text="Aktive Simulationen auf ausgeblendeten Objekten — sie kosten Rechenzeit beim Lösen, ohne dass man das Ergebnis sieht.">
+          <Tip text="Active simulations on hidden objects — they cost solve time without the result ever being visible.">
             <span className={s.active_hidden ? 'warn' : ''}>
               <b>{s.active_hidden}</b> active on hidden
             </span>

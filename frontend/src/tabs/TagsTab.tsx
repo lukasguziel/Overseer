@@ -125,10 +125,10 @@ export default function TagsTab({ org }: { org: Organizer }) {
         <div className="substats">
           <span><b>{s?.total_tags ?? 0}</b> tags</span>
           <span><b>{s?.tag_types ?? 0}</b> types</span>
-          <Tip text="Polygon-Objekte ohne Phong-Tag rendern hart facettiert. Unten lassen sie sich stapelweise mit einem Phong-Tag versehen.">
+          <Tip text="Polygon objects without a Phong tag render hard-faceted. Below they can be given a Phong tag in batch.">
             <span className={s?.missing_phong ? 'warn' : ''}><b>{s?.missing_phong ?? 0}</b> missing phong</span>
           </Tip>
-          <Tip text="Objekte, die dasselbe Material über mehrere Textur-Tags mehrfach tragen. Die redundanten Kopien bewirken nichts.">
+          <Tip text="Objects that carry the same material multiple times via several texture tags. The redundant copies do nothing.">
             <span className={s?.duplicate_material_tags ? 'warn' : ''}><b>{s?.duplicate_material_tags ?? 0}</b> duplicate material tags</span>
           </Tip>
         </div>
@@ -222,7 +222,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
       <div className="ov-cols2">
       <section className="card">
         <div className="card-head">
-          <Tip text="Der Phong-Winkel bestimmt, bis zu welchem Kantenwinkel Flächen weich schattiert werden. „Dominant“ ist der in der Szene am häufigsten genutzte Wert.">
+          <Tip text="The Phong angle sets up to which edge angle surfaces are shaded smoothly. “Dominant” is the value used most often in the scene.">
             <h3>Phong angles</h3>
           </Tip>
           {dominant != null && <span className="card-hint">dominant {dominant}°</span>}

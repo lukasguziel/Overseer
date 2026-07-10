@@ -79,7 +79,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
             so you always see why a name would change.</p>
 
           <div className="rule-group-head">
-            <Tip text="Schreibweise der Namen — z. B. PascalCase, camelCase oder lower_snake. Vereinheitlicht Groß-/Kleinschreibung und Trennzeichen, ohne die Sprache zu ändern.">
+            <Tip text="Casing style of the names — e.g. PascalCase, camelCase or lower_snake. Unifies capitalization and separators without changing the language.">
               <span>Casing</span>
             </Tip>
           </div>
@@ -130,7 +130,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
           )}
 
           <div className="rule-group-head">
-            <Tip text="Nummerierung am Namensende auf eine feste Stellenzahl auffüllen (z. B. Wand1 → Wand01). „Keine“ lässt vorhandene Zahlen unverändert.">
+            <Tip text="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01). “None” leaves existing numbers unchanged.">
               <span>Numbering</span>
             </Tip>
           </div>

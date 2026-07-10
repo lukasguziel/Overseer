@@ -41,7 +41,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         </p>
 
         <label>
-          <Tip text="Zielsprache, in die die Objektnamen Wort für Wort übersetzt werden. Schreibweise, Trennzeichen und Zahlen bleiben unverändert.">
+          <Tip text="Target language the object names are translated into word by word. Casing, separators and numbers stay unchanged.">
             <span>Target language</span>
           </Tip>
           <select value={translateTarget} onChange={(e) => setTranslateTarget(e.target.value)}>
@@ -52,7 +52,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         </label>
 
         <label>
-          <Tip text="Offline-Wörterbücher übersetzen nur EN/DE, arbeiten aber lokal. Google übersetzt jede Sprache, sendet die Namen dafür aber online an Google.">
+          <Tip text="Offline dictionaries only translate EN/DE but work locally. Google translates any language, but sends the names online to Google.">
             <span>Engine</span>
           </Tip>
           <select value={translateEngine} onChange={(e) => {
@@ -70,7 +70,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
             internet and takes a moment on large scenes.</p>
         )}
 
-        <Tip text="Sprache der vorhandenen Namen, automatisch erkannt. Ein Name zählt nur so lange zu seiner Quellsprache, wie eine Übersetzung ihn tatsächlich ändern würde.">
+        <Tip text="Language of the existing names, detected automatically. A name only counts toward its source language as long as a translation would actually change it.">
           <h3>Detected in scene</h3>
         </Tip>
         {detected && detected.total > 0

@@ -84,7 +84,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
       <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
-            <Tip text="Jede über das Tool gemachte Änderung, neueste zuerst. Aufklappen zeigt vorher → nachher; „Revert“ stellt die alten Werte in einem Widerruf-Schritt wieder her.">
+            <Tip text="Every change made through the tool, newest first. Expand to see before → after; “Revert” restores the old values in one undo step.">
               <h3>Change history</h3>
             </Tip>
             {changes.length > 0 && (
@@ -102,7 +102,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
 
         <section className="card">
           <div className="card-head">
-            <Tip text="Jeder Analyse-Durchlauf, neueste zuerst. Aufklappen zeigt die vollständigen Kennzahlen dieses Snapshots. Bis zu 100 werden gespeichert.">
+            <Tip text="Every analysis run, newest first. Expand to see the full metrics of that snapshot. Up to 100 are kept.">
               <h3>Analysis history</h3>
             </Tip>
           </div>
