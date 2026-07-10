@@ -83,6 +83,7 @@ export interface TextureEntry {
   greyscale?: boolean    // single-channel / luminance image
   colorspace?: string    // colorspace tag where readable ('sRGB','linear',…)
   vram?: number          // estimated uncompressed RGBA cost incl. mipmaps (bytes)
+  accepted?: boolean     // accepted-as-missing: acknowledged, no longer a problem
 }
 
 export interface TextureReport {
@@ -96,6 +97,8 @@ export interface TextureReport {
   total_vram?: number    // estimated uncompressed RGBA cost incl. mipmaps (bytes)
   absolute: TextureEntry[]
   relative: TextureEntry[]
+  accepted?: string[]        // accepted-as-missing paths currently in the scene
+  accepted_all?: string[]    // full accepted set from config (restore source)
 }
 
 export interface SceneReport {

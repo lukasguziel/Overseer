@@ -541,8 +541,9 @@ class SceneAdapter:
                 refs.append((name, raw, used))
         return refs
 
-    def scan_textures(self, include_hidden: bool = True) -> dict:
+    def scan_textures(self, include_hidden: bool = True, accepted=None) -> dict:
         import os
+        accepted_set = {str(p) for p in (accepted or [])}
 
         from ..core import imagesize
         from ..core import textures as texmod
@@ -619,6 +620,7 @@ class SceneAdapter:
                 "greyscale": bool(info.greyscale) if info else False,
                 "colorspace": info.colorspace if info else "",
                 "vram": texmod.vram_bytes(width, height) if info else 0,
+                "accepted": raw in accepted_set,
             }
             entries.append(entry)
         absolute = [e for e in entries if e["absolute"]]
@@ -632,12 +634,16 @@ class SceneAdapter:
             "total": len(entries),
             "absolute_count": len(absolute),
             "relative_count": len(relative),
-            "missing_count": sum(1 for e in entries if e["missing"]),
+            "missing_count": sum(1 for e in entries
+                                 if e["missing"] and not e["accepted"]),
             "relocatable_count": sum(1 for e in entries if e["relocatable"]),
             "total_bytes": total_bytes,
             "total_vram": total_vram,
             "absolute": absolute,
             "relative": relative,
+            "accepted": sorted({e["path"] for e in entries
+                                if e["missing"] and e["accepted"]}),
+            "accepted_all": sorted(accepted_set),
         }
 
     def make_textures_relative(self, materials: list | None = None) -> dict:
