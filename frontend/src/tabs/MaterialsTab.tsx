@@ -131,13 +131,13 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
-        <Tip text="Pfad wie im Shader gespeichert — auf das ⓘ in der Zeile zeigen, um ihn zu sehen."><span className="tex-info">ⓘ</span></Tip>
-        <Tip text="Dateiname der Textur. Miniatur anklicken öffnet das Bild im Bildbetrachter."><span>File</span></Tip>
-        <Tip text="Badge zeigt absolut / relativ / fehlend — „→ relativ“ lässt sich mit einem Klick umschreiben. Vollen Pfad zeigt das ⓘ links."><span>Path</span></Tip>
-        <Tip text="Auflösungsstufe (z. B. 4K/8K). Schwere Maps fallen so sofort auf."><span className="num">Res</span></Tip>
-        <Tip text="Echte Pixelmaße der Datei."><span className="num">Pixels</span></Tip>
-        <Tip text="Dateigröße auf der Festplatte."><span className="num">Size</span></Tip>
-        <Tip text="Material, das diese Textur verwendet."><span>Material</span></Tip>
+        <Tip text="Path as stored in the shader — hover the ⓘ in a row to see it."><span className="tex-info">ⓘ</span></Tip>
+        <Tip text="File name of the texture. Click the thumbnail to open the image in your picture viewer."><span>File</span></Tip>
+        <Tip text="Badge shows absolute / relative / missing — “→ relative” can be rewritten with one click. The ⓘ on the left shows the full path."><span>Path</span></Tip>
+        <Tip text="Resolution tier (e.g. 4K/8K) — heavy maps stand out instantly."><span className="num">Res</span></Tip>
+        <Tip text="Actual pixel dimensions of the file."><span className="num">Pixels</span></Tip>
+        <Tip text="File size on disk."><span className="num">Size</span></Tip>
+        <Tip text="Material using this texture."><span>Material</span></Tip>
       </div>
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
@@ -150,7 +150,7 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
 
 // Resolution filter chips: narrow all three texture sections to one tier.
 const RES_TIERS: [string, string][] = [
-  ['', 'Alle'], ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
+  ['', 'All'], ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
 ]
 
 const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
@@ -159,7 +159,7 @@ const bySize = (a: TextureEntry, b: TextureEntry) => b.bytes - a.bytes
 // channel mode, bit depth and colorspace. null = no pixel data (unknown) —
 // such rows only show while the respective filter is off.
 const modeOf = (e: TextureEntry): string | null =>
-  e.width > 0 ? (e.greyscale ? 'grau' : (e.channels ?? 0) >= 4 ? 'rgba' : 'rgb') : null
+  e.width > 0 ? (e.greyscale ? 'grey' : (e.channels ?? 0) >= 4 ? 'rgba' : 'rgb') : null
 const depthOf = (e: TextureEntry): number | null =>
   e.width > 0 && e.bit_depth ? e.bit_depth : null
 const spaceOf = (e: TextureEntry): string | null =>
@@ -189,7 +189,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [pathFilter, setPathFilter] = useState('')  // '' | 'absolute' | 'relative' | 'missing'
   // Spec filters (channel mode / bit depth / colorspace) — the values shown
   // in the per-row spec badge, e.g. "RGB 32b linear".
-  const [modeFilter, setModeFilter] = useState('')   // '' | 'rgb' | 'rgba' | 'grau'
+  const [modeFilter, setModeFilter] = useState('')   // '' | 'rgb' | 'rgba' | 'grey'
   const [depthFilter, setDepthFilter] = useState(0)  // 0 = all, else bits/channel
   const [spaceFilter, setSpaceFilter] = useState('') // '' | colorspace tag
   // Copy & relink out-of-project textures: target subfolder + confirm state.
@@ -371,35 +371,35 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <span><b>{tex.total}</b> maps</span>
               <span><b>{humanBytes(tex.total_bytes)}</b> on disk</span>
               {totalVram > 0 && (
-                <Tip text="Geschätzter unkomprimierter Speicherbedarf aller Maps zusammen (Breite × Höhe × 4 Byte, inkl. Mip-Maps ~1,33×) — was sie in RAM/VRAM kosten.">
+                <Tip text="Estimated uncompressed memory of all maps combined (width × height × 4 bytes, incl. mipmaps ~1.33×) — what they cost in RAM/VRAM.">
                   <span><b>{humanBytes(totalVram)}</b> VRAM (est.)</span>
                 </Tip>
               )}
             </div>
 
-            <div className="rule-group-head"><span>Pfadstatus</span></div>
+            <div className="rule-group-head"><span>Path status</span></div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'Alle', allTex.length],
-                ['absolute', 'Absolut', allTex.filter((e) => e.absolute && !e.missing).length],
-                ['relative', 'Relativ', allTex.filter((e) => !e.absolute && !e.missing).length],
-                ['missing', 'Fehlend', allTex.filter((e) => e.missing).length],
+              {([['', 'All', allTex.length],
+                ['absolute', 'Absolute', allTex.filter((e) => e.absolute && !e.missing).length],
+                ['relative', 'Relative', allTex.filter((e) => !e.absolute && !e.missing).length],
+                ['missing', 'Missing', allTex.filter((e) => e.missing).length],
               ] as [string, string, number][]).map(([key, label, n]) => (
                 <button key={key || 'all'}
                   className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
                     + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
-                  title={key ? `Nur ${label.toLowerCase()}e Pfade anzeigen` : 'Alle Texturpfade anzeigen'}
+                  title={key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
                   onClick={() => setPathFilter(key)}>
                   {label} <em>{n}</em>
                 </button>
               ))}
             </div>
 
-            <div className="rule-group-head"><span>Auflösung</span></div>
+            <div className="rule-group-head"><span>Resolution</span></div>
             <div className="tex-filter tex-filter-col">
               {RES_TIERS.map(([key, label]) => (
                 <button key={key || 'all'}
                   className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
-                  title={key ? `Nur ${label}-Texturen anzeigen` : 'Alle Auflösungen anzeigen'}
+                  title={key ? `Show only ${label} textures` : 'Show all resolutions'}
                   onClick={() => setResFilter(key)}>
                   {label} <em>{key ? allTex.filter((e) => resTier(e) === key).length : allTex.length}</em>
                 </button>
@@ -407,19 +407,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
 
             <div className="rule-group-head">
-              <Tip text="Nach dem Kanalmodus aus dem Spec-Badge filtern (z. B. „RGB 32b linear“). Maps ohne lesbare Pixeldaten fallen bei aktivem Filter heraus.">
-                <span>Kanäle</span>
+              <Tip text="Filter by the channel mode from the spec badge (e.g. “RGB 32b linear”). Maps without readable pixel data drop out while a filter is active.">
+                <span>Channels</span>
               </Tip>
             </div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'Alle', allTex.length],
+              {([['', 'All', allTex.length],
                 ['rgb', 'RGB', allTex.filter((e) => modeOf(e) === 'rgb').length],
                 ['rgba', 'RGBA', allTex.filter((e) => modeOf(e) === 'rgba').length],
-                ['grau', 'Graustufen', allTex.filter((e) => modeOf(e) === 'grau').length],
+                ['grey', 'Greyscale', allTex.filter((e) => modeOf(e) === 'grey').length],
               ] as [string, string, number][]).map(([key, label, n]) => (
                 <button key={key || 'all'}
                   className={'tex-filter-btn' + (modeFilter === key ? ' on' : '')}
-                  title={key ? `Nur ${label}-Texturen anzeigen` : 'Alle Kanalmodi anzeigen'}
+                  title={key ? `Show only ${label} textures` : 'Show every channel mode'}
                   onClick={() => setModeFilter(key)}>
                   {label} <em>{n}</em>
                 </button>
@@ -427,21 +427,21 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             {depths.length > 1 && (
               <div className="rule-group-head">
-                <Tip text="Nach Bits pro Kanal filtern — 32-bit-Maps (EXR/HDR) sind die Speicherfresser.">
-                  <span>Bittiefe</span>
+                <Tip text="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs.">
+                  <span>Bit depth</span>
                 </Tip>
               </div>
             )}
             {depths.length > 1 && (
               <div className="tex-filter tex-filter-col">
                 <button className={'tex-filter-btn' + (depthFilter === 0 ? ' on' : '')}
-                  title="Alle Bittiefen anzeigen" onClick={() => setDepthFilter(0)}>
-                  Alle <em>{allTex.length}</em>
+                  title="Show every bit depth" onClick={() => setDepthFilter(0)}>
+                  All <em>{allTex.length}</em>
                 </button>
                 {depths.map((d) => (
                   <button key={d}
                     className={'tex-filter-btn' + (depthFilter === d ? ' on' : '')}
-                    title={`Nur ${d}-bit-Texturen anzeigen`}
+                    title={`Show only ${d}-bit textures`}
                     onClick={() => setDepthFilter(d)}>
                     {d} bit <em>{allTex.filter((e) => depthOf(e) === d).length}</em>
                   </button>
@@ -450,7 +450,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             )}
             {spaces.length > 1 && (
               <div className="rule-group-head">
-                <Tip text="Nach dem Colorspace-Tag filtern, wo er aus der Datei lesbar ist (z. B. sRGB, linear).">
+                <Tip text="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear).">
                   <span>Colorspace</span>
                 </Tip>
               </div>
@@ -458,13 +458,13 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             {spaces.length > 1 && (
               <div className="tex-filter tex-filter-col">
                 <button className={'tex-filter-btn' + (spaceFilter === '' ? ' on' : '')}
-                  title="Alle Colorspaces anzeigen" onClick={() => setSpaceFilter('')}>
-                  Alle <em>{allTex.length}</em>
+                  title="Show every colorspace" onClick={() => setSpaceFilter('')}>
+                  All <em>{allTex.length}</em>
                 </button>
                 {spaces.map((s) => (
                   <button key={s}
                     className={'tex-filter-btn' + (spaceFilter === s ? ' on' : '')}
-                    title={`Nur ${s}-Texturen anzeigen`}
+                    title={`Show only ${s} textures`}
                     onClick={() => setSpaceFilter(s)}>
                     {s} <em>{allTex.filter((e) => spaceOf(e) === s).length}</em>
                   </button>
@@ -472,45 +472,44 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
             )}
 
-            <div className="rule-group-head"><span>Pfade</span></div>
+            <div className="rule-group-head"><span>Paths</span></div>
             <button className="ghost sm" disabled={busy || !fixable}
               title={fixable
-                ? `${fixable} absolute Pfade im Projektordner relativ umschreiben (widerrufbar)`
-                : 'Keine absoluten Pfade innerhalb des Projektordners'}
+                ? `Rewrite ${fixable} absolute path(s) inside the project folder to relative (undoable)`
+                : 'No absolute paths inside the project folder'}
               onClick={() => setConfirm(true)}>
               Fix paths ({fixable})
             </button>
             <p className="hint-sm" style={{ marginTop: 4 }}>
-              Absolute Pfade, die schon ins Projekt zeigen, relativ umschreiben.
+              Rewrite absolute paths that already point into the project to relative.
             </p>
             <button className="ghost sm" disabled={busy || !collectable}
               title={collectable
-                ? `${collectable} Textur(en) außerhalb des Projekts nach „${collectDir || 'tex'}/“ kopieren und relativ verlinken`
-                : 'Keine vorhandenen Texturen außerhalb des Projektordners'}
+                ? `Copy ${collectable} texture(s) that live outside the project into “${collectDir || 'tex'}/” and relink relatively`
+                : 'No existing textures outside the project folder'}
               onClick={() => setCollectConfirm(true)}>
               Copy &amp; relink ({collectable})
             </button>
             <label style={{ marginTop: 4 }}>
               <input className="nl-input" value={collectDir}
                 onChange={(e) => setCollectDir(e.target.value)}
-                title="Projekt-Unterordner, in den projektfremde Texturen kopiert werden" />
+                title="Project subfolder out-of-project textures are copied into" />
             </label>
             <p className="hint-sm" style={{ marginTop: 4 }}>
-              Projektfremde Dateien in den Ordner oben kopieren, dann relativ
-              verlinken.
+              Copy out-of-project files into the folder above, then relink relatively.
             </p>
             <button className="ghost sm" disabled={busy || !makeAbsolute.length}
               title={makeAbsolute.length
-                ? `${makeAbsolute.length} relative Pfade in ihre volle absolute Form umschreiben (widerrufbar)`
-                : 'Keine relativen Texturpfade vorhanden'}
+                ? `Rewrite ${makeAbsolute.length} relative path(s) to their full absolute form (undoable)`
+                : 'No relative texture paths to make absolute'}
               onClick={() => setAbsConfirm(true)}>
               Make absolute ({makeAbsolute.length})
             </button>
             <p className="hint-sm" style={{ marginTop: 4 }}>
-              Relative Pfade in ihre volle absolute Form umschreiben.
+              Rewrite relative paths to their full absolute form.
             </p>
 
-            <div className="rule-group-head"><span>Verkleinern</span></div>
+            <div className="rule-group-head"><span>Shrink</span></div>
             <div className="tex-filter" style={{ marginBottom: 8 }}>
               {[25, 50, 75].map((p) => (
                 <button key={p}
@@ -520,15 +519,15 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             <button className="ghost sm" disabled={busy || !resizeTargets.length}
               title={resizeTargets.length
-                ? `${resizeTargets.length} Textur(en) auf ${resizePercent}% verkleinern (Kopien + Relink, widerrufbar)`
-                : 'Keine Texturen mit Pixeldaten im aktuellen Filter'}
+                ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
+                : 'No textures with pixel data in the current filter'}
               onClick={() => setResizeConfirm(true)}>
               Resize {resizeTargets.length} → {resizePercent}%
             </button>
             <p className="hint-sm" style={{ marginTop: 4 }}>
-              Schreibt verkleinerte <b>Kopien</b> neben die Originale (Suffix
-              <code> _{resizePercent}</code>) und verlinkt die Materialien neu —
-              wirkt auf die aktuell gefilterten Maps.
+              Writes downsized <b>copies</b> next to the originals (suffix
+              <code> _{resizePercent}</code>) and relinks the materials —
+              applies to the currently filtered maps.
             </p>
 
             {!tex.doc_path && (
