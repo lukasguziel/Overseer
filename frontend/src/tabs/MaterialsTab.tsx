@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
 import Tip from '../components/Tip'
+import TabIntro from '../components/TabIntro'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -442,10 +443,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
       {tex ? (
-        <section className="card">
-        <div className="card-head">
-          <h3>Textures</h3>
-        </div>
+        <>
+        <TabIntro title="Textures"
+          desc="Every map the scene references — real pixel size, disk size and resolution per texture. Spot oversized maps, fix absolute or missing paths, and shrink maps in place." />
         <div className="workbench">
           <aside className="wb-side">
             <h3>Filters</h3>
@@ -703,7 +703,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
           </div>
         </div>
-        </section>
+        </>
       ) : (
         <section className="card">
           <div className="card-head"><h3>Textures</h3></div>
