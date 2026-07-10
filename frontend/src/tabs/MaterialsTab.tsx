@@ -203,17 +203,34 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [resizePercent, setResizePercent] = useState(50)
   const [resizeConfirm, setResizeConfirm] = useState(false)
   const [absConfirm, setAbsConfirm] = useState(false)
-  const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
-  const byPath = (e: TextureEntry) =>
-    !pathFilter
-    || (pathFilter === 'missing' && e.missing)
-    || (pathFilter === 'absolute' && e.absolute && !e.missing)
-    || (pathFilter === 'relative' && !e.absolute && !e.missing)
+  // Parameterized facet matchers — shared by the row filter AND the faceted
+  // chip counts (each facet is counted with every OTHER facet applied).
+  const mRes = (e: TextureEntry, k: string) => !k || resTier(e) === k
+  const mPath = (e: TextureEntry, k: string) =>
+    !k
+    || (k === 'missing' && e.missing)
+    || (k === 'absolute' && e.absolute && !e.missing)
+    || (k === 'relative' && !e.absolute && !e.missing)
+  const mMode = (e: TextureEntry, k: string) => !k || modeOf(e) === k
+  const mDepth = (e: TextureEntry, k: number) => !k || depthOf(e) === k
+  const mSpace = (e: TextureEntry, k: string) => !k || spaceOf(e) === k
+  const byRes = (e: TextureEntry) => mRes(e, resFilter)
+  const byPath = (e: TextureEntry) => mPath(e, pathFilter)
   const bySpec = (e: TextureEntry) =>
-    (!modeFilter || modeOf(e) === modeFilter)
-    && (!depthFilter || depthOf(e) === depthFilter)
-    && (!spaceFilter || spaceOf(e) === spaceFilter)
+    mMode(e, modeFilter) && mDepth(e, depthFilter) && mSpace(e, spaceFilter)
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
+  // Faceted counts: how many rows a chip WOULD show given the other active
+  // filters — numbers shrink as filters stack, 0 chips gray out.
+  const nRes = (k: string) => allTex.filter((e) =>
+    mRes(e, k) && byPath(e) && bySpec(e)).length
+  const nPath = (k: string) => allTex.filter((e) =>
+    byRes(e) && mPath(e, k) && bySpec(e)).length
+  const nMode = (k: string) => allTex.filter((e) =>
+    byRes(e) && byPath(e) && mMode(e, k) && mDepth(e, depthFilter) && mSpace(e, spaceFilter)).length
+  const nDepth = (k: number) => allTex.filter((e) =>
+    byRes(e) && byPath(e) && mMode(e, modeFilter) && mDepth(e, k) && mSpace(e, spaceFilter)).length
+  const nSpace = (k: string) => allTex.filter((e) =>
+    byRes(e) && byPath(e) && mMode(e, modeFilter) && mDepth(e, depthFilter) && mSpace(e, k)).length
   // Distinct bit depths / colorspaces actually present, for the filter chips.
   const depths = [...new Set(allTex.map(depthOf).filter((d): d is number => d != null))].sort((a, b) => a - b)
   const spaces = [...new Set(allTex.map(spaceOf).filter((s): s is string => s != null))].sort()
@@ -379,31 +396,41 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
             <div className="rule-group-head"><span>Path status</span></div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'All', allTex.length],
-                ['absolute', 'Absolute', allTex.filter((e) => e.absolute && !e.missing).length],
-                ['relative', 'Relative', allTex.filter((e) => !e.absolute && !e.missing).length],
-                ['missing', 'Missing', allTex.filter((e) => e.missing).length],
-              ] as [string, string, number][]).map(([key, label, n]) => (
-                <button key={key || 'all'}
-                  className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
-                    + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
-                  title={key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
-                  onClick={() => setPathFilter(key)}>
-                  {label} <em>{n}</em>
-                </button>
-              ))}
+              {([['', 'All'],
+                ['absolute', 'Absolute'],
+                ['relative', 'Relative'],
+                ['missing', 'Missing'],
+              ] as [string, string][]).map(([key, label]) => {
+                const n = nPath(key)
+                const off = n === 0 && pathFilter !== key
+                return (
+                  <button key={key || 'all'} disabled={off}
+                    className={'tex-filter-btn' + (pathFilter === key ? ' on' : '')
+                      + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
+                    title={off ? 'No matches with the current filters'
+                      : key ? `Show only ${label.toLowerCase()} paths` : 'Show every texture path'}
+                    onClick={() => setPathFilter(key)}>
+                    {label} <em>{n}</em>
+                  </button>
+                )
+              })}
             </div>
 
             <div className="rule-group-head"><span>Resolution</span></div>
             <div className="tex-filter tex-filter-col">
-              {RES_TIERS.map(([key, label]) => (
-                <button key={key || 'all'}
-                  className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
-                  title={key ? `Show only ${label} textures` : 'Show all resolutions'}
-                  onClick={() => setResFilter(key)}>
-                  {label} <em>{key ? allTex.filter((e) => resTier(e) === key).length : allTex.length}</em>
-                </button>
-              ))}
+              {RES_TIERS.map(([key, label]) => {
+                const n = nRes(key)
+                const off = n === 0 && resFilter !== key
+                return (
+                  <button key={key || 'all'} disabled={off}
+                    className={'tex-filter-btn' + (resFilter === key ? ' on' : '')}
+                    title={off ? 'No matches with the current filters'
+                      : key ? `Show only ${label} textures` : 'Show all resolutions'}
+                    onClick={() => setResFilter(key)}>
+                    {label} <em>{n}</em>
+                  </button>
+                )
+              })}
             </div>
 
             <div className="rule-group-head">
@@ -412,18 +439,23 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </Tip>
             </div>
             <div className="tex-filter tex-filter-col">
-              {([['', 'All', allTex.length],
-                ['rgb', 'RGB', allTex.filter((e) => modeOf(e) === 'rgb').length],
-                ['rgba', 'RGBA', allTex.filter((e) => modeOf(e) === 'rgba').length],
-                ['grey', 'Greyscale', allTex.filter((e) => modeOf(e) === 'grey').length],
-              ] as [string, string, number][]).map(([key, label, n]) => (
-                <button key={key || 'all'}
-                  className={'tex-filter-btn' + (modeFilter === key ? ' on' : '')}
-                  title={key ? `Show only ${label} textures` : 'Show every channel mode'}
-                  onClick={() => setModeFilter(key)}>
-                  {label} <em>{n}</em>
-                </button>
-              ))}
+              {([['', 'All'],
+                ['rgb', 'RGB'],
+                ['rgba', 'RGBA'],
+                ['grey', 'Greyscale'],
+              ] as [string, string][]).map(([key, label]) => {
+                const n = nMode(key)
+                const off = n === 0 && modeFilter !== key
+                return (
+                  <button key={key || 'all'} disabled={off}
+                    className={'tex-filter-btn' + (modeFilter === key ? ' on' : '')}
+                    title={off ? 'No matches with the current filters'
+                      : key ? `Show only ${label} textures` : 'Show every channel mode'}
+                    onClick={() => setModeFilter(key)}>
+                    {label} <em>{n}</em>
+                  </button>
+                )
+              })}
             </div>
             {depths.length > 1 && (
               <div className="rule-group-head">
@@ -434,18 +466,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             )}
             {depths.length > 1 && (
               <div className="tex-filter tex-filter-col">
-                <button className={'tex-filter-btn' + (depthFilter === 0 ? ' on' : '')}
-                  title="Show every bit depth" onClick={() => setDepthFilter(0)}>
-                  All <em>{allTex.length}</em>
-                </button>
-                {depths.map((d) => (
-                  <button key={d}
-                    className={'tex-filter-btn' + (depthFilter === d ? ' on' : '')}
-                    title={`Show only ${d}-bit textures`}
-                    onClick={() => setDepthFilter(d)}>
-                    {d} bit <em>{allTex.filter((e) => depthOf(e) === d).length}</em>
-                  </button>
-                ))}
+                {[0, ...depths].map((d) => {
+                  const n = nDepth(d)
+                  const off = n === 0 && depthFilter !== d
+                  return (
+                    <button key={d} disabled={off}
+                      className={'tex-filter-btn' + (depthFilter === d ? ' on' : '')}
+                      title={off ? 'No matches with the current filters'
+                        : d ? `Show only ${d}-bit textures` : 'Show every bit depth'}
+                      onClick={() => setDepthFilter(d)}>
+                      {d ? `${d} bit` : 'All'} <em>{n}</em>
+                    </button>
+                  )
+                })}
               </div>
             )}
             {spaces.length > 1 && (
@@ -457,18 +490,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             )}
             {spaces.length > 1 && (
               <div className="tex-filter tex-filter-col">
-                <button className={'tex-filter-btn' + (spaceFilter === '' ? ' on' : '')}
-                  title="Show every colorspace" onClick={() => setSpaceFilter('')}>
-                  All <em>{allTex.length}</em>
-                </button>
-                {spaces.map((s) => (
-                  <button key={s}
-                    className={'tex-filter-btn' + (spaceFilter === s ? ' on' : '')}
-                    title={`Show only ${s} textures`}
-                    onClick={() => setSpaceFilter(s)}>
-                    {s} <em>{allTex.filter((e) => spaceOf(e) === s).length}</em>
-                  </button>
-                ))}
+                {['', ...spaces].map((s) => {
+                  const n = nSpace(s)
+                  const off = n === 0 && spaceFilter !== s
+                  return (
+                    <button key={s || 'all'} disabled={off}
+                      className={'tex-filter-btn' + (spaceFilter === s ? ' on' : '')}
+                      title={off ? 'No matches with the current filters'
+                        : s ? `Show only ${s} textures` : 'Show every colorspace'}
+                      onClick={() => setSpaceFilter(s)}>
+                      {s || 'All'} <em>{n}</em>
+                    </button>
+                  )
+                })}
               </div>
             )}
 
