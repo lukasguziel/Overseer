@@ -442,9 +442,13 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
       {tex ? (
+        <section className="card">
+        <div className="card-head">
+          <h3>Textures</h3>
+        </div>
         <div className="workbench">
           <aside className="wb-side">
-            <h3>Textures</h3>
+            <h3>Filters</h3>
             <p className="hint-sm">
               Real pixel size, disk size and a resolution tag per map — spot the
               8K textures eating memory that could be 4K, and the paths that
@@ -699,6 +703,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
           </div>
         </div>
+        </section>
       ) : (
         <section className="card">
           <div className="card-head"><h3>Textures</h3></div>
