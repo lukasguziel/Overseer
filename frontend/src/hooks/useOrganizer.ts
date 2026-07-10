@@ -953,7 +953,14 @@ export function useOrganizer() {
           c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
       }
       case 'structure': return structure?.count ?? report?.misplaced?.length
-      case 'materials': return report?.materials?.unused?.length
+      case 'materials': {
+        // Badge = the same "todos" the score counts: unused (deletable)
+        // materials + still-missing textures.
+        const m = report?.materials
+        if (!m && report?.textures == null) return undefined
+        return (m?.deletable_count ?? m?.unused?.length ?? 0)
+          + (report?.textures?.missing_count ?? 0)
+      }
       default: return undefined
     }
   }, [naming, translation, layers, structure, report, keeps.layers])
