@@ -571,7 +571,7 @@ table.diff td { word-break: break-word; }
    Rows are buttons — clicking selects the material & frames its object. */
 .tex-table { display: flex; flex-direction: column; }
 .tex-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 46px 104px 74px minmax(0, 3fr);
+  grid-template-columns: 16px minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 4fr);
   border-bottom: 1px solid var(--line2); font-size: 12px; }
 .tex-tr:last-child { border-bottom: none; }
 .tex-tr > span { min-width: 0; }
@@ -591,8 +591,13 @@ table.diff td { word-break: break-word; }
 .tex-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
 /* Missing rows carry their own ✎/✕ decision buttons in an extra column. */
 .tex-tr.tex-actionable {
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 46px 84px 74px minmax(0, 3fr) auto; }
+  grid-template-columns: 16px minmax(0, 7fr) 84px 46px 84px 74px minmax(0, 4fr) auto; }
 .tex-tr .rn-actions { flex: none; }
+/* Path moved into a compact info button on the far left (hover shows it). */
+.tex-info { display: inline-flex; align-items: center; justify-content: center; }
+.tex-info-dot { color: var(--dim2); font-size: 12px; cursor: help; line-height: 1; }
+.tex-click:hover .tex-info-dot { color: var(--text); }
+.tex-info .tip-bubble { white-space: pre-line; max-width: 460px; text-align: left; }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 /* Hover eye on texture thumbnails: click opens the image in the user's

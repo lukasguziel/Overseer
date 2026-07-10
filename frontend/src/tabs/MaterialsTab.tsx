@@ -34,11 +34,11 @@ const texDot = (e: TextureEntry): string =>
 // short badges (alpha / greyscale / colorspace).
 function specText(e: TextureEntry): string {
   const parts: string[] = []
-  const mode = e.greyscale ? 'Graustufen' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'
+  const mode = e.greyscale ? 'greyscale' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'
   parts.push(mode)
-  if (e.channels) parts.push(`${e.channels} Kanäle`)
+  if (e.channels) parts.push(`${e.channels} channels`)
   if (e.bit_depth) parts.push(`${e.bit_depth} bit`)
-  parts.push(e.has_alpha ? 'mit Alpha' : 'ohne Alpha')
+  parts.push(e.has_alpha ? 'with alpha' : 'no alpha')
   if (e.colorspace) parts.push(e.colorspace)
   if (e.vram) parts.push(`~${humanBytes(e.vram)} VRAM`)
   return parts.join(' · ')
@@ -57,8 +57,11 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
   const actionable = e.missing && (onPick || onClear)
   return (
     <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')}
-      title={`${e.resolved || e.path}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
+      title={`${e.width > 0 ? `${specText(e)}\n` : ''}Click to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
+      <Tip className="tex-info" text={e.resolved && e.resolved !== e.path ? `${e.path}\n→ ${e.resolved}` : e.path}>
+        <span className="tex-info-dot" onClick={(ev) => ev.stopPropagation()}>ⓘ</span>
+      </Tip>
       <span className="tex-cell-file">
         {thumb
           ? (
@@ -78,7 +81,6 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
         {!e.used && <span className="tex-badge unused">unused</span>}
       </span>
       <span className="tex-cell-path dim">
-        <span className="tex-cut">{e.path}</span>
         {e.missing
           ? <span className="tex-badge missing">missing</span>
           : e.relocatable
@@ -92,14 +94,14 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
         {e.width > 0 ? `${e.width}×${e.height}` : '—'}
         {e.width > 0 && (
           <span className="tex-spec">
-            {e.greyscale ? 'grau' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'}
+            {e.greyscale ? 'grey' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'}
             {e.has_alpha ? ' +A' : ''}
             {e.bit_depth ? ` ${e.bit_depth}b` : ''}
             {e.colorspace ? ` ${e.colorspace}` : ''}
           </span>
         )}
       </span>
-      <span className="num" title={e.vram ? `~${humanBytes(e.vram)} VRAM (unkomprimiert, inkl. Mip-Maps)` : undefined}>
+      <span className="num" title={e.vram ? `~${humanBytes(e.vram)} VRAM (uncompressed, incl. mipmaps)` : undefined}>
         {e.bytes > 0 ? humanBytes(e.bytes) : '—'}
       </span>
       <span className="dim tex-cut">{e.material}</span>
@@ -129,8 +131,9 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
+        <Tip text="Pfad wie im Shader gespeichert — auf das ⓘ in der Zeile zeigen, um ihn zu sehen."><span className="tex-info">ⓘ</span></Tip>
         <Tip text="Dateiname der Textur. Miniatur anklicken öffnet das Bild im Bildbetrachter."><span>File</span></Tip>
-        <Tip text="Pfad wie im Shader gespeichert. Badge zeigt absolut / relativ / fehlend — „→ relativ“ lässt sich mit einem Klick umschreiben."><span>Path</span></Tip>
+        <Tip text="Badge zeigt absolut / relativ / fehlend — „→ relativ“ lässt sich mit einem Klick umschreiben. Vollen Pfad zeigt das ⓘ links."><span>Path</span></Tip>
         <Tip text="Auflösungsstufe (z. B. 4K/8K). Schwere Maps fallen so sofort auf."><span className="num">Res</span></Tip>
         <Tip text="Echte Pixelmaße der Datei."><span className="num">Pixels</span></Tip>
         <Tip text="Dateigröße auf der Festplatte."><span className="num">Size</span></Tip>
