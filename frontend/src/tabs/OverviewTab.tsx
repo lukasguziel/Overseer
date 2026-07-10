@@ -1,7 +1,7 @@
 import React from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene } from '../lib/hygiene'
-import { catColor, resTierColor } from '../lib/colors'
+import { catColor, resTierColor, RES_TIERS } from '../lib/colors'
 import { humanNum, humanBytes } from '../lib/format'
 import Tile, { type Delta } from '../components/Tile'
 import Strip from '../components/Strip'
@@ -13,6 +13,22 @@ import AssetTable from '../components/AssetTable'
 import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
+import { IconExpand } from '../components/icons'
+import type { ResTier } from '../lib/colors'
+
+// Color legend for the texture map — only the tiers actually present.
+function TexLegend({ tiers }: { tiers: ResTier[] }) {
+  if (!tiers.length) return null
+  return (
+    <div className="tex-legend">
+      {tiers.map((t) => (
+        <span key={t.label} className="tex-legend-item">
+          <span className="tex-legend-dot" style={{ background: t.color }} />{t.label}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 // The guided flow, in the order that makes sense for a scene cleanup.
 // Steps whose tab is parked ("soon") are hidden from the strip too.
@@ -28,6 +44,8 @@ const FLOW = ([
 
 export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, compliance, busy, history } = org
+  // Which hero map is expanded to the full-screen overlay (null = none).
+  const [zoom, setZoom] = React.useState<null | 'geo' | 'tex'>(null)
   // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -84,26 +102,31 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   // tiny on disk but huge in memory), color = resolution tier, click -> select
   // the material. Dedupe by resolved path so one file shared across materials
   // is one tile.
-  const texMap = React.useMemo<TreemapDatum[]>(() => {
+  const texMap = React.useMemo(() => {
     const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
     const seen = new Set<string>()
+    const usedTiers = new Set<string>()
     const out: TreemapDatum[] = []
     for (const e of entries) {
       if (e.width <= 0 || e.height <= 0) continue
       const id = e.resolved || e.path
       if (seen.has(id)) continue
       seen.add(id)
+      const longest = Math.max(e.width, e.height)
+      usedTiers.add(resTierColor(longest))
       out.push({
         key: id,
         value: e.width * e.height,
         label: e.file,
         detail: `${e.width}×${e.height}`,
-        color: resTierColor(Math.max(e.width, e.height)),
+        color: resTierColor(longest),
         title: `${e.path}\n${e.width}×${e.height} · ${humanBytes(e.width * e.height * 4)} VRAM\nClick to select material “${e.material}”`,
         onClick: () => org.doFocusMaterial(e.material),
       })
     }
-    return out.sort((a, b) => b.value - a.value).slice(0, 40)
+    const data = out.sort((a, b) => b.value - a.value).slice(0, 40)
+    const tiers = RES_TIERS.filter((t) => usedTiers.has(t.color))
+    return { data, tiers }
   }, [report, org])
 
   const displayCasing = React.useMemo(() => {
@@ -237,19 +260,26 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head">
             <h3>Geometry map — polygons by object</h3>
-            <span className="card-hint">click a tile to select &amp; frame</span>
+            <div className="card-tools">
+              <span className="card-hint">click a tile to select &amp; frame</span>
+              <button className="expand-btn" title="Expand" onClick={() => setZoom('geo')}><IconExpand /></button>
+            </div>
           </div>
           <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={40} />
         </section>
 
         <section className="card">
           <div className="card-head">
-            <Tip text="Area = pixel count of the map (width × height) — the VRAM cost factor, regardless of JPG size on disk. Color = resolution tier (red 8K, amber 4K, blue 2K). Click selects the material.">
+            <Tip text="Area = pixel count of the map (width × height) — the VRAM cost factor, regardless of JPG size on disk. Color = resolution tier: the bigger the map, the hotter (deep red = 8K, fading to grey below 1K). Click selects the material.">
               <h3>Texture map — image sizes</h3>
             </Tip>
-            <span className="card-hint">area = pixels · color = resolution</span>
+            <div className="card-tools">
+              <span className="card-hint">area = pixels · color = resolution</span>
+              <button className="expand-btn" title="Expand" onClick={() => setZoom('tex')}><IconExpand /></button>
+            </div>
           </div>
-          <TreemapChart data={texMap} empty="No texture pixel data (files missing or none referenced)." />
+          <TreemapChart data={texMap.data} empty="No texture pixel data (files missing or none referenced)." />
+          <TexLegend tiers={texMap.tiers} />
         </section>
       </div>
 
@@ -349,6 +379,23 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           ) : <div className="fl-empty">No texture pixel data (files missing or none referenced).</div>}
         </section>
       </div>
+
+      {zoom && (
+        <div className="zoom-overlay" onClick={() => setZoom(null)}>
+          <div className="zoom-box" onClick={(e) => e.stopPropagation()}>
+            <div className="zoom-head">
+              <h3>{zoom === 'geo' ? 'Geometry map — polygons by object' : 'Texture map — image sizes'}</h3>
+              <button className="expand-btn" title="Close" onClick={() => setZoom(null)}>✕</button>
+            </div>
+            {zoom === 'geo'
+              ? <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" />
+              : <>
+                <TreemapChart data={texMap.data} height="62vh" empty="No texture pixel data." />
+                <TexLegend tiers={texMap.tiers} />
+              </>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

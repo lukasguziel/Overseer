@@ -1086,3 +1086,27 @@ button.mini { font-size: 10px; font-weight: 700; text-transform: uppercase; lett
 button.mini:hover:not(:disabled) { background: var(--accent); color: #06121a; border-color: transparent; }
 button.mini:disabled { opacity: 0.4; cursor: default; }
 table.diff td:last-child { text-align: right; }
+
+/* --- Hero map tools: expand button + texture legend --------------------- */
+.card-tools { display: inline-flex; align-items: center; gap: 10px; }
+.expand-btn { display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 22px; padding: 0; color: var(--dim); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.expand-btn:hover { color: var(--text); border-color: var(--dim); }
+.tex-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; }
+.tex-legend-item { display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.tex-legend-dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+/* --- Map zoom overlay (fullsize treemap) -------------------------------- */
+.zoom-overlay { position: fixed; inset: 0; z-index: 1100;
+  background: color-mix(in srgb, var(--bg, #1b1b1d) 68%, transparent);
+  backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center;
+  padding: 24px; }
+.zoom-box { width: min(1280px, 94vw); background: var(--panel, #242427);
+  border: 1px solid var(--line, #3a3a3e); border-radius: 12px; padding: 16px 18px;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, .5); }
+.zoom-head { display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; }
+.zoom-head h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--dim); margin: 0; }

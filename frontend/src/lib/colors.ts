@@ -7,9 +7,18 @@ export const catColor = (k: string): string => CATCOLOR[k] || '#64748b'
 
 export const STRIP_PALETTE = ['#38bdf8', '#34d399', '#fbbf24', '#b07bff', '#f87171', '#8b8b93', '#f5843c']
 
-// Resolution-tier color: heavier maps run hotter (8K red -> 4K amber ->
-// 2K blue -> smaller muted). Same tiers as MaterialsTab's resTier badges.
+// Resolution tiers for the texture map: a single-hue RED heat ramp (no scene
+// category is red, so a big map never reads as a light/camera/etc.). Small ->
+// large runs muted grey -> light salmon -> deep crimson: the heavier the map,
+// the hotter and more alarming. Ordered largest-first for threshold matching.
+export interface ResTier { label: string; min: number; color: string }
+export const RES_TIERS: ResTier[] = [
+  { label: '8K+', min: 8192, color: '#8f1d2c' },
+  { label: '6K', min: 6144, color: '#c62f34' },
+  { label: '4K', min: 4096, color: '#e8553f' },
+  { label: '2K', min: 2048, color: '#f0847a' },
+  { label: '1K', min: 1024, color: '#f6b8b0' },
+  { label: '< 1K', min: 0, color: '#5b6472' },
+]
 export const resTierColor = (longestPx: number): string =>
-  longestPx >= 8192 ? '#f87171'
-    : longestPx >= 4096 ? '#fbbf24'
-      : longestPx >= 2048 ? '#38bdf8' : '#5b6472'
+  (RES_TIERS.find((t) => longestPx >= t.min) ?? RES_TIERS[RES_TIERS.length - 1]).color
