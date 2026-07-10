@@ -89,13 +89,20 @@ export default function SimsTab({ org }: { org: Organizer }) {
   const doDisable = async (hits: SimHit[], label: string) => {
     const byKind = groupByKind(hits)
     let applied = 0
+    let failed = 0
+    let lastError = ''
     for (const [kind, guids] of Object.entries(byKind)) {
       try {
         const r = await call('sims_set_enabled', { guids, kind, enabled: false })
         applied += r.applied || 0
-      } catch { /* keep going, report what stuck */ }
+      } catch (e: any) {
+        failed += guids.length
+        lastError = String(e.message || e)
+      }
     }
-    setNote(`${label}: ${applied} disabled ✓ (undoable)`)
+    setNote(applied
+      ? `${label}: ${applied} disabled ✓ (undoable)${failed ? ` — ${failed} failed: ${lastError}` : ''}`
+      : `${label}: nothing disabled ✗${lastError ? ` — ${lastError}` : ''}`)
     reload()
   }
 

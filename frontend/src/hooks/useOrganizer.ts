@@ -1125,7 +1125,7 @@ export function useOrganizer() {
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,
-    busy, status, error, previewing, progress, ready, reloadProgress, reloadEverything,
+    busy, status, setStatus, error, previewing, progress, ready, reloadProgress, reloadEverything,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,

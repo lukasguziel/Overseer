@@ -43,7 +43,9 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
         </button>
         <button className="tags-select-btn" disabled={org.busy}
           title="Select every object carrying this tag type in Cinema 4D"
-          onClick={() => call('tags_select', { type_id: type.type_id })}>
+          onClick={() => call('tags_select', { type_id: type.type_id })
+            .then((r) => org.setStatus(`Selected ${r.selected ?? type.count} object${type.count === 1 ? '' : 's'} in Cinema 4D`))
+            .catch((e) => org.setStatus(`Select ✗ ${String(e.message || e)}`))}>
           Select in C4D
         </button>
       </div>
