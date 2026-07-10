@@ -12,4 +12,4 @@ export const scoreTone = (pct: number): Tone =>
 // Qualitative summary shown next to scores: from 80 a scene counts as good
 // (tone thresholds and rating words deliberately agree).
 export const scoreRating = (pct: number): string =>
-  pct >= 95 ? 'Top' : pct >= 80 ? 'Gut' : pct >= 50 ? 'Okay' : 'Aufräumen'
+  pct >= 95 ? 'Top' : pct >= 80 ? 'Good' : pct >= 50 ? 'Okay' : 'Clean up'
