@@ -168,6 +168,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
               <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
                 <Ring pct={s.pct ?? 0} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
                 <span className="hs-pct">{s.pct == null ? '…' : s.pct}</span>
+                <span className="hs-label">{s.label}</span>
               </button>
             ))}
           </div>

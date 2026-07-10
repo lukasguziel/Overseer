@@ -14,7 +14,7 @@ import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
 import Ring, { type Tone } from './components/Ring'
-import { scoreRating, scoreTone } from './lib/score'
+import { scoreTone } from './lib/score'
 import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
 import NamingTab from './tabs/NamingTab'
@@ -129,7 +129,6 @@ export default function App() {
           <div className="area-score"
             title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
             <Ring pct={score} tone={tone} />
-            <span className="area-score-label">{tab}<br />{scoreRating(score)}</span>
           </div>
         )}
       </div>
