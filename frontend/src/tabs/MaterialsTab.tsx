@@ -272,7 +272,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const setTexKeeps = (keys: string[]) => {
     call('set_keeps', { section: 'textures', keys })
       .then(() => org.doAnalyze())
-      .catch(() => { /* next analyze reconciles */ })
+      .catch((e) => org.setStatus(`Accept ✗ ${String(e.message || e)}`))
   }
   const acceptTexture = (e: TextureEntry) => setTexKeeps([...texAccepted, e.path])
   const toggleRow = (e: TextureEntry) => setSelected((s) => {

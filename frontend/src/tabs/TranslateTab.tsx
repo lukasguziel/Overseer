@@ -22,7 +22,7 @@ const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs',
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, keeps, busy, previewing,
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
-  const pager = usePager(translation?.diff || [])
+  const pager = usePager(translation?.diff || [], 10)
   const detected = translation?.detected
 
   if (!org.report) {
