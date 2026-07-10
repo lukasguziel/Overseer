@@ -544,15 +544,6 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Translate ✗'); reloadTranslate().catch(() => {}) })
   }, [dropRows, settings, translateTarget, translateEngine, refreshSoon, reloadTranslate])
 
-  const applyStructureMany = useCallback((guids: number[], label: string) => {
-    const gs = new Set(guids)
-    dropRows('structure', (d) => gs.has(d.guid))
-    setStatus(`Moving ${label}…`)
-    call('apply_structure', { settings: settings(), guids })
-      .then((r) => { setStatus(`${r.applied} moved ✓ (undoable)`); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Move ✗'); reloadStructure().catch(() => {}) })
-  }, [dropRows, settings, refreshSoon, reloadStructure])
-
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
     setStructure(r); doAnalyze()
@@ -1084,7 +1075,7 @@ export function useOrganizer() {
     doRelinkTextures, doClearMissingTextures, doSetTexturePath, doPickTexturePath,
     doTextureResize, doTextureRepath,
     applyNaming, applyNamingOne, applyNamingMany,
-    applyStructure, applyStructureOne, applyStructureMany,
+    applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyTranslateMany, applyPreset,
   }

@@ -1,5 +1,5 @@
 import type {
-  LayerDiff, PlanResult, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
+  LayerDiff, PlanResult, RenameDiff, SceneReport, TranslateDiff,
 } from '../types'
 
 // "Take my hand" — the cross-area guided walk-through. This module is pure
@@ -10,7 +10,7 @@ import type {
 export const DETAIL_LIMIT = 6
 export const EXAMPLE_LIMIT = 5
 
-export type HandArea = 'naming' | 'translate' | 'structure' | 'layers' | 'materials'
+export type HandArea = 'naming' | 'translate' | 'layers' | 'materials'
 
 export interface HandStep {
   key: string
@@ -19,7 +19,6 @@ export interface HandStep {
   action:
     | { kind: 'rename'; guids: number[] }
     | { kind: 'translate'; guids: number[] }
-    | { kind: 'move'; guids: number[] }
     | { kind: 'assign-layer'; guids: number[]; layer: string }
     | { kind: 'keep-layerless'; names: string[] }
     | { kind: 'delete-material'; name: string }
@@ -66,7 +65,6 @@ export interface HandGuideInput {
   report: SceneReport | null
   naming: PlanResult<RenameDiff> | null
   translation: PlanResult<TranslateDiff> | null
-  structure: PlanResult<ReparentDiff> | null
   layerSuggestions: PlanResult<LayerDiff> | null
   keptLayers: Set<string>
 }
@@ -107,22 +105,7 @@ export function buildHandGuideSteps(input: HandGuideInput): HandStep[] {
     })
   }
 
-  // 3. Structure — grouped by target group ("Move 23 objects into Lights?").
-  const stDiff = input.structure?.diff || []
-  const stGroups = group(stDiff, (d) => d.to)
-  steps.push(...stepsForGroups(stGroups, (items, to, single) => ({
-    key: `structure|${to}|${items[0].guid}`,
-    area: 'structure',
-    action: { kind: 'move', guids: items.map((d) => d.guid) },
-    count: items.length,
-    headline: single
-      ? `Move “${truncate(items[0].name)}” into “${to}”?`
-      : `${items.length} loose objects belong in “${to}” — move them all?`,
-    examples: items.slice(0, EXAMPLE_LIMIT).map((d) => ({ from: d.name, to })),
-    yesLabel: single ? 'Move' : `Move all ${items.length}`,
-  })))
-
-  // 4. Layers — ancestor suggestions grouped by target layer; whatever has
+  // 3. Layers — ancestor suggestions grouped by target layer; whatever has
   //    no suggestion becomes one "accept as-is" decision.
   const nodes = input.report?.nodes || []
   const noLayer = nodes.filter((n) => !n.layer && !input.keptLayers.has(n.name))
@@ -156,7 +139,7 @@ export function buildHandGuideSteps(input: HandGuideInput): HandStep[] {
     })
   }
 
-  // 5. Materials — unused ones. Few -> one question each, many -> one sweep.
+  // 4. Materials — unused ones. Few -> one question each, many -> one sweep.
   const unused = input.report?.materials?.unused || []
   if (unused.length > 0 && unused.length <= DETAIL_LIMIT) {
     for (const name of unused) {

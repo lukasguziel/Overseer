@@ -12,18 +12,21 @@ export interface GuideCard {
 
 // Reusable sequential card flow (feature: guided mode). Shows ONE card at a
 // time with Yes / No / Skip and a progress readout, then a done panel. Kept
-// generic (cards + labels are injected) so Naming/Structure can reuse it later
-// without touching this component. All copy passed in is German UI copy.
-export default function GuideFlow({ cards, onExit, labels }: {
+// generic (cards + labels are injected) so every area guide can reuse it.
+// `header` (optional) renders above the progress row and gets the current
+// index plus a jump function — the hand guide uses it for its area chips.
+export default function GuideFlow({ cards, onExit, labels, header }: {
   cards: GuideCard[]
   onExit: () => void
   labels: { no: string; skip: string; exit: string; done: string; empty: string }
+  header?: (state: { index: number; jump: (i: number) => void }) => ReactNode
 }) {
   const [index, setIndex] = useState(0)
   const card = cards[index]
 
   const advance = () => setIndex((i) => i + 1)
   const yes = () => { card.onYes(); advance() }
+  const jump = (i: number) => setIndex(Math.max(0, Math.min(cards.length, i)))
 
   if (!cards.length) {
     return (
@@ -39,6 +42,7 @@ export default function GuideFlow({ cards, onExit, labels }: {
   if (!card) {
     return (
       <div className="guide">
+        {header?.({ index, jump })}
         <div className="guide-done">{labels.done}</div>
         <div className="guide-foot">
           <button className="apply" onClick={onExit}>{labels.exit}</button>
@@ -49,6 +53,7 @@ export default function GuideFlow({ cards, onExit, labels }: {
 
   return (
     <div className="guide">
+      {header?.({ index, jump })}
       <div className="guide-progress">
         <span>{index + 1} / {cards.length}</span>
         <span className="guide-bar">
