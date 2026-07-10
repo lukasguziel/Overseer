@@ -61,7 +61,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
       hint: 'The same name is used by several objects (×n = how many). Ambiguous names break the eye in the Object Manager — rename them individually with ✎, or turn on “Make duplicates unique” on the left and let the preview number them for you.',
       items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
   ]
-  const pager = usePager(naming?.diff || [])
+  const pager = usePager(naming?.diff || [], 10)
 
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
