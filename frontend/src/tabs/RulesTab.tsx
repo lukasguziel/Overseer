@@ -6,6 +6,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { call } from '../api'
+import Tip from '../components/Tip'
 import type { GroupRuleJson } from '../types'
 
 // Context so node components can update their data (without
@@ -175,10 +176,18 @@ export default function RulesTab() {
   return (
     <GraphCtx.Provider value={{ update, remove }}>
       <div className="rf-toolbar">
-        <button onClick={() => addNode('keyword')}>+ Keyword</button>
-        <button onClick={() => addNode('category')}>+ Category</button>
-        <button onClick={() => addNode('group')}>+ Group</button>
-        <button className="apply" onClick={save}>Save → config.json</button>
+        <Tip text="Schlüsselwort-Knoten: Objekte, deren Name eines dieser Wörter enthält, werden der verbundenen Gruppe zugeordnet.">
+          <button onClick={() => addNode('keyword')}>+ Keyword</button>
+        </Tip>
+        <Tip text="Kategorie-Knoten: ordnet alle Objekte eines Typs (Licht, Kamera, Mesh …) der verbundenen Gruppe zu.">
+          <button onClick={() => addNode('category')}>+ Category</button>
+        </Tip>
+        <Tip text="Gruppen-Knoten: das Ziel, unter dem passende Objekte gesammelt werden. Verbinde Keyword-/Kategorie-Knoten damit.">
+          <button onClick={() => addNode('group')}>+ Group</button>
+        </Tip>
+        <Tip text="Schreibt die Regeln in config.json — das Plugin nutzt sie sofort.">
+          <button className="apply" onClick={save}>Save → config.json</button>
+        </Tip>
         <span className="status">{status}</span>
       </div>
       <div className="rf-canvas">

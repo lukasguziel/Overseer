@@ -23,16 +23,17 @@ function Flags({ l }: { l: LayerInfo }) {
       {!l.view && <span className="ly-flag dim" title="Hidden in the editor viewport">hidden</span>}
       {l.locked && <span className="ly-flag dim" title="Layer is locked">locked</span>}
       {l.solo && <span className="ly-flag" title="Solo — only this layer is shown">solo</span>}
-      {l.empty && <span className="ly-flag dim" title="Layer exists but holds no objects">empty</span>}
+      {l.empty && <span className="ly-flag dim" title="Layer exists but nothing (objects, materials or tags) references it">empty</span>}
     </>
   )
 }
 
-export default function LayerTree({ layers, noLayer, nodes, onFocus }: {
+export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer }: {
   layers: LayerInfo[]
   noLayer: number
   nodes: SceneNode[]
   onFocus?: FocusFn
+  onDeleteLayer?: (name: string) => void
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
   const toggle = (name: string) =>
@@ -55,7 +56,8 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus }: {
   if (noLayer > 0) {
     rows.push({
       name: NO_LAYER, color: null, solo: false, view: true, render: true,
-      locked: false, objects: noLayer, polys: 0, empty: false,
+      locked: false, objects: noLayer, materials: 0, tags: 0, polys: 0,
+      empty: false,
     })
   }
 
@@ -80,8 +82,14 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus }: {
               <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
               <Flags l={l} />
               <span className="ly-count">{l.objects} obj</span>
+              {l.materials > 0 && <span className="ly-count">{l.materials} mat</span>}
+              {l.tags > 0 && <span className="ly-count">{l.tags} tag</span>}
               {l.polys > 0 && <span className="ly-polys">{humanNum(l.polys)} polys</span>}
             </button>
+            {!isNo && l.empty && onDeleteLayer && (
+              <button className="ly-del" title="Delete this empty layer (undoable)"
+                onClick={() => onDeleteLayer(l.name)}>✕</button>
+            )}
             {isOpen && (
               <div className="ly-objs">
                 {objs.slice(0, 300).map((n, i) => (

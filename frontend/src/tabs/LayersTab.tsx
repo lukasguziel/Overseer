@@ -9,19 +9,23 @@ import LayerTree from '../components/LayerTree'
 import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
+import GuideFlow, { type GuideCard } from '../components/GuideFlow'
+import { buildLayerGuideSteps } from '../lib/layerGuide'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
 // "no layer" as fine for this object (score counts it as decided).
-function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
+function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
   n: SceneNode
   busy: boolean
+  suggestion?: string
   onAssign: (guid: number, layer: string) => void
   onKeep: (name: string) => void
   onFocus: (guid: number, name: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(suggestion || '')
   const commit = () => {
     const v = value.trim()
     if (v) { onAssign(n.guid, v); setEditing(false) }
@@ -41,7 +45,9 @@ function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
               else if (e.key === 'Escape') setEditing(false)
             }} />
         )
-        : <span className="rn-new dim">no layer</span>}
+        : suggestion
+          ? <span className="rn-new" title="Inherited from the nearest parent that has a layer">layer: {suggestion}</span>
+          : <span className="rn-new dim">no layer</span>}
       <span className="rn-actions">
         {editing
           ? (
@@ -51,14 +57,25 @@ function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
               <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
             </>
           )
-          : (
-            <>
-              <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
-                title="Assign a layer — pick an existing one or type a new name">✓</button>
-              <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
-                title="Accept as-is — fine without a layer (restore below)">=</button>
-            </>
-          )}
+          : suggestion
+            ? (
+              <>
+                <button className="rn-ok" disabled={busy} onClick={() => onAssign(n.guid, suggestion)}
+                  title={`Assign the suggested layer “${suggestion}” (undoable)`}>✓</button>
+                <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
+                  title="Pick a different layer instead">✎</button>
+                <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
+                  title="Accept as-is — fine without a layer (restore below)">=</button>
+              </>
+            )
+            : (
+              <>
+                <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
+                  title="Assign a layer — pick an existing one or type a new name">✓</button>
+                <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
+                  title="Accept as-is — fine without a layer (restore below)">=</button>
+              </>
+            )}
       </span>
     </div>
   )
@@ -69,9 +86,16 @@ function NoLayerRow({ n, busy, onAssign, onKeep, onFocus }: {
 const SHOW_TAGGING = false
 
 export default function LayersTab({ org }: { org: Organizer }) {
-  const { layers, keeps, report, busy, previewing } = org
+  const { layers, keeps, report, busy, previewing, layerSuggestions, layerMismatches } = org
   const lr = report?.layers_report
   const pager = usePager(layers?.diff || [])
+
+  // guid -> suggested (ancestor) layer, from the pure planner.
+  const suggestionByGuid = React.useMemo(() => {
+    const m = new Map<number, string>()
+    for (const d of layerSuggestions?.diff || []) m.set(d.guid, d.layer)
+    return m
+  }, [layerSuggestions])
 
   // Objects without any layer, keeps filtered out — the first thing to work
   // through on this tab (they drive the coverage score).
@@ -93,12 +117,72 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setBatchLayer('')
   }
 
+  // Guided mode: freeze the current findings into a card list so the walk
+  // does not reshuffle as accepted/assigned rows drop out of the live report.
+  const [guided, setGuided] = useState(false)
+  const [guideCards, setGuideCards] = useState<GuideCard[]>([])
+  const startGuide = () => {
+    const steps = buildLayerGuideSteps(noLayer, suggestionByGuid, layerMismatches)
+    setGuideCards(steps.map((s): GuideCard => {
+      if (s.kind === 'suggestion') {
+        return {
+          key: 'sug-' + s.guid,
+          headline: <>Objekt „{s.name}“ hat keine Ebene</>,
+          body: <>Der nächste übergeordnete Container liegt auf der Ebene „{s.layer}“.
+            Soll dieses Objekt dieselbe Ebene erhalten?</>,
+          yesLabel: `Ja, Ebene „${s.layer}“ zuweisen`,
+          onYes: () => org.doAssignLayer([s.guid], s.layer!),
+        }
+      }
+      if (s.kind === 'mismatch') {
+        return {
+          key: 'mix-' + s.guid,
+          headline: <>Gemischte Ebenen-Hierarchie</>,
+          body: <>„{s.name}“ liegt auf Ebene „{s.childLayer}“, das übergeordnete
+            „{s.parent}“ auf „{s.parentLayer}“. Das ist häufig gewollt.
+            So belassen und aus der Liste nehmen?</>,
+          yesLabel: 'Ja, so belassen',
+          onYes: () => org.keep('layers', s.name),
+        }
+      }
+      return {
+        key: 'nl-' + s.guid,
+        headline: <>Objekt „{s.name}“ hat keine Ebene</>,
+        body: <>Für dieses Objekt gibt es keinen Ebenen-Vorschlag.
+          Ist es ohne Ebene in Ordnung?</>,
+        yesLabel: 'Ja, ohne Ebene in Ordnung',
+        onYes: () => org.keep('layers', s.name),
+      }
+    }))
+    setGuided(true)
+  }
+
   if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
+  const guideCount = noLayer.length + layerMismatches.length
+
   return (
     <div className="layers-tab">
+      <div className="guide-toggle-bar">
+        <Tip text="Geführter Modus: geht alle Ebenen-Funde einzeln durch — Vorschläge, Objekte ohne Ebene und gemischte Hierarchien. Pro Karte nur Ja / Nein / Überspringen; „Ja“ führt genau die passende Aktion aus.">
+          <button className="sm" disabled={busy || guided || !guideCount}
+            onClick={startGuide}>
+            ▶ Geführter Modus{guideCount ? ` (${guideCount})` : ''}
+          </button>
+        </Tip>
+      </div>
+
+      {guided && (
+        <GuideFlow cards={guideCards} onExit={() => setGuided(false)}
+          labels={{
+            no: 'Nein', skip: 'Überspringen', exit: 'Fertig',
+            done: 'Alle Ebenen-Funde durchgearbeitet 🎉',
+            empty: 'Aktuell gibt es nichts zu entscheiden.',
+          }} />
+      )}
+
       {/* ---- Side by side: layer overview (left) / no-layer worklist --- */}
       <div className="ov-cols2">
         <section className="card ly-overview">
@@ -111,12 +195,19 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
               </span>
             )}
+            {lr && lr.empty_layers > 0 && (
+              <button className="sm" disabled={busy} onClick={org.doDeleteEmptyLayers}
+                title="Delete every layer that nothing (objects, materials or tags) references (one undo step)">
+                ✕ Delete {lr.empty_layers} empty
+              </button>
+            )}
           </div>
           {lr
             ? (
               <LayerTree
                 layers={lr.layers} noLayer={lr.no_layer}
                 nodes={report?.nodes || []} onFocus={org.doFocus}
+                onDeleteLayer={org.doDeleteLayer}
               />
             )
             : <div className="fl-empty">Run an analysis to see the layer usage.</div>}
@@ -151,6 +242,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
           <div className="rename-list">
             {nlPager.rows.map((n) => (
               <NoLayerRow key={n.guid} n={n} busy={busy}
+                suggestion={suggestionByGuid.get(n.guid)}
                 onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
                 onKeep={(nm) => org.keep('layers', nm)}
                 onFocus={(guid, nm) => org.doFocus(guid, nm)} />
@@ -217,6 +309,39 @@ export default function LayersTab({ org }: { org: Organizer }) {
           <Pager pager={pager} />
         </Workbench>
       </div>
+      )}
+
+      {layerMismatches.length > 0 && (
+        <section className="card ly-mismatches">
+          <div className="card-head">
+            <Tip text="Objekt liegt auf einer anderen Ebene als sein übergeordnetes Objekt. Rein informativ — oft absichtlich; hier wird nie automatisch etwas geändert.">
+              <h3>Mixed-layer hierarchies</h3>
+            </Tip>
+            <span className="hint-sm" style={{ margin: 0 }}>
+              {layerMismatches.length} object{layerMismatches.length === 1 ? '' : 's'} on a different layer than their parent
+            </span>
+          </div>
+          <p className="hint-sm">
+            Informational only — a parent and its children on different layers is
+            frequently deliberate. Nothing here is ever changed automatically;
+            accept one to hide it from this list.
+          </p>
+          <div className="rename-list">
+            {layerMismatches.map((m) => (
+              <div className="rename-row" key={m.guid}>
+                <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
+                  onClick={() => org.doFocus(m.guid, m.name)}>{m.name}</span>
+                <span className="rn-new dim" title={m.path}>
+                  layer “{m.child_layer}” · parent “{m.parent}” on “{m.parent_layer}”
+                </span>
+                <span className="rn-actions">
+                  <button className="rn-keep" disabled={busy} onClick={() => org.keep('layers', m.name)}
+                    title="Accept as-is — this mix is intentional (restore below)">=</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <AcceptedSection items={Array.from(keeps.layers)}

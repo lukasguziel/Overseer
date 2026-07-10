@@ -18,40 +18,59 @@ function clock(at: string): string {
   return at.length >= 19 ? at.slice(11, 19) : at
 }
 
-function ItemRow({ it }: { it: ChangeItem }) {
+// One op inside a run: its before→after diff plus a per-op revert control.
+function ItemRow({ it, canRevert, onRevert }: {
+  it: ChangeItem
+  canRevert: boolean
+  onRevert?: () => void
+}) {
   const arrow = it.field === 'parent' || it.field === 'layer'
-  const before = it.before || (it.field === 'layer' ? '(no layer)' : '(root)')
-  const after = it.after || (it.field === 'layer' ? '(no layer)' : '(root)')
+  const base = (p: string) => p.split(/[/\\]/).pop() || p
+  const before = it.field === 'texpath' ? base(it.before)
+    : it.before || (it.field === 'layer' ? '(no layer)' : '(root)')
+  const after = it.field === 'texpath' ? base(it.after)
+    : it.after || (it.field === 'layer' ? '(no layer)' : '(root)')
   return (
-    <tr>
+    <tr className={it.reverted ? 'ch-item-reverted' : undefined}>
       <td className="ch-field dim">{it.field}</td>
       <td className="dim">{before}</td>
       <td className="arrow">{arrow ? '⇒' : '→'}</td>
       <td>{after}</td>
+      <td className="ch-item-action">
+        {it.reverted
+          ? <span className="ch-reverted">reverted</span>
+          : canRevert && onRevert
+            ? <button className="ch-revert" title="Revert just this op (one undo step)"
+                onClick={onRevert}>revert</button>
+            : null}
+      </td>
     </tr>
   )
 }
 
-// Revert affordance with inline confirm — the row's action slot.
-function RevertAction({ e, onRevert }: { e: ChangeEntry; onRevert: (id: string) => void }) {
+// Run-level revert (the whole apply-run in one click) with inline confirm.
+function RevertAction({ e, onRevert }: {
+  e: ChangeEntry
+  onRevert: (id: string, items?: number[]) => void
+}) {
   const [confirm, setConfirm] = useState(false)
   if (e.reverted) return <span className="ch-reverted">reverted</span>
   if (!e.revertible) return null
   return confirm ? (
     <span className="mat-confirm">
-      revert?
+      revert all?
       <button className="mat-yes" onClick={() => { onRevert(e.id); setConfirm(false) }}>✓</button>
       <button className="mat-no" onClick={() => setConfirm(false)}>✕</button>
     </span>
   ) : (
-    <button className="ch-revert" title="Undo this change (one undo step)"
-      onClick={() => setConfirm(true)}>revert</button>
+    <button className="ch-revert" title="Revert the whole run (one undo step)"
+      onClick={() => setConfirm(true)}>revert run</button>
   )
 }
 
 export default function ChangeHistory({ changes, onRevert }: {
   changes: ChangeEntry[]
-  onRevert: (id: string) => void
+  onRevert: (id: string, items?: number[]) => void
 }) {
   if (changes.length === 0) return <div className="fl-empty">No tool changes recorded yet.</div>
   const rows: HistoryRow[] = changes.map((e) => ({
@@ -64,7 +83,10 @@ export default function ChangeHistory({ changes, onRevert }: {
     action: <RevertAction e={e} onRevert={onRevert} />,
     details: e.items.length > 0 ? (
       <table className="diff ch-items"><tbody>
-        {e.items.slice(0, 500).map((it, i) => <ItemRow key={i} it={it} />)}
+        {e.items.slice(0, 500).map((it, i) => (
+          <ItemRow key={i} it={it} canRevert={e.revertible && !e.reverted}
+            onRevert={() => onRevert(e.id, [i])} />
+        ))}
       </tbody></table>
     ) : undefined,
   }))

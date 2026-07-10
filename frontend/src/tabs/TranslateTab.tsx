@@ -4,6 +4,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
 
 const LANG_LABEL: Record<string, string> = {
@@ -39,7 +40,10 @@ export default function TranslateTab({ org }: { org: Organizer }) {
           own; it never touches your casing convention.
         </p>
 
-        <label>Target language
+        <label>
+          <Tip text="Zielsprache, in die die Objektnamen Wort für Wort übersetzt werden. Schreibweise, Trennzeichen und Zahlen bleiben unverändert.">
+            <span>Target language</span>
+          </Tip>
           <select value={translateTarget} onChange={(e) => setTranslateTarget(e.target.value)}>
             {(translateEngine === 'google' ? GOOGLE_TARGETS : OFFLINE_TARGETS).map((lg) => (
               <option key={lg} value={lg}>→ {LANG_LABEL[lg]}</option>
@@ -47,7 +51,10 @@ export default function TranslateTab({ org }: { org: Organizer }) {
           </select>
         </label>
 
-        <label>Engine
+        <label>
+          <Tip text="Offline-Wörterbücher übersetzen nur EN/DE, arbeiten aber lokal. Google übersetzt jede Sprache, sendet die Namen dafür aber online an Google.">
+            <span>Engine</span>
+          </Tip>
           <select value={translateEngine} onChange={(e) => {
             const eng = e.target.value
             setTranslateEngine(eng)
@@ -63,7 +70,9 @@ export default function TranslateTab({ org }: { org: Organizer }) {
             internet and takes a moment on large scenes.</p>
         )}
 
-        <h3>Detected in scene</h3>
+        <Tip text="Sprache der vorhandenen Namen, automatisch erkannt. Ein Name zählt nur so lange zu seiner Quellsprache, wie eine Übersetzung ihn tatsächlich ändern würde.">
+          <h3>Detected in scene</h3>
+        </Tip>
         {detected && detected.total > 0
           ? (
             <>

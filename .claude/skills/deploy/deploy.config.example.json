@@ -1,6 +1,15 @@
 {
-  "_comment": "Copy to deploy.config.json (gitignored, machine-local). plugin_dir = target plugin folder of YOUR Cinema 4D. The 'deploy' skill in Claude Code fills this interactively.",
-  "cinema": "Maxon Cinema 4D 2024",
-  "location": "prefs",
-  "plugin_dir": "C:\\Users\\<you>\\AppData\\Roaming\\Maxon\\Maxon Cinema 4D 2024_XXXXXXXX\\plugins\\SceneOrganizer"
+  "_comment": "Copy to deploy.config.json (gitignored, machine-local). Schema 2: targets are keyed by WINDOWS USER ($env:USERNAME) so each user on this machine can pick their own Cinema(s). 'targets' is a LIST - every entry is deployed in one run. The 'deploy' skill in Claude Code fills this interactively. Legacy flat configs ({cinema, location, plugin_dir}) are migrated automatically.",
+  "schema": 2,
+  "users": {
+    "<windows-username>": {
+      "targets": [
+        {
+          "cinema": "Maxon Cinema 4D 2024",
+          "location": "prefs",
+          "plugin_dir": "C:\\Users\\<you>\\AppData\\Roaming\\Maxon\\Maxon Cinema 4D 2024_XXXXXXXX\\plugins\\SceneOrganizer"
+        }
+      ]
+    }
+  }
 }

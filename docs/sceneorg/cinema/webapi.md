@@ -101,18 +101,44 @@ Single entry point dispatching on `payload["op"]` against the active document
   user-accepted guids.
 - `plan_layers` / `apply_layers` — plan/apply type-axis layer assignment with a
   by-layer count.
+- `plan_layer_suggestions` — `{diff:[{guid,name,layer}], count}`: for objects
+  with no layer, the nearest ancestor's layer (inherit-down). Pure planner, keeps
+  filtered; the no-layer worklist offers these as one-click assigns.
+- `layer_mismatches` — `{findings:[{guid,name,path,parent,parent_layer,child_layer}], count}`:
+  objects on a different layer than their parent. Informational only (never
+  auto-applied); accept-as-is goes through `set_keeps` section `layers`.
+- `delete_layer` `{name}` / `delete_empty_layers` — delete layers that nothing
+  references (objects/materials/tags), one undo step. Returns `{deleted}`.
+  `delete_layer` refuses a non-empty layer (returns `deleted:0`).
 - `assign_layer` / `move_to_group` — direct batch actions from the asset
   browser: `{guids, layer}` assigns the picked objects to a named layer
   (created if missing), `{guids, group}` reparents them under a named null
   (`ensure_group_path`, created at root if missing). The user chose both the
   objects and the target explicitly, so no plan or safety filter runs; both are
   one undo step and recorded in the change history.
-- `changes` — the change history newest-first. Every apply op records one entry
-  (`_record_change`) into `change_history.json` (max 200): `{id, ts, at, kind,
-  summary, items, revertible, reverted}`, `items` copied from
-  `adapter.last_changes`. Material deletes / texture fixes are logged
-  summary-only (`revertible=false`).
-- `revert_change` (by `id`) — rebuilds the tree and calls `adapter.revert` on the
-  entry's items, then marks the entry `reverted`. `clear_changes` empties the log
-  (does not touch the scene).
+- `changes` — the scene's change journal newest-first. Every apply op records
+  one run entry (`_record_change`) `{id, ts, at, kind, summary, items,
+  revertible, reverted}`, `items` copied from `adapter.last_changes` (each op
+  also carries a per-op `reverted` flag). The journal is **persisted with the
+  scene** (M2): `adapter.load_journal`/`save_journal` store it in the document's
+  BaseContainer + a sidecar next to the .c4d, falling back to the machine-local
+  `change_history.json` (max 200) for unsaved scenes. Material deletes / texture
+  fixes are logged summary-only (`revertible=false`).
+- `revert_change` `{id, items?}` — rebuilds the tree and calls `adapter.revert`
+  on the run's ops. `items` (op indices) = **per-op selective revert**; omitted
+  = **full-run revert**. Already-reverted ops are filtered
+  (`journal.items_to_revert`); only ops that actually reverted are flagged
+  (`journal.mark_reverted`), so missing targets stay actionable. Returns
+  `{reverted, missing, results}`. `clear_changes` empties the journal (does not
+  touch the scene).
 - unknown op → error dict.
+
+## Texture ops (M4)
+
+- `texture_repath` `{paths, mode:'relative'|'absolute', material?}` — batch
+  relative/absolute path conversion; journals as `textures_repath`.
+- `texture_resize` `{paths, percent:25|50|75}` — batch resize to copies +
+  relink; journals as `textures_resize`. Returns `{resized, skipped, relinked,
+  results:[{file,status,note,to}]}`; a bad percent returns `{ok:false,error}`.
+- Both are in `_MUTATING_OPS` (drop the scene cache) and carry `_OP_LABELS`
+  progress strings.

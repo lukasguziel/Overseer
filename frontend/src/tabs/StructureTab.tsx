@@ -7,6 +7,7 @@ import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 
 export default function StructureTab({ org }: { org: Organizer }) {
   const { report, tidy, safe, rules, structure, keeps, busy, previewing } = org
@@ -32,7 +33,9 @@ export default function StructureTab({ org }: { org: Organizer }) {
           <h3>Options</h3>
           <label className="check">
             <input type="checkbox" checked={tidy} onChange={(e) => org.setTidy(e.target.checked)} />
-            Tidy mode
+            <Tip text="Sammelt nur lose Objekte in ihre Gruppe. Objekte, die bereits in einer (auch verschachtelten) Gruppe liegen, bleiben unangetastet — die Hierarchie wird nie plattgemacht.">
+              <span>Tidy mode</span>
+            </Tip>
           </label>
           <p className="hint-sm">
             Only collects <b>loose</b> objects into their group. Objects already
@@ -41,7 +44,9 @@ export default function StructureTab({ org }: { org: Organizer }) {
           </p>
           <label className="check">
             <input type="checkbox" checked={safe} onChange={(e) => org.setSafe(e.target.checked)} />
-            Safety filter
+            <Tip text="Schützt Generator-Kinder (Cloner, Boole, Sweep …) davor, verschoben zu werden.">
+              <span>Safety filter</span>
+            </Tip>
           </label>
           <p className="hint-sm">Protects generator children (Cloner, Boole, Sweep …) from being moved.</p>
           {!tidy && <p className="wb-note" style={{ padding: '8px 0' }}>⚠ Aggressive mode can pull objects out of existing groups and flatten spatial nesting.</p>}

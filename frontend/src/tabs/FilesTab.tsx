@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import './files.css'
 
 interface FileEntry {
@@ -64,8 +65,10 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
   return (
     <div className="fa-table">
       <div className="fa-tr fa-thead">
-        <span>File</span><span>Owner</span>
-        <span className="num">Size</span><span>Path</span>
+        <Tip text="Dateiname der externen Referenz. Farbiges Kürzel = Art (Alembic, Cache, IES …)."><span>File</span></Tip>
+        <Tip text="Objekt oder Material, das die Datei referenziert. Zeile anklicken wählt es in Cinema 4D aus."><span>Owner</span></Tip>
+        <Tip text="Dateigröße auf der Festplatte."><span className="num">Size</span></Tip>
+        <Tip text="Gespeicherter Pfad. Badge zeigt absolut / relativ / fehlend."><span>Path</span></Tip>
       </div>
       {rows.map((e, i) => {
         const actionable = e.missing && (onPick || onAccept)
@@ -156,8 +159,8 @@ export default function FilesTab({ org }: { org: Organizer }) {
   const byKind = (e: FileEntry) => !kind || e.kind === kind
   const missing = useMemo(() => entries.filter((e) => e.missing && byKind(e)), [entries, kind])
   const present = useMemo(() => entries.filter((e) => !e.missing && byKind(e)), [entries, kind])
-  const missPager = usePager(missing)
-  const pager = usePager(present)
+  const missPager = usePager(missing, undefined, kind)
+  const pager = usePager(present, undefined, kind)
 
   const onFocus = (e: FileEntry) => {
     if (e.guid != null) org.doFocus(e.guid, e.owner)

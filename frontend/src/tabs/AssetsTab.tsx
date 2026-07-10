@@ -3,6 +3,7 @@ import type { SceneNode } from '../types'
 import { CAT_ORDER, SORTS } from '../lib/constants'
 import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
+import Tip from '../components/Tip'
 import type { FocusFn } from '../components/Treemap'
 
 // Searchable, faceted, sortable asset browser with batching and
@@ -130,9 +131,10 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
     if (t && sel.size && onMoveToGroup) { onMoveToGroup(selGuids(), t); setSel(new Set()) }
   }
 
-  const th = (k: string, label: string, cls?: string) => (
+  const th = (k: string, label: string, cls?: string, tip?: string) => (
     <th className={(cls || '') + (sortKey === k ? ' sorted' : '')} onClick={() => setSort(k)}>
-      {label}{sortKey === k && <span className="caret">{sortDir === 'desc' ? '▾' : '▴'}</span>}
+      {tip ? <Tip text={tip}><span>{label}</span></Tip> : label}
+      {sortKey === k && <span className="caret">{sortDir === 'desc' ? '▾' : '▴'}</span>}
     </th>
   )
 
@@ -141,14 +143,18 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
       <div className="asset-controls">
         <input className="search" placeholder="Search name, type or layer…" value={query}
           onChange={(e) => setQuery(e.target.value)} />
-        <label className="check inline">
-          <input type="checkbox" checked={onlyGeo} onChange={(e) => setOnlyGeo(e.target.checked)} />
-          only geometry
-        </label>
-        <label className="check inline">
-          <input type="checkbox" checked={noLayer} onChange={(e) => setNoLayer(e.target.checked)} />
-          no layer
-        </label>
+        <Tip text="Nur Objekte mit Polygonen zeigen — blendet Nulls, Splines und leere Container aus.">
+          <label className="check inline">
+            <input type="checkbox" checked={onlyGeo} onChange={(e) => setOnlyGeo(e.target.checked)} />
+            only geometry
+          </label>
+        </Tip>
+        <Tip text="Nur Objekte zeigen, die keiner Ebene zugeordnet sind.">
+          <label className="check inline">
+            <input type="checkbox" checked={noLayer} onChange={(e) => setNoLayer(e.target.checked)} />
+            no layer
+          </label>
+        </Tip>
         <label className="sortsel">Sort
           <select value={sortKey} onChange={(e) => setSort(e.target.value)}>
             {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -235,12 +241,12 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
           <thead><tr>
             <th className="sel"><input ref={headRef} type="checkbox" checked={allShownSel}
               onChange={toggleAllShown} title="Select all shown rows" /></th>
-            <th className="l">Name</th>
-            <th>Type</th>
-            {th('layer', 'Layer')}
-            {th('polygons', 'Polygons', 'r')}
-            {th('points', 'Points', 'r')}
-            {th('children', 'Children', 'r')}
+            <th className="l"><Tip text="Objektname. Zeile anklicken wählt das Objekt in Cinema 4D aus und rahmt es ein."><span>Name</span></Tip></th>
+            <th><Tip text="Objekttyp in Cinema 4D (z. B. Polygon-Objekt, Null, Licht)."><span>Type</span></Tip></th>
+            {th('layer', 'Layer', undefined, 'Ebene, auf der das Objekt liegt. „—“ heißt: keiner Ebene zugeordnet.')}
+            {th('polygons', 'Polygons', 'r', 'Anzahl Polygone des Objekts. Spaltenkopf klicken sortiert danach.')}
+            {th('points', 'Points', 'r', 'Anzahl Punkte des Objekts. Spaltenkopf klicken sortiert danach.')}
+            {th('children', 'Children', 'r', 'Anzahl direkt untergeordneter Objekte in der Hierarchie.')}
           </tr></thead>
           <tbody>
             {shown.map((n) => (
