@@ -306,7 +306,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const depths = [...new Set(allTex.map(depthOf).filter((d): d is number => d != null))].sort((a, b) => a - b)
   const spaces = [...new Set(allTex.map(spaceOf).filter((s): s is string => s != null))].sort()
   const pathPager = usePager(
-    allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e)).sort(bySize),
+    // Accepted-as-missing maps drop out of the paths list — they live in the
+    // Accepted panel below, like every other area (naming, files, …).
+    allTex.filter((e) => !e.accepted && byRes(e) && byPath(e) && bySpec(e)).sort(bySize),
     undefined, [resFilter, pathFilter, modeFilter, depthFilter, spaceFilter].join('|'))
 
   // Mini image previews for the texture rows currently on screen (keyed by
@@ -364,7 +366,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   // Selection scoping: when the user has ticked rows, the path-array batch
   // actions (Resize / Make absolute) act on exactly those maps. With nothing
   // ticked they fall back to the whole filtered set (the previous behavior).
-  const filteredTex = allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e))
+  const filteredTex = allTex.filter((e) => !e.accepted && byRes(e) && byPath(e) && bySpec(e))
   const selActive = selected.size > 0
   const selEntries = allTex.filter((e) => selected.has(rowKey(e)))
   const selScope = selActive ? selEntries : filteredTex
@@ -709,6 +711,14 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
                     onClick={() => setClearConfirm(true)}>
                     ✕ Clear {missingCount} missing
+                  </button>
+                  <button className="wb-accept-all"
+                    title="Accept every missing map as-is — they stop counting as problems (restore below)"
+                    onClick={() => {
+                      const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
+                      setTexKeeps([...texAccepted, ...add])
+                    }}>
+                    = Accept {missingCount} missing
                   </button>
                 </>
               )}
