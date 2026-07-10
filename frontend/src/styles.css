@@ -360,6 +360,7 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 /* Rows-per-page selector: always pinned bottom-right of the pager row,
    independent of whether the prev/next nav is shown (which stays centered). */
 .pager-size { position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: auto; margin-top: 0;
   background: var(--panel2); color: var(--dim); border: 1px solid var(--line);
   border-radius: 6px; font-size: 11px; padding: 3px 6px; cursor: pointer; }
 .pager-size:hover { color: var(--text); }
@@ -603,10 +604,10 @@ table.diff td { word-break: break-word; }
 .tex-tr.tex-actionable {
   grid-template-columns: 16px minmax(0, 7fr) 84px 46px 84px 74px minmax(0, 4fr) auto; }
 .tex-tr .rn-actions { flex: none; }
-/* Path moved into a compact info button on the far left (hover shows it). */
-.tex-info { display: inline-flex; align-items: center; justify-content: center; }
-.tex-info-dot { color: var(--dim2); font-size: 12px; cursor: help; line-height: 1; }
-.tex-click:hover .tex-info-dot { color: var(--text); }
+/* Far-left select checkbox — ticked rows scope the batch actions on the left. */
+.tex-cb { width: 13px; height: 13px; margin: 0; cursor: pointer; accent-color: var(--accent); flex: none; }
+.tex-tr.tex-sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tex-tr.tex-sel:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 /* Hover eye on texture thumbnails: click opens the image in the user's
@@ -1046,6 +1047,7 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   font-size: 11px; line-height: 1.45; font-weight: 400;
   text-transform: none; letter-spacing: normal; text-align: left;
   white-space: pre-line;                       /* keep \n line breaks */
+  overflow-wrap: anywhere; word-break: break-word;  /* wrap long unbroken paths */
   background: #202022; color: var(--text);
   border: 1px solid var(--line);
   box-shadow: 0 10px 28px rgba(0, 0, 0, .5);

@@ -47,21 +47,24 @@ function specText(e: TextureEntry): string {
 // One texture row. Missing rows carry their own decision buttons:
 // … browse for a replacement file (opens C4D's native file dialog),
 // ✕ clear THIS dead reference.
-function TexRow({ e, thumb, onFocus, onPick, onClear }: {
+function TexRow({ e, thumb, selected, onToggle, onFocus, onPick, onClear }: {
   e: TextureEntry
   thumb?: string
+  selected: boolean
+  onToggle: () => void
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
 }) {
   const actionable = e.missing && (onPick || onClear)
+  const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
-    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')}
-      title={`${e.width > 0 ? `${specText(e)}\n` : ''}Click to select material “${e.material}” & frame its object`}
+    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '') + (selected ? ' tex-sel' : '')}
+      title={`${pathTip}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
-      <Tip className="tex-info" text={e.resolved && e.resolved !== e.path ? `${e.path}\n→ ${e.resolved}` : e.path}>
-        <span className="tex-info-dot" onClick={(ev) => ev.stopPropagation()}>ⓘ</span>
-      </Tip>
+      <input type="checkbox" className="tex-cb" checked={selected}
+        title="Select this map for the batch actions on the left (Resize, Make absolute…)"
+        onClick={(ev) => ev.stopPropagation()} onChange={onToggle} />
       <span className="tex-cell-file">
         {thumb
           ? (
@@ -121,9 +124,14 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
   )
 }
 
-function TexTable({ rows, previews, onFocus, onPick, onClear }: {
+function TexTable({ rows, previews, selected, rowKey, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear }: {
   rows: TextureEntry[]
   previews: Record<string, string>
+  selected: Set<string>
+  rowKey: (e: TextureEntry) => string
+  onToggle: (e: TextureEntry) => void
+  allChecked: boolean
+  onToggleAll: () => void
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
@@ -131,9 +139,10 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
-        <Tip text="Path as stored in the shader — hover the ⓘ in a row to see it."><span className="tex-info">ⓘ</span></Tip>
+        <input type="checkbox" className="tex-cb" checked={allChecked}
+          title="Select / deselect every map in the current filter" onChange={onToggleAll} />
         <Tip text="File name of the texture. Click the thumbnail to open the image in your picture viewer."><span>File</span></Tip>
-        <Tip text="Badge shows absolute / relative / missing — “→ relative” can be rewritten with one click. The ⓘ on the left shows the full path."><span>Path</span></Tip>
+        <Tip text="Badge shows absolute / relative / missing — “→ relative” can be rewritten with one click. Hover a row for its full path."><span>Path</span></Tip>
         <Tip text="Resolution tier (e.g. 4K/8K) — heavy maps stand out instantly."><span className="num">Res</span></Tip>
         <Tip text="Actual pixel dimensions of the file."><span className="num">Pixels</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
@@ -142,6 +151,7 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
           thumb={previews[e.resolved || e.path]}
+          selected={selected.has(rowKey(e))} onToggle={() => onToggle(e)}
           onFocus={onFocus} onPick={onPick} onClear={onClear} />
       ))}
     </div>
@@ -203,6 +213,16 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [resizePercent, setResizePercent] = useState(50)
   const [resizeConfirm, setResizeConfirm] = useState(false)
   const [absConfirm, setAbsConfirm] = useState(false)
+  // Row selection: check maps in the paths list to scope the batch actions
+  // (Resize / Make absolute) to just those rows. Empty = act on the whole
+  // filtered set, as before. Keyed by path+material so it survives paging.
+  const rowKey = (e: TextureEntry) => e.path + ' ' + e.material
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const toggleRow = (e: TextureEntry) => setSelected((s) => {
+    const next = new Set(s); const k = rowKey(e)
+    next.has(k) ? next.delete(k) : next.add(k)
+    return next
+  })
   // Parameterized facet matchers — shared by the row filter AND the faceted
   // chip counts (each facet is counted with every OTHER facet applied).
   const mRes = (e: TextureEntry, k: string) => !k || resTier(e) === k
@@ -290,11 +310,28 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
+  // Selection scoping: when the user has ticked rows, the path-array batch
+  // actions (Resize / Make absolute) act on exactly those maps. With nothing
+  // ticked they fall back to the whole filtered set (the previous behavior).
+  const filteredTex = allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e))
+  const selActive = selected.size > 0
+  const selEntries = allTex.filter((e) => selected.has(rowKey(e)))
+  const selScope = selActive ? selEntries : filteredTex
+  // How many of the CURRENT filter are ticked — drives the header checkbox.
+  const filteredSelCount = filteredTex.filter((e) => selected.has(rowKey(e))).length
+  const allFilteredChecked = filteredTex.length > 0 && filteredSelCount === filteredTex.length
+  const toggleAll = () => setSelected((s) => {
+    const next = new Set(s)
+    if (allFilteredChecked) filteredTex.forEach((e) => next.delete(rowKey(e)))
+    else filteredTex.forEach((e) => next.add(rowKey(e)))
+    return next
+  })
+
   // Make-absolute counterpart to Fix paths: relative references that resolve
-  // to an existing file. Batch resize operates on the CURRENTLY FILTERED maps
-  // that exist on disk and carry pixel data.
-  const makeAbsolute = allTex.filter((e) => !e.absolute && !e.missing)
-  const resizeTargets = allTex.filter((e) => byRes(e) && byPath(e) && bySpec(e) && e.exists && e.width > 0)
+  // to an existing file. Batch resize operates on maps that exist on disk and
+  // carry pixel data. Both honor the row selection when one is active.
+  const makeAbsolute = selScope.filter((e) => !e.absolute && !e.missing)
+  const resizeTargets = selScope.filter((e) => e.exists && e.width > 0)
   const totalVram = tex?.total_vram ?? 0
   const fixable = tex?.relocatable_count ?? 0
   // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
@@ -554,14 +591,14 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <button className="ghost sm" disabled={busy || !resizeTargets.length}
               title={resizeTargets.length
                 ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
-                : 'No textures with pixel data in the current filter'}
+                : selActive ? 'No selected maps with pixel data' : 'No textures with pixel data in the current filter'}
               onClick={() => setResizeConfirm(true)}>
               Resize {resizeTargets.length} → {resizePercent}%
             </button>
             <p className="hint-sm" style={{ marginTop: 4 }}>
               Writes downsized <b>copies</b> next to the originals (suffix
               <code> _{resizePercent}</code>) and relinks the materials —
-              applies to the currently filtered maps.
+              applies to {selActive ? <b>the {selected.size} selected maps</b> : 'the currently filtered maps'}.
             </p>
 
             {!tex.doc_path && (
@@ -576,6 +613,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
               </span>
+              {selActive && (
+                <button className="wb-accept-all" title="Clear the selection"
+                  onClick={() => setSelected(new Set())}>
+                  {selected.size} selected · clear ✕
+                </button>
+              )}
               {missingCount > 0 && (
                 <>
                   <button className="wb-accept-all" disabled={busy}
@@ -600,7 +643,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               {pathPager.total
                 ? <>
                     <TexTable rows={pathPager.rows}
-                      previews={texPreviews} onFocus={org.doFocusMaterial}
+                      previews={texPreviews}
+                      selected={selected} rowKey={rowKey} onToggle={toggleRow}
+                      allChecked={allFilteredChecked} onToggleAll={toggleAll}
+                      onFocus={org.doFocusMaterial}
                       onPick={(e) => org.doPickTexturePath(e.path, e.material)}
                       onClear={(e) => org.doSetTexturePath(e.path, '', e.material)} />
                     <Pager pager={pathPager} />
