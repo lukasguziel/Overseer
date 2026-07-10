@@ -497,6 +497,18 @@ export function useOrganizer() {
   const reloadEverythingRef = useRef(reloadEverything)
   reloadEverythingRef.current = reloadEverything
 
+  // Toggling the All-objects / Visible-only filter changes what EVERY stat
+  // counts (report, all plans, open audits), so it must trigger a full reload —
+  // nothing else has `includeHidden` in its deps. Skip the initial mount (the
+  // boot preload already analyzed once) and wait until the app is ready.
+  const visFilterFirst = useRef(true)
+  useEffect(() => {
+    if (!ready) return
+    if (visFilterFirst.current) { visFilterFirst.current = false; return }
+    reloadEverythingRef.current()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeHidden, ready])
+
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
     setNaming(r); doAnalyze()
@@ -593,6 +605,12 @@ export function useOrganizer() {
     const next = new Set(keeps[section]); next.delete(key)
     syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
   }, [keeps, syncKeeps])
+
+  // Restore EVERY accepted-as-is item of a section in one go (the "restore all"
+  // button on the Accepted panel): clears the whole keep list and re-plans.
+  const unkeepAll = useCallback((section: KeepSection) => {
+    syncKeeps(section, new Set()).catch((e) => setError(String(e.message || e)))
+  }, [syncKeeps])
 
   // Accept a whole batch of keys as-is (✕-all buttons, no-layer worklist):
   // one config write, the matching rows vanish, the score jumps.
@@ -1026,7 +1044,7 @@ export function useOrganizer() {
     report, detectInfo, compliance,
     naming, structure, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
-    keeps, keep, unkeep, keepAll, keepMany, planCount, areaScore, doRenameObject,
+    keeps, keep, unkeep, unkeepAll, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
