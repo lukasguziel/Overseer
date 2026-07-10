@@ -14,6 +14,8 @@ import GlobalTooltip from './components/GlobalTooltip'
 import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
+import TabIntro from './components/TabIntro'
+import type { TabId } from './lib/constants'
 import Ring, { type Tone } from './components/Ring'
 import { scoreTone } from './lib/score'
 import OverviewTab from './tabs/OverviewTab'
@@ -29,6 +31,20 @@ import TagsTab from './tabs/TagsTab'
 import GeneratorsTab from './tabs/GeneratorsTab'
 import FilesTab from './tabs/FilesTab'
 import SimsTab from './tabs/SimsTab'
+
+// Headline + one-line description shown at the top of each area (Overview,
+// Naming and Misc intentionally excluded — they carry their own intros).
+const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string }>> = {
+  translate: { title: 'Translate', desc: 'Translate object names into your target language — Google (online) or bundled dictionaries. Every rename is previewed before you apply.' },
+  structure: { title: 'Structure', desc: 'Group loose objects into a clean container hierarchy. Generator children stay protected; changes apply as one undo step.' },
+  layers: { title: 'Layers', desc: 'Assign objects to layers and tidy the layer table. Nothing changes until you apply a suggestion.' },
+  materials: { title: 'Materials', desc: 'Audit materials and textures: unused materials, missing maps, oversized textures and absolute paths.' },
+  tags: { title: 'Tags', desc: 'Audit object tags across the scene — missing phong tags and duplicate material tags.' },
+  generators: { title: 'Generators', desc: 'Inspect generator objects (Cloner, Array, Subdivision…) and spot heavy parameter values.' },
+  files: { title: 'Files', desc: 'External files the scene references — Alembic and simulation caches and other on-disk assets.' },
+  sims: { title: 'Sims', desc: 'Simulation setups in the scene — dynamics, cloth, pyro and their cache state.' },
+  assets: { title: 'Assets', desc: 'Browse and filter every object in the scene; batch-assign layers or move objects into groups.' },
+}
 
 export default function App() {
   const org = useOrganizer()
@@ -135,6 +151,8 @@ export default function App() {
       </div>
 
       {error && tab !== 'rules' && <div className="error">{error}</div>}
+
+      {TAB_INTRO[tab] && <TabIntro title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc} />}
 
       {tab === 'overview' && <OverviewTab org={org} />}
       {tab === 'assets' && (
