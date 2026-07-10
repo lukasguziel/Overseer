@@ -488,12 +488,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               Make absolute ({makeAbsolute.length})
             </button>
 
-            <div className="rule-group-head"><span>Verkleinern</span></div>
+            <div className="rule-group-head"><span>Shrink</span></div>
             <p className="hint-sm">
-              Schreibt verkleinerte <b>Kopien</b> neben die Originale (Suffix
-              <code> _{resizePercent}</code>) und verlinkt die Materialien neu.
-              Die Originale bleiben unangetastet, der Umbau ist widerrufbar.
-              Wirkt auf die aktuell gefilterten Maps.
+              Writes downsized <b>copies</b> next to the originals (suffix
+              <code> _{resizePercent}</code>) and relinks the materials.
+              The originals stay untouched, and the change is undoable.
+              Applies to the currently filtered maps.
             </p>
             <div className="tex-filter" style={{ marginBottom: 8 }}>
               {[25, 50, 75].map((p) => (
