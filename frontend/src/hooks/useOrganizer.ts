@@ -7,7 +7,8 @@ import { dominantCasing } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import { prefetchAudit, useAuditData } from './useAudit'
 import type {
-  ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, OrganizerSettings, PlanResult,
+  ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, LayerMismatch,
+  OrganizerSettings, PlanResult,
   Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
 } from '../types'
 
@@ -25,9 +26,9 @@ const emptyKeeps = (): Record<KeepSection, Set<string>> => ({
   structure: new Set(), materials: new Set(),
 })
 
-// Score rounding that never shows a perfect 100 while todos remain open.
+// Score rounding: never below 0, and never a perfect 100 while todos remain.
 const capped = (open: number, share: number): number =>
-  open > 0 ? Math.min(99, Math.round(share * 100)) : 100
+  open > 0 ? Math.min(99, Math.max(0, Math.round(share * 100))) : 100
 
 export function useOrganizer() {
   const [tab, setTab] = useState<TabId>('overview')
@@ -101,6 +102,8 @@ export function useOrganizer() {
   const [structure, setStructure] = useState<PlanResult<ReparentDiff> | null>(null)
   const [layers, setLayers] = useState<PlanResult<LayerDiff> | null>(null)
   const [translation, setTranslation] = useState<PlanResult<TranslateDiff> | null>(null)
+  const [layerSuggestions, setLayerSuggestions] = useState<PlanResult<LayerDiff> | null>(null)
+  const [layerMismatches, setLayerMismatches] = useState<LayerMismatch[]>([])
   const [keeps, setKeeps] = useState<Record<KeepSection, Set<string>>>(emptyKeeps)
   const [rules, setRules] = useState<RulesInfo | null>(null)
   const [exported, setExported] = useState('')
@@ -322,6 +325,34 @@ export function useOrganizer() {
       .catch((e) => { setError(String(e.message || e)); setStatus('Pick ✗') })
   }, [refreshSoon])
 
+  // Batch-resize textures to a percentage: writes resized COPIES next to the
+  // originals (suffix _25/_50/_75) and relinks the shaders (undoable, journaled).
+  const doTextureResize = useCallback((paths: string[], percent: number) => {
+    setStatus(`Resizing ${paths.length} texture${paths.length === 1 ? '' : 's'} to ${percent}%…`)
+    call('texture_resize', { paths, percent })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(`Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
+          + (r.skipped ? ` · ${r.skipped} skipped` : ''))
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Resize ✗') })
+  }, [doAnalyze])
+
+  // Convert texture paths between relative and absolute form (undoable, journaled).
+  const doTextureRepath = useCallback((paths: string[], mode: 'relative' | 'absolute') => {
+    setStatus(`Making ${paths.length} path${paths.length === 1 ? '' : 's'} ${mode}…`)
+    call('texture_repath', { paths, mode })
+      .then((r) => {
+        if (r.error) { setStatus(r.error); return }
+        setStatus(r.changed
+          ? `Rewrote ${r.changed} path${r.changed === 1 ? '' : 's'} to ${mode} ✓ (undoable)`
+          : `No paths to make ${mode}.`)
+        doAnalyze()
+      })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Repath ✗') })
+  }, [doAnalyze])
+
   // Clear dead references: blank the path on shaders whose file is missing.
   const doClearMissingTextures = useCallback(() => {
     setStatus('Clearing missing texture references…')
@@ -347,6 +378,20 @@ export function useOrganizer() {
     doAnalyze()
   })
 
+  const doDeleteEmptyLayers = () => run('Delete empty layers', async () => {
+    const r = await call('delete_empty_layers')
+    setStatus(`${r.deleted} empty layer${r.deleted === 1 ? '' : 's'} deleted ✓ (undoable)`)
+    doAnalyze()
+  })
+
+  const doDeleteLayer = (name: string) => run('Delete layer', async () => {
+    const r = await call('delete_layer', { name })
+    setStatus(r.deleted
+      ? `Layer “${name}” deleted ✓ (undoable)`
+      : `“${name}” is not empty — not deleted`)
+    doAnalyze()
+  })
+
   // Remember the server-filtered keep list a plan reported for a section.
   const noteKept = useCallback((section: KeepSection, kept?: string[]) => {
     if (kept) setKeeps((k) => ({ ...k, [section]: new Set(kept) }))
@@ -369,6 +414,17 @@ export function useOrganizer() {
     setLayers(r)
     noteKept('layers', r.kept)
   }, [settings, noteKept])
+
+  // Layers tab extras: ancestor-layer suggestions for the no-layer worklist
+  // and the informational parent/child layer-mismatch findings.
+  const reloadLayerExtras = useCallback(async () => {
+    const [s, m] = await Promise.all([
+      call('plan_layer_suggestions', { settings: settings() }),
+      call('layer_mismatches', { settings: settings() }),
+    ])
+    setLayerSuggestions(s)
+    setLayerMismatches(m.findings || [])
+  }, [settings])
 
   const reloadTranslate = useCallback(async () => {
     const p = await call('plan_translate', {
@@ -551,9 +607,15 @@ export function useOrganizer() {
   // changes. `hydrated` gates the auto-save below so mount-time defaults never
   // clobber the stored file before the initial load has finished.
   const hydrated = useRef(false)
+  // Flips to true once the stored settings for the current document have been
+  // applied (or confirmed absent). The badge-seeding effect below keys off it
+  // so the naming/translate previews are (re)planned with the HYDRATED
+  // settings — not the mount-time defaults, which produce a wrong badge count.
+  const [uiHydrated, setUiHydrated] = useState(false)
   useEffect(() => {
     if (docName === null) return
     hydrated.current = false
+    setUiHydrated(false)
     let cancel = false
     call('ui_settings_get')
       .then((r) => {
@@ -561,7 +623,7 @@ export function useOrganizer() {
         if (r.found && r.ui) applyStoredUi(r.ui)
       })
       .catch(() => {})
-      .finally(() => { if (!cancel) hydrated.current = true })
+      .finally(() => { if (!cancel) { hydrated.current = true; setUiHydrated(true) } })
     return () => { cancel = true }
   }, [docName, applyStoredUi])
 
@@ -577,8 +639,46 @@ export function useOrganizer() {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
   }, [currentUi])
 
-  // Auto-analyze on first load.
-  useEffect(() => { doAnalyze() }, [doAnalyze])
+  // Boot sequence on first load: analyze, then eagerly load the naming and
+  // translate previews so every nav badge has its count right away (layers/
+  // materials counts come free with the report). Runs under the blocking
+  // preloader, whose phase line (/api/progress) names the area being loaded.
+  const booted = useRef(false)
+  useEffect(() => {
+    if (booted.current) return
+    booted.current = true
+    ;(async () => {
+      await doAnalyze()
+      await run('Loading previews', async () => {
+        await reloadNaming()
+        await reloadTranslate()
+      })
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Re-seed the naming/translate badge previews once per-project settings have
+  // hydrated. The boot seed above runs with mount-time defaults; the stored
+  // casing/numbering/etc. arrive ~1s later (docName -> ui_settings_get), and
+  // an inactive tab's usePreview never fires, so the badge would otherwise keep
+  // the stale (pre-hydration) count while the tab itself shows the correct one.
+  // Refs give us the latest reload closures without re-running on every setting
+  // change; the active tab already live-previews, so we skip it here.
+  const reloadNamingRef = useRef(reloadNaming)
+  reloadNamingRef.current = reloadNaming
+  const reloadTranslateRef = useRef(reloadTranslate)
+  reloadTranslateRef.current = reloadTranslate
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  useEffect(() => {
+    if (!uiHydrated || !booted.current) return
+    ;(async () => {
+      try {
+        if (tabRef.current !== 'naming') await reloadNamingRef.current()
+        if (tabRef.current !== 'translate') await reloadTranslateRef.current()
+      } catch { /* transient — the tab's own preview will catch up */ }
+    })()
+  }, [uiHydrated])
 
   // Scene watcher (always polling the cheap `dirty`+selection token, ~1 s):
   //  - keeps the live C4D selection display up to date;
@@ -661,7 +761,11 @@ export function useOrganizer() {
 
   // NOTE: the scheme-based layer-tagging preview is parked (LayersTab
   // SHOW_TAGGING) — the tab works off the report's no-layer list only, so
-  // no plan_layers preview is fetched any more.
+  // no plan_layers preview is fetched any more. It does fetch the ancestor
+  // suggestions + mismatch findings, though.
+  usePreview('layers', 250, async () => {
+    await reloadLayerExtras()
+  }, [scope, settings, keeps.layers, reloadLayerExtras, sceneVersion])
 
   // Materials keeps live in the analyze report (accepted_all), not a plan.
   useEffect(() => {
@@ -717,7 +821,11 @@ export function useOrganizer() {
         const nodes = report.nodes || []
         if (!nodes.length) return null
         if (!naming?.diff) return namingHyg?.namingScore ?? null
-        const open = new Set<number>(naming.diff.map((d) => d.guid))
+        // Only count objects that exist in the current report: the plan can
+        // cover objects the report perspective excludes (hidden/selection),
+        // which used to push the open count past the total → negative score.
+        const guids = new Set<number>(nodes.map((n) => n.guid))
+        const open = new Set<number>(naming.diff.map((d) => d.guid).filter((g) => guids.has(g)))
         namingHyg?.defaults.forEach((n) => open.add(n.guid))
         namingHyg?.dupeGuids.forEach((g) => open.add(g))
         return capped(open.size, (nodes.length - open.size) / nodes.length)
@@ -750,7 +858,7 @@ export function useOrganizer() {
         return capped(bad, Math.max(0, total - bad) / total)
       }
       case 'structure':
-        return Math.round((report.structure_compliance || 0) * 100)
+        return Math.max(0, Math.min(100, Math.round((report.structure_compliance || 0) * 100)))
       case 'tags': {
         // Missing phong tags and duplicate material tags are defects; a
         // scene without either scores 100. Needs the tags scan (runs when
@@ -777,15 +885,14 @@ export function useOrganizer() {
     }
   }, [report, namingHyg, naming, translation, keeps.layers, tagsScan, filesScan])
 
-  // The Overview shows every area's score: quietly preload the plans it
-  // needs (naming for the plan-based score, translate for the counts).
+  // The Overview shows every area's score: quietly prefetch the audit scans
+  // it needs. Naming/translate previews are already loaded eagerly by the
+  // boot sequence above (and kept fresh by the tab preview effects).
   useEffect(() => {
     if (tab !== 'overview' || !report) return
-    if (!naming) reloadNaming().catch(() => {})
-    if (!translation) reloadTranslate().catch(() => {})
     prefetchAudit('tags_scan')   // tags score without visiting the Tags tab
     prefetchAudit('files_scan')  // external-files size for the size tile
-  }, [tab, report, naming, translation, reloadNaming, reloadTranslate])
+  }, [tab, report])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
@@ -804,12 +911,14 @@ export function useOrganizer() {
     if (tab === 'misc') loadChanges()
   }, [tab, sceneVersion, loadChanges])
 
-  const doRevertChange = useCallback((id: string) => {
-    setStatus('Reverting change…')
-    call('revert_change', { id })
+  // Revert a whole run (items omitted) or selected ops within it (items =
+  // op indices). Missing/renamed targets are skipped, never abort the run.
+  const doRevertChange = useCallback((id: string, items?: number[]) => {
+    setStatus(items ? 'Reverting op…' : 'Reverting run…')
+    call('revert_change', items ? { id, items } : { id })
       .then((r) => {
         setStatus(r.reverted != null
-          ? `Reverted ${r.reverted} change${r.reverted === 1 ? '' : 's'}${r.missing ? ` (${r.missing} object(s) not found)` : ''} ✓ (undoable)`
+          ? `Reverted ${r.reverted} change${r.reverted === 1 ? '' : 's'}${r.missing ? ` · ${r.missing} skipped (object gone)` : ''} ✓ (undoable)`
           : 'Reverted ✓')
         loadChanges()
         doAnalyze()
@@ -846,6 +955,7 @@ export function useOrganizer() {
     busy, status, error, previewing, progress,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
+    layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
     keeps, keep, unkeep, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges,
     rules, exported, history, presets, activePreset,
@@ -853,6 +963,7 @@ export function useOrganizer() {
     doAssignLayer, doMoveToGroup,
     doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
     doRelinkTextures, doClearMissingTextures, doSetTexturePath, doPickTexturePath,
+    doTextureResize, doTextureRepath,
     applyNaming, applyNamingOne, applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
     applyTranslate, applyTranslateOne, applyPreset,
