@@ -5,7 +5,7 @@ import { call } from '../api'
 import type { TabId } from '../lib/constants'
 import { dominantCasing } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
-import { prefetchAudit, useAuditData } from './useAudit'
+import { prefetchAudit, refreshLoadedAudits, loadedAuditCount, useAuditData } from './useAudit'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, LayerMismatch,
   OrganizerSettings, PlanResult,
@@ -66,12 +66,20 @@ export function useOrganizer() {
   // Active document name (from the cheap `dirty` poll). Drives per-project
   // settings hydration: switching projects reloads the stored settings.
   const [docName, setDocName] = useState<string | null>(null)
+  // Gate the whole app render until the first boot preload is fully done —
+  // analyze + settings hydration + naming/translate previews computed with the
+  // HYDRATED settings. Keeps the wrong pre-hydration count off the screen.
+  const [ready, setReady] = useState(false)
 
   const [busy, setBusy] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [status, setStatus] = useState('Ready.')
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<ProgressInfo | null>(null)
+  // Stepped "reload all areas" overlay: drives a client-side progress bar while
+  // every area (report + all plans + loaded audits) is refreshed in sequence.
+  const [reloadProgress, setReloadProgress] = useState<
+    { step: number; total: number; label: string } | null>(null)
 
   // Progress feed: poll /api/progress permanently (answered by the bridge's
   // server thread, so it works WHILE the C4D main thread is busy). Fast
@@ -149,6 +157,10 @@ export function useOrganizer() {
     // (Overview, Assets, compliance, …) — the server re-aggregates the tree.
     const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
     setReport(r.report)
+    // Set docName straight from the report so per-project settings hydrate
+    // NOW (during boot), not one watcher tick later — otherwise the previews
+    // would first render with default settings and visibly correct themselves.
+    if (r.report?.doc_name != null) setDocName(r.report.doc_name)
     lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '', sel: r.report?.sel ?? 0 }
     setSelStale(false)  // this analysis is in sync with the current selection
     setSceneVersion((v) => v + 1)  // let the active tab's live preview reload
@@ -433,6 +445,42 @@ export function useOrganizer() {
     noteKept('translate', p.kept)
   }, [settings, translateTarget, translateEngine, noteKept])
 
+  // Reload EVERY area in sequence behind a stepped progress overlay: the
+  // report (Overview/Assets/Materials/Layers stats), the naming/translate/
+  // structure/layer plans, and every audit scan the user has already opened.
+  // Used on selection changes under selection scope so all tabs AND nav badges
+  // stay current without visiting each one. The analyze here is quiet (no
+  // global busy lock) — the stepped overlay is the only spinner.
+  const reloadEverything = useCallback(async () => {
+    const steps: [string, () => Promise<unknown>][] = [
+      ['Analyzing scene', async () => {
+        const r = await call('analyze', {
+          settings: { selection: scopeRef.current, include_hidden: includeHiddenRef.current } })
+        setReport(r.report)
+        if (r.report?.doc_name != null) setDocName(r.report.doc_name)
+        lastDirty.current = { dirty: r.report?.dirty ?? 0, name: r.report?.doc_name ?? '', sel: r.report?.sel ?? 0 }
+        setSelStale(false)
+        setSceneVersion((v) => v + 1)
+      }],
+      ['Naming', () => reloadNaming()],
+      ['Translate', () => reloadTranslate()],
+      ['Structure', () => reloadStructure()],
+      ['Layers', () => reloadLayerExtras()],
+    ]
+    if (loadedAuditCount() > 0) {
+      steps.push(['Tags, files, generators & sims', () => refreshLoadedAudits()])
+    }
+    const total = steps.length
+    for (let i = 0; i < total; i++) {
+      setReloadProgress({ step: i, total, label: steps[i][0] })
+      try { await steps[i][1]() } catch { /* keep going — later steps still refresh */ }
+    }
+    setReloadProgress(null)
+  }, [reloadNaming, reloadTranslate, reloadStructure, reloadLayerExtras])
+
+  const reloadEverythingRef = useRef(reloadEverything)
+  reloadEverythingRef.current = reloadEverything
+
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
     setNaming(r); doAnalyze()
@@ -639,44 +687,46 @@ export function useOrganizer() {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
   }, [currentUi])
 
-  // Boot sequence on first load: analyze, then eagerly load the naming and
-  // translate previews so every nav badge has its count right away (layers/
-  // materials counts come free with the report). Runs under the blocking
-  // preloader, whose phase line (/api/progress) names the area being loaded.
+  // Boot sequence on first load: just analyze. Analyze sets docName, which
+  // fires per-project settings hydration; the seed effect below then loads the
+  // previews with the HYDRATED settings and lifts the `ready` gate. The whole
+  // chain runs behind the blocking preloader, so the app only appears once
+  // every nav badge already holds its correct count.
   const booted = useRef(false)
   useEffect(() => {
     if (booted.current) return
     booted.current = true
-    ;(async () => {
-      await doAnalyze()
-      await run('Loading previews', async () => {
-        await reloadNaming()
-        await reloadTranslate()
-      })
-    })()
+    doAnalyze()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Re-seed the naming/translate badge previews once per-project settings have
-  // hydrated. The boot seed above runs with mount-time defaults; the stored
-  // casing/numbering/etc. arrive ~1s later (docName -> ui_settings_get), and
-  // an inactive tab's usePreview never fires, so the badge would otherwise keep
-  // the stale (pre-hydration) count while the tab itself shows the correct one.
-  // Refs give us the latest reload closures without re-running on every setting
-  // change; the active tab already live-previews, so we skip it here.
+  // Seed the naming/translate badge previews once per-project settings have
+  // hydrated (uiHydrated flips true after docName -> ui_settings_get). Refs
+  // give us the latest reload closures without re-running on every setting
+  // change. The FIRST seed is blocking and lifts the `ready` gate; later seeds
+  // (document switches) refresh the badges silently in the background.
   const reloadNamingRef = useRef(reloadNaming)
   reloadNamingRef.current = reloadNaming
   const reloadTranslateRef = useRef(reloadTranslate)
   reloadTranslateRef.current = reloadTranslate
-  const tabRef = useRef(tab)
-  tabRef.current = tab
+  const seededOnce = useRef(false)
   useEffect(() => {
     if (!uiHydrated || !booted.current) return
-    ;(async () => {
+    const initial = !seededOnce.current
+    seededOnce.current = true
+    const seed = async () => {
       try {
-        if (tabRef.current !== 'naming') await reloadNamingRef.current()
-        if (tabRef.current !== 'translate') await reloadTranslateRef.current()
+        await reloadNamingRef.current()
+        await reloadTranslateRef.current()
       } catch { /* transient — the tab's own preview will catch up */ }
+    }
+    ;(async () => {
+      if (initial) {
+        await run('Loading previews', seed)
+        setReady(true)
+      } else {
+        await seed()
+      }
     })()
   }, [uiHydrated])
 
@@ -701,8 +751,12 @@ export function useOrganizer() {
         const sceneChanged = d.dirty !== last.dirty || d.name !== last.name
         const selChanged = d.sel !== last.sel
         if (autoRefresh && (sceneChanged || (scope && selChanged))) {
+          // Refresh ALL areas (not just the report): under selection scope a
+          // selection change should update every tab and nav badge at once,
+          // shown behind the stepped reload overlay.
           refreshing.current = true
-          Promise.resolve(doAnalyze()).finally(() => { refreshing.current = false })
+          Promise.resolve(reloadEverythingRef.current())
+            .finally(() => { refreshing.current = false })
         } else if (!autoRefresh && scope && selChanged) {
           setSelStale(true)
         }
@@ -952,7 +1006,7 @@ export function useOrganizer() {
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,
-    busy, status, error, previewing, progress,
+    busy, status, error, previewing, progress, ready, reloadProgress, reloadEverything,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,

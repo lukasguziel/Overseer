@@ -24,8 +24,19 @@ export interface LayerInfo {
   render: boolean           // render flag (R)
   locked: boolean           // locked flag (L)
   objects: number           // objects assigned to this layer (scope-aware)
+  materials: number         // materials whose layer link points here
+  tags: number              // tags whose layer link points here
   polys: number
-  empty: boolean            // exists but holds no objects
+  empty: boolean            // exists and NOTHING (objects/materials/tags) references it
+}
+
+export interface LayerMismatch {
+  guid: number
+  name: string
+  path: string
+  parent: string
+  parent_layer: string
+  child_layer: string
 }
 
 export interface LayersReport {
@@ -66,6 +77,12 @@ export interface TextureEntry {
   width: number          // pixel dimensions (0 if unknown)
   height: number
   res_tag: string        // resolution tag, e.g. '4K' / '8K' / '512px'
+  bit_depth?: number     // bits per channel (0 if unknown)
+  channels?: number      // channel count (1 grey … 4 RGBA)
+  has_alpha?: boolean    // alpha channel present
+  greyscale?: boolean    // single-channel / luminance image
+  colorspace?: string    // colorspace tag where readable ('sRGB','linear',…)
+  vram?: number          // estimated uncompressed RGBA cost incl. mipmaps (bytes)
 }
 
 export interface TextureReport {
@@ -76,6 +93,7 @@ export interface TextureReport {
   missing_count: number
   relocatable_count: number
   total_bytes: number    // disk footprint, each physical file counted once
+  total_vram?: number    // estimated uncompressed RGBA cost incl. mipmaps (bytes)
   absolute: TextureEntry[]
   relative: TextureEntry[]
 }
@@ -103,6 +121,8 @@ export interface SceneReport {
   scoped?: boolean          // true = stats cover only the C4D selection
   hidden_count?: number     // objects hidden in the Object Manager (whole tree)
   include_hidden?: boolean  // false = hidden objects excluded from these stats
+  has_generators?: boolean  // scene has at least one audited generator (else Generators tab is disabled)
+  has_sims?: boolean        // scene has at least one simulation participant (else Sims tab is disabled)
   dirty?: number            // C4D change token at read time (auto-refresh sync)
   doc_name?: string         // active document name at read time
   sel?: number              // selection token at read time (selection-scope sync)
@@ -138,11 +158,12 @@ export interface HistoryEntry {
 
 // One field change of one object inside a batched tool mutation.
 export interface ChangeItem {
-  sid: number               // C4D-stable object id (for revert)
+  sid?: number              // C4D-stable object id (for revert; absent for texpath)
   name: string              // object name after the change (revert fallback match)
-  field: 'name' | 'layer' | 'parent'
+  field: 'name' | 'layer' | 'parent' | 'texpath'
   before: string
   after: string
+  reverted?: boolean        // this single op has been reverted (per-op revert)
 }
 
 // One batched tool mutation (one apply = one entry), newest first from the API.
