@@ -525,24 +525,30 @@ export function useOrganizer() {
   const reloadEverythingRef = useRef(reloadEverything)
   reloadEverythingRef.current = reloadEverything
 
-  // Toggling the All-objects / Visible-only filter changes what EVERY stat
-  // counts (report, all plans, open audits), so it must trigger a full reload —
-  // nothing else has `includeHidden` in its deps. Deterministic instead of a
-  // skip-first heuristic: the report records which perspective it was computed
-  // with (`include_hidden`); whenever that disagrees with the toggle, reload.
-  // Self-healing — a transition can never be silently lost — and loop-free:
-  // after the reload both sides agree again. `reloading` guards re-entry while
-  // a reload is already in flight (report stays stale until it lands).
-  const visReloading = useRef(false)
+  // Toggling the All-objects / Visible-only filter or the Selection /
+  // Whole-scene scope changes what EVERY stat counts (report, all plans, open
+  // audits), so both must trigger a full reload — nothing else has them in its
+  // deps. Deterministic instead of a skip-first heuristic: the report records
+  // the perspective it was computed with (`include_hidden`, `scoped`);
+  // whenever either disagrees with the current toggles, reload. Self-healing —
+  // a transition can never be silently lost — and loop-free: after the reload
+  // both sides agree again. The ref guards re-entry while a reload is already
+  // in flight (the report stays stale until it lands). Selection scope with an
+  // empty C4D selection errors server-side and leaves the report as-is; the
+  // effect only refires on the next real change, so it cannot spin.
+  const perspectiveReloading = useRef(false)
   useEffect(() => {
-    if (!ready || visReloading.current) return
-    const cur = report?.include_hidden
-    if (cur == null || Boolean(cur) === includeHidden) return
-    visReloading.current = true
+    if (!ready || perspectiveReloading.current || !report) return
+    const hiddenMismatch = report.include_hidden != null
+      && Boolean(report.include_hidden) !== includeHidden
+    const scopeMismatch = report.scoped != null
+      && Boolean(report.scoped) !== scope
+    if (!hiddenMismatch && !scopeMismatch) return
+    perspectiveReloading.current = true
     Promise.resolve(reloadEverythingRef.current())
-      .finally(() => { visReloading.current = false })
+      .finally(() => { perspectiveReloading.current = false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeHidden, ready, report])
+  }, [includeHidden, scope, ready, report])
 
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
