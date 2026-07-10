@@ -148,17 +148,22 @@ export default function App() {
             )
           })}
         </nav>
+        {/* Right of the tabs: the Overview (which has no own score) gets the
+            "Take my hand" entry point; every other tab keeps its score ring. */}
         <div className="tabs-right">
-          <button className="hand-nav-btn" onClick={() => setHand(true)}
-            title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
-            🫱
-          </button>
-          {score != null && (
-            <div className="area-score"
-              title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
-              <Ring pct={score} tone={tone} />
-            </div>
-          )}
+          {tab === 'overview'
+            ? (
+              <button className="hand-nav-btn" onClick={() => setHand(true)}
+                title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
+                🫱
+              </button>
+            )
+            : score != null && (
+              <div className="area-score"
+                title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
+                <Ring pct={score} tone={tone} />
+              </div>
+            )}
         </div>
       </div>
 
