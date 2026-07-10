@@ -8,15 +8,22 @@ Layers tab.
 ## LayerInfo
 Dataclass for one layer: `name`, viewport/render/lock/solo flags, `color`, and
 the three reference counts `object_count` / `material_count` / `tag_count` plus
-`poly_count`. `empty` is a property: **true only when nothing references the
-layer** — no objects AND no materials AND no tags. `to_dict()` renders the JSON
-the frontend consumes (`objects` / `materials` / `tags` / `polys` / `empty`).
+`poly_count`, and `all_object_count` (object count IGNORING the visibility
+filter; `None` when the caller has no unfiltered counts). `empty` is a
+property: **true only when nothing references the layer** — no objects AND no
+materials AND no tags. It judges objects by `all_object_count` when available,
+so a layer whose only objects are hidden never counts as empty under the
+"Visible only" perspective (the delete offer would fail server-side).
+`to_dict()` renders the JSON the frontend consumes (`objects` / `objects_all` /
+`materials` / `tags` / `polys` / `empty`).
 
-## build_layer_report(layer_meta, object_counts=None, poly_counts=None, no_layer=0)
+## build_layer_report(layer_meta, object_counts=None, poly_counts=None, no_layer=0, all_object_counts=None)
 Assembles `{layers, no_layer, total_layers, empty_layers}`. `layer_meta` is the
 per-layer metadata from the adapter's `scan_layers` (each dict carries
 `materials` / `tags` counts via `c4d.ID_LAYER_LINK`); `object_counts` and
-`poly_counts` come from the analyzer's per-layer aggregation. A layer present in
+`poly_counts` come from the analyzer's per-layer aggregation (perspective-
+filtered); `all_object_counts` is the adapter's unfiltered per-layer object
+count and feeds only the `empty` judgement + `objects_all`. A layer present in
 `object_counts` but missing from `layer_meta` is still listed. `empty_layers`
 counts only truly-empty layers — the number the "Delete N empty" action removes.
 

@@ -92,6 +92,12 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
                 <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
                 <Flags l={l} />
                 <span className="ly-count">{l.objects} obj</span>
+                {(l.objects_all ?? l.objects) > l.objects && (
+                  <span className="ly-flag dim"
+                    title="Objects hidden in the Object Manager also sit on this layer — that is why it does not count as empty under “Visible only”">
+                    +{(l.objects_all ?? 0) - l.objects} hidden
+                  </span>
+                )}
                 {l.materials > 0 && <span className="ly-count">{l.materials} mat</span>}
                 {l.tags > 0 && <span className="ly-count">{l.tags} tag</span>}
                 {l.polys > 0 && <span className="ly-polys">{humanNum(l.polys)} polys</span>}

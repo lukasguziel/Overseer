@@ -24,10 +24,11 @@ export interface LayerInfo {
   render: boolean           // render flag (R)
   locked: boolean           // locked flag (L)
   objects: number           // objects assigned to this layer (scope-aware)
+  objects_all?: number      // same, but ALWAYS counting hidden objects too
   materials: number         // materials whose layer link points here
   tags: number              // tags whose layer link points here
   polys: number
-  empty: boolean            // exists and NOTHING (objects/materials/tags) references it
+  empty: boolean            // NOTHING references it — hidden objects included
 }
 
 export interface LayerMismatch {

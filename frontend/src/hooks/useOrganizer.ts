@@ -421,7 +421,7 @@ export function useOrganizer() {
     const r = await call('delete_layer', { name })
     setStatus(r.deleted
       ? `Layer “${name}” deleted ✓ (undoable)`
-      : `“${name}” is not empty — not deleted`)
+      : `“${name}” is not empty (hidden objects count too) — not deleted`)
     doAnalyze()
   })
 

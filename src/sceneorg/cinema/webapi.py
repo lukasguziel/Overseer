@@ -197,12 +197,14 @@ def _read_history() -> list:
     return []
 
 
-def _merge_layers(report_dict: dict, layer_meta: list) -> dict:
+def _merge_layers(report_dict: dict, layer_meta: list,
+                  all_object_counts: dict | None = None) -> dict:
     return layersmod.build_layer_report(
         layer_meta,
         object_counts=dict(report_dict.get("layers_by_name") or {}),
         poly_counts=dict(report_dict.get("polys_by_layer") or {}),
-        no_layer=report_dict.get("no_layer_count", 0))
+        no_layer=report_dict.get("no_layer_count", 0),
+        all_object_counts=all_object_counts)
 
 
 def _read_config_data() -> dict:
@@ -802,7 +804,8 @@ def _handle(payload: dict) -> dict:
         try:
             _progress("Scanning layers")
             data_dict["layers_report"] = _merge_layers(
-                data_dict, adapter.scan_layers())
+                data_dict, adapter.scan_layers(),
+                all_object_counts=adapter._layer_object_counts())
         except Exception:
             data_dict["layers_report"] = None
         try:
