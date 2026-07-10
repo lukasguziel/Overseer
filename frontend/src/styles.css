@@ -607,7 +607,6 @@ table.diff td { word-break: break-word; }
 .tex-info { display: inline-flex; align-items: center; justify-content: center; }
 .tex-info-dot { color: var(--dim2); font-size: 12px; cursor: help; line-height: 1; }
 .tex-click:hover .tex-info-dot { color: var(--text); }
-.tex-info .tip-bubble { white-space: pre-line; max-width: 460px; text-align: left; }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 /* Hover eye on texture thumbnails: click opens the image in the user's
@@ -1036,15 +1035,29 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 
 /* ---------- Hover tooltip (shared <Tip>) ---------- */
 .tip { position: relative; display: inline-flex; outline: none; }
-.tip-bubble {
-  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-6px);
-  z-index: 1200; min-width: 160px; max-width: 280px; width: max-content;
-  padding: 7px 10px; border-radius: 8px; font-size: 11px; line-height: 1.45; font-weight: 400;
-  text-transform: none; letter-spacing: normal; text-align: left; white-space: normal;
-  background: var(--panel, #242427); color: var(--text, #e8e8ea);
-  border: 1px solid var(--line, #3a3a3e); box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
-  opacity: 0; pointer-events: none; transition: opacity 110ms var(--ease); }
-.tip:hover .tip-bubble, .tip:focus-visible .tip-bubble { opacity: 1; }
+
+/* App-wide styled tooltip (GlobalTooltip): one dark bubble for every title on
+   the page. Fixed-positioned, measured & clamped in JS. Dark like the nav. */
+.gtip {
+  position: fixed; z-index: 4000; pointer-events: none;
+  max-width: 320px; width: max-content;
+  padding: 7px 10px; border-radius: 8px;
+  font-size: 11px; line-height: 1.45; font-weight: 400;
+  text-transform: none; letter-spacing: normal; text-align: left;
+  white-space: pre-line;                       /* keep \n line breaks */
+  background: #202022; color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+  opacity: 0; transform: translateY(2px);
+  transition: opacity 90ms var(--ease), transform 90ms var(--ease); }
+.gtip-show { opacity: 1; transform: translateY(0); }
+/* A small pointer that flips with the placement. */
+.gtip::after {
+  content: ''; position: absolute; left: var(--gtip-arrow, 50%); margin-left: -5px;
+  width: 10px; height: 10px; background: #202022;
+  border: 1px solid var(--line); transform: rotate(45deg); }
+.gtip-top::after { bottom: -6px; border-top: none; border-left: none; }
+.gtip-bottom::after { top: -6px; border-bottom: none; border-right: none; }
 
 /* ---------- Guided mode (card flow) ---------- */
 .guide-toggle-bar { display: flex; justify-content: flex-end; }

@@ -10,6 +10,7 @@ import Tip from './components/Tip'
 import { IconRefresh } from './components/icons'
 import Preloader from './components/Preloader'
 import ReloadOverlay from './components/ReloadOverlay'
+import GlobalTooltip from './components/GlobalTooltip'
 import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
@@ -69,10 +70,10 @@ export default function App() {
         </div>
 
         <div className="topbar-right">
-          <Tip text="Wirkungsbereich: „Ganze Szene“ analysiert und ändert alle Objekte, „Auswahl“ nur die aktive C4D-Auswahl samt Kindern.">
+          <Tip text="Scope: “Whole scene” analyzes and changes all objects, “Selection” only the active C4D selection including children.">
             <ScopeToggle scope={org.scope} setScope={org.setScope} sel={org.sel} />
           </Tip>
-          <Tip text="Ob im Objekt-Manager ausgeblendete Objekte in Statistiken und Funde einbezogen werden.">
+          <Tip text="Whether objects hidden in the Object Manager are included in statistics and findings.">
             <VisibilityToggle includeHidden={org.includeHidden} setIncludeHidden={org.setIncludeHidden}
               hidden={report?.hidden_count} />
           </Tip>
@@ -160,6 +161,7 @@ export default function App() {
           blocking overlay (busy) nor an inline preview loader owns it. */}
       {!busy && !previewing && <ProgressChip progress={org.progress} />}
       <StatusBar status={org.status} busy={busy} />
+      <GlobalTooltip />
     </div>
   )
 }
