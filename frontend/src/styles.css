@@ -434,6 +434,11 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .tm-label { display: flex; flex-direction: column; line-height: 1.2; overflow: hidden; max-width: 100%; }
 .tm-name { font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-val { font-size: 10px; opacity: .75; }
+/* Dense mode (fullsize overlay): smaller tiles still show a truncated name
+   plus a tiny size line, like the compact overview map. */
+.treemap--dense .tm-cell { padding: 2px 4px; }
+.treemap--dense .tm-name { font-size: 9px; font-weight: 600; }
+.treemap--dense .tm-val { font-size: 8px; opacity: .7; }
 .ov-cols { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
 .ov-foot { padding-top: 4px; }
 .ov-foot .example { margin: 0; }

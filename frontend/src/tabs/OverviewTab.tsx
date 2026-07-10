@@ -398,11 +398,11 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             </div>
             {zoom === 'geo'
               ? <>
-                <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" />
+                <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={150} height="62vh" dense />
                 <MapLegend items={geoLegend} />
               </>
               : <>
-                <TreemapChart data={texMap.full} height="62vh" empty="No texture pixel data." />
+                <TreemapChart data={texMap.full} height="62vh" empty="No texture pixel data." dense />
                 <MapLegend items={texMap.tiers} />
               </>}
           </div>
