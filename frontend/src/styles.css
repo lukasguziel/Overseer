@@ -602,6 +602,9 @@ table.diff td { word-break: break-word; }
 .tex-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tex-spec { display: block; font-size: 9px; color: var(--dim2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; letter-spacing: .02em; margin-top: 1px; }
+/* Per-row estimated GPU cost under the disk size — the number that actually
+   hurts at render time, so it gets a warm tint instead of the dim gray. */
+.tex-vram { color: var(--warn); opacity: .75; }
 .tex-cell-file { display: flex; align-items: center; gap: 7px; }
 .tex-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
   font-variant-numeric: tabular-nums; }

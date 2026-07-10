@@ -21,12 +21,15 @@ PNG `sRGB` chunk, `linear` for EXR/HDR (float formats), `YCbCr` for JPEG,
 
 ## VRAM estimate
 
-`vram_bytes(w, h, mipmaps=True)` = `w * h * 4` (uncompressed RGBA, what the map
-actually costs in RAM/VRAM regardless of on-disk JPEG compression) times
-`MIP_FACTOR` (4/3 ≈ 1.33) for the mip chain. `aggregate(infos)` sums this over
-a set of `ImageInfo` (each physical file once) and buckets them into
-`8K / 4K / 2K / < 2K` tiers — this drives the Overview **texture-budget** card
-(`report.textures.total_vram`).
+`vram_bytes(w, h, mipmaps=True, channels=0, bit_depth=0)` =
+`w * h * channels * bit_depth / 8` (uncompressed, what the map actually costs
+in RAM/VRAM regardless of on-disk JPEG compression) times `MIP_FACTOR`
+(4/3 ≈ 1.33) for the mip chain. Unknown metadata (0) falls back to 8-bit RGBA
+(`4` bytes/pixel), so a 32-bit EXR counts 4x an 8-bit map of the same size
+instead of being underestimated. GPU texture compression (BC/DXT) is not
+modelled. `aggregate(infos)` sums this over a set of `ImageInfo` (each physical
+file once) and buckets them into `8K / 4K / 2K / < 2K` tiers — this drives the
+Overview **texture-budget** card (`report.textures.total_vram`).
 
 ## Resize
 

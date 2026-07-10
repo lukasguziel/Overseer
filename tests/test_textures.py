@@ -38,6 +38,20 @@ def test_vram_estimate_includes_mipmaps():
     assert textures.vram_bytes(0, 512) == 0
 
 
+def test_vram_scales_with_channels_and_bit_depth():
+    # setup: 8-bit RGBA is the default assumption
+    base = textures.vram_bytes(1024, 1024, mipmaps=False)
+
+    # postcondition: 32-bit RGBA costs 4x, 8-bit greyscale a quarter;
+    # unknown metadata (0) falls back to the RGBA default
+    assert textures.vram_bytes(1024, 1024, mipmaps=False,
+                               channels=4, bit_depth=32) == base * 4
+    assert textures.vram_bytes(1024, 1024, mipmaps=False,
+                               channels=1, bit_depth=8) == base // 4
+    assert textures.vram_bytes(1024, 1024, mipmaps=False,
+                               channels=0, bit_depth=0) == base
+
+
 def test_png_header_parser_rgba_srgb(tmp_path):
     # setup: exercise the PURE header path (Pillow, if present, has no sRGB tag)
     p = tmp_path / "diffuse.png"

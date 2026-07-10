@@ -126,8 +126,14 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
           </span>
         )}
       </span>
-      <span className="num" title={e.vram ? `~${humanBytes(e.vram)} VRAM (uncompressed, incl. mipmaps)` : undefined}>
+      <span className="num"
+        title={e.vram
+          ? `~${humanBytes(e.vram)} estimated GPU memory: width × height × channels × bit depth, +1/3 for mipmaps — independent of the compressed size on disk`
+          : undefined}>
         {e.bytes > 0 ? humanBytes(e.bytes) : '—'}
+        {(e.vram ?? 0) > 0 && (
+          <span className="tex-spec tex-vram">~{humanBytes(e.vram!)} VRAM</span>
+        )}
       </span>
       <span className="dim tex-cut">{e.material}</span>
       {actionable && (
