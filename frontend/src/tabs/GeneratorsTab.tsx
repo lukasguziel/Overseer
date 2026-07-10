@@ -141,6 +141,7 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
 export default function GeneratorsTab({ org }: { org: Organizer }) {
   const { data, loading, error, reload } = useAudit<GenScan>('gens_scan', true)
   const [busy, setBusy] = useState(false)
+  const [applyError, setApplyError] = useState('')
   const [icons, setIcons] = useState<Record<string, string>>({})
   const [confirm, setConfirm] = useState<{
     type: GenType; param: GenParam; value: any; guids: number[] | undefined; count: number
@@ -173,11 +174,12 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
     const { type, param, value, guids } = confirm
     setConfirm(null)
     setBusy(true)
+    setApplyError('')
     try {
       await call('gens_apply', { type_key: type.key, param_key: param.key, value, guids })
       await reload()
     } catch (e: any) {
-      void e // surfaced through the loader's next scan; keep UI responsive
+      setApplyError(`Align failed: ${String(e.message || e)}`)
     } finally {
       setBusy(false)
     }
@@ -190,29 +192,30 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
 
   const s = data.summary
   return (
-    <div className="stacked">
-      <section className="card">
-        <div className="card-head"><h3>Generators</h3></div>
+    <div className="workbench">
+      <aside className={'wb-side' + (loading ? ' side-loading' : '')}>
+        <h3>Generators</h3>
         <p className="hint-sm">
-          Same generator, different settings? Each card below is one generator
-          type. Settings where all objects agree are summarized in one quiet
-          line — only the <b>mixed</b> settings get a block: see who uses what,
-          click a value chip to select those objects in C4D, or align everyone
-          to one value in a single undoable step.
+          Same generator, different settings? Each card on the right is one
+          generator type. Settings where all objects agree are summarized in one
+          quiet line — only the <b>mixed</b> settings get a block: see who uses
+          what, click a value chip to select those objects in C4D, or align
+          everyone to one value in a single undoable step.
         </p>
-        <div className="substats">
+        <div className="substats gens-side-stats">
           <span><b>{s.total_generators}</b> generators</span>
           <span><b>{s.types_found}</b> types</span>
-          <Tip text="Settings where generators of the same type have different values — e.g. different subdivision levels. They can be unified to one value below.">
+          <Tip text="Settings where generators of the same type have different values — e.g. different subdivision levels. They can be unified to one value on the right.">
             <span className={s.non_uniform_params ? 'warn' : ''}>
               <b>{s.non_uniform_params}</b> mixed setting{s.non_uniform_params === 1 ? '' : 's'}
             </span>
           </Tip>
         </div>
-      </section>
+        {loading && <p className="hint-sm" style={{ marginTop: 12 }}>Refreshing…</p>}
+        {applyError && <div className="error" style={{ marginTop: 12 }}>{applyError}</div>}
+      </aside>
 
-      {loading && <p className="hint-sm">Refreshing…</p>}
-
+      <div className="stacked" style={{ minWidth: 0 }}>
       {data.types.map((type) => {
         const mixed = type.params.filter((p) => !p.uniform)
         const uniform = type.params.filter((p) => p.uniform)
@@ -263,6 +266,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
           </section>
         )
       })}
+      </div>
 
       {confirm && (
         <ConfirmModal
