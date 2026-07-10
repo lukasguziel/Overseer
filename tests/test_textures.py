@@ -168,6 +168,43 @@ def test_tiff_header_parser(tmp_path):
     assert info.greyscale is False
 
 
+def test_tiff_multichannel_bits_resolved_via_offset(tmp_path):
+    # setup: RGB TIFF whose BitsPerSample (count 3) does not fit the field —
+    # the entry stores an OFFSET to the array; reading the offset as the value
+    # produced absurd bit depths (and TB-scale VRAM estimates)
+    def entry(tag, typ, cnt, value):
+        if typ == 3 and cnt <= 2:
+            return struct.pack("<HHIHH", tag, typ, cnt, value, 0)
+        return struct.pack("<HHII", tag, typ, cnt, value)
+    header = b"II" + struct.pack("<HI", 42, 8)
+    n = 6
+    bits_off = 8 + 2 + n * 12 + 4
+    entries = [entry(256, 3, 1, 4096), entry(257, 3, 1, 4096),
+               entry(258, 3, 3, bits_off), entry(262, 3, 1, 2),
+               entry(277, 3, 1, 3), entry(339, 3, 1, 1)]
+    ifd = struct.pack("<H", n) + b"".join(entries) + b"\x00" * 4
+    data = header + ifd + struct.pack("<HHH", 16, 16, 16)
+    p = tmp_path / "rgb16.tif"
+    p.write_bytes(data)
+
+    # do it
+    info = textures._header_info(str(p))
+
+    # postcondition: 16 bit per channel, not the raw offset
+    assert info.bit_depth == 16
+    assert info.channels == 3
+
+
+def test_vram_clamps_bogus_metadata():
+    # setup/do it/postcondition: garbage bit depth or channel counts fall back
+    # to the 8-bit RGBA default instead of exploding into TB estimates
+    base = textures.vram_bytes(8192, 8192, mipmaps=False)
+    assert textures.vram_bytes(8192, 8192, mipmaps=False,
+                               channels=3, bit_depth=36620) == base // 4 * 3
+    assert textures.vram_bytes(8192, 8192, mipmaps=False,
+                               channels=999, bit_depth=8) == base
+
+
 def test_exr_header_parser(tmp_path):
     # setup: minimal EXR with a channels attr (R,G,B,A HALF) and a dataWindow
     magic = b"\x76\x2f\x31\x01" + struct.pack("<I", 2)

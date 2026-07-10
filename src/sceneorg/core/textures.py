@@ -41,8 +41,8 @@ def vram_bytes(width: int, height: int, mipmaps: bool = True,
                channels: int = 0, bit_depth: int = 0) -> int:
     if width <= 0 or height <= 0:
         return 0
-    ch = channels if channels > 0 else 4
-    bpc = bit_depth if bit_depth > 0 else 8
+    ch = channels if 0 < channels <= 8 else 4
+    bpc = bit_depth if bit_depth in (1, 2, 4, 8, 16, 32, 64) else 8
     base = int(width * height * ch * bpc / 8)
     return int(round(base * MIP_FACTOR)) if mipmaps else base
 
@@ -240,19 +240,31 @@ def _tiff_info(f, head) -> ImageInfo | None:
         return None
     count = struct.unpack(endian + "H", count_b)[0]
     tags: dict = {}
+    counts: dict = {}
+    offsets: dict = {}
     for _ in range(count):
         entry = f.read(12)
         if len(entry) < 12:
             break
         tag, typ, cnt = struct.unpack(endian + "HHI", entry[:8])
-        if typ == 3:
+        counts[tag] = cnt
+        if typ == 3 and cnt <= 2:
             val = struct.unpack(endian + "H", entry[8:10])[0]
         else:
             val = struct.unpack(endian + "I", entry[8:12])[0]
+            if typ == 3:
+                offsets[tag] = val
         tags[tag] = val
     w = tags.get(256, 0)
     h = tags.get(257, 0)
     bits = tags.get(258, 8)
+    if 258 in offsets:
+        try:
+            f.seek(offsets[258])
+            first = f.read(2)
+            bits = struct.unpack(endian + "H", first)[0] if len(first) == 2 else 8
+        except OSError:
+            bits = 8
     samples = tags.get(277, 1)
     photometric = tags.get(262, 2)
     extra = tags.get(338, 0)
