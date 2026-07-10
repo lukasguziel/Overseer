@@ -166,6 +166,9 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Labelled area divider (Naming tab): the misc rule/line plus a description. */
 .sec-band { display: flex; flex-direction: column; gap: 4px; }
 .sec-desc { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.4; }
+/* When the band is a whole tab's intro (rendered above the tab content) it
+   needs its own bottom gap — inside a tab the flex `gap` handles spacing. */
+.tab-intro { margin-bottom: 16px; }
 /* About card (Misc tab): links + donate */
 .about-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .about-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
