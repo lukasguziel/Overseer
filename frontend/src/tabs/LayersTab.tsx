@@ -90,6 +90,13 @@ export default function LayersTab({ org }: { org: Organizer }) {
   const lr = report?.layers_report
   const pager = usePager(layers?.diff || [])
 
+  // Empty layers still awaiting a decision: not yet accepted-as-is. Accepting
+  // one hides its delete prompt (it stays a normal row) and lists it in the
+  // Accepted panel below, reusing the shared 'layers' keep section.
+  const emptyOpen = React.useMemo(
+    () => (lr?.layers || []).filter((l) => l.empty && !keeps.layers.has(l.name)).length,
+    [lr, keeps.layers])
+
   // guid -> suggested (ancestor) layer, from the pure planner.
   const suggestionByGuid = React.useMemo(() => {
     const m = new Map<number, string>()
@@ -195,10 +202,11 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
               </span>
             )}
-            {lr && lr.empty_layers > 0 && (
-              <button className="sm" disabled={busy} onClick={org.doDeleteEmptyLayers}
-                title="Delete every layer that nothing (objects, materials or tags) references (one undo step)">
-                ✕ Delete {lr.empty_layers} empty
+            {emptyOpen > 0 && (
+              <button className="sm" disabled={busy}
+                onClick={() => org.doDeleteEmptyLayers(Array.from(keeps.layers))}
+                title="Delete every empty layer that nothing references and you have not accepted (one undo step)">
+                ✕ Delete {emptyOpen} empty
               </button>
             )}
           </div>
@@ -208,6 +216,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 layers={lr.layers} noLayer={lr.no_layer}
                 nodes={report?.nodes || []} onFocus={org.doFocus}
                 onDeleteLayer={org.doDeleteLayer}
+                onKeepLayer={(nm) => org.keep('layers', nm)}
+                keptEmpty={keeps.layers}
               />
             )
             : <div className="fl-empty">Run an analysis to see the layer usage.</div>}

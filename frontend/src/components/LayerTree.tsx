@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
+import { IconTrash } from './icons'
 import type { FocusFn } from './Treemap'
 import type { LayerInfo, SceneNode } from '../types'
 
@@ -28,12 +29,14 @@ function Flags({ l }: { l: LayerInfo }) {
   )
 }
 
-export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer }: {
+export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer, onKeepLayer, keptEmpty }: {
   layers: LayerInfo[]
   noLayer: number
   nodes: SceneNode[]
   onFocus?: FocusFn
   onDeleteLayer?: (name: string) => void
+  onKeepLayer?: (name: string) => void
+  keptEmpty?: Set<string>
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
   const toggle = (name: string) =>
@@ -70,26 +73,37 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
         const objs = byLayer.get(l.name) || []
         const expandable = objs.length > 0
         const isOpen = open.has(l.name)
+        const emptyActions = !isNo && l.empty && !keptEmpty?.has(l.name) && (onDeleteLayer || onKeepLayer)
         return (
           <div key={l.name} className={`ly-group${isNo ? ' orphan' : ''}`}>
-            <button className="ly-head" disabled={!expandable}
-              onClick={() => expandable && toggle(l.name)}
-              title={expandable ? 'Show objects on this layer' : undefined}>
-              <span className={`ly-caret${isOpen ? ' open' : ''}`}>
-                {expandable ? '▸' : ''}
-              </span>
-              <span className="ly-swatch" style={{ background: isNo ? 'transparent' : swatch(l.color) }} />
-              <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
-              <Flags l={l} />
-              <span className="ly-count">{l.objects} obj</span>
-              {l.materials > 0 && <span className="ly-count">{l.materials} mat</span>}
-              {l.tags > 0 && <span className="ly-count">{l.tags} tag</span>}
-              {l.polys > 0 && <span className="ly-polys">{humanNum(l.polys)} polys</span>}
-            </button>
-            {!isNo && l.empty && onDeleteLayer && (
-              <button className="ly-del" title="Delete this empty layer (undoable)"
-                onClick={() => onDeleteLayer(l.name)}>✕</button>
-            )}
+            <div className="ly-row">
+              <button className="ly-head" disabled={!expandable}
+                onClick={() => expandable && toggle(l.name)}
+                title={expandable ? 'Show objects on this layer' : undefined}>
+                <span className={`ly-caret${isOpen ? ' open' : ''}`}>
+                  {expandable ? '▸' : ''}
+                </span>
+                <span className="ly-swatch" style={{ background: isNo ? 'transparent' : swatch(l.color) }} />
+                <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
+                <Flags l={l} />
+                <span className="ly-count">{l.objects} obj</span>
+                {l.materials > 0 && <span className="ly-count">{l.materials} mat</span>}
+                {l.tags > 0 && <span className="ly-count">{l.tags} tag</span>}
+                {l.polys > 0 && <span className="ly-polys">{humanNum(l.polys)} polys</span>}
+              </button>
+              {emptyActions && (
+                <span className="rn-actions ly-actions">
+                  {onDeleteLayer && (
+                    <button className="rn-ok" title="Delete this empty layer (undoable)"
+                      onClick={() => onDeleteLayer(l.name)}><IconTrash /></button>
+                  )}
+                  {onKeepLayer && (
+                    <button className="rn-keep" title="Accept as-is — keep this empty layer (restore below)"
+                      onClick={() => onKeepLayer(l.name)}>=</button>
+                  )}
+                </span>
+              )}
+            </div>
             {isOpen && (
               <div className="ly-objs">
                 {objs.slice(0, 300).map((n, i) => (

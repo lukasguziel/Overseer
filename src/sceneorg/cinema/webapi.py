@@ -1371,7 +1371,8 @@ def _handle(payload: dict) -> dict:
                                revertible=False,
                                doc=doc)
         else:
-            deleted = adapter.delete_empty_layers()
+            keep = {str(n) for n in (payload.get("keep") or [])}
+            deleted = adapter.delete_empty_layers(keep)
             if deleted:
                 _record_change("layers", "%d empty layers deleted" % deleted,
                                [], revertible=False,
