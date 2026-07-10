@@ -88,8 +88,6 @@ def _resolve_registry():
                 continue
             params.append({"key": p["key"], "label": p["label"],
                            "kind": p["kind"], "id": pid})
-        # NOTE: no 'enabled' pseudo-param — whether a generator is on/off is
-        # a per-shot artistic choice, diffing it is noise, not a finding.
         resolved[type_id] = {"key": entry["key"], "label": entry["label"],
                              "type_id": type_id, "params": params}
     return resolved
@@ -129,9 +127,6 @@ def _coerce(value, kind):
 
 
 def _choice_labels(obj, pid) -> dict:
-    """value -> human label for a cycle (dropdown) parameter, read from the
-    object's OWN description — the exact strings C4D shows in the Attribute
-    Manager, no hand-maintained tables."""
     try:
         description = obj.GetDescription(c4d.DESCFLAGS_DESC_NONE)
         for bc, paramid, _group in description:
@@ -175,6 +170,22 @@ def _objects_by_type(adapter, tree, progress=None):
     return resolved, groups
 
 
+def has_any(adapter, tree) -> bool:
+    resolved = _resolve_registry()
+    if not resolved:
+        return False
+    for node in tree.walk():
+        obj = adapter._by_guid.get(node.guid)
+        if obj is None:
+            continue
+        try:
+            if obj.GetType() in resolved:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def _scan(payload, doc, adapter, tree, progress):
     resolved, groups = _objects_by_type(adapter, tree, progress)
 
@@ -196,8 +207,6 @@ def _scan(payload, doc, adapter, tree, progress):
             summary = gens_logic.summarize(entries)
             if not summary["uniform"]:
                 non_uniform_params += 1
-            # Human labels for dropdown values, straight from C4D's own
-            # description (e.g. 2102 -> "Catmull-Clark (N-Gons)").
             choices = {}
             if param["kind"] == "choice" and param["id"] is not None and members:
                 labels = _choice_labels(members[0][1], param["id"])

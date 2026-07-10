@@ -36,7 +36,6 @@ class Config:
     def kept(self, section: str) -> set:
         return {str(n) for n in (self.keeps.get(section) or [])}
 
-    # Aliases for pre-schema-3 call sites.
     @property
     def keep_names(self) -> set:
         return self.kept("naming")
@@ -71,7 +70,6 @@ def migrate_config(data: dict) -> dict:
         else:
             out.setdefault("structure", None)
 
-    # v2 -> v3: fold the flat keep lists into the per-section keeps map.
     keeps = normalize_keeps(out.get("keeps"))
     if out.get("keep_names"):
         keeps["naming"] = sorted({str(n) for n in out["keep_names"]} | set(keeps["naming"]))

@@ -123,7 +123,6 @@ def _alembic_entries(adapter, doc_path: str) -> list:
 
 
 def _kept_files() -> set:
-    """The 'files' accepted-as-is list from config (keys = raw paths)."""
     try:
         from ..core import keeps as keepsmod
         from . import webapi
@@ -139,8 +138,6 @@ def _scan(doc, adapter, progress=None) -> dict:
     raw_entries = _asset_entries(doc, adapter, doc_path) + \
         _alembic_entries(adapter, doc_path)
 
-    # The asset collector lists the document itself as a referenced scene —
-    # that is not an external dependency, drop it.
     own = os.path.normcase(os.path.join(doc_path, doc.GetDocumentName() or ""))
     raw_entries = [e for e in raw_entries
                    if os.path.normcase(e.get("resolved") or "") != own]
@@ -154,8 +151,6 @@ def _scan(doc, adapter, progress=None) -> dict:
         seen.add(key)
         entries.append(e)
 
-    # Missing files the user ACCEPTED as missing stop counting as problems
-    # (uniform keeps mechanism, section 'files', keyed by raw path).
     kept = _kept_files()
     accepted = sorted({e["path"] for e in entries
                        if e["missing"] and e["path"] in kept})
@@ -168,9 +163,6 @@ def _scan(doc, adapter, progress=None) -> dict:
 
 
 def _holders(adapter):
-    """Every possible path holder: all scene objects (alembic generators,
-    IES lights, sound objects …) plus all materials with their shader
-    trees."""
     seen: set = set()
     for obj in adapter._by_guid.values():
         if id(obj) not in seen:
@@ -183,8 +175,6 @@ def _holders(adapter):
 
 
 def _rewrite_everywhere(doc, adapter, raw: str, new_path: str) -> int:
-    """Rewrite every parameter in the scene holding `raw` (path-normalized
-    match) to `new_path`. Caller wraps StartUndo/EndUndo."""
     written = 0
     done: set = set()
     for holder in _holders(adapter):
@@ -215,7 +205,6 @@ def _prefer_relative(doc, path: str) -> str:
 
 
 def _pick_path(doc, adapter, payload) -> dict:
-    """Native C4D file dialog to resolve ONE missing reference."""
     raw = str(payload.get("path") or "")
     try:
         chosen = c4d.storage.LoadDialog(
@@ -238,8 +227,6 @@ def _pick_path(doc, adapter, payload) -> dict:
 
 
 def _relink(doc, adapter, payload, progress) -> dict:
-    """Search a folder recursively for the missing file NAMES and relink
-    every match (one undo step)."""
     folder = str(payload.get("folder") or "").strip().strip('"')
     if not folder or not os.path.isdir(folder):
         return {"error": "Folder not found: %s" % (folder or "(empty)")}
@@ -315,8 +302,6 @@ def _make_relative(doc, adapter, payload) -> dict:
 
 
 def _select(doc, adapter, payload) -> dict:
-    """Select the owner objects of the given entries in C4D (batch from the
-    missing-files list: inspect/replace them all at once)."""
     guids = [g for g in (payload.get("guids") or []) if g is not None]
     selected = 0
     first = True

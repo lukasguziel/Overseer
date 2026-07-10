@@ -1,0 +1,108 @@
+# sceneorg.cinema — c4d host glue
+
+The only package (besides `bridge.py`) that imports `c4d`. It bridges the live
+Cinema 4D document to the pure `sceneorg.core`/`naming`/`structure` domain logic:
+reading the scene into a `SceneTree`, and applying renames / reparents / layer
+assignments / texture and tag / generator / simulation edits back onto the doc
+with undo. Never imported by tests.
+
+## Modules
+
+### __init__.py
+Empty package marker. `sceneorg.cinema.*` submodules are imported by string
+(`importlib`) from `webapi` and are hot-reloaded per request.
+
+### constants.py
+`DOC_JOURNAL_ID` (BaseContainer id the change journal is stored under, travels
+inside the .c4d) and `KNOWN_TYPES` (c4d type id -> readable label, incl. MoGraph
+ids not exposed as `c4d.O*` symbols).
+
+### adapter.py
+`SceneAdapter` — the doc<->`SceneTree` bridge and every scene mutation.
+`build_tree()` walks the object hierarchy once (geometry counts via
+cache/deform-cache recursion) and records guid->object maps; all apply methods
+(`apply_renames`/`apply_reparents`/`apply_layers`/`apply_bundle`/`apply_plan`,
+material + texture + layer ops) wrap `StartUndo`/`AddUndo`/`EndUndo` + `EventAdd`.
+Also the journal persistence helpers (`load_journal`/`save_journal`) at module
+level. Gotchas: material identity keys use `GetGUID()` not names (scenes carry
+duplicate material names); `GetAllAssetsNew` RETURNS an int status and FILLS a
+list arg (iterating the return value is the classic "int not iterable" crash);
+path writes go to EVERY parameter holding the exact string (Octane/Redshift nodes
+repeat a path across params) and are matched slash/case-insensitively.
+
+### webapi.py
+The JSON API. `handle(payload)` dispatches on `op`, publishes an `_OP_LABELS`
+progress string, and drops the scene cache for `_MUTATING_OPS` afterward.
+`_get_scene()` caches `(adapter, tree)` on the `sceneorg` package keyed by the
+doc dirty counter; selection is re-read on every hit (dirty ignores selection).
+Owns preset/plan/config/history/journal file IO, Google-translate online engine
+(stdlib urllib, persistent file cache — module globals do not survive hot-reload),
+and the export mirror. Writes go to `DATA_DIR` (prefs dir when the plugin lives
+under read-only Program Files). Audit ops (`tags_`/`gens_`/`files_`/`sims_`
+prefixes) are delegated to the matching `audit_*` module.
+
+### audit_tags.py
+Tag audit (`tags_scan/add_phong/set_phong_angle/delete_duplicates/select`).
+Skips `_INTERNAL_TAG_TYPES` (invisible per-geometry point/polygon/tangent/SDS
+data tags that would dwarf the real tags). Phong angles read/written in radians
+via `c4d.utils`; symbol ids resolved through `getattr(c4d, ...)` fallbacks so it
+survives across C4D versions.
+
+### audit_generators.py
+Generator parameter audit (`gens_scan/apply/select`). A declarative `_REGISTRY`
+maps generator types (SDS, Cloner, Extrude, Instance, Symmetry) to params, each
+with several candidate symbol names resolved to the first valid id. Dropdown
+(`choice`) labels are read from the object's OWN description (exact Attribute
+Manager strings), never hand-tabled. Deliberately does NOT diff on/off state
+(a per-shot artistic choice, not a finding).
+
+### audit_sims.py
+Simulation/cache audit (`sims_scan/select/set_enabled`). Tag/object type ids and
+enable-parameter ids resolved via `getattr(c4d, ...)` with hardcoded numeric
+fallbacks. Distinguishes sim kinds from cache kinds and flags whether a sim is
+cached.
+
+### audit_files.py
+Non-image external file references (`files_scan/make_relative/select/pick_path/
+relink`). Uses `GetAllAssetsNew` (with caches) plus explicit Alembic path params,
+and drops the document's own file from the asset list. Rewrites paths across
+every holder (all objects + all materials/shaders) and prefers project-relative
+form.
+
+### ui_settings.py
+Per-project UI state persistence to `<data_dir>/configs/<slug>.json`; delegates
+slug/sanitize to `core.ui_settings_logic`. Atomic temp-file write with a
+direct-write fallback.
+
+## Conventions & gotchas
+
+- Everything here runs on the C4D main thread (the ServerDialog timer drains the
+  bridge queue) — direct doc access is only safe there. The HTTP server thread
+  never touches the doc; it enqueues work and reads published progress state.
+- Every scene mutation is ONE undo step: `doc.StartUndo()` / per-object
+  `doc.AddUndo(UNDOTYPE_*, obj)` BEFORE the change / `doc.EndUndo()` / `EventAdd()`.
+  New objects/tags use `UNDOTYPE_NEWOBJ`/`UNDOTYPE_NEW(TAG)`, deletes
+  `UNDOTYPE_DELETE`, edits `UNDOTYPE_CHANGE`.
+- `webapi` is re-imported on every API request (`reload_all()` purges all
+  `sceneorg.*` except `bridge`), so module-level globals do NOT persist. Cross-
+  request state must live either on the `sceneorg` package (scene/preview/icon
+  caches — that package name is never purged) or in a file next to `config.json`
+  (Google translate cache, journal, history, presets).
+- The scene cache is keyed on `doc.GetDirty(OBJECT|DATA)`, which bumps on real
+  edits but NOT on selection/camera moves and NOT on plain renames — so mutating
+  ops explicitly `invalidate_scene_cache()` and selection is recomputed on every
+  cache hit. This keeps guids stable between a plan and its apply.
+- Progress: each slow op publishes a human label from `_OP_LABELS` to the bridge
+  (web UI polls `/api/progress`) and the C4D status bar; `handle()` always clears
+  it in a `finally`, so a crashed op never leaves a stuck spinner.
+- `GetAllAssetsNew(doc, allowDialogs, prefix, flags, outList)` returns an int
+  status code and FILLS `outList` with dicts — never iterate the return value.
+- Material identity is `GetGUID()`, not name (duplicate names are common); path
+  matching is normcase+normpath tolerant; path rewrites hit every parameter that
+  holds the exact string.
+- Writable-dir probing: a Program Files install is read-only for the unelevated
+  C4D process, so all writes go to the per-user prefs dir (`DATA_DIR`), while the
+  plugin dir stays the read-only source for shipped presets/plans and the seed
+  config.
+
+Per-module prose: see the mirrored files under `docs/sceneorg/cinema/`.

@@ -16,9 +16,6 @@ _UNDO_CHANGE = getattr(c4d, "UNDOTYPE_CHANGE", 0)
 _UNDO_DELETE = getattr(c4d, "UNDOTYPE_DELETE", 4)
 
 
-# C4D attaches invisible per-geometry data tags (point/polygon/tangent/SDS
-# weights) to every editable mesh — they never show in the Object Manager
-# and would dwarf the real, user-facing tags in the audit.
 _INTERNAL_TAG_TYPES = {
     tid for tid in (
         getattr(c4d, "Tpoint", 5600),
@@ -38,8 +35,6 @@ def _tag_type_label(tag) -> str:
             return name
     except Exception:
         pass
-    # GetObjectName returns "" (not an exception) for unregistered plugin
-    # tag ids — always fall through to a readable "Tag <id>" label.
     try:
         name = c4d.GetObjectName(tag.GetType())
         if name and name.strip():
@@ -85,7 +80,7 @@ def _scan(doc, adapter, tree, progress) -> dict:
             try:
                 type_id = tag.GetType()
                 if type_id in _INTERNAL_TAG_TYPES:
-                    continue  # invisible per-geometry data tags — pure noise
+                    continue
                 total_tags += 1
                 entry = types.get(type_id)
                 if entry is None:

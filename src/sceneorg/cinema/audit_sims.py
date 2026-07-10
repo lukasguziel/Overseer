@@ -65,6 +65,19 @@ def _read_enabled(carrier, kind):
         return None
 
 
+def has_any(adapter, tree) -> bool:
+    for _guid, op in adapter._by_guid.items():
+        try:
+            if OBJECT_BY_ID.get(op.GetType()) is not None:
+                return True
+            for tag in op.GetTags():
+                if TAG_BY_ID.get(tag.GetType()) is not None:
+                    return True
+        except Exception:
+            continue
+    return False
+
+
 def _scan(doc, adapter, tree, progress=None):
     node_by_guid = {n.guid: n for n in tree.walk()}
     items = list(adapter._by_guid.items())

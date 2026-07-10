@@ -6,17 +6,9 @@ from dataclasses import dataclass
 from . import casing as naming
 from . import translations
 
-# One token = a run of letters (a word) OR a run of digits that may contain
-# decimal separators (a number like "2" or "2.1"). Everything else in the name
-# is a separator that gets replaced by the target style's separator. Keeping
-# numbers -- decimals included -- as verbatim tokens means naming only touches
-# casing and never swallows info like the ".1" in "ROCK_UV_2.1".
 _TOKEN_RE = re.compile(r"[A-Za-zÄÖÜäöüß]+"
                        r"|\d+(?:[.,]\d+)*")
 
-# A gap consisting only of these is a plain SEPARATOR (replaced by the
-# target style's separator). Anything else in a gap — brackets, parens,
-# asterisks … — counts as SPECIAL and survives when keep_specials is on.
 _SEP_ONLY_RE = re.compile(r"^[\s._\-]+$")
 
 TARGET_STYLES = (
@@ -70,21 +62,9 @@ class NamingConvention:
         self.style = style
         self.language = language
         self.number_pad = number_pad
-        # When False, existing numbers are left exactly as they are (no zero
-        # padding, no reformatting) -- naming then only touches casing.
         self.apply_numbering = apply_numbering
-        # When False, casing and separators are left exactly as they are --
-        # naming then only touches numbering (if enabled).
         self.apply_casing = apply_casing
-        # When True, only the WORD casing changes; the separator characters
-        # already present between tokens are preserved verbatim instead of
-        # being replaced by the style's separator (e.g. UPPER keeps the "-" in
-        # "Wand-01_test" -> "WAND-01_TEST"). Word-joined names (camel/Pascal)
-        # are then left as single tokens -- no synthetic separators invented.
         self.keep_separators = keep_separators
-        # When True (default), special characters that are NOT plain
-        # separators survive full normalization: "[test]" -> "[Test]".
-        # keep_separators=True implies this anyway (everything is kept).
         self.keep_specials = keep_specials
 
     def _translate_one(self, tok: str) -> str:
@@ -111,7 +91,6 @@ class NamingConvention:
         return str(num)
 
     def _renumber_only(self, s: str) -> str:
-        # Keep casing and separators verbatim; only zero-pad a trailing integer.
         if not self.apply_numbering:
             return s
         m = re.match(r"^(.*?)(\d+)$", s)
@@ -119,24 +98,20 @@ class NamingConvention:
             return s
         base = m.group(1)
         if base.endswith(".") and len(base) >= 2 and base[-2].isdigit():
-            return s   # part of a decimal (e.g. "2.1") -> leave it
+            return s
         return base + self._format_number(int(m.group(2)))
 
     def _normalize_keep(self, stripped: str) -> str:
-        # Recase word tokens but keep every non-token character verbatim —
-        # separators between tokens AND enclosing specials like the brackets
-        # in "[test]" -> "[Test]". No split_camel -> camel/Pascal words stay
-        # whole (no invented seps).
         matches = list(_TOKEN_RE.finditer(stripped))
         if not matches:
             return stripped
         last = len(matches) - 1
-        out: list[str] = [stripped[:matches[0].start()]]  # verbatim prefix
+        out: list[str] = [stripped[:matches[0].start()]]
         word_i = 0
         prev_end = matches[0].start()
         for i, m in enumerate(matches):
             if i > 0:
-                out.append(stripped[prev_end:m.start()])  # verbatim separator
+                out.append(stripped[prev_end:m.start()])
             text = m.group(0)
             if text[0].isalpha():
                 out.append(self._case_word(self._translate_one(text.lower()),
@@ -145,11 +120,11 @@ class NamingConvention:
             elif self.apply_numbering and i == last and text.isdigit():
                 out.append(self._format_number(int(text)))
             else:
-                out.append(text)  # number kept verbatim (decimal safe)
+                out.append(text)
             prev_end = m.end()
-        out.append(stripped[matches[last].end():])  # verbatim suffix
+        out.append(stripped[matches[last].end():])
         if word_i == 0:
-            return stripped  # numbers/symbols only -> never fabricate a name
+            return stripped
         return "".join(out)
 
     def normalize(self, name: str) -> str:
@@ -162,10 +137,6 @@ class NamingConvention:
         return self._normalize_full(stripped)
 
     def _normalize_full(self, stripped: str) -> str:
-        # Full normalization: word/number tokens are recased and rejoined
-        # with the style's separator. Gaps that are plain separators are
-        # replaced; with keep_specials, gaps carrying OTHER characters
-        # (brackets & co.) survive verbatim — "[test]" -> "[Test]".
         matches = list(_TOKEN_RE.finditer(stripped))
         if not matches:
             return stripped
@@ -184,12 +155,11 @@ class NamingConvention:
             if i > 0:
                 gap = stripped[matches[i - 1].end():m.start()]
                 if self.keep_specials and gap and not _SEP_ONLY_RE.match(gap):
-                    out.append(gap)  # specials survive verbatim
+                    out.append(gap)
                 else:
                     out.append(sep)
             text = m.group(0)
             if text[0].isalpha():
-                # A word run may contain camel humps -> split into words.
                 for j, w in enumerate(_TOKEN_RE.findall(naming.split_camel(text))):
                     if j > 0:
                         out.append(sep)
@@ -199,7 +169,7 @@ class NamingConvention:
             elif self.apply_numbering and i == last and text.isdigit():
                 out.append(self._format_number(int(text)))
             else:
-                out.append(text)  # number kept verbatim (decimal safe)
+                out.append(text)
 
         if self.keep_specials:
             suffix = stripped[matches[last].end():]
@@ -207,7 +177,7 @@ class NamingConvention:
                 out.append(suffix)
 
         if word_i == 0:
-            return stripped  # numbers/symbols only -> never fabricate a name
+            return stripped
         return "".join(out)
 
     def propose(self, name: str) -> RenameProposal:
