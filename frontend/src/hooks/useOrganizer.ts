@@ -104,6 +104,11 @@ export function useOrganizer() {
   // scene changed — not only when a setting toggles.
   const [sceneVersion, setSceneVersion] = useState(0)
 
+  // Per-tab snapshot of the preview deps at the time its plan was last loaded
+  // (by usePreview, the boot seed or reloadEverything). While the snapshot
+  // still matches, entering the tab skips the redundant re-plan.
+  const previewDone = useRef<Partial<Record<TabId, unknown[]>>>({})
+
   const [report, setReport] = useState<SceneReport | null>(null)
   const [detectInfo, setDetectInfo] = useState<DetectInfo | null>(null)
   const [naming, setNaming] = useState<PlanResult<RenameDiff> | null>(null)
@@ -406,8 +411,8 @@ export function useOrganizer() {
     doAnalyze()
   })
 
-  const doDeleteEmptyLayers = () => run('Delete empty layers', async () => {
-    const r = await call('delete_empty_layers')
+  const doDeleteEmptyLayers = (keep?: string[]) => run('Delete empty layers', async () => {
+    const r = await call('delete_empty_layers', keep && keep.length ? { keep } : {})
     setStatus(`${r.deleted} empty layer${r.deleted === 1 ? '' : 's'} deleted ✓ (undoable)`)
     doAnalyze()
   })
@@ -461,6 +466,24 @@ export function useOrganizer() {
     noteKept('translate', p.kept)
   }, [settings, translateTarget, translateEngine, noteKept])
 
+  // The preview dep snapshots (shared between the usePreview effects below and
+  // the eager loaders, so preloaded plans count as "already previewed").
+  // Recomputed every render; the elements are state values / stable callbacks.
+  const namingDeps = [casing, applyCasing, keepSeparators, keepSpecials, language,
+    numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion]
+  const translateDeps = [scope, settings, translateTarget, translateEngine,
+    reloadTranslate, sceneVersion]
+  const structureDeps = [safe, tidy, scope, settings, rules, reloadStructure, sceneVersion]
+  const layersDeps = [scope, settings, keeps.layers, reloadLayerExtras, sceneVersion]
+  const namingDepsRef = useRef(namingDeps)
+  namingDepsRef.current = namingDeps
+  const translateDepsRef = useRef(translateDeps)
+  translateDepsRef.current = translateDeps
+  const structureDepsRef = useRef(structureDeps)
+  structureDepsRef.current = structureDeps
+  const layersDepsRef = useRef(layersDeps)
+  layersDepsRef.current = layersDeps
+
   // Reload EVERY area in sequence behind a stepped progress overlay: the
   // report (Overview/Assets/Materials/Layers stats), the naming/translate/
   // structure/layer plans, and every audit scan the user has already opened.
@@ -490,6 +513,11 @@ export function useOrganizer() {
     for (let i = 0; i < total; i++) {
       setReloadProgress({ step: i, total, label: steps[i][0] })
       try { await steps[i][1]() } catch { /* keep going — later steps still refresh */ }
+    }
+    // Everything is fresh now — entering a tab must not re-plan again.
+    previewDone.current = {
+      naming: namingDepsRef.current, translate: translateDepsRef.current,
+      structure: structureDepsRef.current, layers: layersDepsRef.current,
     }
     setReloadProgress(null)
   }, [reloadNaming, reloadTranslate, reloadStructure, reloadLayerExtras])
@@ -774,6 +802,10 @@ export function useOrganizer() {
       try {
         await reloadNamingRef.current()
         await reloadTranslateRef.current()
+        // Mark both plans as previewed so opening the tab right after boot
+        // does not re-plan the identical state.
+        previewDone.current.naming = namingDepsRef.current
+        previewDone.current.translate = translateDepsRef.current
       } catch { /* transient — the tab's own preview will catch up */ }
     }
     ;(async () => {
@@ -831,16 +863,27 @@ export function useOrganizer() {
 
   // Generic live-preview effect: recompute plan_<op> debounced
   // as soon as the tab is active and settings change.
+  //
+  // Freshness guard: entering a tab does NOT re-plan when nothing changed
+  // since the plan was last loaded (boot preload, reloadEverything or a
+  // previous visit) — `previewDone` records the dep snapshot per tab, and the
+  // effect skips while it still matches. Any real change (settings identity,
+  // scope, sceneVersion bump from an analysis) breaks the match and reloads.
   function usePreview(activeTab: TabId, delay: number, load: () => Promise<void>, deps: unknown[]) {
     /* eslint-disable react-hooks/rules-of-hooks -- fixed call order, wrappers only */
     useEffect(() => {
       if (tab !== activeTab) return
+      const done = previewDone.current[activeTab]
+      if (done && done.length === deps.length && done.every((v, i) => Object.is(v, deps[i]))) return
       let cancel = false
       setPreviewing(true)
       const t = setTimeout(async () => {
         try {
           await load()
-          if (!cancel) setError('')
+          if (!cancel) {
+            setError('')
+            previewDone.current[activeTab] = deps
+          }
         } catch (e: any) {
           if (!cancel) setError(String(e.message || e))
         } finally {
@@ -855,7 +898,7 @@ export function useOrganizer() {
 
   usePreview('naming', 250, async () => {
     await reloadNaming()
-  }, [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion])
+  }, namingDeps)
 
   usePreview('structure', 250, async () => {
     const [, rl] = await Promise.all([
@@ -863,11 +906,11 @@ export function useOrganizer() {
       rules ? Promise.resolve(null) : call('rules'),
     ])
     if (rl) setRules(rl)
-  }, [safe, tidy, scope, settings, rules, reloadStructure, sceneVersion])
+  }, structureDeps)
 
   usePreview('translate', 250, async () => {
     await reloadTranslate()
-  }, [scope, settings, translateTarget, translateEngine, reloadTranslate, sceneVersion])
+  }, translateDeps)
 
   // NOTE: the scheme-based layer-tagging preview is parked (LayersTab
   // SHOW_TAGGING) — the tab works off the report's no-layer list only, so
@@ -875,7 +918,7 @@ export function useOrganizer() {
   // suggestions + mismatch findings, though.
   usePreview('layers', 250, async () => {
     await reloadLayerExtras()
-  }, [scope, settings, keeps.layers, reloadLayerExtras, sceneVersion])
+  }, layersDeps)
 
   // Materials keeps live in the analyze report (accepted_all), not a plan.
   useEffect(() => {
