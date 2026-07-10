@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import SuggestionRow from '../components/SuggestionRow'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import './generators.css'
 
 type ParamKind = 'int' | 'bool' | 'choice'
@@ -74,7 +75,9 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
       {/* READ row: the values as they are right now — neutral chips, purely
           informational (click = select those objects in C4D). */}
       <div className="gens-row">
-        <span className="gens-microlabel">Current values</span>
+        <Tip text="Die aktuell gesetzten Werte in der Szene — nur informativ. Ein Wert-Chip anklicken wählt die betroffenen Objekte in Cinema 4D aus.">
+          <span className="gens-microlabel">Current values</span>
+        </Tip>
         <div className="gens-chips">
           {sorted.map((b, i) => {
             const dom = sameValue(b.value, param.dominant)
@@ -95,7 +98,9 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
       </div>
       {/* WRITE row: the one editable thing in this block. */}
       <div className="gens-row gens-row-action">
-        <span className="gens-microlabel accent">Change all to</span>
+        <Tip text="Setzt diese Einstellung bei allen Objekten dieses Generatortyps auf den gewählten Wert — in einem einzigen widerrufbaren Schritt.">
+          <span className="gens-microlabel accent">Change all to</span>
+        </Tip>
         {param.kind === 'int' ? (
           <input className="gens-num" type="number" value={pick ?? ''}
             onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
@@ -198,9 +203,11 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
         <div className="substats">
           <span><b>{s.total_generators}</b> generators</span>
           <span><b>{s.types_found}</b> types</span>
-          <span className={s.non_uniform_params ? 'warn' : ''}>
-            <b>{s.non_uniform_params}</b> mixed setting{s.non_uniform_params === 1 ? '' : 's'}
-          </span>
+          <Tip text="Einstellungen, bei denen gleichartige Generatoren unterschiedliche Werte haben — z. B. verschiedene Unterteilungsstufen. Lassen sich unten auf einen Wert angleichen.">
+            <span className={s.non_uniform_params ? 'warn' : ''}>
+              <b>{s.non_uniform_params}</b> mixed setting{s.non_uniform_params === 1 ? '' : 's'}
+            </span>
+          </Tip>
         </div>
       </section>
 

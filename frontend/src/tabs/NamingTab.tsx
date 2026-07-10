@@ -8,6 +8,7 @@ import AcceptedSection from '../components/AcceptedSection'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
@@ -64,7 +65,11 @@ export default function NamingTab({ org }: { org: Organizer }) {
             default. Every preview row is tagged with the rule that caused it,
             so you always see why a name would change.</p>
 
-          <div className="rule-group-head"><span>Casing</span></div>
+          <div className="rule-group-head">
+            <Tip text="Schreibweise der Namen — z. B. PascalCase, camelCase oder lower_snake. Vereinheitlicht Groß-/Kleinschreibung und Trennzeichen, ohne die Sprache zu ändern.">
+              <span>Casing</span>
+            </Tip>
+          </div>
           <label className="check">
             <input type="checkbox" checked={applyCasing} onChange={(e) => org.setApplyCasing(e.target.checked)} />
             Casing
@@ -111,7 +116,11 @@ export default function NamingTab({ org }: { org: Organizer }) {
             </p>
           )}
 
-          <div className="rule-group-head"><span>Numbering</span></div>
+          <div className="rule-group-head">
+            <Tip text="Nummerierung am Namensende auf eine feste Stellenzahl auffüllen (z. B. Wand1 → Wand01). „Keine“ lässt vorhandene Zahlen unverändert.">
+              <span>Numbering</span>
+            </Tip>
+          </div>
           <label className="check">
             <input type="checkbox" checked={applyNumbering} onChange={(e) => org.setApplyNumbering(e.target.checked)} />
             Numbering

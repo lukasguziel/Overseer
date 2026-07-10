@@ -1,6 +1,7 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import ChangeHistory from '../components/ChangeHistory'
 import HistoryList, { type HistoryRow } from '../components/HistoryList'
+import Tip from '../components/Tip'
 import type { HistoryEntry } from '../types'
 import { humanBytes, humanNum } from '../lib/format'
 
@@ -83,7 +84,9 @@ export default function MiscTab({ org }: { org: Organizer }) {
       <div className="ov-cols2">
         <section className="card">
           <div className="card-head">
-            <h3>Change history</h3>
+            <Tip text="Jede über das Tool gemachte Änderung, neueste zuerst. Aufklappen zeigt vorher → nachher; „Revert“ stellt die alten Werte in einem Widerruf-Schritt wieder her.">
+              <h3>Change history</h3>
+            </Tip>
             {changes.length > 0 && (
               <button className="ghost sm" onClick={org.doClearChanges}
                 title="Clear the log (does not undo anything in the scene)">Clear log</button>
@@ -98,7 +101,11 @@ export default function MiscTab({ org }: { org: Organizer }) {
         </section>
 
         <section className="card">
-          <div className="card-head"><h3>Analysis history</h3></div>
+          <div className="card-head">
+            <Tip text="Jeder Analyse-Durchlauf, neueste zuerst. Aufklappen zeigt die vollständigen Kennzahlen dieses Snapshots. Bis zu 100 werden gespeichert.">
+              <h3>Analysis history</h3>
+            </Tip>
+          </div>
           <p className="hint-sm">
             Every analysis run, newest first — expand an entry for the full
             numbers of that snapshot. Up to 100 are kept.

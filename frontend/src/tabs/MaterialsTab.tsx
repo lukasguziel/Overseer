@@ -9,6 +9,7 @@ import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
+import Tip from '../components/Tip'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -28,6 +29,21 @@ function resTier(e: TextureEntry): string {
 const texDot = (e: TextureEntry): string =>
   e.missing ? 'var(--err)' : 'var(--apply)'
 
+// Compact per-texture analysis: channel mode, bit depth, alpha, colorspace,
+// estimated VRAM. Shown as the row's hover title; the visible row carries the
+// short badges (alpha / greyscale / colorspace).
+function specText(e: TextureEntry): string {
+  const parts: string[] = []
+  const mode = e.greyscale ? 'Graustufen' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'
+  parts.push(mode)
+  if (e.channels) parts.push(`${e.channels} Kanäle`)
+  if (e.bit_depth) parts.push(`${e.bit_depth} bit`)
+  parts.push(e.has_alpha ? 'mit Alpha' : 'ohne Alpha')
+  if (e.colorspace) parts.push(e.colorspace)
+  if (e.vram) parts.push(`~${humanBytes(e.vram)} VRAM`)
+  return parts.join(' · ')
+}
+
 // One texture row. Missing rows carry their own decision buttons:
 // … browse for a replacement file (opens C4D's native file dialog),
 // ✕ clear THIS dead reference.
@@ -41,7 +57,7 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
   const actionable = e.missing && (onPick || onClear)
   return (
     <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')}
-      title={`${e.resolved || e.path}\nClick to select material “${e.material}” & frame its object`}
+      title={`${e.resolved || e.path}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
       <span className="tex-cell-file">
         {thumb
@@ -72,8 +88,20 @@ function TexRow({ e, thumb, onFocus, onPick, onClear }: {
       <span className="num">
         {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
       </span>
-      <span className="num dim">{e.width > 0 ? `${e.width}×${e.height}` : '—'}</span>
-      <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
+      <span className="num dim">
+        {e.width > 0 ? `${e.width}×${e.height}` : '—'}
+        {e.width > 0 && (
+          <span className="tex-spec">
+            {e.greyscale ? 'grau' : (e.channels ?? 0) >= 4 ? 'RGBA' : 'RGB'}
+            {e.has_alpha ? ' +A' : ''}
+            {e.bit_depth ? ` ${e.bit_depth}b` : ''}
+            {e.colorspace ? ` ${e.colorspace}` : ''}
+          </span>
+        )}
+      </span>
+      <span className="num" title={e.vram ? `~${humanBytes(e.vram)} VRAM (unkomprimiert, inkl. Mip-Maps)` : undefined}>
+        {e.bytes > 0 ? humanBytes(e.bytes) : '—'}
+      </span>
       <span className="dim tex-cut">{e.material}</span>
       {actionable && (
         <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
@@ -101,8 +129,12 @@ function TexTable({ rows, previews, onFocus, onPick, onClear }: {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
-        <span>File</span><span>Path</span><span className="num">Res</span>
-        <span className="num">Pixels</span><span className="num">Size</span><span>Material</span>
+        <Tip text="Dateiname der Textur. Miniatur anklicken öffnet das Bild im Bildbetrachter."><span>File</span></Tip>
+        <Tip text="Pfad wie im Shader gespeichert. Badge zeigt absolut / relativ / fehlend — „→ relativ“ lässt sich mit einem Klick umschreiben."><span>Path</span></Tip>
+        <Tip text="Auflösungsstufe (z. B. 4K/8K). Schwere Maps fallen so sofort auf."><span className="num">Res</span></Tip>
+        <Tip text="Echte Pixelmaße der Datei."><span className="num">Pixels</span></Tip>
+        <Tip text="Dateigröße auf der Festplatte."><span className="num">Size</span></Tip>
+        <Tip text="Material, das diese Textur verwendet."><span>Material</span></Tip>
       </div>
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
@@ -136,7 +168,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
   // mat.unused is scope-aware (All objects additionally contains the
   // hidden-only materials); only_hidden just marks which rows get the badge.
-  const unusedPager = usePager(mat?.unused || [])
+  const unusedPager = usePager(mat?.unused || [], 10)
   const onHiddenSet = new Set(mat?.only_hidden || [])
   // ONE paths list, narrowed by two filters in the settings panel:
   // resolution tier and path status (absolute / relative / missing).
@@ -149,6 +181,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [relinkDir, setRelinkDir] = useState('')
   const [relinkConfirm, setRelinkConfirm] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
+  // Batch resize + make-absolute (M4): percent choice and confirm gates.
+  const [resizePercent, setResizePercent] = useState(50)
+  const [resizeConfirm, setResizeConfirm] = useState(false)
+  const [absConfirm, setAbsConfirm] = useState(false)
   const byRes = (e: TextureEntry) => !resFilter || resTier(e) === resFilter
   const byPath = (e: TextureEntry) =>
     !pathFilter
@@ -156,7 +192,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     || (pathFilter === 'absolute' && e.absolute && !e.missing)
     || (pathFilter === 'relative' && !e.absolute && !e.missing)
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
-  const pathPager = usePager(allTex.filter((e) => byRes(e) && byPath(e)).sort(bySize))
+  const pathPager = usePager(
+    allTex.filter((e) => byRes(e) && byPath(e)).sort(bySize),
+    undefined, resFilter + '|' + pathFilter)
 
   // Mini image previews for the texture rows currently on screen (keyed by
   // resolved path; missing files simply keep their status dot).
@@ -210,6 +248,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
+  // Make-absolute counterpart to Fix paths: relative references that resolve
+  // to an existing file. Batch resize operates on the CURRENTLY FILTERED maps
+  // that exist on disk and carry pixel data.
+  const makeAbsolute = allTex.filter((e) => !e.absolute && !e.missing)
+  const resizeTargets = allTex.filter((e) => byRes(e) && byPath(e) && e.exists && e.width > 0)
+  const totalVram = tex?.total_vram ?? 0
   const fixable = tex?.relocatable_count ?? 0
   // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
   // the file must be copied into the project first (Copy & relink).
@@ -301,6 +345,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{tex.total}</b> maps</span>
               <span><b>{humanBytes(tex.total_bytes)}</b> on disk</span>
+              {totalVram > 0 && (
+                <Tip text="Geschätzter unkomprimierter Speicherbedarf aller Maps zusammen (Breite × Höhe × 4 Byte, inkl. Mip-Maps ~1,33×) — was sie in RAM/VRAM kosten.">
+                  <span><b>{humanBytes(totalVram)}</b> VRAM (est.)</span>
+                </Tip>
+              )}
             </div>
 
             <div className="rule-group-head"><span>Path status</span></div>
@@ -357,6 +406,35 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               the project. <b>Copy &amp; relink</b> first copies out-of-project
               files into the folder above, then relinks relatively.
             </p>
+            <button className="ghost" disabled={busy || !makeAbsolute.length}
+              title={makeAbsolute.length
+                ? `Rewrite ${makeAbsolute.length} relative path(s) to their full absolute form (undoable)`
+                : 'No relative texture paths to make absolute'}
+              onClick={() => setAbsConfirm(true)}>
+              Make absolute ({makeAbsolute.length})
+            </button>
+
+            <div className="rule-group-head"><span>Verkleinern</span></div>
+            <p className="hint-sm">
+              Schreibt verkleinerte <b>Kopien</b> neben die Originale (Suffix
+              <code> _{resizePercent}</code>) und verlinkt die Materialien neu.
+              Die Originale bleiben unangetastet, der Umbau ist widerrufbar.
+              Wirkt auf die aktuell gefilterten Maps.
+            </p>
+            <div className="tex-filter" style={{ marginBottom: 8 }}>
+              {[25, 50, 75].map((p) => (
+                <button key={p}
+                  className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
+                  onClick={() => setResizePercent(p)}>{p}%</button>
+              ))}
+            </div>
+            <button className="ghost" disabled={busy || !resizeTargets.length}
+              title={resizeTargets.length
+                ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
+                : 'No textures with pixel data in the current filter'}
+              onClick={() => setResizeConfirm(true)}>
+              Resize {resizeTargets.length} → {resizePercent}%
+            </button>
 
             {!tex.doc_path && (
               <p className="example warn">Project not saved — paths cannot be made relative yet.</p>
@@ -444,6 +522,24 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           confirmLabel={`✓ Clear ${missingCount} refs`}
           onConfirm={() => { setClearConfirm(false); org.doClearMissingTextures() }}
           onCancel={() => setClearConfirm(false)}
+        />
+      )}
+      {absConfirm && (
+        <ConfirmModal
+          title="Make paths absolute"
+          message={`Rewrite ${makeAbsolute.length} relative texture path${makeAbsolute.length === 1 ? '' : 's'} to their full absolute form (one undo step). Continue?`}
+          confirmLabel={`✓ Make ${makeAbsolute.length} absolute`}
+          onConfirm={() => { setAbsConfirm(false); org.doTextureRepath(makeAbsolute.map((e) => e.path), 'absolute') }}
+          onCancel={() => setAbsConfirm(false)}
+        />
+      )}
+      {resizeConfirm && (
+        <ConfirmModal
+          title={`Resize ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} to ${resizePercent}%`}
+          message={`Write resized copies (suffix _${resizePercent}) of ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} next to the originals and relink the materials to them. The original files are never overwritten; the relink is one undo step. Formats without a resizer are skipped with a note. Continue?`}
+          confirmLabel={`✓ Resize to ${resizePercent}%`}
+          onConfirm={() => { setResizeConfirm(false); org.doTextureResize(resizeTargets.map((e) => e.path), resizePercent) }}
+          onCancel={() => setResizeConfirm(false)}
         />
       )}
       {collectConfirm && (

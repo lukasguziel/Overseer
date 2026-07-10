@@ -7,6 +7,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import ConfirmModal from '../components/ConfirmModal'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import './tags.css'
 
 interface TagObjectRef { guid: number; name: string; tag_name: string }
@@ -124,8 +125,12 @@ export default function TagsTab({ org }: { org: Organizer }) {
         <div className="substats">
           <span><b>{s?.total_tags ?? 0}</b> tags</span>
           <span><b>{s?.tag_types ?? 0}</b> types</span>
-          <span className={s?.missing_phong ? 'warn' : ''}><b>{s?.missing_phong ?? 0}</b> missing phong</span>
-          <span className={s?.duplicate_material_tags ? 'warn' : ''}><b>{s?.duplicate_material_tags ?? 0}</b> duplicate material tags</span>
+          <Tip text="Polygon-Objekte ohne Phong-Tag rendern hart facettiert. Unten lassen sie sich stapelweise mit einem Phong-Tag versehen.">
+            <span className={s?.missing_phong ? 'warn' : ''}><b>{s?.missing_phong ?? 0}</b> missing phong</span>
+          </Tip>
+          <Tip text="Objekte, die dasselbe Material über mehrere Textur-Tags mehrfach tragen. Die redundanten Kopien bewirken nichts.">
+            <span className={s?.duplicate_material_tags ? 'warn' : ''}><b>{s?.duplicate_material_tags ?? 0}</b> duplicate material tags</span>
+          </Tip>
         </div>
         {note && <p className="wb-note">{note}</p>}
       </section>
@@ -217,7 +222,9 @@ export default function TagsTab({ org }: { org: Organizer }) {
       <div className="ov-cols2">
       <section className="card">
         <div className="card-head">
-          <h3>Phong angles</h3>
+          <Tip text="Der Phong-Winkel bestimmt, bis zu welchem Kantenwinkel Flächen weich schattiert werden. „Dominant“ ist der in der Szene am häufigsten genutzte Wert.">
+            <h3>Phong angles</h3>
+          </Tip>
           {dominant != null && <span className="card-hint">dominant {dominant}°</span>}
         </div>
         {(data?.findings.phong_angles.distribution.length ?? 0) === 0

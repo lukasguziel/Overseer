@@ -5,6 +5,7 @@ import useAudit from '../hooks/useAudit'
 import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
+import Tip from '../components/Tip'
 import './sims.css'
 
 interface SimHit {
@@ -46,6 +47,7 @@ function groupByKind(hits: SimHit[]): Record<string, number[]> {
 
 function StateBadges({ hit }: { hit: SimHit }) {
   return (
+    <Tip className="sim-badges-tip" text="Zustand dieser Simulation: aktiviert/deaktiviert, ob ein Cache gebacken ist (ohne Cache läuft sie live) und ob das Objekt ausgeblendet ist.">
     <span className="sim-badges">
       {hit.enabled === true && <span className="tex-badge sim-ok">enabled</span>}
       {hit.enabled === false && <span className="tex-badge sim-dim">disabled</span>}
@@ -53,6 +55,7 @@ function StateBadges({ hit }: { hit: SimHit }) {
       {hit.cached === false && <span className="tex-badge sim-warn">no cache</span>}
       {hit.hidden && <span className="tex-badge sim-warn">hidden</span>}
     </span>
+    </Tip>
   )
 }
 
@@ -112,9 +115,11 @@ export default function SimsTab({ org }: { org: Organizer }) {
           {Object.entries(s.by_kind).map(([k, n]) => (
             <span key={k}><b>{n}</b> {k}</span>
           ))}
-          <span className={s.active_hidden ? 'warn' : ''}>
-            <b>{s.active_hidden}</b> active on hidden
-          </span>
+          <Tip text="Aktive Simulationen auf ausgeblendeten Objekten — sie kosten Rechenzeit beim Lösen, ohne dass man das Ergebnis sieht.">
+            <span className={s.active_hidden ? 'warn' : ''}>
+              <b>{s.active_hidden}</b> active on hidden
+            </span>
+          </Tip>
         </div>
         {note && <p className="wb-note">{note}</p>}
       </section>

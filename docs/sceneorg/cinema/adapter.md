@@ -74,9 +74,14 @@ Bidirectional bridge document <-> SceneTree.
   filename is shortened. Errors if the project is unsaved (no folder to relate
   to). `materials` optionally restricts to named materials.
 - `scan_layers()` — metadata per layer incl. empty ones: color and the flags an
-  artist manages — solo (S), view (editor dot V), render (R), locked (L). Object
-  counts are added later by the analyzer. Best-effort; an unreadable flag
-  defaults to True except `locked`.
+  artist manages — solo (S), view (editor dot V), render (R), locked (L), plus
+  the per-layer `materials` / `tags` reference counts (from
+  `c4d.ID_LAYER_LINK`). Object counts are added later by the analyzer.
+  Best-effort; an unreadable flag defaults to True except `locked`.
+- `delete_empty_layers()` / `delete_layer(name)` — remove layers that nothing
+  references (no objects, materials or tags), in ONE undo step. `delete_layer`
+  is a no-op guard when the named layer is not actually empty. Emptiness is
+  judged against the same object/material/tag scan `scan_layers` uses.
 - `delete_material(name)` — deletes unused materials with that name (undoable).
   Safety: only removes materials not assigned to any texture tag, even if a
   same-named material is in use.
@@ -122,4 +127,36 @@ Bidirectional bridge document <-> SceneTree.
 - `revert(items, canonical)` — restores each item's `before` value in ONE undo
   step (name/layer/parent). Objects are resolved by `sid`, with a fallback to
   matching the current object name (`_resolve_change`), so an in-session revert
-  is reliable; after reload the id map is rebuilt from the live scene.
+  is reliable; after reload the id map is rebuilt from the live scene. Returns
+  `{reverted, missing, results}` where `results` is parallel to `items` with a
+  per-op `status` (`reverted` / `missing` / `skipped`) — a deleted/renamed
+  target is skipped, never aborting the rest (M2 robustness).
+
+## Journal persistence (module-level, M2)
+- `load_journal(doc, fallback_path)` — the scene's change journal, reconciled
+  (`journal.merge_journals`) from the document's private BaseContainer
+  (`DOC_JOURNAL_ID`, travels inside the .c4d), the sidecar
+  `<project>/<name>.sohistory.json`, and the machine-local `fallback_path` for
+  unsaved scenes.
+- `save_journal(doc, entries, fallback_path)` — writes the BaseContainer copy
+  (`SetChanged` so the save picks it up) plus the sidecar (or the fallback file
+  when the scene is unsaved). Both go through `journal.normalize_journal`.
+
+## Textures (M4 additions)
+
+- `scan_textures(include_hidden)` now enriches every row with the
+  `core/textures.analyze_image` metadata (`bit_depth`, `channels`, `has_alpha`,
+  `greyscale`, `colorspace`, `vram`) and adds a document-level `total_vram`
+  (each physical file counted once) that feeds the Overview texture-budget card.
+- `texture_repath(paths, mode, material=None)` — convert references between
+  relative and absolute form (`_repath_targets` decides what is convertible:
+  make-absolute needs a resolvable file, make-relative needs the file under the
+  project). One undo step; every rewrite is journaled as a `texpath` change.
+- `texture_resize(paths, percent)` — write resized COPIES (`_<percent>` suffix)
+  next to the originals and relink the shaders (`core/textures.resize_file`,
+  Pillow or the pure PNG path). Originals are never overwritten; each source is
+  copied once; per-file skips carry a note so the batch never fails as a whole.
+  Relinks are journaled as `texpath` changes.
+- `revert` handles the `texpath` field: it rewrites the current (after) path
+  back to the recorded (before) path across every shader holding it — so resize
+  and repath are selectively revertible through the M2 history.

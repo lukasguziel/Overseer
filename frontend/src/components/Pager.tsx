@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export const PAGE_SIZE = 25
 
@@ -11,11 +11,20 @@ export interface PagerState {
 }
 
 // Shared pagination for every preview/list: 25 rows per page, prev/next.
-// The page index self-clamps when the list shrinks (apply/filter), so no
-// reset effects are needed at the call sites.
-export function usePager<T>(items: T[], perPage: number = PAGE_SIZE):
+// The page index self-clamps when the list shrinks (apply/filter). Lists
+// with user filters additionally pass a `resetKey` (the filter state, e.g.
+// joined into a string): whenever it changes the pager jumps back to page 1
+// — staying on page 3 of a freshly filtered list is never what you want.
+export function usePager<T>(items: T[], perPage: number = PAGE_SIZE, resetKey?: unknown):
     PagerState & { rows: T[] } {
   const [rawPage, setPage] = useState(0)
+  const lastKey = useRef(resetKey)
+  if (!Object.is(lastKey.current, resetKey)) {
+    // Render-phase state adjustment (the React-sanctioned pattern for
+    // "reset state when an input changes").
+    lastKey.current = resetKey
+    if (rawPage !== 0) setPage(0)
+  }
   const pages = Math.max(1, Math.ceil(items.length / perPage))
   const page = Math.min(rawPage, pages - 1)
   return {
