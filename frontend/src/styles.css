@@ -1137,12 +1137,13 @@ table.diff td:last-child { text-align: right; }
   color: var(--dim); margin: 0; }
 
 /* ---- "Take my hand" guided mode -------------------------------------- */
-.hand-card { display: flex; align-items: center; gap: 18px; }
-.hand-card-icon { font-size: 34px; line-height: 1; flex: none; }
-.hand-card-text { flex: 1; min-width: 0; }
-.hand-card-text h3 { margin: 0 0 4px; }
-.hand-card-text p { margin: 0; color: var(--dim); font-size: 12px; max-width: 72ch; }
-.hand-card-btn { flex: none; font-size: 14px; padding: 10px 18px; white-space: nowrap; }
+.tabs-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tabs-right .area-score { margin-left: 0; }
+.hand-nav-btn { width: 30px; height: 30px; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer; }
+.hand-nav-btn:hover { border-color: var(--accent); transform: none; }
 
 .hand-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .55);
   display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }

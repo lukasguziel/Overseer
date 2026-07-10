@@ -1,7 +1,9 @@
 // Thin shell: topbar + tab navigation. All state/API flow lives in
 // hooks/useOrganizer, each tab in tabs/<Name>Tab.tsx.
+import { useState } from 'react'
 import { useOrganizer } from './hooks/useOrganizer'
 import { version } from '../package.json'
+import HandGuide from './components/HandGuide'
 import logo from './assets/so_logo.jpg'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'
@@ -50,6 +52,9 @@ export default function App() {
   const org = useOrganizer()
   const { tab, report, error, busy, previewing } = org
   const spinning = busy || previewing
+  // "Take my hand" guided mode — reachable from every tab via the small
+  // hand button next to the area score.
+  const [hand, setHand] = useState(false)
 
   // Hold the whole UI behind the preloader until the first boot preload is
   // fully done (analyze + settings hydration + previews). This keeps the wrong
@@ -69,7 +74,8 @@ export default function App() {
   return (
     <div className="app">
       {busy && org.progress?.active && <Preloader progress={org.progress} />}
-      {org.reloadProgress && <ReloadOverlay progress={org.reloadProgress} />}
+      {org.reloadProgress && !hand && <ReloadOverlay progress={org.reloadProgress} />}
+      {hand && <HandGuide org={org} onExit={() => setHand(false)} />}
       <header className="topbar">
         <div className="brand">
           <img className="brand-logo" src={logo} alt="" />
@@ -142,12 +148,18 @@ export default function App() {
             )
           })}
         </nav>
-        {score != null && (
-          <div className="area-score"
-            title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
-            <Ring pct={score} tone={tone} />
-          </div>
-        )}
+        <div className="tabs-right">
+          <button className="hand-nav-btn" onClick={() => setHand(true)}
+            title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
+            🫱
+          </button>
+          {score != null && (
+            <div className="area-score"
+              title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
+              <Ring pct={score} tone={tone} />
+            </div>
+          )}
+        </div>
       </div>
 
       {error && tab !== 'rules' && <div className="error">{error}</div>}
