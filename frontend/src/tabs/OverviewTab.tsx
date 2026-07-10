@@ -14,7 +14,6 @@ import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 import { IconExpand } from '../components/icons'
-import HandGuide from '../components/HandGuide'
 
 // Color legend for a map — only ever lists the swatches actually present.
 function MapLegend({ items }: { items: { label: string; color: string }[] }) {
@@ -46,8 +45,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   const { report, compliance, busy, history } = org
   // Which hero map is expanded to the full-screen overlay (null = none).
   const [zoom, setZoom] = React.useState<null | 'geo' | 'tex'>(null)
-  // "Take my hand" guided mode overlay.
-  const [hand, setHand] = React.useState(false)
   // ALL hooks BEFORE any early return -> otherwise a Rules-of-Hooks violation.
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -197,28 +194,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
 
   return (
     <div className="overview">
-      {hand && <HandGuide org={org} onExit={() => setHand(false)} />}
-
-      {/* "Take my hand": the cross-area guided mode. One big, friendly entry
-          point — the guide batches big groups into single decisions, so even
-          a 1000-item scene is a handful of questions. */}
-      <section className="card hand-card">
-        <span className="hand-card-icon">🫱</span>
-        <div className="hand-card-text">
-          <h3>Take my hand</h3>
-          <p>
-            No idea where to start? The guide walks you through every area —
-            names, translations, structure, layers, materials — one clear
-            question at a time. Big groups are bundled into a single decision
-            (nobody answers 1000 questions), and everything it does is one
-            undo step away.
-          </p>
-        </div>
-        <button className="apply hand-card-btn" onClick={() => setHand(true)}>
-          Take my hand →
-        </button>
-      </section>
-
       <div className="tiles">
         <Tile value={humanNum(report.object_count)} label="Objects" spark={sObj} delta={deltaOf(sObj)}
           sub={[`${Object.keys(report.types || {}).length} distinct types`,
