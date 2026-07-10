@@ -613,6 +613,13 @@ table.diff td { word-break: break-word; }
 .tex-cb { width: 13px; height: 13px; margin: 0; cursor: pointer; accent-color: var(--accent); flex: none; }
 .tex-tr.tex-sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tex-tr.tex-sel:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+/* Just-resized map: highlight the relinked row + a note line showing the swap. */
+.tex-tr.tex-resized { background: color-mix(in srgb, var(--apply) 10%, transparent); border-bottom: none; }
+.tex-badge.resized { background: color-mix(in srgb, var(--apply) 22%, transparent);
+  color: var(--apply); border-color: color-mix(in srgb, var(--apply) 40%, transparent); }
+.tex-resized-note { font-size: 10px; color: var(--apply); padding: 1px 6px 5px 34px;
+  border-bottom: 1px solid var(--line2); line-height: 1.4; }
+.tex-resized-note b { color: var(--text); font-weight: 600; }
 .tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
   object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
 /* Hover eye on texture thumbnails: click opens the image in the user's
