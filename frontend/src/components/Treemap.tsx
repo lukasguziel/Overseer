@@ -45,7 +45,7 @@ function treemapBinary(items: TreemapItem[], x: number, y: number, w: number, h:
 
 // Generic weighted treemap: area = value, driven by the caller's data.
 export function TreemapChart({ data, height = 300, empty = 'Nothing to map.' }: {
-  data: TreemapDatum[]; height?: number; empty?: string
+  data: TreemapDatum[]; height?: number | string; empty?: string
 }) {
   const cells = React.useMemo(() => {
     const items = data.filter((d) => d.value > 0)
@@ -75,7 +75,7 @@ export function TreemapChart({ data, height = 300, empty = 'Nothing to map.' }: 
 
 // Poly treemap: area = polygons, color = category, click -> frame object.
 export default function Treemap({ nodes, onFocus, height = 300, count = 60 }: {
-  nodes: SceneNode[]; onFocus?: FocusFn; height?: number; count?: number
+  nodes: SceneNode[]; onFocus?: FocusFn; height?: number | string; count?: number
 }) {
   const data: TreemapDatum[] = React.useMemo(
     () => nodes.filter((n) => n.polygons > 0)
