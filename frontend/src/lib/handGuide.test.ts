@@ -3,7 +3,7 @@ import { buildHandGuideSteps, DETAIL_LIMIT, EXAMPLE_LIMIT } from './handGuide'
 import type { HandGuideInput } from './handGuide'
 
 const empty = (): HandGuideInput => ({
-  report: null, naming: null, translation: null, structure: null,
+  report: null, naming: null, translation: null,
   layerSuggestions: null, keptLayers: new Set(),
 })
 
@@ -39,26 +39,18 @@ describe('buildHandGuideSteps', () => {
     expect((steps[0].action as any).guids).toHaveLength(1000)
   })
 
-  it('splits naming by rule and structure by target group', () => {
+  it('splits naming into one batch card per rule', () => {
     const steps = buildHandGuideSteps({
       ...empty(),
       naming: {
         ok: true, count: 20,
         diff: [...renames(DETAIL_LIMIT + 1, 'casing'), ...renames(DETAIL_LIMIT + 1, 'numbering')],
       } as any,
-      structure: {
-        ok: true, count: 14,
-        diff: Array.from({ length: 14 }, (_, i) => ({
-          guid: 100 + i, name: `Obj${i}`, from: null, to: i % 2 ? 'Lights' : 'Cameras',
-        })),
-      } as any,
     })
     const naming = steps.filter((s) => s.area === 'naming')
-    const structure = steps.filter((s) => s.area === 'structure')
     expect(naming).toHaveLength(2)
-    expect(structure).toHaveLength(2)
-    expect(structure[0].headline).toContain('Cameras')
-    expect(structure[1].headline).toContain('Lights')
+    expect(naming[0].headline).toContain('casing')
+    expect(naming[1].headline).toContain('numbering')
   })
 
   it('turns layerless objects into suggestion batches plus one accept-as-is card', () => {

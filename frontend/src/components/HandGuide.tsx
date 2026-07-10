@@ -4,8 +4,7 @@ import { buildHandGuideSteps, type HandStep } from '../lib/handGuide'
 import GuideFlow, { type GuideCard } from './GuideFlow'
 
 const AREA_LABEL: Record<HandStep['area'], string> = {
-  naming: 'Naming', translate: 'Translate', structure: 'Structure',
-  layers: 'Layers', materials: 'Materials',
+  naming: 'Naming', translate: 'Translate', layers: 'Layers', materials: 'Materials',
 }
 
 // "Take my hand" — fullscreen guided walk-through across ALL areas. On start
@@ -28,7 +27,7 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
       const o = orgRef.current
       setSteps(buildHandGuideSteps({
         report: o.report, naming: o.naming, translation: o.translation,
-        structure: o.structure, layerSuggestions: o.layerSuggestions,
+        layerSuggestions: o.layerSuggestions,
         keptLayers: o.keeps.layers,
       }))
       setPhase('guiding')
@@ -41,7 +40,6 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
     const label = `${s.count} item${s.count === 1 ? '' : 's'}`
     if (a.kind === 'rename') o.applyNamingMany(a.guids, label)
     else if (a.kind === 'translate') o.applyTranslateMany(a.guids, label)
-    else if (a.kind === 'move') o.applyStructureMany(a.guids, label)
     else if (a.kind === 'assign-layer') o.doAssignLayer(a.guids, a.layer)
     else if (a.kind === 'keep-layerless') o.keepMany('layers', a.names)
     else if (a.kind === 'delete-material') o.doDeleteMaterial(a.name)
@@ -92,6 +90,28 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
           )
           : (
             <GuideFlow cards={cards} onExit={onExit}
+              header={({ index, jump }) => {
+                // Area chips: show where in the walk-through you are and jump
+                // between areas (first card of each area).
+                const current = steps[index]?.area
+                const areas = [...new Set(steps.map((s) => s.area))]
+                return (
+                  <div className="hand-areas">
+                    {areas.map((a) => {
+                      const first = steps.findIndex((s) => s.area === a)
+                      const n = steps.filter((s) => s.area === a).length
+                      return (
+                        <button key={a}
+                          className={'hand-area-chip' + (current === a ? ' on' : '')}
+                          title={`Jump to the ${n} ${AREA_LABEL[a]} decision${n === 1 ? '' : 's'}`}
+                          onClick={() => jump(first)}>
+                          {AREA_LABEL[a]} <em>{n}</em>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              }}
               labels={{
                 no: 'No',
                 skip: 'Skip',
