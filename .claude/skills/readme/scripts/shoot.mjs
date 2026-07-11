@@ -64,8 +64,13 @@ await page.waitForTimeout(1200)
 
 for (const [label, file, prepare] of TABS) {
   await page.click(`.tabs button:has-text("${label}")`)
+  // Park the cursor off the nav, else the tab's progress tooltip hovers open
+  // and covers the header in the shot.
+  await page.mouse.move(1400, 940)
   await page.waitForTimeout(1200)
   if (prepare) await prepare(page)
+  await page.mouse.move(1400, 940)
+  await page.waitForTimeout(400)
   // Hide the transient status toast so shots stay deterministic.
   await page.addStyleTag({ content: '.statusbar { display: none !important; }' })
   await page.screenshot({ path: join(OUT, file) })
