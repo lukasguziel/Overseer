@@ -5,7 +5,11 @@ const CATCOLOR: Record<string, string> = {
 }
 export const catColor = (k: string): string => CATCOLOR[k] || '#64748b'
 
-export const STRIP_PALETTE = ['#38bdf8', '#34d399', '#fbbf24', '#b07bff', '#f87171', '#8b8b93', '#f5843c']
+// Composition strips (casing, language, categories) are NEUTRAL data — a slice
+// is a fact, not a verdict. No warn yellow in here: yellow means "todo" system
+// wide, and a palette slot must not hand that meaning to whatever class happens
+// to land in third place ("mixed" read as an alarm for exactly that reason).
+export const STRIP_PALETTE = ['#38bdf8', '#34d399', '#2dd4bf', '#b07bff', '#f472b6', '#8b8b93', '#f5843c']
 
 // Resolution tiers for the texture map: a single-hue RED heat ramp (no scene
 // category is red, so a big map never reads as a light/camera/etc.). Small ->

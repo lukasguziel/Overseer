@@ -172,6 +172,27 @@ item is a decision already made and must not sit inside the work still to do.
 
 ---
 
+## Head count — `.head-count`
+
+What a card or panel holds, stated at the **far right** of its head — in one
+voice everywhere:
+
+```jsx
+<div className="card-head">
+  <h3>Layer overview</h3>
+  <span className="head-count">20 layers · 10 on no layer</span>
+</div>
+```
+
+Always **say what the number counts** ("14 changes", "88 maps", "12 types") — a
+bare figure next to a title makes the reader guess. It sits last in the layout
+(`order: 99`) while the markup keeps the reading order title → count → actions.
+
+Not `.card-hint`: that is an *instruction* in a head ("click a tile to select &
+frame"), not a number. One is what you have, the other is what you can do.
+
+---
+
 ## Empty note — `.empty-note`
 
 The one-line message that stands in for a list's content: nothing found, still
@@ -347,11 +368,31 @@ Colour carries meaning; do not spend it on decoration.
 | Token | Means |
 | --- | --- |
 | `--err` | a defect — something is broken (missing file) |
-| `--warn` | needs a decision, still functional |
+| `--warn` (yellow) | **a todo: an open item the artist still has to decide** |
 | `--apply` | healthy / will be applied |
 | `--accent` | the interactive accent (hover, active state) |
 | `--text` / `--dim` / `--dim2` | text ranks: primary, secondary, tertiary |
 
-A hint that merely says "you cannot do this yet" is **not** a warning — it is
-tertiary text (`.hint-sm`). Warning colour is reserved for things the artist
-must act on.
+### Yellow is the todo colour — and nothing else
+
+`--warn` earns its loudness only if it always means the same thing: *there is
+work left here*. It belongs on todo counts (nav badges, `.substats .warn`,
+cleanup counts) and on a score that says todos remain (`mid` tone).
+
+It must **not** be spent on:
+
+| Not a todo | Why | Now |
+| --- | --- | --- |
+| a slice in a composition strip ("mixed" casing) | a distribution is a fact, not a verdict — and the slot is assigned by *position*, so any class could inherit the alarm | `STRIP_PALETTE` carries no yellow |
+| a rule tag (`unique`, `casing`, …) | says *which* rule renamed something — a label | violet |
+| a resolution tier (4K) | a heavy map is a judgment call, not a defect | the red heat ramp of `lib/colors.ts` |
+| a file kind (IES) | a fact about the file | teal |
+| a history chip (analysis) | a read, never a change | violet |
+
+For neutral categories, take a hue from `STRIP_PALETTE` / `CATCOLOR`. The one
+deliberate exception is the **light** category (`CATCOLOR.light`), which is
+yellow because a light *is* yellow — it lives only in charts, never next to a
+todo count.
+
+A hint that merely says "you cannot do this yet" is **not** a todo either — it
+is tertiary text (`.hint-sm`).
