@@ -5,10 +5,11 @@ import useAudit from '../hooks/useAudit'
 import { humanBytes } from '../lib/format'
 import ConfirmModal from '../components/ConfirmModal'
 import FilterChips from '../components/FilterChips'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
+import { IconFolder } from '../components/icons'
 import './files.css'
 import ActionButton from '../components/ActionButton'
 
@@ -24,6 +25,7 @@ interface FileEntry {
   rel_target: string
   bytes: number
   owner: string
+  owner_kind?: string   // 'object' | 'material' | '' (take, render data, …)
   guid: number | null
 }
 
@@ -58,6 +60,15 @@ function statusColor(e: FileEntry): string {
   return e.missing ? 'var(--err)' : 'var(--apply)'
 }
 
+// What a row can select in C4D, if anything. An external file can also be owned
+// by a take or the render settings — those are neither object nor material, and
+// clicking them used to ask the server for a material that never existed.
+function selectable(e: FileEntry): '' | 'object' | 'material' {
+  if (e.guid != null) return 'object'
+  if (e.owner && e.owner_kind === 'material') return 'material'
+  return ''
+}
+
 function FileTable({ rows, onFocus, onPick, onAccept }: {
   rows: FileEntry[]
   onFocus: (e: FileEntry) => void
@@ -70,17 +81,21 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
     <div className="dg-table">
       <div className={'dg-tr dg-thead ' + cols}>
         <Tip text="File name of the external reference. Colored badge = kind (Alembic, cache, IES …)."><span>File</span></Tip>
-        <Tip text="Object or material that references the file. Click a row to select it in Cinema 4D."><span>Owner</span></Tip>
+        <Tip text="What references the file — usually an object or a material; a row for either selects it in Cinema 4D when you click it."><span>Owner</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
         <Tip text="Stored path. Badge shows absolute / relative / missing."><span>Path</span></Tip>
       </div>
       {rows.map((e, i) => {
         const actionable = e.missing && hasActions
+        const sel = selectable(e)
         return (
-          <div className={'dg-tr dg-click ' + cols}
+          <div className={'dg-tr ' + (sel ? 'dg-click ' : '') + cols}
             key={e.path + '|' + e.owner + '|' + i}
-            title={`${e.path}\nClick to select ${e.guid != null ? `“${e.owner}” in the viewport` : `material “${e.owner}”`}`}
-            onClick={() => onFocus(e)}>
+            title={e.path + '\n' + (
+              sel === 'object' ? `Click to select “${e.owner}” in the viewport`
+                : sel === 'material' ? `Click to select the material “${e.owner}”`
+                  : 'This reference belongs to no object or material (e.g. a take or the render settings) — nothing to select')}
+            onClick={() => { if (sel) onFocus(e) }}>
             <span className="dg-cell-file">
               <span className="fl-dot" style={{ background: statusColor(e) }} />
               <span className={'fa-kind fk-' + e.kind}>{KIND_LABEL[e.kind] || e.kind}</span>
@@ -100,7 +115,7 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
               <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
                 {onPick && (
                   <button className="rn-ok" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
-                    onClick={() => onPick(e)}>…</button>
+                    onClick={() => onPick(e)}><IconFolder /></button>
                 )}
                 {onAccept && (
                   <button className="rn-keep" title="Accept as missing — stops counting as a problem (restore below)"
@@ -170,8 +185,9 @@ export default function FilesTab({ org }: { org: Organizer }) {
   const pager = usePager(present, undefined, kind)
 
   const onFocus = (e: FileEntry) => {
-    if (e.guid != null) org.doFocus(e.guid, e.owner)
-    else if (e.owner) org.doFocusMaterial(e.owner)
+    const sel = selectable(e)
+    if (sel === 'object') org.doFocus(e.guid!, e.owner)
+    else if (sel === 'material') org.doFocusMaterial(e.owner)
   }
 
   const doMakeRelative = async () => {
@@ -281,7 +297,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                   </ActionButton>
                 </span>
               </div>
-              <p className="hint-sm">Per row: … pick the replacement file in C4D's file dialog · = accept it as missing.</p>
+              <p className="hint-sm">Per row: the folder icon picks the replacement file in C4D's file dialog · = accept it as missing.</p>
               <FileTable rows={missPager.rows} onFocus={onFocus}
                 onPick={pickOne} onAccept={acceptOne} />
               <Pager pager={missPager} />
@@ -301,10 +317,6 @@ export default function FilesTab({ org }: { org: Organizer }) {
               : <div className="empty-note">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
           </section>
 
-          <AcceptedSection items={accepted}
-            onRestore={(p) => setFileKeeps(accepted.filter((a) => a !== p))}
-            onRestoreAll={() => setFileKeeps([])}
-            hint="Accepted-as-missing files are remembered (config) and no longer count as problems — restore to treat them as missing again." />
         </div>
       </div>
 
@@ -339,6 +351,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           onCancel={() => setConfirm(false)}
         />
       )}
+    <AcceptedPanel org={org} />
     </div>
   )
 }

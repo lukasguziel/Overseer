@@ -5,7 +5,7 @@ import type { TextureEntry } from '../types'
 import { humanBytes } from '../lib/format'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
@@ -673,14 +673,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       {/* Everything accepted on this tab, collected at its foot — decisions
           the artist already made belong out of the worklists, not wedged in
           between the Materials section and the Textures one. */}
-      <AcceptedSection title="Accepted materials" items={mat?.accepted_all || []}
-        onRestore={(nm) => org.unkeep('materials', nm)}
-        onRestoreAll={() => org.unkeepAll('materials')}
-        hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
-      <AcceptedSection title="Accepted textures" items={texAccepted}
-        onRestore={(p) => setTexKeeps(texAccepted.filter((a) => a !== p))}
-        onRestoreAll={() => setTexKeeps([])}
-        hint="Accepted-as-missing textures are remembered (config) and no longer count as problems — restore to treat them as missing again." />
 
       {relinkConfirm && (
         <ConfirmModal
@@ -710,6 +702,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           onConfirm={(dir) => { setCollectDir(dir); setCollectConfirm(false); org.doCollectTextures(dir) }}
           onCancel={() => setCollectConfirm(false)} />
       )}
+    <AcceptedPanel org={org} />
     </div>
   )
 }

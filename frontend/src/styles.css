@@ -182,7 +182,7 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* ---------- Topbar ---------- */
 .topbar { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; }
 .brand { display: inline-flex; align-items: center; gap: 9px; letter-spacing: -0.01em; }
-.brand-logo { width: 26px; height: 26px; border-radius: 4px; object-fit: contain; display: block; flex: none; }
+.brand-logo { width: 34px; height: 34px; border-radius: 4px; object-fit: contain; display: block; flex: none; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .brand-title { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .brand-version { margin-left: 7px; font-size: 10px; font-weight: 500; color: var(--dim);
@@ -457,6 +457,11 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
   gap: 10px; margin-bottom: 10px; }
 .card-head h3, .wb-side h3, .wb-preview-head h3 { font-size: 12px; text-transform: uppercase;
   letter-spacing: .06em; color: var(--dim); margin: 0; font-weight: 600; }
+
+/* The action a card exists for, centred under its own description — for cards
+   whose whole point is one button (Viewport cost: "Measure"). A head-corner
+   button reads as a decoration; this one reads as the invitation it is. */
+.card-cta { display: flex; justify-content: center; margin: 4px 0 2px; }
 
 /* ---------- Overview ---------- */
 .overview { display: flex; flex-direction: column; gap: 16px; }
@@ -744,10 +749,17 @@ table.diff td { word-break: break-word; }
 .chip-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
   color: var(--dim); font: inherit; font-size: 11px; padding: 2px 9px; cursor: pointer; box-shadow: none; }
 .chip-btn em { font-style: normal; color: var(--dim2); font-size: 10px; }
-.chip-btn:hover:not(:disabled) { color: var(--text); border-color: var(--dim); box-shadow: none; }
+.chip-btn:hover:not(:disabled) { color: var(--text); border-color: var(--hover);
+  background: var(--panel); box-shadow: none; }
 .chip-btn:disabled { opacity: .35; cursor: default; }
-.chip-btn.on { background: var(--accent); border-color: transparent; color: #06121a; }
-.chip-btn.on em { color: #06121a; opacity: .7; }
+/* Active = lifted out of the panel like the active nav tab, and the accent only
+   outlines it — that keeps it apart from a mere hover without repainting the
+   label near-black the way the old accent FILL did. A set filter is a state,
+   not an alarm. */
+.chip-btn.on { background: var(--panel); border-color: var(--accent); color: var(--text);
+  font-weight: 600; }
+.chip-btn.on:hover:not(:disabled) { border-color: var(--accent); }
+.chip-btn.on em { color: var(--dim); }
 .chip-btn.tf-warn:not(.on) em { color: var(--warn); }
 
 .tex-res { border: 1px solid transparent; }
@@ -909,8 +921,12 @@ table.mini td.warn { color: var(--warn); }
   display: flex; flex-direction: column; min-height: 340px; max-height: calc(100vh - 130px); overflow: hidden; }
 .wb-preview-head { display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; border-bottom: 1px solid var(--line2); }
-.wb-preview-head h3 { margin-right: auto; }
-.wb-count { color: var(--dim); font-size: 12px; }
+/* Head reading order: title (left) · actions · count (far right). The title
+   takes the slack instead of an auto margin — with auto margins on BOTH the
+   title and the actions the count got stranded in the leftover gap. */
+.wb-preview-head h3 { flex: 1; min-width: 0; }
+.wb-preview-head .wb-head-actions { margin-left: 0; }
+.wb-count { color: var(--dim); font-size: 12px; order: 99; margin-left: 0; }
 .wb-apply { padding: 5px 14px; font-size: 12px; }
 .wb-note { margin: 0; padding: 8px 16px; color: var(--apply); font-size: 12px;
   background: rgba(52,211,153,.06); border-bottom: 1px solid var(--line2); }

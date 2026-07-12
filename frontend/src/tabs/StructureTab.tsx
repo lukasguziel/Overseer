@@ -3,7 +3,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -90,9 +90,6 @@ export default function StructureTab({ org }: { org: Organizer }) {
         </Workbench>
       </div>
 
-      <AcceptedSection items={Array.from(keeps.structure)}
-        onRestore={(nm) => org.unkeep('structure', nm)}
-        onRestoreAll={() => org.unkeepAll('structure')} />
 
       {/* Structure hygiene: empty containers & loose root objects. */}
       <section className="card">
@@ -104,6 +101,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
           onKeep={(nm) => org.keep('structure', nm)}
           onKeepAll={(names) => org.keepMany('structure', names)} busy={busy} />
       </section>
+    <AcceptedPanel org={org} />
     </div>
   )
 }
