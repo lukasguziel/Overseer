@@ -112,7 +112,11 @@ body { margin: 0; background: var(--bg); color: var(--text);
   border-radius: 1px; background: var(--line2, rgba(127, 127, 127, .18));
   overflow: hidden; pointer-events: none;
 }
-.tab-progress-fill { display: block; height: 100%; border-radius: 1px;
+/* A score of 0 must still show its colour: at width 0 the bar would vanish and
+   an untouched area would look like an area with no score at all. The health
+   ring solves this with a round line cap that survives a zero-length arc — the
+   bar needs an explicit stub. */
+.tab-progress-fill { display: block; height: 100%; min-width: 4px; border-radius: 1px;
   transition: width .3s ease; }
 .tab-progress-fill.tp-good { background: var(--apply, #34d399); }
 .tab-progress-fill.tp-mid { background: var(--warn, #fbbf24); }
@@ -335,6 +339,15 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
 .side-action-title { font-size: 13px; font-weight: 500; color: var(--dim);
   margin: 0 0 6px; }
 .side-action-title + .example, .side-action-title + .hint-sm { margin-top: 0; }
+
+/* ONE action in a sidebar, always read top-down: title, what it does, any
+   input it needs, and the button that runs it LAST. A hairline separates it
+   from the next action, so a column of them never reads as one blob. */
+.side-action { display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 0; border-bottom: 1px solid var(--line2); }
+.side-action:last-of-type { border-bottom: 0; }
+.side-action > p { margin: 0; }
+.side-action > button { align-self: stretch; margin-top: 2px; }
 
 /* Small right-aligned hint inside a card head ("click a tile to …") */
 .card-hint { color: var(--dim); font-size: 11px; }
