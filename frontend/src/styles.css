@@ -1204,10 +1204,15 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 /* ---------- Translate tab: detected-language rows ---------- */
 .grouplist li.lang-dom b { color: var(--accent); }
 .grouplist li span { font-variant-numeric: tabular-nums; }
+/* Legacy alias of the ActionButton chip (components/ActionButton.css) for the
+   few spots that still render a raw <button className="mini">. Same look, same
+   quiet hover — the accent-blue fill is gone: a hover previews the action, it
+   does not repaint the button. Prefer <ActionButton> for anything new. */
 button.mini { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
   padding: 3px 9px; border-radius: 6px; background: var(--panel2); color: var(--dim);
   border: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
-button.mini:hover:not(:disabled) { background: var(--accent); color: #06121a; border-color: transparent; }
+button.mini:hover:not(:disabled) { background: var(--panel); color: var(--text);
+  border-color: var(--hover); }
 button.mini:disabled { opacity: 0.4; cursor: default; }
 table.diff td:last-child { text-align: right; }
 

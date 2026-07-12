@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import './sims.css'
+import ActionButton from '../components/ActionButton'
 
 interface SimHit {
   guid: number
@@ -199,8 +200,8 @@ function FindingCard({ title, hint, hits, tone, rowAction, onFocus, batch }: {
         <h3 className={'sim-find-' + tone}>{title}</h3>
         <span className="card-hint">{hits.length}</span>
         {batch && (
-          <button className="apply wb-apply" onClick={batch.onClick}
-            title="Disable all of these in one undo step">✓ {batch.label}</button>
+          <ActionButton tone="go" onClick={batch.onClick}
+            title="Disable all of these in one undo step">{batch.label}</ActionButton>
         )}
       </div>
       <p className="hint-sm">{hint}</p>
@@ -247,8 +248,8 @@ function KindGroup({ kind, hits, onFocus, onSelect }: {
       <div className="section-head sm">
         <span>{kind}</span>
         <span className="card-hint">{hits.length}</span>
-        <button className="mini" onClick={onSelect}
-          title={`Select all ${kind} objects in Cinema 4D`}>Select in C4D</button>
+        <ActionButton onClick={onSelect}
+          title={`Select all ${kind} objects in Cinema 4D`}>Select in C4D</ActionButton>
       </div>
       <div className="rename-list">
         {pager.rows.map((h) => (
