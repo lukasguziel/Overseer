@@ -57,33 +57,36 @@ function resizeTargetPath(path: string, percent: number): string {
   return dot < 0 ? `${path}_${percent}` : `${path.slice(0, dot)}_${percent}${path.slice(dot)}`
 }
 
-// One texture row. Missing rows carry their own decision buttons:
-// … browse for a replacement file (opens C4D's native file dialog),
-// ✕ clear THIS dead reference.
-function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClear, onAccept }: {
+// One texture row, with the decisions for THAT map on its right — the same
+// gesture as accept/keep everywhere else in the app. A missing map can be
+// re-picked, cleared or accepted; a map that is there can be shrunk, and its
+// path flipped between relative and absolute. No batch button decides for you.
+function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
   e: TextureEntry
   thumb?: string
-  selected: boolean
   resized?: ResizeInfo
-  onToggle: () => void
+  percent: number
+  busy?: boolean
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
   onAccept?: (e: TextureEntry) => void
+  onResize?: (e: TextureEntry) => void
+  onRepath?: (e: TextureEntry, mode: 'relative' | 'absolute') => void
 }) {
-  // Only unaccepted missing maps carry the decision buttons; accepted ones are
-  // acknowledged and just show a badge (restore from the panel below).
-  const actionable = e.missing && !e.accepted && (onPick || onClear || onAccept)
+  // Missing maps: pick / clear / accept (accepted ones are decided — badge only).
+  const missingActions = e.missing && !e.accepted && (onPick || onClear || onAccept)
+  // Present maps: shrink (needs real pixels on disk) and flip the path form.
+  const canResize = !e.missing && e.exists && e.width > 0 && onResize
+  const canRepath = !e.missing && e.exists && onRepath
+  const actionable = missingActions || canResize || canRepath
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
     <>
-    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '') + (selected ? ' tex-sel' : '')
+    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')
         + (resized ? ' tex-resized' : '')}
       title={`${pathTip}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
-      <input type="checkbox" className="tex-cb" checked={selected}
-        title="Select this map for the batch actions on the left (Resize, Make absolute…)"
-        onClick={(ev) => ev.stopPropagation()} onChange={onToggle} />
       <span className="tex-cell-file">
         {thumb
           ? (
@@ -136,22 +139,42 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
         )}
       </span>
       <span className="dim tex-cut">{e.material}</span>
-      {actionable && (
-        <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
-          {onPick && (
+      {/* The decision slot exists on every row (empty when there is nothing to
+          decide) so the buttons stay in one column. */}
+      <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
+        {actionable && (
+          <>
+          {missingActions && onPick && (
             <button className="rn-ok rn-icon" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
               onClick={() => onPick(e)}><IconFolder /></button>
           )}
-          {onClear && (
+          {missingActions && onClear && (
             <button className="rn-no" title="Clear this dead reference — the material stops pointing at the missing file (undoable)"
               onClick={() => onClear(e)}>✕</button>
           )}
-          {onAccept && (
+          {missingActions && onAccept && (
             <button className="rn-keep" title="Accept as-is — acknowledge the missing file; it stops counting as a problem (restore below)"
               onClick={() => onAccept(e)}>=</button>
           )}
-        </span>
-      )}
+          {canRepath && (
+            <button className="rn-keep tex-act" disabled={busy}
+              title={e.absolute
+                ? `Rewrite this one path relative to the project folder (undoable)`
+                : `Rewrite this one path to its full absolute form (undoable)`}
+              onClick={() => onRepath!(e, e.absolute ? 'relative' : 'absolute')}>
+              {e.absolute ? '→ rel' : '→ abs'}
+            </button>
+          )}
+          {canResize && (
+            <button className="rn-ok tex-act" disabled={busy}
+              title={`Write a copy of this map at ${percent}% (${e.width}×${e.height} → ${Math.max(1, Math.round(e.width * percent / 100))}×${Math.max(1, Math.round(e.height * percent / 100))}) and relink the material to it (undoable)`}
+              onClick={() => onResize!(e)}>
+              ↓ {percent}%
+            </button>
+          )}
+          </>
+        )}
+      </span>
     </div>
     {resized && (
       <div className="tex-resized-note"
@@ -164,37 +187,36 @@ function TexRow({ e, thumb, selected, resized, onToggle, onFocus, onPick, onClea
   )
 }
 
-function TexTable({ rows, previews, selected, rowKey, resized, onToggle, allChecked, onToggleAll, onFocus, onPick, onClear, onAccept }: {
+function TexTable({ rows, previews, resized, percent, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
   rows: TextureEntry[]
   previews: Record<string, string>
-  selected: Set<string>
-  rowKey: (e: TextureEntry) => string
   resized: Record<string, ResizeInfo>
-  onToggle: (e: TextureEntry) => void
-  allChecked: boolean
-  onToggleAll: () => void
+  percent: number
+  busy?: boolean
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
   onClear?: (e: TextureEntry) => void
   onAccept?: (e: TextureEntry) => void
+  onResize?: (e: TextureEntry) => void
+  onRepath?: (e: TextureEntry, mode: 'relative' | 'absolute') => void
 }) {
   return (
     <div className="tex-table">
       <div className="tex-tr tex-thead">
-        <input type="checkbox" className="tex-cb" checked={allChecked}
-          title="Select / deselect every map in the current filter" onChange={onToggleAll} />
         <Tip text="File name of the texture. Click the thumbnail to open the image in your picture viewer."><span>File</span></Tip>
-        <Tip text="Badge shows absolute / relative / missing — “→ relative” can be rewritten with one click. Hover a row for its full path."><span>Path</span></Tip>
+        <Tip text="Badge shows absolute / relative / missing. Decide per row on the right: flip the path form, shrink the map, or fix a missing reference. Hover a row for its full path."><span>Path</span></Tip>
         <Tip text="Resolution tier (e.g. 4K/8K) — heavy maps stand out instantly."><span className="num">Res</span></Tip>
         <Tip text="Actual pixel dimensions of the file."><span className="num">Pixels</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
         <Tip text="Material using this texture."><span>Material</span></Tip>
+        <Tip text="What you can decide for this map: flip its path form, shrink it, or fix a missing reference."><span>Decide</span></Tip>
       </div>
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
-          thumb={previews[e.resolved || e.path]}
-          selected={selected.has(rowKey(e))} resized={resized[e.path]} onToggle={() => onToggle(e)}
-          onFocus={onFocus} onPick={onPick} onClear={onClear} onAccept={onAccept} />
+          thumb={previews[e.resolved || e.path]} percent={percent} busy={busy}
+          resized={resized[e.path]}
+          onFocus={onFocus} onPick={onPick} onClear={onClear} onAccept={onAccept}
+          onResize={onResize} onRepath={onRepath} />
       ))}
     </div>
   )
@@ -230,7 +252,6 @@ function MatThumb({ src, fallback }: { src?: string; fallback: string }) {
 
 export default function MaterialsTab({ org }: { org: Organizer }) {
   const { report, busy } = org
-  const [confirm, setConfirm] = useState(false)         // make textures relative
   const mat = report?.materials
   const tex = report?.textures
 
@@ -254,15 +275,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [relinkDir, setRelinkDir] = useState('')
   const [relinkConfirm, setRelinkConfirm] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
-  // Batch resize + make-absolute (M4): percent choice and confirm gates.
+  // What the per-row "↓ %" button writes. A setting, not an action — the
+  // decision to shrink is made on the row itself.
   const [resizePercent, setResizePercent] = useState(50)
-  const [resizeConfirm, setResizeConfirm] = useState(false)
-  const [absConfirm, setAbsConfirm] = useState(false)
-  // Row selection: check maps in the paths list to scope the batch actions
-  // (Resize / Make absolute) to just those rows. Empty = act on the whole
-  // filtered set, as before. Keyed by path+material so it survives paging.
-  const rowKey = (e: TextureEntry) => e.path + '\n' + e.material
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   // Recently resized maps, keyed by the relinked copy's path — annotates that
   // row with a "resized" badge + a note showing what it replaced.
   const [resizedInfo, setResizedInfo] = useState<Record<string, ResizeInfo>>({})
@@ -275,11 +290,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       .catch((e) => org.setStatus(`Accept ✗ ${String(e.message || e)}`))
   }
   const acceptTexture = (e: TextureEntry) => setTexKeeps([...texAccepted, e.path])
-  const toggleRow = (e: TextureEntry) => setSelected((s) => {
-    const next = new Set(s); const k = rowKey(e)
-    next.has(k) ? next.delete(k) : next.add(k)
-    return next
-  })
+  // Shrink ONE map. The copy's path is predictable, so the row it will become
+  // after the re-analyze is annotated up front with what it replaced.
+  const resizeOne = (e: TextureEntry) => {
+    setResizedInfo((prev) => ({
+      ...prev,
+      [resizeTargetPath(e.path, resizePercent)]: {
+        fromFile: e.file,
+        fromDims: `${e.width}×${e.height}`,
+        percent: resizePercent,
+      },
+    }))
+    org.doTextureResize([e.path], resizePercent)
+  }
   // Parameterized facet matchers — shared by the row filter AND the faceted
   // chip counts (each facet is counted with every OTHER facet applied).
   const mRes = (e: TextureEntry, k: string) => !k || resTier(e) === k
@@ -369,30 +392,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 
-  // Selection scoping: when the user has ticked rows, the path-array batch
-  // actions (Resize / Make absolute) act on exactly those maps. With nothing
-  // ticked they fall back to the whole filtered set (the previous behavior).
-  const filteredTex = allTex.filter((e) => !e.accepted && byRes(e) && byPath(e) && bySpec(e))
-  const selActive = selected.size > 0
-  const selEntries = allTex.filter((e) => selected.has(rowKey(e)))
-  const selScope = selActive ? selEntries : filteredTex
-  // How many of the CURRENT filter are ticked — drives the header checkbox.
-  const filteredSelCount = filteredTex.filter((e) => selected.has(rowKey(e))).length
-  const allFilteredChecked = filteredTex.length > 0 && filteredSelCount === filteredTex.length
-  const toggleAll = () => setSelected((s) => {
-    const next = new Set(s)
-    if (allFilteredChecked) filteredTex.forEach((e) => next.delete(rowKey(e)))
-    else filteredTex.forEach((e) => next.add(rowKey(e)))
-    return next
-  })
-
-  // Make-absolute counterpart to make-relative: relative references that resolve
-  // to an existing file. Batch resize operates on maps that exist on disk and
-  // carry pixel data. Both honor the row selection when one is active.
-  const makeAbsolute = selScope.filter((e) => !e.absolute && !e.missing)
-  const resizeTargets = selScope.filter((e) => e.exists && e.width > 0)
   const totalVram = tex?.total_vram ?? 0
-  const fixable = tex?.relocatable_count ?? 0
   // Absolute textures OUTSIDE the project: rewriting alone cannot fix them —
   // the file must be copied into the project first (Copy & relink).
   const collectable = allTex.filter((e) => e.absolute && !e.missing && !e.relocatable).length
@@ -690,32 +690,39 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </>
             )}
 
+            <div className="section-head sm"><span>Shrink</span></div>
+
+            <div className="side-action">
+              <p className="side-action-title">Size of the shrunk copy</p>
+              <p className="hint-sm">
+                Sets what the <b>↓ %</b> button on each row writes: a downsized
+                <b> copy</b> next to the original (suffix <code>_{resizePercent}</code>),
+                with the material relinked to it. The original file is never
+                touched.
+              </p>
+              <div className="tex-filter">
+                {[25, 50, 75].map((p) => (
+                  <button key={p}
+                    className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
+                    title={`Row buttons will write copies at ${p}% of the original size`}
+                    onClick={() => setResizePercent(p)}>{p}%</button>
+                ))}
+              </div>
+            </div>
+
             <div className="section-head sm"><span>Paths</span></div>
             <p className="hint-sm">
               Relative or absolute is a pipeline choice, not a defect — neither
-              counts against your score. Pick the one your studio works with.
+              counts against your score. Flip a single path with the
+              <b> → rel</b> / <b>→ abs</b> button on its row.
             </p>
-
-            <div className="side-action">
-              <p className="side-action-title">Relative to the project</p>
-              <p className="hint-sm">
-                Rewrites absolute paths that already point inside the project
-                folder. The scene then survives being moved to another machine.
-              </p>
-              <button className="ghost sm" disabled={busy || !fixable}
-                title={fixable
-                  ? `Rewrite ${fixable} absolute path(s) inside the project folder to relative (undoable)`
-                  : 'No absolute paths inside the project folder'}
-                onClick={() => setConfirm(true)}>
-                Make relative ({fixable})
-              </button>
-            </div>
 
             <div className="side-action">
               <p className="side-action-title">Copy into the project</p>
               <p className="hint-sm">
                 Maps that live outside the project folder are copied into the
-                subfolder below and relinked relatively.
+                subfolder below and relinked relatively — the one action that
+                needs a destination, so it stays here.
               </p>
               <label>
                 <input className="nl-input" value={collectDir}
@@ -728,47 +735,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   : 'No existing textures outside the project folder'}
                 onClick={() => setCollectConfirm(true)}>
                 Copy &amp; relink ({collectable})
-              </button>
-            </div>
-
-            <div className="side-action">
-              <p className="side-action-title">Absolute, machine-wide</p>
-              <p className="hint-sm">
-                Rewrites relative paths to their full form — the choice for a
-                shared texture library outside the project.
-              </p>
-              <button className="ghost sm" disabled={busy || !makeAbsolute.length}
-                title={makeAbsolute.length
-                  ? `Rewrite ${makeAbsolute.length} relative path(s) to their full absolute form (undoable)`
-                  : 'No relative texture paths to make absolute'}
-                onClick={() => setAbsConfirm(true)}>
-                Make absolute ({makeAbsolute.length})
-              </button>
-            </div>
-
-            <div className="section-head sm"><span>Size</span></div>
-
-            <div className="side-action">
-              <p className="side-action-title">Shrink the maps</p>
-              <p className="hint-sm">
-                Writes downsized <b>copies</b> next to the originals (suffix
-                <code> _{resizePercent}</code>) and relinks the materials —
-                applies to {selActive ? <b>the {selected.size} selected maps</b> : 'the currently filtered maps'}.
-              </p>
-              <div className="tex-filter">
-                {[25, 50, 75].map((p) => (
-                  <button key={p}
-                    className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
-                    title={`Scale the maps down to ${p}% of their current size`}
-                    onClick={() => setResizePercent(p)}>{p}%</button>
-                ))}
-              </div>
-              <button className="ghost sm" disabled={busy || !resizeTargets.length}
-                title={resizeTargets.length
-                  ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
-                  : selActive ? 'No selected maps with pixel data' : 'No textures with pixel data in the current filter'}
-                onClick={() => setResizeConfirm(true)}>
-                Resize {resizeTargets.length} → {resizePercent}%
               </button>
             </div>
 
@@ -785,27 +751,26 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
               </span>
-              {selActive && (
-                <button className="wb-accept-all" title="Clear the selection"
-                  onClick={() => setSelected(new Set())}>
-                  {selected.size} selected · clear ✕
-                </button>
-              )}
               {/* Batch actions on the missing maps live in the Actions panel. */}
             </div>
-            <p className="hint-sm wb-hint">Click a row to select its material in Cinema 4D · missing rows: … pick the replacement file · ✕ clear the dead reference.</p>
+            <p className="hint-sm wb-hint">
+              Click a row to select its material in Cinema 4D. Decide per map on
+              the right: <b>→ rel</b>/<b>→ abs</b> flips its path form,
+              <b> ↓ {resizePercent}%</b> writes a smaller copy and relinks it;
+              missing maps offer … pick a replacement · ✕ clear · = accept.
+            </p>
             <div className="wb-scroll">
               {pathPager.total
                 ? <>
                     <TexTable rows={pathPager.rows}
                       previews={texPreviews}
-                      selected={selected} rowKey={rowKey} onToggle={toggleRow}
-                      resized={resizedInfo}
-                      allChecked={allFilteredChecked} onToggleAll={toggleAll}
+                      resized={resizedInfo} percent={resizePercent} busy={busy}
                       onFocus={org.doFocusMaterial}
                       onPick={(e) => org.doPickTexturePath(e.path, e.material)}
                       onClear={(e) => org.doSetTexturePath(e.path, '', e.material)}
-                      onAccept={acceptTexture} />
+                      onAccept={acceptTexture}
+                      onResize={resizeOne}
+                      onRepath={(e, mode) => org.doTextureRepath([e.path], mode)} />
                     <Pager pager={pathPager} />
                   </>
                 : <div className="empty-note mid">
@@ -833,15 +798,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
         </section>
       )}
 
-      {confirm && (
-        <ConfirmModal
-          title="Make paths relative"
-          message={`Rewrite ${fixable} absolute texture path${fixable === 1 ? '' : 's'} that already live under the project folder to project-relative paths (one undo step). Continue?`}
-          confirmLabel={`✓ Rewrite ${fixable} path${fixable === 1 ? '' : 's'}`}
-          onConfirm={() => { setConfirm(false); org.doFixTexturesRelative() }}
-          onCancel={() => setConfirm(false)}
-        />
-      )}
       {relinkConfirm && (
         <ConfirmModal
           title="Relink missing textures"
@@ -858,36 +814,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           confirmLabel={`✓ Clear ${missingCount} refs`}
           onConfirm={() => { setClearConfirm(false); org.doClearMissingTextures() }}
           onCancel={() => setClearConfirm(false)}
-        />
-      )}
-      {absConfirm && (
-        <ConfirmModal
-          title="Make paths absolute"
-          message={`Rewrite ${makeAbsolute.length} relative texture path${makeAbsolute.length === 1 ? '' : 's'} to their full absolute form (one undo step). Continue?`}
-          confirmLabel={`✓ Make ${makeAbsolute.length} absolute`}
-          onConfirm={() => { setAbsConfirm(false); org.doTextureRepath(makeAbsolute.map((e) => e.path), 'absolute') }}
-          onCancel={() => setAbsConfirm(false)}
-        />
-      )}
-      {resizeConfirm && (
-        <ConfirmModal
-          title={`Resize ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} to ${resizePercent}%`}
-          message={`Write resized copies (suffix _${resizePercent}) of ${resizeTargets.length} texture${resizeTargets.length === 1 ? '' : 's'} next to the originals and relink the materials to them. The original files are never overwritten; the relink is one undo step. Formats without a resizer are skipped with a note. Continue?`}
-          confirmLabel={`✓ Resize to ${resizePercent}%`}
-          onConfirm={() => {
-            setResizeConfirm(false)
-            // Remember what each map is being resized from, keyed by the copy's
-            // predicted path, so the relinked row shows the swap after re-analyze.
-            const map: Record<string, ResizeInfo> = { ...resizedInfo }
-            for (const e of resizeTargets) {
-              map[resizeTargetPath(e.path, resizePercent)] =
-                { fromFile: e.file, fromDims: `${e.width}×${e.height}`, percent: resizePercent }
-            }
-            setResizedInfo(map)
-            setSelected(new Set())
-            org.doTextureResize(resizeTargets.map((e) => e.path), resizePercent)
-          }}
-          onCancel={() => setResizeConfirm(false)}
         />
       )}
       {collectConfirm && (

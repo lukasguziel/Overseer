@@ -11,6 +11,34 @@ from ..core.ops import LayerOp, RenameOp, ReparentOp
 from .constants import DOC_JOURNAL_ID, KNOWN_TYPES
 
 
+def _save_filters() -> dict:
+    """File extension -> the C4D image filter that writes it.
+
+    Resolved through getattr so a filter this C4D version does not expose
+    simply drops out of the table instead of breaking the import.
+    """
+    table = {
+        (".png",): "FILTER_PNG",
+        (".jpg", ".jpeg"): "FILTER_JPG",
+        (".tif", ".tiff"): "FILTER_TIF",
+        (".bmp",): "FILTER_BMP",
+        (".tga",): "FILTER_TGA",
+        (".psd",): "FILTER_PSD",
+        (".exr",): "FILTER_EXR",
+    }
+    out: dict = {}
+    for exts, sym in table.items():
+        fid = getattr(c4d, sym, None)
+        if fid is None:
+            continue
+        for ext in exts:
+            out[ext] = fid
+    return out
+
+
+_SAVE_FILTERS = _save_filters()
+
+
 def type_name(op) -> str:
     t = op.GetType()
     if t in KNOWN_TYPES:
@@ -1220,6 +1248,36 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"changed": changed, "skipped": skipped, "mode": mode}
 
+    def _host_resize(self, src: str, dst: str, percent: int) -> bool:
+        """Downscale an image with Cinema 4D's own bitmap engine.
+
+        This is why the plugin needs no Pillow: C4D already reads and writes
+        every texture format it can load. Pillow stays as a fallback for the
+        formats C4D does not handle.
+        """
+        import os
+
+        from ..core import textures as texmod
+        try:
+            bmp = c4d.bitmaps.BaseBitmap()
+            if bmp.InitWith(src)[0] != c4d.IMAGERESULT_OK:
+                return False
+            w, h = bmp.GetSize()
+            nw, nh = texmod.scaled_dims(w, h, percent)
+            small = c4d.bitmaps.BaseBitmap()
+            if small.Init(nw, nh, 24) != c4d.IMAGERESULT_OK:
+                return False
+            # ScaleIt(dst, intensity, sample=True, nprop=False): sampling on
+            # gives a filtered downscale instead of dropping pixels.
+            bmp.ScaleIt(small, 256, True, False)
+            fmt = _SAVE_FILTERS.get(os.path.splitext(dst)[1].lower())
+            if fmt is None:
+                return False
+            return small.Save(dst, fmt, None,
+                              c4d.SAVEBIT_0) == c4d.IMAGERESULT_OK
+        except Exception:
+            return False
+
     def texture_resize(self, paths, percent: int) -> dict:
         import os
 
@@ -1238,6 +1296,7 @@ class SceneAdapter:
             has_pillow = True
         except Exception:
             has_pillow = False
+        has_host = bool(_SAVE_FILTERS)
 
         doc_path = self.doc.GetDocumentPath() or ""
         results: list = []
@@ -1257,10 +1316,10 @@ class SceneAdapter:
             except Exception:
                 resolved = ""
             ext = os.path.splitext(raw)[1].lower()
-            ok, note = texmod.resize_decision(ext, has_pillow)
+            ok, note = texmod.resize_decision(ext, has_pillow, has_host)
             if not resolved or not os.path.isfile(resolved):
                 results.append({"file": base, "status": "skipped",
-                                "note": "Datei fehlt"})
+                                "note": "file is missing"})
                 skipped += 1
                 continue
             if not ok:
@@ -1271,11 +1330,14 @@ class SceneAdapter:
             dst = texmod.resize_target(resolved, percent)
             wrote = done_copies.get(resolved)
             if wrote is None:
-                wrote = texmod.resize_file(resolved, dst, percent, has_pillow)
+                # C4D's own engine first (no dependency, knows every format it
+                # can load); Pillow / the built-in PNG writer as fallbacks.
+                wrote = self._host_resize(resolved, dst, percent) \
+                    or texmod.resize_file(resolved, dst, percent, has_pillow)
                 done_copies[resolved] = wrote
             if not wrote:
                 results.append({"file": base, "status": "skipped",
-                                "note": "Verkleinern fehlgeschlagen"})
+                                "note": "could not write the resized copy"})
                 skipped += 1
                 continue
 

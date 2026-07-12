@@ -68,15 +68,31 @@ def aggregate(infos) -> dict:
             "total_vram": total_vram, "tiers": tiers}
 
 
-def resize_decision(ext: str, has_pillow: bool) -> tuple[bool, str]:
+# Formats the HOST (Cinema 4D's own bitmap engine) can read and write back.
+# This is the normal path inside the plugin — no third-party dependency.
+HOST_RESIZE_EXTS = frozenset({
+    ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".tga", ".psd", ".exr",
+})
+
+
+def resize_decision(ext: str, has_pillow: bool,
+                    has_host: bool = False) -> tuple[bool, str]:
+    """Can this file be resized, and if not, why?
+
+    Three engines, best first: the host's bitmap engine (always there inside
+    C4D), Pillow (only if the user installed it), and the built-in PNG writer
+    (dependency-free, but PNG only).
+    """
     ext = (ext or "").lower()
-    if has_pillow:
-        if ext in imagesize_exts():
-            return True, ""
-        return False, "Format wird nicht unterstützt"
+    if has_host and ext in HOST_RESIZE_EXTS:
+        return True, ""
+    if has_pillow and ext in imagesize_exts():
+        return True, ""
     if ext in PURE_RESIZE_EXTS:
         return True, ""
-    return False, "Nur PNG ohne Pillow (Pillow nicht installiert)"
+    if has_host or has_pillow:
+        return False, "%s files cannot be resized" % (ext or "these")
+    return False, "only PNG can be resized here"
 
 
 def imagesize_exts() -> frozenset:
