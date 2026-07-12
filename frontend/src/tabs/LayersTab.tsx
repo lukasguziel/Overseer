@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { SceneNode } from '../types'
-import { catColor } from '../lib/colors'
+import { catColor, layerSwatch } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
@@ -16,10 +16,11 @@ import { IconCheck } from '../components/icons'
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
 // "no layer" as fine for this object (score counts it as decided).
-function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
+function NoLayerRow({ n, busy, suggestion, color, onAssign, onKeep, onFocus }: {
   n: SceneNode
   busy: boolean
   suggestion?: string
+  color?: [number, number, number] | null
   onAssign: (guid: number, layer: string) => void
   onKeep: (name: string) => void
   onFocus: (guid: number, name: string) => void
@@ -39,46 +40,51 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
       <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
         onClick={() => onFocus(n.guid, n.name)}>{n.name}</span>
       <span className="rn-arrow">→</span>
+      {/* The layer value IS the picker: click it and it becomes the input (with
+          the layer list attached). No pencil button — an extra control to reach
+          a field you can just click on is one control too many. */}
       {editing
         ? (
           <input className="nl-input" autoFocus list="nl-layers" placeholder="layer name…"
             value={value} onChange={(e) => setValue(e.target.value)}
+            onBlur={() => setEditing(false)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') commit()
               else if (e.key === 'Escape') setEditing(false)
             }} />
         )
-        : suggestion
-          ? <span className="rn-new" title="Inherited from the nearest parent that has a layer">layer: {suggestion}</span>
-          : <span className="rn-new dim">no layer</span>}
+        : (
+          <button className={'rn-new nl-pick' + (suggestion ? '' : ' empty')} disabled={busy}
+            title={suggestion
+              ? `Suggested from the nearest parent with a layer. Click to pick a different layer.`
+              : 'Click to pick a layer — an existing one or a new name'}
+            onClick={startEditing}>
+            {suggestion && (
+              <span className="ly-swatch nl-swatch" style={{ background: layerSwatch(color) }} />
+            )}
+            {suggestion || 'pick a layer'}
+            <span className="nl-caret">▾</span>
+          </button>
+        )}
       <span className="rn-actions">
         {editing
           ? (
             <>
-              <button className="rn-ok" disabled={busy || !value.trim()} onClick={commit}
+              <button className="rn-ok" disabled={busy || !value.trim()} onMouseDown={commit}
                 title="Assign to this layer (created if missing, undoable)"><IconCheck /></button>
-              <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
+              <button className="rn-no" title="Cancel" onMouseDown={() => setEditing(false)}>✕</button>
             </>
           )
-          : suggestion
-            ? (
-              <>
+          : (
+            <>
+              {suggestion && (
                 <button className="rn-ok" disabled={busy} onClick={() => onAssign(n.guid, suggestion)}
                   title={`Assign the suggested layer “${suggestion}” (undoable)`}><IconCheck /></button>
-                <button className="rn-ok" disabled={busy} onClick={startEditing}
-                  title="Pick a different layer instead">✎</button>
-                <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
-                  title="Accept as-is — fine without a layer (restore below)"><IconCheck /></button>
-              </>
-            )
-            : (
-              <>
-                <button className="rn-ok" disabled={busy} onClick={startEditing}
-                  title="Assign a layer — pick an existing one or type a new name"><IconCheck /></button>
-                <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
-                  title="Accept as-is — fine without a layer (restore below)"><IconCheck /></button>
-              </>
-            )}
+              )}
+              <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
+                title="Accept as-is — fine without a layer (restore below)"><IconCheck /></button>
+            </>
+          )}
       </span>
     </div>
   )
@@ -106,6 +112,14 @@ export default function LayersTab({ org }: { org: Organizer }) {
     for (const d of layerSuggestions?.diff || []) m.set(d.guid, d.layer)
     return m
   }, [layerSuggestions])
+
+  // layer name -> its colour in C4D, so a suggested layer shows the same swatch
+  // as its row in the overview above.
+  const colorByLayer = React.useMemo(() => {
+    const m = new Map<string, [number, number, number] | null>()
+    for (const l of lr?.layers || []) m.set(l.name, l.color)
+    return m
+  }, [lr])
 
   // Objects without any layer, keeps filtered out — the first thing to work
   // through on this tab (they drive the coverage score).
@@ -209,6 +223,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             {nlPager.rows.map((n) => (
               <NoLayerRow key={n.guid} n={n} busy={busy}
                 suggestion={suggestionByGuid.get(n.guid)}
+                color={colorByLayer.get(suggestionByGuid.get(n.guid) || '')}
                 onAssign={(guid, layer) => org.doAssignLayer([guid], layer)}
                 onKeep={(nm) => org.keep('layers', nm)}
                 onFocus={(guid, nm) => org.doFocus(guid, nm)} />

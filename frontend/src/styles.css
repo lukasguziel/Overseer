@@ -824,8 +824,10 @@ table.diff td { word-break: break-word; }
    material · decision slot. EVERY row reserves the last column (empty when
    there is nothing to decide), so the buttons line up and the header cannot
    drift against the body — hence one definition, no per-variant override. */
+/* File · Material · Path · Res · Pixels · Size · Actions — the two names sit
+   next to each other (which map, on which material), then its facts. */
 .dg-tr.cols-tex {
-  grid-template-columns: minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 3fr) 78px; }
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr) 84px 46px 104px 74px 78px; }
 
 /* Per-row action buttons. Two shapes, both 24px tall so they line up:
    `.tex-act` is icon-sized (square), `.tex-chip` carries a short word and

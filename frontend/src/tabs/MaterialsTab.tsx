@@ -116,6 +116,7 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
         {!e.used && <span className="pill unused">unused</span>}
         {resized && <span className="pill resized">resized</span>}
       </span>
+      <span className="dim dg-cut">{e.material}</span>
       {/* The badge states WHAT THE PATH IS — never what it could become. The
           old "→ relative" on a relocatable path read as "this is relative"
           while the filter counted it (correctly) as absolute. The offer to
@@ -155,7 +156,6 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
           <span className="tex-spec tex-vram">~{humanBytes(e.vram!)} VRAM</span>
         )}
       </span>
-      <span className="dim dg-cut">{e.material}</span>
       {/* The decision slot exists on every row (empty when there is nothing to
           decide) so the buttons stay in one column. */}
       <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
@@ -173,18 +173,18 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
             <button className="rn-keep" title="Accept as-is — acknowledge the missing file; it stops counting as a problem (restore below)"
               onClick={() => onAccept(e)}><IconCheck /></button>
           )}
-          {canRepath && (
-            <button className="rn-keep tex-chip" disabled={busy}
-              title={`Rewrite this path relative to the project folder: ${e.rel_target || 'project-relative'} (undoable)`}
-              onClick={() => onRepath!(e, 'relative')}>
-              → rel
-            </button>
-          )}
           {canResize && (
             <button className="rn-keep tex-act" disabled={busy}
               title={`Shrink this map (${e.width}×${e.height}) — pick the size in the next step`}
               onClick={() => onResize!(e)}>
               <IconShrink />
+            </button>
+          )}
+          {canRepath && (
+            <button className="rn-keep tex-chip" disabled={busy}
+              title={`Rewrite this path relative to the project folder: ${e.rel_target || 'project-relative'} (undoable)`}
+              onClick={() => onRepath!(e, 'relative')}>
+              → rel
             </button>
           )}
           </>
@@ -216,11 +216,11 @@ function TexTable({ rows, previews, resized, busy, onFocus, onPick, onClear, onA
     <div className="dg-table">
       <div className="dg-tr dg-thead cols-tex">
         <Tip text="File name of the texture. Click the thumbnail to open the image in your picture viewer."><span>File</span></Tip>
+        <Tip text="Material using this texture."><span>Material</span></Tip>
         <Tip text="Badge shows absolute / relative / missing. Decide per row on the right: flip the path form, shrink the map, or fix a missing reference. Hover a row for its full path."><span>Path</span></Tip>
         <Tip text="Resolution tier (e.g. 4K/8K) — heavy maps stand out instantly."><span className="num">Res</span></Tip>
         <Tip text="Actual pixel dimensions of the file."><span className="num">Pixels</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
-        <Tip text="Material using this texture."><span>Material</span></Tip>
         <Tip text="What you can do with this map: shrink it, make its path relative, or fix a missing reference."><span>Actions</span></Tip>
       </div>
       {rows.map((e, i) => (
@@ -559,7 +559,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
           <div className="wb-preview">
             <div className="wb-preview-head">
-              <h3>Paths</h3>
+              <h3>Maps</h3>
               <span className="head-count">
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}

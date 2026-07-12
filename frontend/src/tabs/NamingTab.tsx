@@ -60,8 +60,18 @@ function RuleSection({ title, tip, on, onToggle, off, children }: {
   )
 }
 
+const DEFAULT_PAD = 2
+
 export default function NamingTab({ org }: { org: Organizer }) {
   const { report, casing, applyCasing, keepSeparators, keepSpecials, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
+
+  // With the rule on, a pad is always chosen — pad 0 ("no padding") is what the
+  // rule being OFF means, so the two must not be expressible at the same time.
+  const padDigits = numberPad > 0 ? numberPad : DEFAULT_PAD
+  const enableNumbering = (on: boolean) => {
+    if (on && numberPad === 0) org.setNumberPad(DEFAULT_PAD)
+    org.setApplyNumbering(on)
+  }
 
   const hyg = React.useMemo(
     () => computeHygiene(report?.nodes || [], report?.total_polys || 0,
@@ -129,22 +139,28 @@ export default function NamingTab({ org }: { org: Organizer }) {
             </p>
           </RuleSection>
 
-          <RuleSection title="Numbering" on={applyNumbering} onToggle={org.setApplyNumbering}
-            tip="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01). “None” leaves existing numbers unchanged."
+          {/* The rule's switch is "off" — the pad picker itself always has a
+              value. Clicking the selected digit again does nothing; there is no
+              such thing as numbering-on-but-padded-by-nothing. */}
+          <RuleSection title="Numbering" on={applyNumbering} onToggle={enableNumbering}
+            tip="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01)."
             off="Numbers kept exactly as they are.">
-            <label>Pad <b>{numberPad === 0 ? 'none' : numberPad + '-digit'}</b>
+            {/* NOT a <label>: a label forwards any click inside it to the first
+                control it contains, so clicking the caption or the gap between
+                the digits silently selected "1". */}
+            <div className="pad-field">Pad <b>{padDigits}-digit</b>
               <div className="pad-btns">
                 {[1, 2, 3, 4].map((p) => (
                   <button key={p} type="button"
-                    className={'pad-btn' + (numberPad === p ? ' on' : '')}
-                    onClick={() => org.setNumberPad(numberPad === p ? 0 : p)}
-                    title={p + '-digit padding' + (numberPad === p ? ' — click again for none' : '')}>
+                    className={'pad-btn' + (padDigits === p ? ' on' : '')}
+                    onClick={() => org.setNumberPad(p)}
+                    title={`${p}-digit padding`}>
                     {p}
                   </button>
                 ))}
               </div>
-              {applyCasing && casing !== '' && <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>}
-            </label>
+              {applyCasing && casing !== '' && <div className="example">e.g. <code>{exampleName(casing, padDigits)}</code></div>}
+            </div>
           </RuleSection>
 
           <RuleSection title="Duplicates" on={dedupe} onToggle={org.setDedupe}

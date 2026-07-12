@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { catColor } from '../lib/colors'
+import { catColor, layerSwatch } from '../lib/colors'
 import { humanNum } from '../lib/format'
 import { IconCheck, IconTrash } from './icons'
 import type { FocusFn } from './Treemap'
@@ -8,12 +8,6 @@ import type { LayerInfo, SceneNode } from '../types'
 // The "no layer" bucket is modelled as a synthetic layer so the tree renders
 // it with the same row/expand machinery as the real ones.
 const NO_LAYER = '\0no-layer'
-
-function swatch(color: LayerInfo['color']): string {
-  if (!color) return 'var(--dim2)'
-  const [r, g, b] = color
-  return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
-}
 
 // Small state badge — only rendered for the noteworthy (non-default) flags,
 // because those are the ones that bite a 3D artist at render time.
@@ -88,7 +82,7 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
                 <span className={`ly-caret${isOpen ? ' open' : ''}`}>
                   {expandable ? '▸' : ''}
                 </span>
-                <span className="ly-swatch" style={{ background: isNo ? 'transparent' : swatch(l.color) }} />
+                <span className="ly-swatch" style={{ background: isNo ? 'transparent' : layerSwatch(l.color) }} />
                 <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
                 <Flags l={l} />
                 <span className="ly-count">{l.objects} obj</span>
