@@ -141,7 +141,8 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
 
 interface PerfEntry {
   guid: number; name: string; type: string
-  ms: number; share: number; level: 'heavy' | 'mid' | 'light'; polygons: number
+  ms: number; jitter_ms: number; runs: number
+  share: number; level: 'heavy' | 'mid' | 'light'; polygons: number
 }
 interface PerfScan {
   entries: PerfEntry[]
@@ -176,13 +177,20 @@ function PerfCard() {
   }
 
   const s = perf?.summary
-  const rows = (perf?.entries || []).filter((e) => e.ms >= 0.5).slice(0, 15).map((e) => ({
+  // Below 0.5 ms a "cost" is timer noise, not work — those rows are counted,
+  // not listed (listing them is what made the list flicker between scans).
+  const above = (perf?.entries || []).filter((e) => e.ms >= 0.5)
+  const belowNoise = (perf?.entries.length || 0) - above.length
+  const rows = above.slice(0, 15).map((e) => ({
     label: e.name,
-    sub: `${e.type}${e.share > 0 ? ` · ${Math.round(e.share * 100)}% of the rebuild` : ''}`,
+    sub: `${e.type} · ${Math.round(e.share * 100)}% of the rebuild`,
     value: e.ms,
     color: LEVEL_COLOR[e.level],
     onClick: () => { call('perf_select', { guids: [e.guid] }).catch(() => {}) },
   }))
+  // A value is only as good as it is repeatable: if the runs disagree by more
+  // than the value itself, say so instead of pretending the number is solid.
+  const shaky = above.filter((e) => e.jitter_ms > e.ms).length
 
   return (
     <section className="card">
@@ -237,6 +245,11 @@ function PerfCard() {
           {rows.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <BarList rows={rows} format={ms1} empty="Nothing measurable." />
+              <p className="hint-sm" style={{ marginTop: 8 }}>
+                Median of 3 runs per object.
+                {belowNoise > 0 && ` ${belowNoise} more rebuild in under 0.5 ms — too fast to measure, not worth listing.`}
+                {shaky > 0 && ` ${shaky} value${shaky === 1 ? '' : 's'} varied more between runs than the value itself — treat ${shaky === 1 ? 'it' : 'them'} as a rough order of magnitude.`}
+              </p>
             </div>
           )}
         </>
