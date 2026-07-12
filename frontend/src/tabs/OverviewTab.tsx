@@ -327,7 +327,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           <p className="mini-note dim">
             {displayLanguage.fromEngine
               ? `Detected by the ${org.translateEngine} translate engine — same numbers as the Translate tab.`
-              : '“Unknown” = names without dictionary words (codes, product names).'}
+              : '“Unknown” = names without recognizable words (codes, product names).'}
           </p>
         </section>
 
@@ -400,7 +400,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
                 ))}
               </div>
             </>
-          ) : <div className="fl-empty">No texture pixel data (files missing or none referenced).</div>}
+          ) : <div className="empty-note">No texture pixel data (files missing or none referenced).</div>}
         </section>
       </div>
 

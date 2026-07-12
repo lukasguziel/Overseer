@@ -52,7 +52,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         </label>
 
         <label>
-          <Tip text="Offline dictionaries only translate EN/DE but work locally. Google translates any language, but sends the names online to Google.">
+          <Tip text="Offline stays on your machine and knows a smaller set of words (English ↔ German). Google understands any language, but the names are sent online.">
             <span>Engine</span>
           </Tip>
           <select value={translateEngine} onChange={(e) => {
@@ -61,7 +61,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
             // Offline only knows EN/DE — snap back if a Google-only target was picked.
             if (eng !== 'google' && !OFFLINE_TARGETS.includes(translateTarget)) setTranslateTarget('en')
           }}>
-            <option value="offline">Offline dictionaries (10 languages)</option>
+            <option value="offline">Offline (smaller word set)</option>
             <option value="google">Google online (any language)</option>
           </select>
         </label>
