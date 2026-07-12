@@ -139,20 +139,21 @@ a preference is not a defect, and the UI must not call the user's pipeline wrong
 
 ## Accepted-as-is — `<AcceptedPanel>`
 
-**One** panel, rendered at the foot of EVERY tab that can accept anything
-(Naming, Translate, Structure, Layers, Materials, Files). It shows *all*
-accepted decisions of the project, grouped by the area they came from — so it
-looks and reads identically wherever the artist stands:
+**One** component, rendered at the foot of EVERY tab that can accept anything
+(Naming, Translate, Structure, Layers, Materials, Files). Same block, same
+markup, same behaviour everywhere — it only ever lists the sections of the tab
+it sits on (Materials shows materials + textures, Files shows files), grouped
+by area:
 
 ```jsx
 <AcceptedPanel org={org} />
 ```
 
-Why one panel and not one list per tab: there is only ONE pile of accepted
-decisions in a project. Splitting it per tab made "accepted" mean something
-different depending on where you were, and hid the decisions you had made
-elsewhere. The groups are the persisted keep sections (`core/keeps.py`:
-naming, translate, layers, structure, materials, textures, files); a group with
+Why one component and not a hand-rolled list per tab: the seven copies drifted
+apart in wording, layout and restore behaviour. `TAB_SECTIONS` maps a tab to
+the keep sections it owns (`core/keeps.py`: naming, translate, layers,
+structure, materials, textures, files) — so the artist only ever sees what they
+can act on right here; other areas are reviewed on their own tab. A group with
 nothing in it is not rendered, and an empty panel renders nothing at all.
 
 Its shape is the pattern for **any collapsible area**:
