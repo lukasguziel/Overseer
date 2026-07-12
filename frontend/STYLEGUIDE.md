@@ -115,6 +115,26 @@ shouts over the very content it introduces. `.side-action-title` is likewise a
 The bright `--text` is reserved for the content itself: object names, values,
 numbers — the things the artist actually reads.
 
+### One action — `.side-action`
+
+Wrap every runnable action in a sidebar in this block. It fixes the reading
+order, and a column of actions stays scannable instead of turning into a pile
+of buttons:
+
+```html
+<div class="side-action">
+  <p class="side-action-title">What this does</p>   <!-- name it in plain words -->
+  <p class="hint-sm">One sentence: what changes, on what.</p>
+  <input class="nl-input" …>                       <!-- optional: input it needs -->
+  <button class="ghost sm">Run it (12)</button>    <!-- ALWAYS last -->
+</div>
+```
+
+The button goes **last**, never above its own description — the artist reads
+what happens, then commits. Group related actions under a `.section-head sm`.
+Name actions neutrally: `Make relative` / `Make absolute`, not `Fix paths` —
+a preference is not a defect, and the UI must not call the user's pipeline wrong.
+
 ---
 
 ## Empty note — `.empty-note`

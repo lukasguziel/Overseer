@@ -386,7 +386,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
     return next
   })
 
-  // Make-absolute counterpart to Fix paths: relative references that resolve
+  // Make-absolute counterpart to make-relative: relative references that resolve
   // to an existing file. Batch resize operates on maps that exist on disk and
   // carry pixel data. Both honor the row selection when one is active.
   const makeAbsolute = selScope.filter((e) => !e.absolute && !e.missing)
@@ -633,104 +633,144 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           <aside className="wb-side">
             <h3>Actions</h3>
             <p className="hint-sm">
-              Every rewrite is one undo step. Path actions cover the whole
-              scene; <b>Shrink</b> follows your filter and selection.
+              Each block says what it does before you run it. Every action is a
+              single undo step. Path actions cover the whole scene;
+              <b> Shrink</b> follows your filter and selection.
             </p>
 
             {missingCount > 0 && (
               <>
-                <div className="section-head sm"><span>Missing</span></div>
-                <button className="ghost sm" disabled={busy}
-                  title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
-                  onClick={() => {
-                    call('pick_folder', { title: 'Folder to search for the missing textures' })
-                      .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
-                      .catch(() => {})
-                  }}>
-                  Relink {missingCount} missing
-                </button>
-                <p className="hint-sm" style={{ marginTop: 4 }}>
-                  Search a folder for the missing file names and relink every match.
-                </p>
-                <button className="ghost sm" disabled={busy}
-                  title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
-                  onClick={() => setClearConfirm(true)}>
-                  Clear {missingCount} missing
-                </button>
-                <p className="hint-sm" style={{ marginTop: 4 }}>
-                  Blank the dead paths — the materials stay, the broken links go.
-                </p>
-                <button className="ghost sm"
-                  title="Accept every missing map as-is — they stop counting as problems (restore below)"
-                  onClick={() => {
-                    const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
-                    setTexKeeps([...texAccepted, ...add])
-                  }}>
-                  Accept {missingCount} missing
-                </button>
-                <p className="hint-sm" style={{ marginTop: 4 }}>
-                  Acknowledge them — they stop counting as problems.
-                </p>
+                <div className="section-head sm"><span>Missing files</span></div>
+
+                <div className="side-action">
+                  <p className="side-action-title">Find the files again</p>
+                  <p className="hint-sm">
+                    Pick a folder — it is searched top to bottom for the missing
+                    file names, and every match is relinked.
+                  </p>
+                  <button className="ghost sm" disabled={busy}
+                    title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
+                    onClick={() => {
+                      call('pick_folder', { title: 'Folder to search for the missing textures' })
+                        .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
+                        .catch(() => {})
+                    }}>
+                    Relink {missingCount} missing
+                  </button>
+                </div>
+
+                <div className="side-action">
+                  <p className="side-action-title">Drop the dead links</p>
+                  <p className="hint-sm">
+                    Blanks the path on every reference whose file is gone. The
+                    materials stay — only the broken links go.
+                  </p>
+                  <button className="ghost sm" disabled={busy}
+                    title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
+                    onClick={() => setClearConfirm(true)}>
+                    Clear {missingCount} missing
+                  </button>
+                </div>
+
+                <div className="side-action">
+                  <p className="side-action-title">Live with them</p>
+                  <p className="hint-sm">
+                    Acknowledges the missing maps: nothing changes in the scene,
+                    they just stop counting as problems.
+                  </p>
+                  <button className="ghost sm"
+                    title="Accept every missing map as-is — they stop counting as problems (restore below)"
+                    onClick={() => {
+                      const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
+                      setTexKeeps([...texAccepted, ...add])
+                    }}>
+                    Accept {missingCount} missing
+                  </button>
+                </div>
               </>
             )}
 
             <div className="section-head sm"><span>Paths</span></div>
-            <button className="ghost sm" disabled={busy || !fixable}
-              title={fixable
-                ? `Rewrite ${fixable} absolute path(s) inside the project folder to relative (undoable)`
-                : 'No absolute paths inside the project folder'}
-              onClick={() => setConfirm(true)}>
-              Fix paths ({fixable})
-            </button>
-            <p className="hint-sm" style={{ marginTop: 4 }}>
-              Rewrite absolute paths that already point into the project to relative.
-            </p>
-            <button className="ghost sm" disabled={busy || !collectable}
-              title={collectable
-                ? `Copy ${collectable} texture(s) that live outside the project into “${collectDir || 'tex'}/” and relink relatively`
-                : 'No existing textures outside the project folder'}
-              onClick={() => setCollectConfirm(true)}>
-              Copy &amp; relink ({collectable})
-            </button>
-            <label style={{ marginTop: 4 }}>
-              <input className="nl-input" value={collectDir}
-                onChange={(e) => setCollectDir(e.target.value)}
-                title="Project subfolder out-of-project textures are copied into" />
-            </label>
-            <p className="hint-sm" style={{ marginTop: 4 }}>
-              Copy out-of-project files into the folder above, then relink relatively.
-            </p>
-            <button className="ghost sm" disabled={busy || !makeAbsolute.length}
-              title={makeAbsolute.length
-                ? `Rewrite ${makeAbsolute.length} relative path(s) to their full absolute form (undoable)`
-                : 'No relative texture paths to make absolute'}
-              onClick={() => setAbsConfirm(true)}>
-              Make absolute ({makeAbsolute.length})
-            </button>
-            <p className="hint-sm" style={{ marginTop: 4 }}>
-              Rewrite relative paths to their full absolute form.
+            <p className="hint-sm">
+              Relative or absolute is a pipeline choice, not a defect — neither
+              counts against your score. Pick the one your studio works with.
             </p>
 
-            <div className="section-head sm"><span>Shrink</span></div>
-            <div className="tex-filter" style={{ marginBottom: 8 }}>
-              {[25, 50, 75].map((p) => (
-                <button key={p}
-                  className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
-                  onClick={() => setResizePercent(p)}>{p}%</button>
-              ))}
+            <div className="side-action">
+              <p className="side-action-title">Relative to the project</p>
+              <p className="hint-sm">
+                Rewrites absolute paths that already point inside the project
+                folder. The scene then survives being moved to another machine.
+              </p>
+              <button className="ghost sm" disabled={busy || !fixable}
+                title={fixable
+                  ? `Rewrite ${fixable} absolute path(s) inside the project folder to relative (undoable)`
+                  : 'No absolute paths inside the project folder'}
+                onClick={() => setConfirm(true)}>
+                Make relative ({fixable})
+              </button>
             </div>
-            <button className="ghost sm" disabled={busy || !resizeTargets.length}
-              title={resizeTargets.length
-                ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
-                : selActive ? 'No selected maps with pixel data' : 'No textures with pixel data in the current filter'}
-              onClick={() => setResizeConfirm(true)}>
-              Resize {resizeTargets.length} → {resizePercent}%
-            </button>
-            <p className="hint-sm" style={{ marginTop: 4 }}>
-              Writes downsized <b>copies</b> next to the originals (suffix
-              <code> _{resizePercent}</code>) and relinks the materials —
-              applies to {selActive ? <b>the {selected.size} selected maps</b> : 'the currently filtered maps'}.
-            </p>
+
+            <div className="side-action">
+              <p className="side-action-title">Copy into the project</p>
+              <p className="hint-sm">
+                Maps that live outside the project folder are copied into the
+                subfolder below and relinked relatively.
+              </p>
+              <label>
+                <input className="nl-input" value={collectDir}
+                  onChange={(e) => setCollectDir(e.target.value)}
+                  title="Project subfolder out-of-project textures are copied into" />
+              </label>
+              <button className="ghost sm" disabled={busy || !collectable}
+                title={collectable
+                  ? `Copy ${collectable} texture(s) that live outside the project into “${collectDir || 'tex'}/” and relink relatively`
+                  : 'No existing textures outside the project folder'}
+                onClick={() => setCollectConfirm(true)}>
+                Copy &amp; relink ({collectable})
+              </button>
+            </div>
+
+            <div className="side-action">
+              <p className="side-action-title">Absolute, machine-wide</p>
+              <p className="hint-sm">
+                Rewrites relative paths to their full form — the choice for a
+                shared texture library outside the project.
+              </p>
+              <button className="ghost sm" disabled={busy || !makeAbsolute.length}
+                title={makeAbsolute.length
+                  ? `Rewrite ${makeAbsolute.length} relative path(s) to their full absolute form (undoable)`
+                  : 'No relative texture paths to make absolute'}
+                onClick={() => setAbsConfirm(true)}>
+                Make absolute ({makeAbsolute.length})
+              </button>
+            </div>
+
+            <div className="section-head sm"><span>Size</span></div>
+
+            <div className="side-action">
+              <p className="side-action-title">Shrink the maps</p>
+              <p className="hint-sm">
+                Writes downsized <b>copies</b> next to the originals (suffix
+                <code> _{resizePercent}</code>) and relinks the materials —
+                applies to {selActive ? <b>the {selected.size} selected maps</b> : 'the currently filtered maps'}.
+              </p>
+              <div className="tex-filter">
+                {[25, 50, 75].map((p) => (
+                  <button key={p}
+                    className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
+                    title={`Scale the maps down to ${p}% of their current size`}
+                    onClick={() => setResizePercent(p)}>{p}%</button>
+                ))}
+              </div>
+              <button className="ghost sm" disabled={busy || !resizeTargets.length}
+                title={resizeTargets.length
+                  ? `Resize ${resizeTargets.length} texture(s) to ${resizePercent}% (copies + relink, undoable)`
+                  : selActive ? 'No selected maps with pixel data' : 'No textures with pixel data in the current filter'}
+                onClick={() => setResizeConfirm(true)}>
+                Resize {resizeTargets.length} → {resizePercent}%
+              </button>
+            </div>
 
             {!tex.doc_path && (
               <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
@@ -795,9 +835,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
       {confirm && (
         <ConfirmModal
-          title="Fix paths"
+          title="Make paths relative"
           message={`Rewrite ${fixable} absolute texture path${fixable === 1 ? '' : 's'} that already live under the project folder to project-relative paths (one undo step). Continue?`}
-          confirmLabel={`✓ Fix ${fixable} path${fixable === 1 ? '' : 's'}`}
+          confirmLabel={`✓ Rewrite ${fixable} path${fixable === 1 ? '' : 's'}`}
           onConfirm={() => { setConfirm(false); org.doFixTexturesRelative() }}
           onCancel={() => setConfirm(false)}
         />
