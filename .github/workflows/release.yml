@@ -65,7 +65,7 @@ jobs:
           pkg=dist/SceneOrganizer
           mkdir -p "$pkg"
           cp src/scene_organizer.pyp "$pkg/"
-          cp src/so_logo.jpg "$pkg/"
+          cp src/so_logo.png "$pkg/"
           cp src/config.example.json "$pkg/"
           # The whole package, not just its top-level modules: sceneorg/ has
           # subpackages (core, naming, structure, cinema) and a flat *.py glob
