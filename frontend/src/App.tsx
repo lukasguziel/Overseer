@@ -16,7 +16,7 @@ import GlobalTooltip from './components/GlobalTooltip'
 import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
-import TabIntro from './components/TabIntro'
+import SectionIntro from './components/SectionIntro'
 import type { TabId } from './lib/constants'
 import Ring, { type Tone } from './components/Ring'
 import { scoreTone } from './lib/score'
@@ -173,7 +173,7 @@ export default function App() {
 
       {error && tab !== 'rules' && <div className="error">{error}</div>}
 
-      {TAB_INTRO[tab] && <TabIntro title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc} />}
+      {TAB_INTRO[tab] && <SectionIntro lead title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc} />}
 
       {tab === 'overview' && <OverviewTab org={org} />}
       {tab === 'assets' && (

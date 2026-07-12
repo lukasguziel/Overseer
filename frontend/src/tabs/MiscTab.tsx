@@ -13,7 +13,8 @@ function analysisRows(history: HistoryEntry[]): HistoryRow[] {
     time: h.at.length >= 16 ? h.at.slice(5, 16) : h.at,   // "MM-DD HH:MM"
     kind: 'analysis',
     kindLabel: 'Analyze',
-    summary: `${h.file} · ${humanNum(h.objects)} obj · ${Math.round((h.compliance || 0) * 100)}%`,
+    // The log is per project — the file name would repeat on every row.
+    summary: `${humanNum(h.objects)} obj · ${Math.round((h.compliance || 0) * 100)}%`,
     details: (
       <table className="diff ch-items"><tbody>
         <tr><td className="ch-field dim">objects</td><td>{humanNum(h.objects)}</td></tr>
@@ -26,7 +27,7 @@ function analysisRows(history: HistoryEntry[]): HistoryRow[] {
 }
 
 function SectionHead({ title }: { title: string }) {
-  return <div className="misc-sec"><span>{title}</span><hr /></div>
+  return <div className="section-head"><span>{title}</span></div>
 }
 
 // Presets + scene-hierarchy export are parked for now — flip to bring the
@@ -102,17 +103,17 @@ export default function MiscTab({ org }: { org: Organizer }) {
 
         <section className="card">
           <div className="card-head">
-            <Tip text="Every analysis run, newest first. Expand to see the full metrics of that snapshot. Up to 100 are kept.">
+            <Tip text="Every analysis run of THIS project, newest first. Expand to see the full metrics of that snapshot. Up to 100 are kept per project.">
               <h3>Analysis history</h3>
             </Tip>
             {history.length > 0 && (
               <button className="ghost sm" onClick={org.doClearHistory}
-                title="Clear the log (the scene is untouched; trend sparklines start over)">Clear log</button>
+                title="Clear this project's log (the scene is untouched; trend sparklines start over)">Clear log</button>
             )}
           </div>
           <p className="hint-sm">
-            Every analysis run, newest first — expand an entry for the full
-            numbers of that snapshot. Up to 100 are kept.
+            Every analysis run of this project, newest first — expand an entry
+            for the full numbers of that snapshot. Up to 100 are kept.
           </p>
           {history.length === 0
             ? <p className="hint-sm">No analyses recorded yet.</p>

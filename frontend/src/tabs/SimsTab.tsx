@@ -229,7 +229,7 @@ function KindGroup({ kind, hits, onFocus, onSelect }: {
   const pager = usePager(hits)
   return (
     <div className="sim-group">
-      <div className="rule-group-head">
+      <div className="section-head sm">
         <span>{kind}</span>
         <span className="card-hint">{hits.length}</span>
         <button className="ghost sim-select" onClick={onSelect}

@@ -81,6 +81,9 @@ def _export_dir() -> str:
 
 EXPORT_PATH = os.path.join(_export_dir(), "scene_report.json")
 EXPORT_CSV_PATH = os.path.join(_export_dir(), "scene_structure.csv")
+# Per-project analysis logs live in history/<project-slug>.json; the flat
+# analysis_history.json is the pre-split log, still read as a seed.
+HISTORY_DIR = os.path.join(DATA_DIR, "history")
 HISTORY_PATH = os.path.join(DATA_DIR, "analysis_history.json")
 _HISTORY_MAX = 100
 
@@ -168,12 +171,46 @@ def _write_csv(report_dict, target_dir: str | None = None) -> tuple[str, int] | 
         return None
 
 
-def _record_history(entry: dict) -> None:
+def _history_path(doc) -> str:
+    """Per-project log file — same project slug the UI settings use, so one
+    project's runs never crowd out another's (the log is capped per project)."""
+    from ..core import ui_settings_logic as uilogic
+    slug = uilogic.project_slug(doc.GetDocumentPath() or "",
+                                doc.GetDocumentName() or "") or "project"
     try:
-        hist = []
-        if os.path.isfile(HISTORY_PATH):
-            with open(HISTORY_PATH, encoding="utf-8") as f:
-                hist = json.load(f) or []
+        os.makedirs(HISTORY_DIR, exist_ok=True)
+    except OSError:
+        pass
+    return os.path.join(HISTORY_DIR, slug + ".json")
+
+
+def _read_history(doc) -> list:
+    path = _history_path(doc)
+    try:
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                return json.load(f) or []
+    except Exception:
+        pass
+    # No per-project log yet: seed it from the pre-split global log (kept as
+    # an archive) with the runs that belong to this document.
+    return _legacy_history(doc.GetDocumentName() or "")
+
+
+def _legacy_history(doc_name: str) -> list:
+    try:
+        if not os.path.isfile(HISTORY_PATH):
+            return []
+        with open(HISTORY_PATH, encoding="utf-8") as f:
+            hist = json.load(f) or []
+        return [e for e in hist if e.get("file") == doc_name][-_HISTORY_MAX:]
+    except Exception:
+        return []
+
+
+def _record_history(doc, entry: dict) -> None:
+    try:
+        hist = _read_history(doc)
         last = hist[-1] if hist else None
         if (last and last.get("file") == entry.get("file")
                 and abs(entry["ts"] - last.get("ts", 0)) < 60):
@@ -181,20 +218,10 @@ def _record_history(entry: dict) -> None:
         else:
             hist.append(entry)
         hist = hist[-_HISTORY_MAX:]
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        with open(_history_path(doc), "w", encoding="utf-8") as f:
             json.dump(hist, f, ensure_ascii=False, indent=1)
     except Exception:
         pass
-
-
-def _read_history() -> list:
-    try:
-        if os.path.isfile(HISTORY_PATH):
-            with open(HISTORY_PATH, encoding="utf-8") as f:
-                return json.load(f) or []
-    except Exception:
-        pass
-    return []
 
 
 def _merge_layers(report_dict: dict, layer_meta: list,
@@ -826,7 +853,7 @@ def _handle(payload: dict) -> dict:
         data_dict["analyzed_ts"] = now
         data_dict["analyzed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
         if not data_dict.get("scoped"):
-            _record_history({
+            _record_history(doc, {
                 "file": data_dict.get("file") or "(unsaved)",
                 "ts": now,
                 "at": data_dict["analyzed_at"],
@@ -845,12 +872,14 @@ def _handle(payload: dict) -> dict:
         return result
 
     if op == "history":
-        return {"ok": True, "history": list(reversed(_read_history()))}
+        return {"ok": True, "history": list(reversed(_read_history(doc)))}
 
     if op == "clear_history":
+        # Write an empty log rather than deleting the file — an absent file
+        # would fall back to the pre-split global log and resurrect the runs.
         try:
-            if os.path.isfile(HISTORY_PATH):
-                os.remove(HISTORY_PATH)
+            with open(_history_path(doc), "w", encoding="utf-8") as f:
+                json.dump([], f)
         except Exception as ex:
             return {"error": str(ex)}
         return {"ok": True}

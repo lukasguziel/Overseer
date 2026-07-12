@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
+import SectionIntro from '../components/SectionIntro'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
 // a count chip you click to reveal them all (a rename can trigger more than
@@ -34,17 +35,6 @@ function RuleTags({ rules }: { rules: string[] }) {
 }
 
 const pad = (n: number, p: number) => (p > 0 ? String(n).padStart(p, '0') : String(n))
-
-// Labelled divider between the tab's two areas — same rule/line look as the
-// Misc tab, with a one-line description so each area explains itself.
-function SectionBand({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="sec-band">
-      <div className="misc-sec"><span>{title}</span><hr /></div>
-      <p className="sec-desc">{desc}</p>
-    </div>
-  )
-}
 
 export default function NamingTab({ org }: { org: Organizer }) {
   const { report, casing, applyCasing, keepSeparators, keepSpecials, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
@@ -72,7 +62,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
 
   return (
     <div className="stacked">
-      <SectionBand title="Rename rules"
+      <SectionIntro title="Rename rules"
         desc="Set the naming convention on the left; every rename is previewed on the right before you apply anything." />
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
@@ -81,7 +71,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
             default. Every preview row is tagged with the rule that caused it,
             so you always see why a name would change.</p>
 
-          <div className="rule-group-head">
+          <div className="section-head sm">
             <Tip text="Casing style of the names — e.g. PascalCase, camelCase or lower_snake. Unifies capitalization and separators without changing the language.">
               <span>Casing</span>
             </Tip>
@@ -132,7 +122,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
             </p>
           )}
 
-          <div className="rule-group-head">
+          <div className="section-head sm">
             <Tip text="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01). “None” leaves existing numbers unchanged.">
               <span>Numbering</span>
             </Tip>
@@ -209,7 +199,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
         </Workbench>
       </div>
 
-      <SectionBand title="Cleanup"
+      <SectionIntro title="Cleanup"
         desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates — rename them by hand or accept them as-is." />
 
       {/* Name hygiene: default & duplicate names — click to select in C4D. */}

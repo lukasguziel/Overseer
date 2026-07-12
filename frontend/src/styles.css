@@ -65,12 +65,20 @@ body { margin: 0; background: var(--bg); color: var(--text);
   -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
 .app { max-width: 1180px; margin: 0 auto; padding: 14px 18px 44px; }
 
-/* Naming sidebar: small category divider grouping related rules. */
-.rule-group-head { display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; }
-.rule-group-head:first-of-type { margin-top: 6px; }
-.rule-group-head span { font-size: 10px; font-weight: 700; text-transform: uppercase;
+/* SECTION HEAD — a label with a rule/line running to the far edge. The one
+   divider of the app: `.section-head` at content width, `.section-head.sm`
+   inside a sidebar. See frontend/STYLEGUIDE.md.
+     <div className="section-head"><span>Title</span></div>
+   Extra children (a count, a button) sit between the label and the line. */
+.section-head { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.section-head:first-child { margin-top: 0; }
+.section-head span { font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .09em; color: var(--dim2); white-space: nowrap; }
-.rule-group-head::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.section-head::after { content: ""; flex: 1; border-top: 1px solid var(--line); order: 99; }
+
+.section-head.sm { gap: 8px; margin: 16px 0 8px; }
+.section-head.sm:first-of-type { margin-top: 6px; }
+.section-head.sm span { font-size: 10px; }
 
 /* Naming sidebar: number-pad picker — small square buttons (1–4), active = accent.
    Clicking the active one again deselects (pad: none). */
@@ -159,17 +167,8 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Misc tab: stacked groups with consistent spacing, full page width.
    `.misc.misc-grid` beats the `.misc { max-width: 620px }` cap defined later. */
 .misc.misc-grid { display: flex; flex-direction: column; gap: 16px; max-width: none; }
-.misc-sec { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.misc-sec:first-child { margin-top: 0; }
-.misc-sec span { font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .09em; color: var(--dim2); white-space: nowrap; }
-.misc-sec hr { flex: 1; border: none; border-top: 1px solid var(--line); margin: 0; }
-/* Labelled area divider (Naming tab): the misc rule/line plus a description. */
-.sec-band { display: flex; flex-direction: column; gap: 4px; }
-.sec-desc { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.4; }
-/* When the band is a whole tab's intro (rendered above the tab content) it
-   needs its own bottom gap — inside a tab the flex `gap` handles spacing. */
-.tab-intro { margin-bottom: 16px; }
+/* SECTION INTRO (head + description) lives with its component:
+   components/SectionIntro.css */
 /* About card (Misc tab): links + donate */
 .about-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .about-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
@@ -303,9 +302,9 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint-sm { color: var(--dim2); font-size: 12px; margin: 4px 0 12px; }
 
-/* Sidebar text hierarchy, loudest first:
+/* Sidebar text hierarchy, loudest first (see frontend/STYLEGUIDE.md):
    .wb-side h3        panel title    — uppercase, --text
-   .rule-group-head   section rule   — uppercase 10px, --dim
+   .section-head.sm   section head   — uppercase 10px, --dim2, with a line
    .side-action-title single action  — sentence case, --dim (a label, not a heading)
    .hint-sm/.example  explanation    — 12px, --dim2/--dim */
 .side-action-title { font-size: 13px; font-weight: 500; color: var(--dim);
