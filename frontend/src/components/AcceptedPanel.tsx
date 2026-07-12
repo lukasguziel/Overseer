@@ -31,20 +31,34 @@ const LABELS: Record<string, string> = {
   files: 'External files',
 }
 
+// Which accepted sections belong to which tab. The panel is the SAME component
+// everywhere, but it only shows what the artist can act on right here — the
+// decisions of other areas are theirs to review on their own tab, not noise on
+// this one. A tab that accepts nothing renders no panel at all.
+const TAB_SECTIONS: Record<string, string[]> = {
+  naming: ['naming'],
+  translate: ['translate'],
+  layers: ['layers'],
+  structure: ['structure'],
+  materials: ['materials', 'textures'],
+  files: ['files'],
+}
+
 export default function AcceptedPanel({ org }: { org: Organizer }) {
   const [open, setOpen] = useState(false)
   const filesScan = useAuditData<{ accepted?: string[] }>('files_scan')
 
+  const mine = TAB_SECTIONS[org.tab] || []
   const groups: Group[] = [
     ...KEEP_SECTIONS.map((s) => ({
-      section: s, label: LABELS[s], items: Array.from(org.keeps[s]),
+      section: s as string, label: LABELS[s], items: Array.from(org.keeps[s]),
     })),
     { section: 'materials', label: LABELS.materials,
       items: org.report?.materials?.accepted_all || [] },
     { section: 'textures', label: LABELS.textures,
       items: org.report?.textures?.accepted_all || [] },
     { section: 'files', label: LABELS.files, items: filesScan?.accepted || [] },
-  ].filter((g) => g.items.length > 0)
+  ].filter((g) => mine.includes(g.section) && g.items.length > 0)
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
   if (!total) return null
