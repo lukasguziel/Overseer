@@ -129,7 +129,7 @@ export default function App() {
             // Thin progress underline: the area's score as a mini bar, same
             // color scale as the health ring — glanceable progress per tab.
             const pct = disabled ? null : org.areaScore(id)
-            const tpTone = pct == null ? '' : pct >= 80 ? ' tp-good' : pct >= 50 ? ' tp-mid' : ' tp-low'
+            const tpTone = pct == null ? '' : ' tp-' + scoreTone(pct)
             return (
               <button key={id} disabled={disabled}
                 className={'tab' + (tab === id ? ' on' : '') + (disabled ? ' off' : '')}

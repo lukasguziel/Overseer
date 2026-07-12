@@ -14,33 +14,33 @@
 }
 
 :root {
-  --bg: #2a2a2c;        /* Canvas / Seiten-Hintergrund */
-  --panel: #3d3d3f;     /* Haupt-Flaeche */
-  --panel2: #2e2e30;    /* Inputs / vertiefte Flaechen */
-  --sunken: #1e1e20;    /* tiefstes Schwarz (Node-Editor) */
-  --line: #4a4a4d;      /* Trennlinien */
-  --line2: #3a3a3d;     /* dezentere Linien */
-  --hover: #6a6a70;     /* neutrale Hover-Linie (kein farbiger Glow) */
+  --bg: #2a2a2c;        /* canvas / page background */
+  --panel: #3d3d3f;     /* main surface */
+  --panel2: #2e2e30;    /* inputs / sunken surfaces */
+  --sunken: #1e1e20;    /* deepest black (node editor) */
+  --line: #4a4a4d;      /* dividers */
+  --line2: #3a3a3d;     /* quieter dividers */
+  --hover: #6a6a70;     /* neutral hover line (no coloured glow) */
   --text: #ffffff;
   --dim: #a6a6ac;
   --dim2: #7c7c82;
-  --primary: #38bdf8;   /* Primaerfarbe der Seite: elektrisches Cyan/Blau */
+  --primary: #38bdf8;   /* primary colour: electric cyan/blue */
   --accent: var(--primary);
-  --tab: #f5843c;       /* Tab-Highlight: warmes Orange (Kontrast zum Blau) */
+  --tab: #f5843c;       /* tab highlight: warm orange (contrast to the blue) */
   --tab-soft: rgba(245, 132, 60, .16);
   --tab-ring: rgba(245, 132, 60, .45);
-  --apply: #34d399;     /* tech-gruen */
+  --apply: #34d399;     /* tech green */
   --warn: #fbbf24;
   --err: #f87171;
   --font: 'Fragment Mono', ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, monospace;
   --radius: 10px;
-  /* Snappy/techy: sehr kurze Dauer + harte ease-out-Kurve (kein weiches Ein-/Ausblenden) */
+  /* Snappy/techy: very short duration + hard ease-out (no soft fade in/out) */
   --t: 70ms;
   --ease: cubic-bezier(.2, .9, .1, 1);
 }
 * { box-sizing: border-box; }
 
-/* ---------- Scrollbars (dark, passend zum Tool-Styling) ---------- */
+/* ---------- Scrollbars (dark, matching the tool styling) ---------- */
 /* Firefox */
 * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 /* WebKit / Chromium */
@@ -50,12 +50,12 @@
 ::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 8px;
-  border: 2px solid var(--bg);   /* schmalerer Daumen mit Rand zum Hintergrund */
+  border: 2px solid var(--bg);   /* narrower thumb, with a rim against the background */
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--hover); }
 ::-webkit-scrollbar-thumb:active { background: var(--dim2); }
 
-/* Modern-techy: kurzes, hartes Ein-Snappen von Panels/Karten beim Wechsel. */
+/* Modern-techy: panels/cards snap in hard and short on a switch. */
 @keyframes techIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .overview, .workbench, .assets, .misc, .rf-canvas { animation: techIn 110ms var(--ease) both; }
 .card, .tile, .wb-preview, .asset-table-wrap { animation: techIn 90ms var(--ease) both; }
@@ -140,9 +140,6 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Small secondary line under a tile's label (e.g. texture size on disk). */
 .tile-sub { font-size: 10px; color: var(--dim2); margin-top: 2px; }
 
-/* Filter chip group inside a settings sidebar (textures workbench). */
-.tex-filter-col { flex-wrap: wrap; row-gap: 4px; margin-bottom: 10px; }
-.tex-filter-btn.tf-warn:not(.on) em { color: var(--warn); }
 .rule-tag { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .04em; padding: 1px 6px; border-radius: 8px; min-width: 62px; text-align: center;
   background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
@@ -659,45 +656,50 @@ table.diff td { word-break: break-word; }
 .empty-note { color: var(--dim2); font-size: 12px; padding: 10px 0; }
 .empty-note.mid { text-align: center; padding: 48px 16px; }
 
-/* Texture tables (Materials tab): fixed grid so the columns line up.
-   Rows are buttons — clicking selects the material & frames its object. */
-.tex-table { display: flex; flex-direction: column; }
-/* Last column is the per-row decision slot: every row reserves it, so the
-   buttons line up in a column instead of jittering with the content. */
-.tex-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
-  grid-template-columns: minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 3fr) 104px;
+/* DATA GRID — the app's one data table (textures, external files). Fixed grid
+   so the columns line up; rows are buttons, clicking selects the owner in C4D.
+   The COLUMNS are the only per-table part: they come from a `cols-*` modifier,
+   never from a forked copy of this block. See frontend/STYLEGUIDE.md. */
+.dg-table { display: flex; flex-direction: column; }
+.dg-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
   border-bottom: 1px solid var(--line2); font-size: 12px; }
-.tex-act { font-size: 10px; padding: 1px 5px; white-space: nowrap; }
-.tex-tr:last-child { border-bottom: none; }
-.tex-tr > span { min-width: 0; }
-.tex-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tex-thead { color: var(--dim2); font-size: 10px; font-weight: 700; text-transform: uppercase;
+.dg-tr:last-child { border-bottom: none; }
+.dg-tr > span { min-width: 0; }
+.dg-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dg-tr .rn-actions { flex: none; }
+.dg-thead { color: var(--dim2); font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .05em; padding-bottom: 5px; }
-.tex-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-cell-file { display: flex; align-items: center; gap: 7px; }
+.dg-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
+  font-variant-numeric: tabular-nums; }
+.dg-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
+  width: 100%; border-radius: 0; }
+.dg-click:last-child { border-bottom: none; }
+.dg-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
+
+/* Columns of the texture table (Materials). The last column is the per-row
+   decision slot: every row reserves it, so the buttons line up in a column
+   instead of jittering with the content. `.dg-actionable` adds the ✎/✕ slot. */
+.dg-tr.cols-tex {
+  grid-template-columns: minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 3fr) 104px; }
+.dg-tr.cols-tex.dg-actionable {
+  grid-template-columns: 16px minmax(0, 7fr) 84px 46px 84px 74px minmax(0, 4fr) auto; }
+
+.tex-act { font-size: 10px; padding: 1px 5px; white-space: nowrap; }
 .tex-spec { display: block; font-size: 9px; color: var(--dim2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; letter-spacing: .02em; margin-top: 1px; }
 /* Per-row estimated GPU cost under the disk size — the number that actually
    hurts at render time, so it gets a warm tint instead of the dim gray. */
 .tex-vram { color: var(--warn); opacity: .75; }
-.tex-cell-file { display: flex; align-items: center; gap: 7px; }
-.tex-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
-  font-variant-numeric: tabular-nums; }
-.tex-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
-  color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
-  width: 100%; border-radius: 0; }
-.tex-click:last-child { border-bottom: none; }
-.tex-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
-/* Missing rows carry their own ✎/✕ decision buttons in an extra column. */
-.tex-tr.tex-actionable {
-  grid-template-columns: 16px minmax(0, 7fr) 84px 46px 84px 74px minmax(0, 4fr) auto; }
-.tex-tr .rn-actions { flex: none; }
 /* Far-left select checkbox — ticked rows scope the batch actions on the left.
    Look comes from the shared `input[type=checkbox]` block; nothing to add. */
-.tex-tr.tex-sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.tex-tr.tex-sel:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.dg-tr.tex-sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.dg-tr.tex-sel:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* Just-resized map: highlight the relinked row + a note line showing the swap. */
-.tex-tr.tex-resized { background: color-mix(in srgb, var(--apply) 10%, transparent); border-bottom: none; }
-.tex-badge.resized { background: color-mix(in srgb, var(--apply) 22%, transparent);
+.dg-tr.tex-resized { background: color-mix(in srgb, var(--apply) 10%, transparent); border-bottom: none; }
+.pill.resized { background: color-mix(in srgb, var(--apply) 22%, transparent);
   color: var(--apply); border-color: color-mix(in srgb, var(--apply) 40%, transparent); }
 .tex-resized-note { font-size: 10px; color: var(--apply); padding: 1px 6px 5px 34px;
   border-bottom: 1px solid var(--line2); line-height: 1.4; }
@@ -713,17 +715,21 @@ table.diff td { word-break: break-word; }
   background: rgba(0, 0, 0, .55); border-radius: 4px; }
 .tex-thumb-wrap.openable:hover .tex-thumb-eye { display: flex; }
 
-/* Resolution filter chips above the texture sections */
-.tex-filter { display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
-.tex-filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+/* CHIP BUTTON — the app's filter chip (a toggle that narrows a list): the
+   resolution/kind/channel filters on Materials and Files, the angle presets on
+   Tags. `.chip-row` is the row it sits in, `.chip-row.side` its sidebar variant. */
+.chip-row { display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+.chip-row.side { flex-wrap: wrap; row-gap: 4px; margin-bottom: 10px; }
+.chip-row-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--dim2); margin-right: 3px; }
-.tex-filter-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+.chip-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
   color: var(--dim); font: inherit; font-size: 11px; padding: 2px 9px; cursor: pointer; box-shadow: none; }
-.tex-filter-btn em { font-style: normal; color: var(--dim2); font-size: 10px; }
-.tex-filter-btn:hover:not(:disabled) { color: var(--text); border-color: var(--dim); box-shadow: none; }
-.tex-filter-btn:disabled { opacity: .35; cursor: default; }
-.tex-filter-btn.on { background: var(--accent); border-color: transparent; color: #06121a; }
-.tex-filter-btn.on em { color: #06121a; opacity: .7; }
+.chip-btn em { font-style: normal; color: var(--dim2); font-size: 10px; }
+.chip-btn:hover:not(:disabled) { color: var(--text); border-color: var(--dim); box-shadow: none; }
+.chip-btn:disabled { opacity: .35; cursor: default; }
+.chip-btn.on { background: var(--accent); border-color: transparent; color: #06121a; }
+.chip-btn.on em { color: #06121a; opacity: .7; }
+.chip-btn.tf-warn:not(.on) em { color: var(--warn); }
 
 .tex-res { border: 1px solid transparent; }
 .tex-res.res-sm { background: var(--panel2); color: var(--dim); border-color: var(--line); }
@@ -731,11 +737,13 @@ table.diff td { word-break: break-word; }
 .tex-res.res-4k { background: rgba(251,191,36,.15); color: var(--warn); }
 .tex-res.res-8k { background: rgba(248,113,113,.16); color: var(--err); }
 .tex-mat { font-size: 11px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tex-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+/* PILL — the app's small status badge: one word about the thing next to it
+   (missing, unused, cached, a tag count). Variants carry the meaning. */
+.pill { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
-.tex-badge.unused { background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
-.tex-badge.missing { background: rgba(248,113,113,.15); color: var(--err); }
-.tex-badge.fixable { background: rgba(52,211,153,.14); color: var(--apply); }
+.pill.unused { background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
+.pill.missing { background: rgba(248,113,113,.15); color: var(--err); }
+.pill.fixable { background: rgba(52,211,153,.14); color: var(--apply); }
 .fix-btn { color: var(--dim); }
 .fix-btn:hover:not(:disabled) { color: var(--apply); border-color: var(--apply); }
 .fix-btn:hover:not(:disabled) .trash-count { color: var(--apply); }

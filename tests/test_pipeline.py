@@ -1,5 +1,3 @@
-"""Combined one-click planning (sceneorg.pipeline)."""
-
 from conftest import node
 
 from sceneorg.config import load_config

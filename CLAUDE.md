@@ -94,7 +94,7 @@ Program Files targets need an elevated shell, the `%APPDATA%` prefs folder does 
 ## Commands
 
 ```bash
-python -m pytest                 # unit tests (no c4d), currently 103 green
+python -m pytest                 # unit tests (no c4d), must be green
 python -m ruff check src tests   # lint (must be clean — CI gate)
 
 cd frontend && pnpm run build    # output -> src/web/ (then deploy.ps1)

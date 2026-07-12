@@ -8,9 +8,8 @@ from dataclasses import dataclass, field
 from ..core import model
 from ..core.ops import LayerOp, RenameOp
 from ..naming import casing as naming
-from ..naming import translations
 from ..naming.convention import NamingConvention
-from .standard import StructureStandard
+from .standard import StructureStandard, english_tokens
 
 RULES_SCHEMA_VERSION = 2
 
@@ -29,9 +28,24 @@ class RuleContext:
     convention: NamingConvention
     standard: StructureStandard
     scope: set | None = None
+    token_cache: dict = field(default_factory=dict, repr=False, compare=False)
+    group_cache: dict = field(default_factory=dict, repr=False, compare=False)
 
     def in_scope(self, node: model.SceneNode) -> bool:
         return self.scope is None or node.guid in self.scope
+
+    def tokens(self, node: model.SceneNode) -> set:
+        hit = self.token_cache.get(node.name)
+        if hit is None:
+            hit = english_tokens(node.name)
+            self.token_cache[node.name] = hit
+        return hit
+
+    def enclosing_group_path(self, node: model.SceneNode) -> str | None:
+        key = id(node)
+        if key not in self.group_cache:
+            self.group_cache[key] = self.standard.enclosing_group_path(node)
+        return self.group_cache[key]
 
 
 @dataclass
@@ -41,6 +55,18 @@ class Match:
     name_regex: str | None = None
     under_group: str | None = None
     types: set = field(default_factory=set)
+    pattern: object = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if not self.name_regex:
+            self.pattern = None
+            return
+
+        try:
+            self.pattern = re.compile(self.name_regex)
+        except re.error as exc:
+            raise ValueError(
+                "invalid name_regex %r: %s" % (self.name_regex, exc)) from exc
 
     @classmethod
     def from_dict(cls, data: dict | None) -> Match:
@@ -72,18 +98,12 @@ class Match:
             return False
         if self.types and node.type_name not in self.types:
             return False
-        if self.keywords:
-            tokens = {translations.to_english(t) for t in naming.tokenize(node.name)}
-            if not (tokens & self.keywords):
-                return False
-        if self.name_regex:
-            try:
-                if not re.search(self.name_regex, node.name):
-                    return False
-            except re.error:
-                return False
+        if self.keywords and not (ctx.tokens(node) & self.keywords):
+            return False
+        if self.pattern is not None and not self.pattern.search(node.name):
+            return False
         if self.under_group:
-            enclosing = ctx.standard.enclosing_group_path(node)
+            enclosing = ctx.enclosing_group_path(node)
             if not StructureStandard.path_complies(enclosing, self.under_group):
                 return False
         return True
@@ -118,12 +138,12 @@ def _suffix_sep(convention: NamingConvention) -> str:
     return _SUFFIX_SEP.get(convention.style, "_")
 
 
-def _reserve_sibling_names(nodes_to_rename: list) -> dict:
+def _reserve_sibling_names(nodes_to_rename: list, roots: list) -> dict:
     by_parent: dict = defaultdict(set)
     renaming_ids = {id(n) for n in nodes_to_rename}
     for n in nodes_to_rename:
         parent = n.parent
-        siblings = parent.children if parent is not None else []
+        siblings = parent.children if parent is not None else roots
         for s in siblings:
             if id(s) not in renaming_ids:
                 by_parent[id(parent) if parent else None].add(s.name)
@@ -212,9 +232,10 @@ class RenumberRule(Rule):
             series[(parent_key, base.lower())].append((n, base, num))
 
         renaming_nodes = [n for group in series.values() for (n, _, _) in group]
-        reserved = _reserve_sibling_names(renaming_nodes)
+        reserved = _reserve_sibling_names(renaming_nodes, ctx.tree.roots)
 
         for group in series.values():
+            group.sort(key=lambda t: t[2])
             for i, (n, base, _num) in enumerate(group):
                 new_name = base + sep + self._format(self.start + i)
                 if new_name == n.name:
@@ -240,9 +261,12 @@ class ConditionRule(Rule):
 
     @classmethod
     def from_dict(cls, data: dict) -> ConditionRule:
+        when = dict(data.get("when") or {})
+        Match.from_dict(when.get("match"))
+
         return cls(
             id=data.get("id", ""),
-            when=dict(data.get("when") or {}),
+            when=when,
             then=dict(data.get("then") or {}),
             enabled=bool(data.get("enabled", True)),
             priority=int(data.get("priority", 0)),
@@ -267,6 +291,12 @@ class ConditionRule(Rule):
                      > int(dup_gt)]
         return nodes
 
+    @classmethod
+    def _suffix(cls, scheme: str, i: int, pad: int) -> str:
+        if scheme == "alpha":
+            return cls._alpha(i)
+        return str(i + 1).zfill(pad)
+
     @staticmethod
     def _alpha(i: int) -> str:
         out = ""
@@ -288,13 +318,23 @@ class ConditionRule(Rule):
             groups: dict = defaultdict(list)
             for n in nodes:
                 groups[(id(n.parent) if n.parent else None, n.name)].append(n)
-            for (_pk, name), members in groups.items():
+
+            renaming = [n for members in groups.values() if len(members) > 1
+                        for n in members]
+            reserved = _reserve_sibling_names(renaming, ctx.tree.roots)
+            pad = max(int(ctx.convention.number_pad), 0)
+
+            for (pk, name), members in groups.items():
                 if len(members) < 2:
                     continue
-                for i, n in enumerate(members):
-                    suffix = self._alpha(i) if scheme == "alpha" \
-                        else str(i + 1).zfill(2)
-                    new_name = name + sep + suffix
+                taken = reserved.get(pk, set())
+                i = 0
+                for n in members:
+                    new_name = name + sep + self._suffix(scheme, i, pad)
+                    while new_name in taken:
+                        i += 1
+                        new_name = name + sep + self._suffix(scheme, i, pad)
+                    i += 1
                     if new_name != n.name:
                         bundle.renames.append(RenameOp(node=n, new_name=new_name))
             return bundle
@@ -393,7 +433,12 @@ class RuleSet:
 def compile_rules(raw: list | None) -> RuleSet:
     ruleset = RuleSet()
     for i, item in enumerate(raw or []):
-        rtype = (item or {}).get("type")
+        if not isinstance(item, dict):
+            ruleset.warnings.append(
+                "rule #%d is not an object (%r) -- skipped" % (i, item))
+            continue
+
+        rtype = item.get("type")
         cls = RULE_TYPES.get(rtype)
         if cls is None:
             ruleset.warnings.append("unknown rule type %r (rule #%d) -- skipped"

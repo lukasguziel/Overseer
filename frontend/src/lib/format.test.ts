@@ -14,6 +14,11 @@ describe('humanNum', () => {
     expect(humanNum(2_000_000_000)).toBe('2.0B')
   })
 
+  it('promotes to the next unit when the rounded value reaches 1000', () => {
+    expect(humanNum(999_950)).toBe('1.0M')
+    expect(humanNum(999_999_999)).toBe('1.0B')
+  })
+
   it('treats null/undefined as zero', () => {
     expect(humanNum(null)).toBe('0')
     expect(humanNum(undefined)).toBe('0')
@@ -36,5 +41,10 @@ describe('humanBytes', () => {
 
   it('drops decimals at three digits', () => {
     expect(humanBytes(150 * 1024)).toBe('150 KB')
+  })
+
+  it('never prints "1024 B" — it rounds up into the next unit', () => {
+    expect(humanBytes(1023.6)).toBe('1.0 KB')
+    expect(humanBytes(1023)).toBe('1023 B')
   })
 })

@@ -50,12 +50,26 @@ export function loadedAuditCount(): number {
   return loadedOps.size
 }
 
+// In-flight scan per op, so a prefetch and a tab opening right after it share
+// ONE scan instead of queueing two full passes on the C4D main thread.
+const inflight = new Map<string, Promise<unknown>>()
+
+function fetchShared(op: string): Promise<unknown> {
+  const running = inflight.get(op)
+  if (running) return running
+  const p = call(op)
+    .then((r) => { publish(op, r); return r as unknown })
+    .finally(() => { inflight.delete(op) })
+  inflight.set(op, p)
+  return p
+}
+
 // Fire-and-forget prefetch into the shared cache (e.g. the Overview loads
 // the tags scan so its score ring fills without visiting the Tags tab).
 // Does nothing if a result is already cached.
 export function prefetchAudit(op: string): void {
   if (cache.has(op)) return
-  call(op).then((r) => publish(op, r)).catch(() => { /* score stays pending */ })
+  fetchShared(op).catch(() => { /* score stays pending */ })
 }
 
 // Read-only subscription to the latest cached result of an audit op
@@ -76,13 +90,17 @@ export default function useAudit<T>(op: string, active: boolean) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const reload = useCallback(async () => {
+  // `shared` joins an already running scan of the same op (the first load of a
+  // tab whose scan the Overview just prefetched). An explicit reload always
+  // issues a fresh scan — it runs AFTER an action and must see its result.
+  const load = useCallback(async (shared: boolean) => {
     setLoading(true)
     setError('')
     try {
-      const r = await call<T>(op)
+      const r = shared
+        ? (await fetchShared(op)) as T
+        : await call<T>(op).then((x) => { publish(op, x); return x })
       setData(r)
-      publish(op, r)
     } catch (e: any) {
       setError(String(e.message || e))
     } finally {
@@ -90,10 +108,12 @@ export default function useAudit<T>(op: string, active: boolean) {
     }
   }, [op])
 
+  const reload = useCallback(() => load(false), [load])
+
   useEffect(() => {
-    if (active && data === null) reload()
+    if (active && data === null) load(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, reload])
+  }, [active, load])
 
   // A global "reload all areas" pass refreshes the shared cache off-tab; pick
   // up the fresh scan so this tab shows current data without a manual reload.

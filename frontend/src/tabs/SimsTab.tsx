@@ -49,18 +49,18 @@ function StateBadges({ hit }: { hit: SimHit }) {
   return (
     <Tip className="sim-badges-tip" text="State of this simulation: enabled/disabled, whether a cache is baked (without a cache it solves live) and whether the object is hidden.">
     <span className="sim-badges">
-      {hit.enabled === true && <span className="tex-badge sim-ok">enabled</span>}
-      {hit.enabled === false && <span className="tex-badge sim-dim">disabled</span>}
-      {hit.cached === true && <span className="tex-badge sim-ok">cached</span>}
-      {hit.cached === false && <span className="tex-badge sim-warn">no cache</span>}
-      {hit.hidden && <span className="tex-badge sim-warn">hidden</span>}
+      {hit.enabled === true && <span className="pill sim-ok">enabled</span>}
+      {hit.enabled === false && <span className="pill sim-dim">disabled</span>}
+      {hit.cached === true && <span className="pill sim-ok">cached</span>}
+      {hit.cached === false && <span className="pill sim-warn">no cache</span>}
+      {hit.hidden && <span className="pill sim-warn">hidden</span>}
     </span>
     </Tip>
   )
 }
 
 export default function SimsTab({ org }: { org: Organizer }) {
-  const { data, loading, reload } = useAudit<SimsScan>('sims_scan', true)
+  const { data, loading, error, reload } = useAudit<SimsScan>('sims_scan', true)
   const [note, setNote] = useState<string | null>(null)
   const [confirmDisable, setConfirmDisable] = useState<SimHit[] | null>(null)
   const busy = org.busy
@@ -71,12 +71,14 @@ export default function SimsTab({ org }: { org: Organizer }) {
     return Object.entries(by).sort((a, b) => b[1].length - a[1].length)
   }, [data])
 
-  if (loading && !data) {
-    return <EmptyState message="Scanning the scene for simulation setups…" />
-  }
   if (!data) {
-    return <EmptyState message="No simulation data yet." actionLabel="Scan"
-      onAction={reload} busy={busy} />
+    return loading
+      ? <EmptyState message="Scanning the scene for simulation setups…" />
+      : error
+        ? <EmptyState message={`Sims scan failed: ${error}`}
+            actionLabel="Retry" onAction={reload} busy={loading} />
+        : <EmptyState message="No simulation data yet." actionLabel="Scan"
+            onAction={reload} busy={busy} />
   }
 
   const s = data.summary
@@ -106,11 +108,11 @@ export default function SimsTab({ org }: { org: Organizer }) {
     reload()
   }
 
-  const doSelect = async (kind: string, count: number) => {
+  const doSelect = async (kind: string) => {
     try {
       const r = await call('sims_select', { kind })
       setNote(`Selected ${r.selected} ${kind} object${r.selected === 1 ? '' : 's'} in Cinema 4D`)
-    } catch { setNote(`Could not select ${count} object(s)`) }
+    } catch (e: any) { setNote(`Select ✗ ${String(e.message || e)}`) }
   }
 
   return (
@@ -164,7 +166,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
           <div className="card-head"><h3>All simulation participants</h3></div>
           {groups.map(([kind, hits]) => (
             <KindGroup key={kind} kind={kind} hits={hits}
-              onFocus={doFocus} onSelect={() => doSelect(kind, hits.length)} />
+              onFocus={doFocus} onSelect={() => doSelect(kind)} />
           ))}
         </section>
       </div>
@@ -204,19 +206,32 @@ function FindingCard({ title, hint, hits, tone, rowAction, onFocus, batch }: {
       <p className="hint-sm">{hint}</p>
       <div className="rename-list">
         {pager.rows.map((h) => (
-          <div className="sg-row rename-row sg-focusable" key={h.guid + ':' + h.kind}>
-            <span className="sg-body" onClick={() => onFocus(h)}
-              title="Click to select & frame it in Cinema 4D">
-              <span className="tex-badge sim-kind">{h.label}</span>
-              <span className="rn-old" title={h.object}>{h.object}</span>
-              <StateBadges hit={h} />
-            </span>
-            {rowAction && <span className="rn-actions">{rowAction(h)}</span>}
-          </div>
+          <SimRow key={h.guid + ':' + h.kind} hit={h} onFocus={onFocus}
+            action={rowAction ? rowAction(h) : undefined} />
         ))}
       </div>
       <Pager pager={pager} />
     </section>
+  )
+}
+
+function SimRow({ hit, onFocus, showCarrier, action }: {
+  hit: SimHit
+  onFocus: (h: SimHit) => void
+  showCarrier?: boolean
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="sg-row rename-row sg-focusable">
+      <span className="sg-body" onClick={() => onFocus(hit)}
+        title="Click to select & frame it in Cinema 4D">
+        <span className="pill sim-kind">{hit.label}</span>
+        <span className="rn-old" title={hit.object}>{hit.object}</span>
+        {showCarrier && <span className="dim sim-carrier">{hit.carrier}</span>}
+        <StateBadges hit={hit} />
+      </span>
+      {action && <span className="rn-actions">{action}</span>}
+    </div>
   )
 }
 
@@ -232,20 +247,12 @@ function KindGroup({ kind, hits, onFocus, onSelect }: {
       <div className="section-head sm">
         <span>{kind}</span>
         <span className="card-hint">{hits.length}</span>
-        <button className="ghost sim-select" onClick={onSelect}
+        <button className="mini" onClick={onSelect}
           title={`Select all ${kind} objects in Cinema 4D`}>Select in C4D</button>
       </div>
       <div className="rename-list">
         {pager.rows.map((h) => (
-          <div className="sg-row rename-row sg-focusable" key={h.guid + ':' + h.kind}>
-            <span className="sg-body" onClick={() => onFocus(h)}
-              title="Click to select & frame it in Cinema 4D">
-              <span className="tex-badge sim-kind">{h.label}</span>
-              <span className="rn-old" title={h.object}>{h.object}</span>
-              <span className="dim sim-carrier">{h.carrier}</span>
-              <StateBadges hit={h} />
-            </span>
-          </div>
+          <SimRow key={h.guid + ':' + h.kind} hit={h} onFocus={onFocus} showCarrier />
         ))}
       </div>
       <Pager pager={pager} />

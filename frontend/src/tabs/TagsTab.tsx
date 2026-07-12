@@ -39,9 +39,9 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
           title={open ? 'Collapse' : 'Show objects carrying this tag'}>
           <span className="tags-type-caret">{open ? '▾' : '▸'}</span>
           <span className="tags-type-label">{type.label}</span>
-          <span className="tex-badge">{type.count}</span>
+          <span className="pill">{type.count}</span>
         </button>
-        <button className="tags-select-btn" disabled={org.busy}
+        <button className="mini" disabled={org.busy}
           title="Select every object carrying this tag type in Cinema 4D"
           onClick={() => call('tags_select', { type_id: type.type_id })
             .then((r) => org.setStatus(`Selected ${r.selected ?? type.count} object${type.count === 1 ? '' : 's'} in Cinema 4D`))
@@ -86,6 +86,10 @@ export default function TagsTab({ org }: { org: Organizer }) {
   const s = data?.summary
   const dominant = data?.findings.phong_angles.dominant_angle ?? null
   const busy = org.busy || loading
+
+  // A number input's min/max only constrain the spinner, not typed text.
+  const parsedAngle = parseFloat(angleInput)
+  const customAngle = !isNaN(parsedAngle) && parsedAngle >= 0 && parsedAngle <= 180 ? parsedAngle : null
 
   async function run(fn: () => Promise<any>, describe: (r: any) => string) {
     setNote(null)
@@ -246,14 +250,15 @@ export default function TagsTab({ org }: { org: Organizer }) {
               </p>
               <div className="tags-angle-set">
                 {ANGLE_PRESETS.map((deg) => (
-                  <button key={deg} className="tex-filter-btn"
+                  <button key={deg} className="chip-btn"
                     disabled={busy} onClick={() => setUniformAngle(deg)}>{deg}°</button>
                 ))}
-                <input className="tags-angle-input" type="number" min={0} max={180}
+                <input className="nl-input tags-angle-input" type="number" min={0} max={180}
                   placeholder="custom" value={angleInput}
                   onChange={(e) => setAngleInput(e.target.value)} />
-                <button className="apply" disabled={busy || angleInput === ''}
-                  onClick={() => { const v = parseFloat(angleInput); if (!isNaN(v)) setUniformAngle(v) }}>
+                <button className="apply" disabled={busy || customAngle === null}
+                  title={angleInput !== '' && customAngle === null ? 'Enter an angle between 0 and 180°' : 'Set this angle on all phong tags'}
+                  onClick={() => { if (customAngle !== null) setUniformAngle(customAngle) }}>
                   Set
                 </button>
               </div>

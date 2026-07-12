@@ -45,9 +45,16 @@ class Config:
         return self.kept("materials")
 
 
+def _as_int(value: object, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def migrate_config(data: dict) -> dict:
     out = dict(data or {})
-    schema = int(out.get("schema") or 1)
+    schema = _as_int(out.get("schema") or 1, 1)
     if schema >= CONFIG_SCHEMA_VERSION:
         out["schema"] = CONFIG_SCHEMA_VERSION
         out["keeps"] = normalize_keeps(out.get("keeps"))
@@ -83,9 +90,12 @@ def migrate_config(data: dict) -> dict:
 
 
 def build_convention(data: dict) -> NamingConvention:
-    casing = Casing(data.get("casing") or "PascalCase")
-    language = data.get("language", "en")
-    pad = int(data.get("number_pad", 2))
+    try:
+        casing = Casing(data.get("casing") or DEFAULT_CONFIG["casing"])
+    except ValueError:
+        casing = Casing(DEFAULT_CONFIG["casing"])
+    language = data.get("language", DEFAULT_CONFIG["language"])
+    pad = _as_int(data.get("number_pad", 2), 2)
     keep_separators = bool(data.get("keep_separators", False))
     return NamingConvention(style=casing, language=language, number_pad=pad,
                             keep_separators=keep_separators)
@@ -93,12 +103,15 @@ def build_convention(data: dict) -> NamingConvention:
 
 def _collect_group_rules(nodes: list, parent: str | None, rules: list) -> None:
     for g in nodes or []:
+        if not isinstance(g, dict):
+            continue
+
         rule = GroupRule(
-            name=g["name"],
-            match_categories=set(g.get("categories", [])),
-            match_keywords={k.lower() for k in g.get("keywords", [])},
-            aliases={a.lower() for a in g.get("aliases", [])},
-            priority=int(g.get("priority", 0)),
+            name=str(g.get("name") or "Group"),
+            match_categories=set(g.get("categories") or []),
+            match_keywords={str(k).lower() for k in (g.get("keywords") or [])},
+            aliases={str(a).lower() for a in (g.get("aliases") or [])},
+            priority=_as_int(g.get("priority", 0), 0),
             parent=parent,
         )
         rules.append(rule)

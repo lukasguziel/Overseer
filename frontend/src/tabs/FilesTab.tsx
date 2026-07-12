@@ -4,6 +4,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import useAudit from '../hooks/useAudit'
 import { humanBytes } from '../lib/format'
 import ConfirmModal from '../components/ConfirmModal'
+import FilterChips from '../components/FilterChips'
 import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -62,35 +63,37 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
   onPick?: (e: FileEntry) => void
   onAccept?: (e: FileEntry) => void
 }) {
+  const hasActions = !!(onPick || onAccept)
+  const cols = 'cols-files' + (hasActions ? ' dg-actionable' : '')
   return (
-    <div className="fa-table">
-      <div className="fa-tr fa-thead">
+    <div className="dg-table">
+      <div className={'dg-tr dg-thead ' + cols}>
         <Tip text="File name of the external reference. Colored badge = kind (Alembic, cache, IES …)."><span>File</span></Tip>
         <Tip text="Object or material that references the file. Click a row to select it in Cinema 4D."><span>Owner</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
         <Tip text="Stored path. Badge shows absolute / relative / missing."><span>Path</span></Tip>
       </div>
       {rows.map((e, i) => {
-        const actionable = e.missing && (onPick || onAccept)
+        const actionable = e.missing && hasActions
         return (
-          <div className={'fa-tr fa-click' + (actionable ? ' fa-actionable' : '')}
+          <div className={'dg-tr dg-click ' + cols}
             key={e.path + '|' + e.owner + '|' + i}
             title={`${e.path}\nClick to select ${e.guid != null ? `“${e.owner}” in the viewport` : `material “${e.owner}”`}`}
             onClick={() => onFocus(e)}>
-            <span className="fa-cell-file">
+            <span className="dg-cell-file">
               <span className="fl-dot" style={{ background: statusColor(e) }} />
               <span className={'fa-kind fk-' + e.kind}>{KIND_LABEL[e.kind] || e.kind}</span>
-              <span className="fa-cut">{e.file}</span>
+              <span className="dg-cut">{e.file}</span>
             </span>
-            <span className="dim fa-cut">{e.owner || '—'}</span>
+            <span className="dim dg-cut">{e.owner || '—'}</span>
             <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
-            <span className="fa-cell-path dim">
-              <span className="fa-cut">{e.path}</span>
+            <span className="dg-cell-path dim">
+              <span className="dg-cut">{e.path}</span>
               {e.missing
-                ? <span className="tex-badge missing">missing</span>
+                ? <span className="pill missing">missing</span>
                 : e.relocatable
-                  ? <span className="tex-badge fixable">→ relative</span>
-                  : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
+                  ? <span className="pill fixable">→ relative</span>
+                  : <span className="pill">{e.absolute ? 'absolute' : 'relative'}</span>}
             </span>
             {actionable && (
               <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
@@ -159,6 +162,9 @@ export default function FilesTab({ org }: { org: Organizer }) {
   const byKind = (e: FileEntry) => !kind || e.kind === kind
   const missing = useMemo(() => entries.filter((e) => e.missing && byKind(e)), [entries, kind])
   const present = useMemo(() => entries.filter((e) => !e.missing && byKind(e)), [entries, kind])
+  // files_relink re-scans server-side and relinks EVERY missing file, ignoring
+  // the kind chip — so the button and its confirm promise the unfiltered count.
+  const allMissing = useMemo(() => entries.filter((e) => e.missing), [entries])
   const missPager = usePager(missing, undefined, kind)
   const pager = usePager(present, undefined, kind)
 
@@ -180,20 +186,20 @@ export default function FilesTab({ org }: { org: Organizer }) {
     }
   }
 
-  if (!active) return null
-
   if (!data) {
     return loading
       ? <div className="empty-note">Scanning external files…</div>
       : error
-        ? <div className="empty-state"><p>Files scan failed: {error}</p>
-            <button onClick={reload}>Retry</button></div>
+        ? <EmptyState message={`Files scan failed: ${error}`}
+            actionLabel="Retry" onAction={reload} busy={loading} />
         : <EmptyState message="No scene scanned yet — open your scene in Cinema 4D."
             actionLabel="Scan files" onAction={reload} busy={loading} />
   }
 
   const s = data.summary
-  const reloc = s.relocatable_count
+  // files_make_relative only rewrites Alembic references — every other kind is
+  // counted as skipped server-side, so the button must not promise them.
+  const reloc = entries.filter((e) => e.relocatable && e.kind === 'alembic').length
   const canFix = reloc > 0 && !!data.doc_path
 
   return (
@@ -215,19 +221,15 @@ export default function FilesTab({ org }: { org: Organizer }) {
           </div>
 
           <div className="section-head sm"><span>Kind</span></div>
-          <div className="tex-filter tex-filter-col">
-            {KINDS.map(([key, label]) => {
-              const n = key ? (s.by_kind[key] || 0) : s.total
-              if (key && !n) return null
-              return (
-                <button key={key || 'all'}
-                  className={'tex-filter-btn' + (kind === key ? ' on' : '')}
-                  onClick={() => setKind(key)}>
-                  {label} <em>{n}</em>
-                </button>
-              )
-            })}
-          </div>
+          <FilterChips value={kind} empty="" onChange={setKind}
+            options={KINDS
+              .filter(([key]) => !key || s.by_kind[key])
+              .map(([key, label]) => ({
+                key,
+                label,
+                count: key ? (s.by_kind[key] || 0) : s.total,
+                title: key ? `Show only ${label} files` : 'Show every kind',
+              }))} />
 
           <div className="section-head sm"><span>Actions</span></div>
           <h4 className="side-action-title">Relative paths</h4>
@@ -258,7 +260,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                         .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
                         .catch(() => {})
                     }}>
-                    … Relink {missPager.total}
+                    … Relink {allMissing.length}
                   </button>
                   <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
                     title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
@@ -308,8 +310,8 @@ export default function FilesTab({ org }: { org: Organizer }) {
       {relinkConfirm && (
         <ConfirmModal
           title="Relink missing files"
-          message={`Search “${relinkDir}” (including subfolders) for the ${missPager.total} missing file name${missPager.total === 1 ? '' : 's'} and relink every match (project-relative when possible, one undo step). Files not found there are left as-is. Continue?`}
-          confirmLabel={`✓ Relink ${missPager.total}`}
+          message={`Search “${relinkDir}” (including subfolders) for the ${allMissing.length} missing file name${allMissing.length === 1 ? '' : 's'} in the scene — the kind filter does not narrow this — and relink every match (project-relative when possible, one undo step). Files not found there are left as-is. Continue?`}
+          confirmLabel={`✓ Relink ${allMissing.length}`}
           onConfirm={doRelink}
           onCancel={() => setRelinkConfirm(false)}
         />

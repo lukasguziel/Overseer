@@ -118,6 +118,10 @@ export function useOrganizer() {
   const [layerSuggestions, setLayerSuggestions] = useState<PlanResult<LayerDiff> | null>(null)
   const [layerMismatches, setLayerMismatches] = useState<LayerMismatch[]>([])
   const [keeps, setKeeps] = useState<Record<KeepSection, Set<string>>>(emptyKeeps)
+  // Read the LATEST keep lists inside async callbacks (an in-flight accept must
+  // not roll back to the render-time snapshot it was created with).
+  const keepsRef = useRef(keeps)
+  keepsRef.current = keeps
   const [rules, setRules] = useState<RulesInfo | null>(null)
   const [exported, setExported] = useState('')
   const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -139,17 +143,35 @@ export function useOrganizer() {
     tidy,
   }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
 
+  // An action that has something more informative to say than "<label> ✓"
+  // PINS its message: run() (and any run() nested inside it, e.g. the follow-up
+  // analysis) then leaves the status alone instead of stomping it.
+  const pinnedStatus = useRef<string | null>(null)
+  const note = useCallback((msg: string) => {
+    pinnedStatus.current = msg
+    setStatus(msg)
+  }, [])
+
+  // busy is a DEPTH counter, not a flag: a nested run() (apply → analyze) must
+  // not clear the lock while the outer action is still running.
+  const busyDepth = useRef(0)
+
   async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
-    setBusy(true); setError(''); setStatus(label + ' …')
+    busyDepth.current += 1
+    if (busyDepth.current === 1) pinnedStatus.current = null
+    setBusy(true); setError('')
+    if (!pinnedStatus.current) setStatus(label + ' …')
     try {
       const r = await fn()
-      setStatus(label + ' ✓')
+      if (!pinnedStatus.current) setStatus(label + ' ✓')
       return r
     } catch (e: any) {
+      pinnedStatus.current = null
       setError(String(e.message || e)); setStatus(label + ' ✗')
       return undefined
     } finally {
-      setBusy(false)
+      busyDepth.current -= 1
+      if (busyDepth.current <= 0) { busyDepth.current = 0; setBusy(false) }
     }
   }
 
@@ -217,7 +239,7 @@ export function useOrganizer() {
     const d: DetectInfo = r.detect
     setCasing(d.style); setLanguage(d.language || 'en'); setNumberPad(d.number_pad)
     setDetectInfo(d)
-    setStatus(`Detected: ${d.style} / ${d.language} / pad ${d.number_pad} (${Math.round(d.confidence * 100)}%)`)
+    note(`Detected: ${d.style} / ${d.language} / pad ${d.number_pad} (${Math.round(d.confidence * 100)}%)`)
   })
 
   const doExportJson = () => run('Export JSON', async () => {
@@ -417,22 +439,22 @@ export function useOrganizer() {
 
   const doMoveToGroup = (guids: number[], group: string) => run('Move to group', async () => {
     const r = await call('move_to_group', { guids, group })
-    setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → group “${group}” ✓ (undoable)`)
-    doAnalyze()
+    note(`${r.applied} object${r.applied === 1 ? '' : 's'} → group “${group}” ✓ (undoable)`)
+    await doAnalyze()
   })
 
   const doDeleteEmptyLayers = (keep?: string[]) => run('Delete empty layers', async () => {
     const r = await call('delete_empty_layers', keep && keep.length ? { keep } : {})
-    setStatus(`${r.deleted} empty layer${r.deleted === 1 ? '' : 's'} deleted ✓ (undoable)`)
-    doAnalyze()
+    note(`${r.deleted} empty layer${r.deleted === 1 ? '' : 's'} deleted ✓ (undoable)`)
+    await doAnalyze()
   })
 
   const doDeleteLayer = (name: string) => run('Delete layer', async () => {
     const r = await call('delete_layer', { name })
-    setStatus(r.deleted
+    note(r.deleted
       ? `Layer “${name}” deleted ✓ (undoable)`
       : `“${name}” is not empty (hidden objects count too) — not deleted`)
-    doAnalyze()
+    await doAnalyze()
   })
 
   // Remember the server-filtered keep list a plan reported for a section.
@@ -494,6 +516,19 @@ export function useOrganizer() {
   const layersDepsRef = useRef(layersDeps)
   layersDepsRef.current = layersDeps
 
+  // Every reload step is called through a ref: a long-running sequence
+  // (reloadEverything) must plan with the settings as they are AT STEP TIME —
+  // a per-project settings hydration landing mid-sequence would otherwise be
+  // ignored by the remaining steps.
+  const reloadNamingRef = useRef(reloadNaming)
+  reloadNamingRef.current = reloadNaming
+  const reloadTranslateRef = useRef(reloadTranslate)
+  reloadTranslateRef.current = reloadTranslate
+  const reloadStructureRef = useRef(reloadStructure)
+  reloadStructureRef.current = reloadStructure
+  const reloadLayerExtrasRef = useRef(reloadLayerExtras)
+  reloadLayerExtrasRef.current = reloadLayerExtras
+
   // Reload EVERY area in sequence behind a stepped progress overlay: the
   // report (Overview/Assets/Materials/Layers stats), the naming/translate/
   // structure/layer plans, and every audit scan the user has already opened.
@@ -501,7 +536,11 @@ export function useOrganizer() {
   // stay current without visiting each one. The analyze here is quiet (no
   // global busy lock) — the stepped overlay is the only spinner.
   const reloadEverything = useCallback(async () => {
-    const steps: [string, () => Promise<unknown>][] = [
+    // Each planning step carries the tab whose preview it refreshes, plus the
+    // dep snapshot to record — but ONLY if the step actually succeeded: marking
+    // a failed step as fresh would leave a stale plan that no tab ever reloads.
+    type Step = [string, () => Promise<unknown>, TabId?, (() => unknown[])?]
+    const steps: Step[] = [
       ['Analyzing scene', async () => {
         const r = await call('analyze', {
           settings: { selection: scopeRef.current, include_hidden: includeHiddenRef.current } })
@@ -511,26 +550,28 @@ export function useOrganizer() {
         setSelStale(false)
         setSceneVersion((v) => v + 1)
       }],
-      ['Naming', () => reloadNaming()],
-      ['Translate', () => reloadTranslate()],
-      ['Structure', () => reloadStructure()],
-      ['Layers', () => reloadLayerExtras()],
+      ['Naming', () => reloadNamingRef.current(), 'naming', () => namingDepsRef.current],
+      ['Translate', () => reloadTranslateRef.current(), 'translate', () => translateDepsRef.current],
+      ['Structure', () => reloadStructureRef.current(), 'structure', () => structureDepsRef.current],
+      ['Layers', () => reloadLayerExtrasRef.current(), 'layers', () => layersDepsRef.current],
     ]
     if (loadedAuditCount() > 0) {
       steps.push(['Tags, files, generators & sims', () => refreshLoadedAudits()])
     }
     const total = steps.length
+    const fresh: Partial<Record<TabId, unknown[]>> = {}
     for (let i = 0; i < total; i++) {
-      setReloadProgress({ step: i, total, label: steps[i][0] })
-      try { await steps[i][1]() } catch { /* keep going — later steps still refresh */ }
+      const [label, fn, tabId, snapshot] = steps[i]
+      setReloadProgress({ step: i, total, label })
+      try {
+        await fn()
+        if (tabId && snapshot) fresh[tabId] = snapshot()
+      } catch { /* keep going — later steps still refresh */ }
     }
-    // Everything is fresh now — entering a tab must not re-plan again.
-    previewDone.current = {
-      naming: namingDepsRef.current, translate: translateDepsRef.current,
-      structure: structureDepsRef.current, layers: layersDepsRef.current,
-    }
+    // Only the steps that resolved are fresh; a failed one stays "to re-plan".
+    previewDone.current = { ...previewDone.current, ...fresh }
     setReloadProgress(null)
-  }, [reloadNaming, reloadTranslate, reloadStructure, reloadLayerExtras])
+  }, [])
 
   const reloadEverythingRef = useRef(reloadEverything)
   reloadEverythingRef.current = reloadEverything
@@ -562,7 +603,8 @@ export function useOrganizer() {
 
   const applyNaming = () => run('Apply naming', async () => {
     const r = await call('apply_naming', { settings: settings() })
-    setNaming(r); doAnalyze()
+    setNaming(r)
+    await doAnalyze()
   })
   // Per-row apply: optimistic — the row disappears instantly, the API call
   // and the report refresh run in the background (no global busy lock).
@@ -597,7 +639,8 @@ export function useOrganizer() {
 
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
-    setStructure(r); doAnalyze()
+    setStructure(r)
+    await doAnalyze()
   })
   // Move a single object into its group immediately (per-row ✓).
   const applyStructureOne = (guid: number, name?: string) => {
@@ -610,8 +653,8 @@ export function useOrganizer() {
 
   const applyLayers = () => run('Apply layers', async () => {
     const r = await call('apply_layers', { settings: settings() })
-    setStatus(`${r.applied} objects tagged ✓ (undoable)`)
-    doAnalyze()
+    note(`${r.applied} objects tagged ✓ (undoable)`)
+    await doAnalyze()
     await reloadLayers()  // tagged rows drop out of the preview
   })
 
@@ -627,8 +670,8 @@ export function useOrganizer() {
   const applyTranslate = () => run('Apply translations', async () => {
     const r = await call('apply_translate', {
       settings: settings(), target: translateTarget, engine: translateEngine })
-    setStatus(`Translated ${r.applied} names ✓ (undoable)`)
-    doAnalyze()
+    note(`Translated ${r.applied} names ✓ (undoable)`)
+    await doAnalyze()
     await reloadTranslate()  // the just-renamed ones drop out
   })
 
@@ -654,26 +697,6 @@ export function useOrganizer() {
     else await reloadStructure()
   }, [doAnalyze, reloadNaming, reloadTranslate, reloadLayers, reloadStructure])
 
-  // Accept-as-is is optimistic: the rows vanish instantly (the server plan
-  // filters them identically on the next reload), only the config write goes
-  // over the wire. On error the section is re-planned from the server.
-  const keep = useCallback((section: KeepSection, key: string) => {
-    const next = new Set(keeps[section]); next.add(key)
-    setKeeps((k) => ({ ...k, [section]: next }))
-    if (section === 'naming' || section === 'translate') {
-      dropRows(section, (d) => d.old === key)
-    } else if (section === 'layers' || section === 'structure') {
-      dropRows(section, (d) => d.name === key)
-    }
-    setStatus(`Accepted “${key}” as-is ✓`)
-    call('set_keeps', { section, keys: Array.from(next) })
-      .then(() => { if (section === 'materials') refreshSoon(200) })
-      .catch((e) => {
-        setError(String(e.message || e)); setStatus('Accept ✗')
-        syncKeeps(section, keeps[section]).catch(() => {})
-      })
-  }, [keeps, dropRows, refreshSoon, syncKeeps])
-
   const unkeep = useCallback((section: KeepSection, key: string) => {
     const next = new Set(keeps[section]); next.delete(key)
     syncKeeps(section, next).catch((e) => setError(String(e.message || e)))
@@ -685,24 +708,35 @@ export function useOrganizer() {
     syncKeeps(section, new Set()).catch((e) => setError(String(e.message || e)))
   }, [syncKeeps])
 
-  // Accept a whole batch of keys as-is (✕-all buttons, no-layer worklist):
-  // one config write, the matching rows vanish, the score jumps.
+  // Accept keys as-is (single ✓ row, ✕-all buttons, no-layer worklist):
+  // optimistic — the matching rows vanish instantly (the server plan filters
+  // them identically on the next reload), only the config write goes over the
+  // wire. On error ONLY this call's keys are rolled back: a snapshot rollback
+  // would also wipe accepts made while this call was in flight.
   const keepMany = useCallback((section: KeepSection, keys: string[]) => {
     if (!keys.length) return
     const keySet = new Set(keys)
-    const next = new Set(keeps[section])
+    const next = new Set(keepsRef.current[section])
     keys.forEach((k) => next.add(k))
     setKeeps((k) => ({ ...k, [section]: next }))
     dropRows(section, (d) => keySet.has(
       section === 'naming' || section === 'translate' ? d.old : d.name))
-    setStatus(`Accepted ${keys.length} item${keys.length === 1 ? '' : 's'} as-is ✓`)
+    setStatus(keys.length === 1
+      ? `Accepted “${keys[0]}” as-is ✓`
+      : `Accepted ${keys.length} items as-is ✓`)
     call('set_keeps', { section, keys: Array.from(next) })
       .then(() => { if (section === 'materials') refreshSoon(200) })
       .catch((e) => {
         setError(String(e.message || e)); setStatus('Accept ✗')
-        syncKeeps(section, keeps[section]).catch(() => {})
+        const back = new Set(keepsRef.current[section])
+        keys.forEach((k) => back.delete(k))
+        syncKeeps(section, back).catch(() => {})
       })
-  }, [keeps, dropRows, refreshSoon, syncKeeps])
+  }, [dropRows, refreshSoon, syncKeeps])
+
+  const keep = useCallback((section: KeepSection, key: string) => {
+    keepMany(section, [key])
+  }, [keepMany])
 
   // Accept EVERYTHING in a section's current plan as-is.
   const keepAll = useCallback((section: KeepSection) => {
@@ -762,6 +796,8 @@ export function useOrganizer() {
   // changes. `hydrated` gates the auto-save below so mount-time defaults never
   // clobber the stored file before the initial load has finished.
   const hydrated = useRef(false)
+  const docNameRef = useRef(docName)
+  docNameRef.current = docName
   // Flips to true once the stored settings for the current document have been
   // applied (or confirmed absent). The badge-seeding effect below keys off it
   // so the naming/translate previews are (re)planned with the HYDRATED
@@ -811,11 +847,11 @@ export function useOrganizer() {
   // hydrated (uiHydrated flips true after docName -> ui_settings_get). Refs
   // give us the latest reload closures without re-running on every setting
   // change. The FIRST seed is blocking and lifts the `ready` gate; later seeds
-  // (document switches) refresh the badges silently in the background.
-  const reloadNamingRef = useRef(reloadNaming)
-  reloadNamingRef.current = reloadNaming
-  const reloadTranslateRef = useRef(reloadTranslate)
-  reloadTranslateRef.current = reloadTranslate
+  // (document switches) refresh the badges silently in the background — and a
+  // document switch upgrades that to the FULL reload the watcher deferred here,
+  // so every area re-plans with the new project's settings, never the old ones.
+  const refreshing = useRef(false)
+  const pendingFullReload = useRef(false)
   const seededOnce = useRef(false)
   useEffect(() => {
     if (!uiHydrated || !booted.current) return
@@ -835,6 +871,10 @@ export function useOrganizer() {
       if (initial) {
         await run('Loading previews', seed)
         setReady(true)
+      } else if (pendingFullReload.current) {
+        pendingFullReload.current = false
+        refreshing.current = true
+        try { await reloadEverythingRef.current() } finally { refreshing.current = false }
       } else {
         await seed()
       }
@@ -847,7 +887,6 @@ export function useOrganizer() {
   //    switch) OR, under selection scope, when the C4D selection changed;
   //  - MANUAL mode: under selection scope, flags that the selection moved on
   //    so the UI can nudge the user to refresh.
-  const refreshing = useRef(false)
   useEffect(() => {
     let stop = false
     const tick = async () => {
@@ -855,7 +894,12 @@ export function useOrganizer() {
       try {
         const d = await call('dirty')
         if (stop) return
-        setSel({ count: d.sel_count ?? 0, names: d.sel_names ?? [] })
+        const count = d.sel_count ?? 0
+        const names: string[] = d.sel_names ?? []
+        // Bail out when the selection is unchanged: a fresh object here would
+        // re-render the whole app (nav badges, active tab) on every 1 s tick.
+        setSel((s) => s.count === count && s.names.length === names.length
+          && s.names.every((n, i) => n === names[i]) ? s : { count, names })
         setDocName(d.name ?? null)  // triggers per-project settings hydration on switch
         const last = lastDirty.current
         if (!last) return
@@ -865,7 +909,21 @@ export function useOrganizer() {
         // A DOCUMENT switch always reloads everything, even in manual mode —
         // the server now answers for a different scene, so every displayed
         // number (report, plans, audits, health) is stale, not merely old.
-        if (docChanged || (autoRefresh && (sceneChanged || (scope && selChanged)))) {
+        // It must NOT start here though: setDocName above kicks off the
+        // per-project settings hydration, and planning with the old project's
+        // settings would race it. The seed effect runs the reload once the new
+        // settings have landed.
+        if (docChanged) {
+          if (hydrated.current && docNameRef.current === (d.name ?? null)) {
+            // Hydration for this document already finished (e.g. a previous
+            // reload attempt failed) — plan right away, the settings are current.
+            refreshing.current = true
+            Promise.resolve(reloadEverythingRef.current())
+              .finally(() => { refreshing.current = false })
+          } else {
+            pendingFullReload.current = true
+          }
+        } else if (autoRefresh && (sceneChanged || (scope && selChanged))) {
           refreshing.current = true
           Promise.resolve(reloadEverythingRef.current())
             .finally(() => { refreshing.current = false })
@@ -914,7 +972,9 @@ export function useOrganizer() {
           if (!cancel) setPreviewing(false)
         }
       }, delay)
-      return () => { cancel = true; clearTimeout(t) }
+      // Leaving the tab (or a new dep change) before the debounce fired must
+      // also drop the previewing flag — otherwise it stays true forever.
+      return () => { cancel = true; clearTimeout(t); setPreviewing(false) }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab, ...deps])
     /* eslint-enable react-hooks/rules-of-hooks */
@@ -949,20 +1009,24 @@ export function useOrganizer() {
     noteKept('materials', report?.materials?.accepted_all)
   }, [report, noteKept])
 
+  // Objects without a layer that the user has not accepted — exactly what the
+  // no-layer worklist shows. Memoized: the nav asks for the layers badge AND
+  // the layers score on every render (once per second), and this is a full
+  // pass over 10k+ nodes.
+  const noLayerOpen = useMemo(() => {
+    const nodes = report?.nodes
+    if (!nodes) return undefined
+    return nodes.reduce((c, n) =>
+      c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
+  }, [report, keeps.layers])
+
   // Uniform todo count per area for the tab-header badges: live plan count
   // once the tab was previewed, report-derived fallback before that.
   const planCount = useCallback((t: TabId): number | undefined => {
     switch (t) {
       case 'naming': return naming?.count
       case 'translate': return translation?.count
-      case 'layers': {
-        // Badge = objects without a layer that the user has not accepted —
-        // exactly what the no-layer worklist shows (tagging preview parked).
-        const nodes = report?.nodes
-        if (!nodes) return undefined
-        return nodes.reduce((c, n) =>
-          c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
-      }
+      case 'layers': return noLayerOpen
       case 'structure': return structure?.count ?? report?.misplaced?.length
       case 'materials': {
         // Badge = the same "todos" the score counts: unused (deletable)
@@ -974,7 +1038,7 @@ export function useOrganizer() {
       }
       default: return undefined
     }
-  }, [naming, translation, layers, structure, report, keeps.layers])
+  }, [naming, translation, structure, report, noLayerOpen])
 
   // Per-area score (0..100) for the ring next to the navigation. The score
   // measures DECISIONS, not absolute cleanliness: an open todo counts
@@ -984,6 +1048,19 @@ export function useOrganizer() {
     ? computeHygiene(report.nodes || [], report.total_polys || 0,
         { casing, kept: keeps.naming })
     : null, [report, casing, keeps.naming])
+
+  // Open naming todos = the rename plan (restricted to objects the current
+  // report perspective actually contains) unioned with the name-cleanup lists.
+  // Memoized for the same reason as noLayerOpen: two full node passes.
+  const namingOpen = useMemo(() => {
+    const nodes = report?.nodes
+    if (!nodes?.length || !naming?.diff) return undefined
+    const guids = new Set<number>(nodes.map((n) => n.guid))
+    const open = new Set<number>(naming.diff.map((d) => d.guid).filter((g) => guids.has(g)))
+    namingHyg?.defaults.forEach((n) => open.add(n.guid))
+    namingHyg?.dupeGuids.forEach((g) => open.add(g))
+    return open.size
+  }, [report, naming, namingHyg])
 
   // Latest tags scan, shared from the Tags tab via the audit cache — feeds
   // the tags area score without re-running the scan here.
@@ -1008,15 +1085,8 @@ export function useOrganizer() {
         // the plan has loaded.
         const nodes = report.nodes || []
         if (!nodes.length) return null
-        if (!naming?.diff) return namingHyg?.namingScore ?? null
-        // Only count objects that exist in the current report: the plan can
-        // cover objects the report perspective excludes (hidden/selection),
-        // which used to push the open count past the total → negative score.
-        const guids = new Set<number>(nodes.map((n) => n.guid))
-        const open = new Set<number>(naming.diff.map((d) => d.guid).filter((g) => guids.has(g)))
-        namingHyg?.defaults.forEach((n) => open.add(n.guid))
-        namingHyg?.dupeGuids.forEach((g) => open.add(g))
-        return capped(open.size, (nodes.length - open.size) / nodes.length)
+        if (namingOpen == null) return namingHyg?.namingScore ?? null
+        return capped(namingOpen, (nodes.length - namingOpen) / nodes.length)
       }
       case 'translate': {
         const open = translation?.count
@@ -1028,10 +1098,8 @@ export function useOrganizer() {
         // Layer coverage: how much of the scene is assigned to ANY layer.
         // Accepting an object as fine-without-layer counts as covered.
         const nodes = report.nodes || []
-        if (!nodes.length) return null
-        const open = nodes.reduce((c, n) =>
-          c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
-        return capped(open, (nodes.length - open) / nodes.length)
+        if (!nodes.length || noLayerOpen == null) return null
+        return capped(noLayerOpen, (nodes.length - noLayerOpen) / nodes.length)
       }
       case 'materials': {
         // Unused materials + MISSING textures count against the score.
@@ -1071,7 +1139,7 @@ export function useOrganizer() {
       default:
         return null
     }
-  }, [report, namingHyg, naming, translation, keeps.layers, tagsScan, filesScan])
+  }, [report, namingHyg, namingOpen, translation, noLayerOpen, tagsScan, filesScan])
 
   // The Overview shows every area's score: quietly prefetch the audit scans
   // it needs. Naming/translate previews are already loaded eagerly by the

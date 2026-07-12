@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from . import casing as naming
 from . import translations
 
-_TOKEN_RE = re.compile(r"[A-Za-zÄÖÜäöüß]+"
+_TOKEN_RE = re.compile(r"[^\W\d_]+"
                        r"|\d+(?:[.,]\d+)*")
 
 _SEP_ONLY_RE = re.compile(r"^[\s._\-]+$")

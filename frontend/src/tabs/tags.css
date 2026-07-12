@@ -8,11 +8,8 @@
 .tags-angle.dominant { color: var(--accent); font-weight: 600; }
 
 .tags-angle-set { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.tags-angle-input {
-  width: 70px; padding: 4px 6px; border-radius: 6px;
-  border: 1px solid var(--border, rgba(127,127,127,.3));
-  background: var(--input-bg, rgba(0,0,0,.2)); color: inherit; font-size: 12px;
-}
+/* The shared `.nl-input` carries the look; only the width is local. */
+.tags-angle-input { flex: none; width: 70px; }
 
 .tags-type-list { display: flex; flex-direction: column; gap: 4px; }
 .tags-type { border-radius: 6px; background: var(--panel2, rgba(127,127,127,.06)); }
@@ -27,13 +24,6 @@
 }
 .tags-type-caret { width: 12px; color: var(--dim); }
 .tags-type-label { flex: 1; }
-.tags-select-btn {
-  font-size: 11px; padding: 3px 8px; border-radius: 6px;
-  border: 1px solid var(--border, rgba(127,127,127,.3));
-  background: none; color: inherit; cursor: pointer;
-}
-.tags-select-btn:disabled { opacity: .5; cursor: default; }
-
 .tags-type-objs { padding: 2px 8px 8px 20px; display: flex; flex-direction: column; gap: 1px; }
 .tags-obj-row {
   display: flex; align-items: baseline; gap: 8px;

@@ -141,29 +141,26 @@ export function buildHandGuideSteps(input: HandGuideInput): HandStep[] {
 
   // 4. Materials — unused ones. Few -> one question each, many -> one sweep.
   const unused = input.report?.materials?.unused || []
-  if (unused.length > 0 && unused.length <= DETAIL_LIMIT) {
-    for (const name of unused) {
-      steps.push({
-        key: `materials|${name}`,
-        area: 'materials',
-        action: { kind: 'delete-material', name },
-        count: 1,
-        headline: `Material “${truncate(name)}” is used by nothing — delete it?`,
-        examples: [{ from: name, to: '(deleted)' }],
-        yesLabel: 'Delete',
-      })
+  const unusedGroups = unused.length ? new Map([['unused', unused]]) : new Map<string, string[]>()
+  steps.push(...stepsForGroups(unusedGroups, (names, _key, single) => (single
+    ? {
+      key: `materials|${names[0]}`,
+      area: 'materials',
+      action: { kind: 'delete-material', name: names[0] },
+      count: 1,
+      headline: `Material “${truncate(names[0])}” is used by nothing — delete it?`,
+      examples: [{ from: names[0], to: '(deleted)' }],
+      yesLabel: 'Delete',
     }
-  } else if (unused.length > DETAIL_LIMIT) {
-    steps.push({
+    : {
       key: 'materials|all-unused',
       area: 'materials',
-      action: { kind: 'delete-materials', count: unused.length },
-      count: unused.length,
-      headline: `${unused.length} materials are used by nothing — delete them all?`,
-      examples: unused.slice(0, EXAMPLE_LIMIT).map((n) => ({ from: n, to: '(deleted)' })),
-      yesLabel: `Delete all ${unused.length}`,
-    })
-  }
+      action: { kind: 'delete-materials', count: names.length },
+      count: names.length,
+      headline: `${names.length} materials are used by nothing — delete them all?`,
+      examples: names.slice(0, EXAMPLE_LIMIT).map((n) => ({ from: n, to: '(deleted)' })),
+      yesLabel: `Delete all ${names.length}`,
+    })))
 
   return steps
 }

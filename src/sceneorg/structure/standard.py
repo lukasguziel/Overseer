@@ -7,6 +7,10 @@ from ..naming import casing as naming
 from ..naming import translations
 
 
+def english_tokens(name: str) -> set:
+    return {translations.to_english(t) for t in naming.tokenize(name)}
+
+
 @dataclass
 class GroupRule:
     name: str
@@ -23,8 +27,9 @@ class GroupRule:
     def matches(self, node: model.SceneNode) -> bool:
         if node.category in self.match_categories:
             return True
-        tokens = {translations.to_english(t) for t in naming.tokenize(node.name)}
-        return bool(tokens & self.match_keywords)
+        if not self.match_keywords:
+            return False
+        return bool(english_tokens(node.name) & self.match_keywords)
 
 
 @dataclass
@@ -100,7 +105,7 @@ class StructureStandard:
             return candidates[0]
         enclosing = self.enclosing_group_path(node)
         for r in candidates:
-            if r.parent is not None and r.parent == enclosing:
+            if r.parent is not None and self.path_complies(enclosing, r.parent):
                 return r
         for r in candidates:
             if r.parent is None:

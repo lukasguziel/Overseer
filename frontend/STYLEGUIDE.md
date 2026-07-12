@@ -179,6 +179,80 @@ does not stretch, so several fit next to each other.
 
 ---
 
+## Data grid — `.dg-*`
+
+The one data table of the app (textures on Materials, external files on Files).
+Rows are buttons: clicking one selects its owner in Cinema 4D.
+
+```jsx
+<div className="dg-table">
+  <div className="dg-tr dg-thead cols-files dg-actionable"> … </div>
+  <div className="dg-tr dg-click cols-files dg-actionable"> … </div>
+</div>
+```
+
+| Class | What it is |
+| --- | --- |
+| `.dg-table` | the column stack |
+| `.dg-tr` | one row: grid, padding, hairline — **no columns** |
+| `.dg-thead` | the header row's typography |
+| `.dg-click` | the row is a button (hover, no chrome) |
+| `.dg-cut` / `.dg-cell-file` / `.dg-cell-path` | cell helpers (ellipsis, icon+text) |
+
+**The columns are the only per-table part**: a `cols-*` modifier carries the
+`grid-template-columns` and nothing else — `.cols-tex` in `styles.css`,
+`.cols-files` in `tabs/files.css`. `.dg-actionable` is the variant whose rows
+carry a per-row decision slot (…/=/✕); it must sit on **every** row of that
+table *and on the header*, or the columns drift apart. Never fork the block
+under a new prefix (that is how `.fa-*` became a second copy of `.tex-*`).
+
+---
+
+## Pill — `.pill`
+
+One word about the thing next to it: `missing`, `unused`, `cached`, a count.
+The variant carries the meaning, per the colour table below.
+
+```jsx
+<span className="pill missing">missing</span>
+<span className="pill">{type.count}</span>
+```
+
+Variants: `.unused`, `.missing`, `.fixable`, `.resized` (shared) plus per-tab
+ones on the same base (`.sim-ok`, `.sim-warn`, `.sim-dim`, `.sim-kind` in
+`tabs/sims.css`). Not to be confused with `.badge`, the amber todo count on a
+tab.
+
+---
+
+## Filter chip — `.chip-btn`
+
+A toggle that narrows the list next to it (resolution, kind, channel, angle
+preset). `.on` = active, `<em>` = the count.
+
+```jsx
+<div className="chip-row side">
+  <button className={'chip-btn' + (on ? ' on' : '')}>4K <em>12</em></button>
+</div>
+```
+
+| Class | Where |
+| --- | --- |
+| `.chip-row` | the row of chips (content width) |
+| `.chip-row.side` | the same row inside a sidebar (wraps, tighter) |
+| `.chip-btn.tf-warn` | count tinted amber while the filter is off |
+
+---
+
+## Select in C4D — `button.mini`
+
+Every "select the matching objects in Cinema 4D" action is the same button —
+`button.mini`, nothing else. It used to be four different looks (a one-off
+`.tags-select-btn`, `.mini`, a `.ghost` with a font-size override); one verb
+gets one look.
+
+---
+
 ## Checkbox
 
 Every checkbox in the app is the same drawn box — 14px, accent fill, dark tick.

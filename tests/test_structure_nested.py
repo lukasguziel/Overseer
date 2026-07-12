@@ -1,5 +1,3 @@
-"""Nested group structures (paths) + config v2 migration."""
-
 from conftest import node
 
 from sceneorg.config import load_config, migrate_config, structure_to_list
@@ -35,8 +33,6 @@ def test_target_group_returns_path():
 
 
 def test_nested_compliance_positive():
-    """Chair in Room > Furniture is compliant -- the flat model's 0.0
-    false negative must not reappear."""
     # setup
     std = nested_standard()
     room = node("Room", model.CAT_NULL, children=[
@@ -49,14 +45,13 @@ def test_nested_compliance_positive():
     # do it
     report = std.evaluate(tree)
 
-    # postcondition
+    # postcondition: the flat model's 0.0 false negative must not reappear
     findings = {f.guid: f for f in report.findings}
     assert findings[1].misplaced is False
     assert findings[1].current_group == "Room/Furniture"
 
 
 def test_deeper_nesting_still_complies():
-    """An object below the expected group (extra custom null) still counts."""
     # setup
     std = nested_standard()
     tree = model.SceneTree(roots=[
@@ -70,12 +65,11 @@ def test_deeper_nesting_still_complies():
     # do it
     report = std.evaluate(tree)
 
-    # postcondition
+    # postcondition: an extra custom null below the expected group still counts
     assert report.findings[0].misplaced is False
 
 
 def test_wrong_level_is_misplaced():
-    """Furniture object directly in Room (not in Room/Furniture) is loose."""
     # setup
     std = nested_standard()
     tree = model.SceneTree(roots=[

@@ -9,7 +9,7 @@ description = "Cinema 4D Plugin: Szenen-Analyse, Naming-Vereinheitlichung und St
 requires-python = ">=3.9"
 
 [tool.pytest.ini_options]
-# Reines Domaenen-Package liegt unter src/ und wird ohne c4d getestet.
+# The pure domain package lives under src/ and is tested without c4d.
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
@@ -18,9 +18,14 @@ addopts = "-q"
 line-length = 100
 target-version = "py311"
 src = ["src"]
+# The plugin loader is Python but carries C4D's .pyp extension.
+extend-include = ["*.pyp"]
+# extend-include makes ruff descend into gitignored trees, which would drag the
+# vendored Pillow copy into our lint gate. It is third-party source — not ours to fix.
+extend-exclude = ["src/vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-# E501: Zeilenlaenge unkritisch. UP031: %-Formatierung ist im c4d-Kontext ok.
-# UP042: StrEnum gibt es erst ab 3.11, wir unterstuetzen aber auch 3.9.
+# E501: line length is uncritical. UP031: %-formatting is fine in the c4d context.
+# UP042: StrEnum only exists from 3.11 on, but 3.9 stays supported.
 ignore = ["E501", "UP031", "UP042"]

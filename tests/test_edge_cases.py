@@ -1,5 +1,3 @@
-"""Targeted tests for previously uncovered branches (coverage gaps)."""
-
 import pytest
 from conftest import node
 

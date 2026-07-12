@@ -49,7 +49,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
             </Tip>
           </label>
           <p className="hint-sm">Protects generator children (Cloner, Boole, Sweep …) from being moved.</p>
-          {!tidy && <p className="wb-note" style={{ padding: '8px 0' }}>⚠ Aggressive mode can pull objects out of existing groups and flatten spatial nesting.</p>}
+          {!tidy && <p className="info-bar warn">⚠ Aggressive mode can pull objects out of existing groups and flatten spatial nesting.</p>}
 
           <h3>Target groups</h3>
           {rules?.groups?.length
