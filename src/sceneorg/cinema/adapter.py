@@ -1248,12 +1248,26 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"changed": changed, "skipped": skipped, "mode": mode}
 
+    def _has_alpha(self, path: str) -> bool:
+        try:
+            bmp = c4d.bitmaps.BaseBitmap()
+            if bmp.InitWith(path)[0] != c4d.IMAGERESULT_OK:
+                return False
+            return bmp.GetInternalChannelCount() > 0
+        except Exception:
+            return False
+
     def _host_resize(self, src: str, dst: str, percent: int) -> bool:
         """Downscale an image with Cinema 4D's own bitmap engine.
 
-        This is why the plugin needs no Pillow: C4D already reads and writes
-        every texture format it can load. Pillow stays as a fallback for the
-        formats C4D does not handle.
+        This is why the plugin needs no Pillow: C4D reads and writes every
+        texture format it can load, in-process, in C++.
+
+        What it does NOT do is carry an alpha channel through the scaler
+        (ScaleIt only touches the colour channels), so a map WITH alpha is
+        refused here and left to Pillow — silently dropping a mask would be
+        worse than not resizing at all. Bit depth is preserved (GetBt), so a
+        32-bit EXR does not come back as 8-bit.
         """
         import os
 
@@ -1262,14 +1276,28 @@ class SceneAdapter:
             bmp = c4d.bitmaps.BaseBitmap()
             if bmp.InitWith(src)[0] != c4d.IMAGERESULT_OK:
                 return False
+            # An alpha channel would not survive the scaler — refuse the file.
+            try:
+                if bmp.GetInternalChannelCount() > 0:
+                    return False
+            except Exception:
+                pass
             w, h = bmp.GetSize()
             nw, nh = texmod.scaled_dims(w, h, percent)
             small = c4d.bitmaps.BaseBitmap()
-            if small.Init(nw, nh, 24) != c4d.IMAGERESULT_OK:
+            # Same bits-per-pixel as the source: never quietly reduce depth.
+            if small.Init(nw, nh, bmp.GetBt()) != c4d.IMAGERESULT_OK:
                 return False
-            # ScaleIt(dst, intensity, sample=True, nprop=False): sampling on
-            # gives a filtered downscale instead of dropping pixels.
-            bmp.ScaleIt(small, 256, True, False)
+            # Bicubic where available (visibly better on downscales than the
+            # sampled box filter), ScaleIt as the fallback.
+            scaled = False
+            try:
+                bmp.ScaleBicubic(small, 0, 0, w - 1, h - 1, 0, 0, nw - 1, nh - 1)
+                scaled = True
+            except Exception:
+                scaled = False
+            if not scaled:
+                bmp.ScaleIt(small, 256, True, False)
             fmt = _SAVE_FILTERS.get(os.path.splitext(dst)[1].lower())
             if fmt is None:
                 return False
@@ -1336,8 +1364,13 @@ class SceneAdapter:
                     or texmod.resize_file(resolved, dst, percent, has_pillow)
                 done_copies[resolved] = wrote
             if not wrote:
+                # Name the real reason: an alpha channel is the one case the
+                # host scaler refuses, and it is fixable (install Pillow).
+                note = "has an alpha channel — needs Pillow to resize" \
+                    if self._has_alpha(resolved) and not has_pillow \
+                    else "could not write the resized copy"
                 results.append({"file": base, "status": "skipped",
-                                "note": "could not write the resized copy"})
+                                "note": note})
                 skipped += 1
                 continue
 
