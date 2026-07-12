@@ -11,6 +11,9 @@ scene_report.json
 frontend/node_modules/
 frontend/dist/
 
+# Local packaging output (release zips are built by the release workflow)
+dist/
+
 # Vite build output (built from frontend/, distributed by deploy.ps1)
 src/web/
 
