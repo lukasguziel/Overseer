@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import SuggestionRow from '../components/SuggestionRow'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
+import BarList from '../components/BarList'
 import Tip from '../components/Tip'
 import './generators.css'
 
@@ -138,6 +139,98 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
   )
 }
 
+interface PerfEntry {
+  guid: number; name: string; type: string
+  ms: number; share: number; level: 'heavy' | 'mid' | 'light'; polygons: number
+}
+interface PerfScan {
+  entries: PerfEntry[]
+  baseline_ms: number
+  summary: {
+    total: number; measured: number; total_ms: number; heavy: number
+    slowest: string; slowest_ms: number; slowest_share: number
+  }
+}
+
+const ms1 = (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} ms`
+const LEVEL_COLOR: Record<string, string> = {
+  heavy: 'var(--err)', mid: 'var(--warn)', light: 'var(--dim2)',
+}
+
+// Rebuild cost per generator/deformer: what actually stalls the viewport.
+// Measured on demand — it rebuilds every generator once, which takes real
+// seconds on a big scene, so it must never run behind the user's back.
+function PerfCard() {
+  const [perf, setPerf] = useState<PerfScan | null>(null)
+  const [measuring, setMeasuring] = useState(false)
+  const [error, setError] = useState('')
+
+  const measure = () => {
+    setMeasuring(true)
+    setError('')
+    call<PerfScan>('perf_scan')
+      .then((r) => setPerf(r))
+      .catch((e) => setError(String(e.message || e)))
+      .finally(() => setMeasuring(false))
+  }
+
+  const s = perf?.summary
+  const rows = (perf?.entries || []).filter((e) => e.ms >= 0.5).slice(0, 15).map((e) => ({
+    label: e.name,
+    sub: `${e.type}${e.share > 0 ? ` · ${Math.round(e.share * 100)}% of the rebuild` : ''}`,
+    value: e.ms,
+    color: LEVEL_COLOR[e.level],
+    onClick: () => { call('perf_select', { guids: [e.guid] }).catch(() => {}) },
+  }))
+
+  return (
+    <section className="card">
+      <div className="card-head">
+        <Tip text="Each generator is rebuilt on its own while the clock runs — the time it takes is what it costs the viewport on every change. Nothing in the scene is modified.">
+          <h3>Viewport cost</h3>
+        </Tip>
+        <button className="ghost sm" disabled={measuring} onClick={measure}>
+          {measuring ? 'Measuring…' : perf ? 'Measure again' : 'Measure'}
+        </button>
+      </div>
+      <p className="hint-sm">
+        Which generator makes the viewport crawl? Each one is rebuilt by
+        itself and timed, slowest first — click a bar to select that object in
+        Cinema 4D. The scene is only rebuilt, never changed.
+      </p>
+      {error && <div className="error" style={{ marginTop: 10 }}>Measuring failed: {error}</div>}
+      {measuring && !perf && (
+        <div className="empty-note mid">Rebuilding every generator once — this takes a moment on a heavy scene.</div>
+      )}
+      {perf && s && (
+        <>
+          <div className="substats" style={{ margin: '12px 0' }}>
+            <span><b>{ms1(s.total_ms)}</b> to rebuild everything</span>
+            <span><b>{s.total}</b> generators &amp; deformers</span>
+            <span className={s.heavy ? 'warn' : ''}><b>{s.heavy}</b> heavy</span>
+          </div>
+          {s.slowest ? (
+            <p className="hint-sm">
+              <b>{s.slowest}</b> alone costs {ms1(s.slowest_ms)} —{' '}
+              {Math.round(s.slowest_share * 100)}% of every viewport update.
+              Cache it, drop its editor subdivisions, or hide it while you work.
+            </p>
+          ) : s.measured > 0 ? (
+            <p className="hint-sm">No single bottleneck — the cost is spread across the generators below.</p>
+          ) : (
+            <p className="hint-sm">Everything rebuilds instantly — no generator is holding the viewport back 🎉</p>
+          )}
+          {rows.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <BarList rows={rows} format={ms1} empty="Nothing measurable." />
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 export default function GeneratorsTab({ org }: { org: Organizer }) {
   const { data, loading, error, reload } = useAudit<GenScan>('gens_scan', true)
   const [busy, setBusy] = useState(false)
@@ -160,13 +253,20 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
     return <EmptyState onAction={org.doAnalyze} busy={org.busy} />
   }
   if (error) {
-    return <div className="fl-empty">Generators scan failed: {error}</div>
+    return <div className="empty-note">Generators scan failed: {error}</div>
   }
   if (!data) {
-    return <div className="fl-empty">Scanning generators…</div>
+    return <div className="empty-note">Scanning generators…</div>
   }
+  // No AUDITED types (SDS/Cloner/…) still leaves plenty to measure: the cost
+  // audit covers every generator and deformer in the scene.
   if (data.types.length === 0) {
-    return <div className="fl-empty">No audited generators in this scene — no Subdivision Surface, Cloner, Extrude, Instance or Symmetry objects found.</div>
+    return (
+      <div className="stacked">
+        <div className="empty-note">No audited generators in this scene — no Subdivision Surface, Cloner, Extrude, Instance or Symmetry objects found.</div>
+        <PerfCard />
+      </div>
+    )
   }
 
   const runApply = async () => {
@@ -216,6 +316,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
       </aside>
 
       <div className="stacked" style={{ minWidth: 0 }}>
+      <PerfCard />
       {data.types.map((type) => {
         const mixed = type.params.filter((p) => !p.uniform)
         const uniform = type.params.filter((p) => p.uniform)
