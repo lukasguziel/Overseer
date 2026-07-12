@@ -83,6 +83,8 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Naming sidebar: number-pad picker — small square buttons (1–4). Same selected
    look as a filter chip (`.chip-btn.on`): lifted out of the panel, accent as an
    OUTLINE, never as a fill. Clicking the active one again deselects (pad: none). */
+.pad-field { display: block; margin-bottom: 12px; color: var(--dim); font-size: 12px; }
+.pad-field b { color: var(--text); font-weight: 600; }
 .pad-btns { display: flex; gap: 4px; margin: 4px 0 10px; }
 .pad-btn { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 6px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
@@ -511,6 +513,17 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
   box-shadow: 0 6px 24px rgba(0,0,0,.35); animation: techIn 90ms var(--ease) both; }
 .statusbar.busy { color: var(--text); }
 .statusbar.err { color: var(--err); border-color: var(--err); }
+
+/* Bad news stays: no auto-hide, no truncation. A failure the artist cannot
+   finish reading is a failure they cannot act on — it wraps, it can be
+   selected/copied, and it goes away when THEY say so. */
+.statusbar.sticky { display: flex; align-items: flex-start; gap: 10px;
+  max-width: 620px; white-space: normal; overflow: visible;
+  color: var(--text); border-color: var(--warn); user-select: text; }
+.statusbar.sticky .statusbar-text { line-height: 1.5; word-break: break-word; }
+.statusbar-close { flex: none; background: none; border: none; cursor: pointer;
+  color: var(--dim2); font-size: 12px; padding: 0 0 0 4px; }
+.statusbar-close:hover { color: var(--text); }
 
 /* Guided cleanup workflow (Overview): numbered steps with live todo badges */
 .flow { display: flex; gap: 8px; flex-wrap: wrap; }
