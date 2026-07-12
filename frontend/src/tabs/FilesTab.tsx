@@ -230,6 +230,10 @@ export default function FilesTab({ org }: { org: Organizer }) {
           </div>
 
           <div className="rule-group-head"><span>Actions</span></div>
+          <h4 className="side-action-title">Relative paths</h4>
+          {!data.doc_path && (
+            <p className="example warn">Project not saved — paths cannot be made relative yet.</p>
+          )}
           <button className="ghost" disabled={loading || !canFix}
             title={canFix
               ? `Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`
@@ -237,9 +241,6 @@ export default function FilesTab({ org }: { org: Organizer }) {
             onClick={() => setConfirm(true)}>
             Make relative ({reloc})
           </button>
-          {!data.doc_path && (
-            <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>
-          )}
           {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
         </aside>
 
