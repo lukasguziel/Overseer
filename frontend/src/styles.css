@@ -216,9 +216,13 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .scope-toggle button span { display: flex; flex-direction: column; line-height: 1.15; font-size: 12px; font-weight: 500; }
 .scope-toggle button small { color: var(--dim2); font-size: 10px; font-weight: 400; }
 .scope-toggle button.on small { color: var(--dim); }
-/* Plain icon refresh button (manual re-analyze; live under selection scope) */
+/* Plain icon refresh button (manual re-analyze; live under selection scope).
+   `align-self: stretch` instead of a fixed height: it then matches whatever the
+   two-line toggles next to it measure, so the row keeps a flush baseline even
+   if their content changes. */
 .refresh-btn { display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; padding: 0; background: var(--panel2); border: 1px solid var(--line);
+  align-self: stretch; width: 34px; min-height: 34px;
+  padding: 0; background: var(--panel2); border: 1px solid var(--line);
   border-radius: 9px; color: var(--dim); cursor: pointer; }
 .refresh-btn:hover:not(:disabled) { color: var(--text); }
 .refresh-btn svg { flex: none; }
@@ -658,9 +662,12 @@ table.diff td { word-break: break-word; }
 /* Texture tables (Materials tab): fixed grid so the columns line up.
    Rows are buttons — clicking selects the material & frames its object. */
 .tex-table { display: flex; flex-direction: column; }
+/* Last column is the per-row decision slot: every row reserves it, so the
+   buttons line up in a column instead of jittering with the content. */
 .tex-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
-  grid-template-columns: 16px minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 4fr);
+  grid-template-columns: minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 3fr) 104px;
   border-bottom: 1px solid var(--line2); font-size: 12px; }
+.tex-act { font-size: 10px; padding: 1px 5px; white-space: nowrap; }
 .tex-tr:last-child { border-bottom: none; }
 .tex-tr > span { min-width: 0; }
 .tex-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
