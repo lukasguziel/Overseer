@@ -371,6 +371,15 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .area-score .ring-text { font-size: 16px; }
 
 /* Workbench header: secondary accept-all next to the primary apply */
+/* The batch actions that live in a list header (Files/Materials): the ones a
+   row cannot decide because they need a folder, not a map. */
+.wb-head-actions { margin-left: auto; display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+/* Destination-folder field in the collect dialog. */
+.collect-dir { display: flex; flex-direction: column; gap: 5px; margin: 0 0 6px;
+  font-size: 12px; color: var(--dim); }
+.collect-preview { margin: 0 0 16px; }
+
 .wb-accept-all { padding: 5px 12px; font-size: 12px; color: var(--dim); white-space: nowrap;
   display: inline-flex; align-items: center; gap: 5px; }
 .wb-accept-all:hover:not(:disabled) { color: var(--text); }
@@ -686,10 +695,15 @@ table.diff td { word-break: break-word; }
 .dg-tr.cols-tex {
   grid-template-columns: minmax(0, 7fr) 84px 46px 104px 74px minmax(0, 3fr) 78px; }
 
-/* Per-row decision buttons: icon-sized, so the slot stays narrow. */
+/* Per-row action buttons. Two shapes, both 24px tall so they line up:
+   `.tex-act` is icon-sized (square), `.tex-chip` carries a short word and
+   grows with it — a fixed square would clip the text. */
 .tex-act { width: 24px; height: 24px; padding: 0; display: inline-flex;
-  align-items: center; justify-content: center; font-size: 10px; }
+  align-items: center; justify-content: center; }
 .tex-act svg { width: 13px; height: 13px; }
+.tex-chip { height: 24px; width: auto; padding: 0 7px; font-size: 10px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  display: inline-flex; align-items: center; }
 .tex-spec { display: block; font-size: 9px; color: var(--dim2); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; letter-spacing: .02em; margin-top: 1px; }
 /* Per-row estimated GPU cost under the disk size — the number that actually

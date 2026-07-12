@@ -10,6 +10,8 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
 import ShrinkModal from '../components/ShrinkModal'
+import CollectModal from '../components/CollectModal'
+import ActionButton from '../components/ActionButton'
 import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
@@ -79,15 +81,12 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
   const missingActions = e.missing && !e.accepted && (onPick || onClear || onAccept)
   // Present maps: shrink (needs real pixels on disk) and flip the path form.
   const canResize = !e.missing && e.exists && e.width > 0 && onResize
-  // Only offer the flip that actually leads somewhere:
-  //   absolute -> relative only when the file lives UNDER the project folder
-  //     (`relocatable`); an absolute path to a shared library elsewhere has no
-  //     relative form, so the button would promise something it cannot do.
-  //   relative -> absolute always works (the resolved path is the full one).
-  const repathTo: 'relative' | 'absolute' | null = e.missing || !e.exists ? null
-    : e.absolute ? (e.relocatable ? 'relative' : null)
-      : 'absolute'
-  const canRepath = repathTo !== null && !!onRepath
+  // The path action exists for ONE case: an absolute path that could just as
+  // well be project-relative (`relocatable` = the file lives under the project
+  // folder). A path that is already relative has nothing to offer — and an
+  // absolute path to a library elsewhere has no relative form at all, so the
+  // button would promise what it cannot do. Both get no button.
+  const canRepath = !e.missing && e.exists && e.absolute && e.relocatable && !!onRepath
   const actionable = missingActions || canResize || canRepath
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
@@ -115,14 +114,21 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
         {!e.used && <span className="pill unused">unused</span>}
         {resized && <span className="pill resized">resized</span>}
       </span>
+      {/* The badge states WHAT THE PATH IS — never what it could become. The
+          old "→ relative" on a relocatable path read as "this is relative"
+          while the filter counted it (correctly) as absolute. The offer to
+          rewrite it lives in the row's "→ rel" button, where it belongs. */}
       <span className="dg-cell-path dim">
         {e.missing
           ? (e.accepted
               ? <span className="pill" title="Accepted as missing — no longer counted as a problem">accepted</span>
               : <span className="pill missing">missing</span>)
-          : e.relocatable
-            ? <span className="pill fixable">→ relative</span>
-            : <span className="pill">{e.absolute ? 'absolute' : 'relative'}</span>}
+          : e.absolute
+            ? <span className={'pill' + (e.relocatable ? ' fixable' : '')}
+                title={e.relocatable
+                  ? `Absolute, but the file lives under the project folder — “→ rel” rewrites it to ${e.rel_target || 'a project-relative path'}`
+                  : 'Absolute path to a file outside the project folder'}>absolute</span>
+            : <span className="pill" title="Relative to the project folder">relative</span>}
       </span>
       <span className="num">
         {e.res_tag ? <span className={'pill tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
@@ -166,12 +172,10 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
               onClick={() => onAccept(e)}>=</button>
           )}
           {canRepath && (
-            <button className="rn-keep tex-act" disabled={busy}
-              title={repathTo === 'relative'
-                ? 'Rewrite this one path relative to the project folder (undoable)'
-                : 'Rewrite this one path to its full absolute form (undoable)'}
-              onClick={() => onRepath!(e, repathTo!)}>
-              {repathTo === 'relative' ? '→ rel' : '→ abs'}
+            <button className="rn-keep tex-chip" disabled={busy}
+              title={`Rewrite this path relative to the project folder: ${e.rel_target || 'project-relative'} (undoable)`}
+              onClick={() => onRepath!(e, 'relative')}>
+              → rel
             </button>
           )}
           {canResize && (
@@ -217,7 +221,7 @@ function TexTable({ rows, previews, resized, busy, onFocus, onPick, onClear, onA
         <Tip text="Actual pixel dimensions of the file."><span className="num">Pixels</span></Tip>
         <Tip text="File size on disk."><span className="num">Size</span></Tip>
         <Tip text="Material using this texture."><span>Material</span></Tip>
-        <Tip text="What you can decide for this map: flip its path form, shrink it, or fix a missing reference."><span>Decide</span></Tip>
+        <Tip text="What you can do with this map: shrink it, make its path relative, or fix a missing reference."><span>Actions</span></Tip>
       </div>
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
@@ -501,14 +505,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
         <SectionIntro title="Textures"
           desc="Every map the scene references — real pixel size, disk size and resolution per texture. Spot oversized maps, fix absolute or missing paths, and shrink maps in place." />
         <div className="workbench">
-          {/* Left column: two stacked panels — narrowing the list (Filters)
-              and acting on it (Actions) are separate jobs. */}
-          <div className="wb-col">
           <aside className="wb-side">
             <h3>Filters</h3>
             <p className="hint-sm">
-              Narrow the list — every action below applies to what is left
-              (or to the rows you tick). Heaviest map first.
+              Narrow the list. Every map is then decided on its own row — the
+              buttons on the right. Heaviest map first.
             </p>
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{tex.total}</b> maps</span>
@@ -578,100 +579,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
           </aside>
 
-          <aside className="wb-side">
-            <h3>Actions</h3>
-            <p className="hint-sm">
-              Each block says what it does before you run it. Every action is a
-              single undo step. Shrinking a map is decided per row (the
-              <b> shrink</b> icon on the right of the list).
-            </p>
-
-            {missingCount > 0 && (
-              <>
-                <div className="section-head sm"><span>Missing files</span></div>
-
-                <div className="side-action">
-                  <p className="side-action-title">Find the files again</p>
-                  <p className="hint-sm">
-                    Pick a folder — it is searched top to bottom for the missing
-                    file names, and every match is relinked.
-                  </p>
-                  <button className="ghost sm" disabled={busy}
-                    title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
-                    onClick={() => {
-                      call('pick_folder', { title: 'Folder to search for the missing textures' })
-                        .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
-                        .catch(() => {})
-                    }}>
-                    Relink {missingCount} missing
-                  </button>
-                </div>
-
-                <div className="side-action">
-                  <p className="side-action-title">Drop the dead links</p>
-                  <p className="hint-sm">
-                    Blanks the path on every reference whose file is gone. The
-                    materials stay — only the broken links go.
-                  </p>
-                  <button className="ghost sm" disabled={busy}
-                    title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
-                    onClick={() => setClearConfirm(true)}>
-                    Clear {missingCount} missing
-                  </button>
-                </div>
-
-                <div className="side-action">
-                  <p className="side-action-title">Live with them</p>
-                  <p className="hint-sm">
-                    Acknowledges the missing maps: nothing changes in the scene,
-                    they just stop counting as problems.
-                  </p>
-                  <button className="ghost sm"
-                    title="Accept every missing map as-is — they stop counting as problems (restore below)"
-                    onClick={() => {
-                      const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
-                      setTexKeeps([...texAccepted, ...add])
-                    }}>
-                    Accept {missingCount} missing
-                  </button>
-                </div>
-              </>
-            )}
-
-            <div className="section-head sm"><span>Paths</span></div>
-            <p className="hint-sm">
-              Relative or absolute is a pipeline choice, not a defect — neither
-              counts against your score. Flip a single path with the
-              <b> → rel</b> / <b>→ abs</b> button on its row.
-            </p>
-
-            <div className="side-action">
-              <p className="side-action-title">Copy into the project</p>
-              <p className="hint-sm">
-                Maps that live outside the project folder are copied into the
-                subfolder below and relinked relatively — the one action that
-                needs a destination, so it stays here.
-              </p>
-              <label>
-                <input className="nl-input" value={collectDir}
-                  onChange={(e) => setCollectDir(e.target.value)}
-                  title="Project subfolder out-of-project textures are copied into" />
-              </label>
-              <button className="ghost sm" disabled={busy || !collectable}
-                title={collectable
-                  ? `Copy ${collectable} texture(s) that live outside the project into “${collectDir || 'tex'}/” and relink relatively`
-                  : 'No existing textures outside the project folder'}
-                onClick={() => setCollectConfirm(true)}>
-                Copy &amp; relink ({collectable})
-              </button>
-            </div>
-
-            {!tex.doc_path && (
-              <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
-            )}
-          </aside>
-          </div>
-
           <div className="wb-preview">
             <div className="wb-preview-head">
               <h3>Paths</h3>
@@ -679,13 +586,51 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
               </span>
-              {/* Batch actions on the missing maps live in the Actions panel. */}
+              {/* The two actions that CANNOT be a row decision: they need a
+                  folder, not a map. Everything else is decided per row. */}
+              <span className="wb-head-actions">
+                {collectable > 0 && (
+                  <ActionButton tone="go" disabled={busy}
+                    title={`Copy the ${collectable} texture(s) living outside the project into it and relink relatively`}
+                    onClick={() => setCollectConfirm(true)}>
+                    Copy &amp; relink {collectable}
+                  </ActionButton>
+                )}
+                {missingCount > 0 && (
+                  <ActionButton tone="go" disabled={busy}
+                    title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
+                    onClick={() => {
+                      call('pick_folder', { title: 'Folder to search for the missing textures' })
+                        .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
+                        .catch(() => {})
+                    }}>
+                    Relink {missingCount} missing
+                  </ActionButton>
+                )}
+                {missingCount > 0 && (
+                  <ActionButton tone="danger" disabled={busy}
+                    title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
+                    onClick={() => setClearConfirm(true)}>
+                    Clear {missingCount} missing
+                  </ActionButton>
+                )}
+                {missingCount > 0 && (
+                  <ActionButton disabled={busy}
+                    title="Accept every missing map as-is — they stop counting as problems (restore below)"
+                    onClick={() => {
+                      const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
+                      setTexKeeps([...texAccepted, ...add])
+                    }}>
+                    Accept {missingCount} missing
+                  </ActionButton>
+                )}
+              </span>
             </div>
             <p className="hint-sm wb-hint">
               Click a row to select its material in Cinema 4D. Decide per map on
-              the right: <b>→ rel</b>/<b>→ abs</b> flips its path form, the
-              shrink icon writes a smaller copy (you pick the size);
-              missing maps offer … pick a replacement · ✕ clear · = accept.
+              the right: the shrink icon writes a smaller copy (you pick the
+              size), <b>→ rel</b> makes an in-project path relative; missing maps
+              offer … pick a replacement · ✕ clear · = accept.
             </p>
             <div className="wb-scroll">
               {pathPager.total
@@ -750,13 +695,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           onCancel={() => setShrink(null)} />
       )}
       {collectConfirm && (
-        <ConfirmModal
-          title="Copy textures into the project"
-          message={`Copy ${collectable} texture file${collectable === 1 ? '' : 's'} that live outside the project into “${(collectDir || 'tex').trim()}/” and relink the shaders with relative paths. The relink is one undo step; the copied files themselves stay on disk (originals are not touched). Continue?`}
-          confirmLabel={`✓ Copy & relink ${collectable}`}
-          onConfirm={() => { setCollectConfirm(false); org.doCollectTextures((collectDir || 'tex').trim()) }}
-          onCancel={() => setCollectConfirm(false)}
-        />
+        <CollectModal count={collectable} initialDir={collectDir} busy={busy}
+          onConfirm={(dir) => { setCollectDir(dir); setCollectConfirm(false); org.doCollectTextures(dir) }}
+          onCancel={() => setCollectConfirm(false)} />
       )}
     </div>
   )
