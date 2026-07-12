@@ -232,7 +232,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           <div className="rule-group-head"><span>Actions</span></div>
           <h4 className="side-action-title">Relative paths</h4>
           {!data.doc_path && (
-            <p className="example warn">Project not saved — paths cannot be made relative yet.</p>
+            <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
           )}
           <button className="ghost" disabled={loading || !canFix}
             title={canFix
