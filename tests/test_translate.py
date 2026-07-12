@@ -1,11 +1,26 @@
 from sceneorg.core import model
-from sceneorg.naming import translate
-from sceneorg.naming.translations import add_translations
+from sceneorg.naming import translate, translations
+
+# Scene vocabulary the product default may not know yet. add_translations writes
+# into process-global dicts, so the snapshot is restored for the other modules.
+_EXTRA = {"arbeitsplatte": "countertop", "lehne": "backrest"}
+_SNAPSHOT: dict = {}
 
 
 def setup_module(_):
-    # Scene vocabulary the product default may not know yet.
-    add_translations({"arbeitsplatte": "countertop", "lehne": "backrest"})
+    _SNAPSHOT["de_to_en"] = dict(translations.DE_TO_EN)
+    _SNAPSHOT["en_to_de"] = dict(translations.EN_TO_DE)
+    _SNAPSHOT["de_words"] = set(translations.DE_WORDS)
+    _SNAPSHOT["en_words"] = set(translations.EN_WORDS)
+    translations.add_translations(_EXTRA)
+
+
+def teardown_module(_):
+    for name, key in (("DE_TO_EN", "de_to_en"), ("EN_TO_DE", "en_to_de"),
+                      ("DE_WORDS", "de_words"), ("EN_WORDS", "en_words")):
+        container = getattr(translations, name)
+        container.clear()
+        container.update(_SNAPSHOT[key])
 
 
 def test_translate_preserves_upper_snake():

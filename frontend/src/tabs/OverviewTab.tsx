@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
-import { computeHygiene } from '../lib/hygiene'
+import { computeHygiene, CASING_COMPAT } from '../lib/hygiene'
 import { catColor, resTierColor, RES_TIERS } from '../lib/colors'
 import { humanNum, humanBytes } from '../lib/format'
 import Tile, { type Delta } from '../components/Tile'
@@ -14,6 +14,16 @@ import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 import { IconExpand } from '../components/icons'
+
+// ONE resolution taxonomy for the whole page: the texture map, its legend and
+// the resolution-mix table all bucket by lib/colors' RES_TIERS (ordered
+// largest-first), so a 6K map cannot be a tier of its own up here and a "4K"
+// down there.
+const resTierOf = (longestPx: number) =>
+  RES_TIERS.find((t) => longestPx >= t.min) ?? RES_TIERS[RES_TIERS.length - 1]
+
+// Mip chain adds ~1/3 on top of the base level (mirrors textures.MIP_FACTOR).
+const MIP_FACTOR = 4 / 3
 
 // Color legend for a map — only ever lists the swatches actually present.
 function MapLegend({ items }: { items: { label: string; color: string }[] }) {
@@ -64,16 +74,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   // prefetched while the Overview is open.
   const filesScan = useAuditData<{ summary?: { total_bytes?: number } }>('files_scan')
 
-  // Casing distribution for display: detection classes that are COMPATIBLE
-  // with the chosen convention fold into it — a single-word ALL-CAPS name
-  // cannot be anything but "UPPER", yet it fully matches UPPER_SNAKE.
-  const COMPAT: Record<string, string[]> = {
-    UPPER_SNAKE: ['UPPER'],
-    lower_snake: ['lower'],
-    PascalCase: ['Capitalized'],
-    camelCase: ['lower'],
-    kebab: ['lower'],
-  }
   // Language distribution: prefer the translate plan's detection (the same
   // engine + numbers the Translate tab shows — preloaded on the Overview);
   // the offline dictionary heuristic is only the fallback before it loads.
@@ -90,18 +90,26 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   // the heaviest maps.
   const texBudget = React.useMemo(() => {
     const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
-    const withPx = entries.filter((e) => e.width > 0)
+    // Per physical FILE, not per reference: one map shared across materials is
+    // one map — otherwise it fills several "Heaviest maps" rows and its memory
+    // is summed once per material.
+    const seen = new Set<string>()
+    const withPx = entries.filter((e) => {
+      if (e.width <= 0) return false
+      const id = e.resolved || e.path
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
     const tiers: Record<string, number> = {}
     let clientMem = 0
     for (const e of withPx) {
-      const t = Math.max(e.width, e.height) >= 8192 ? '8K'
-        : Math.max(e.width, e.height) >= 4096 ? '4K'
-          : Math.max(e.width, e.height) >= 2048 ? '2K' : '< 2K'
+      const t = resTierOf(Math.max(e.width, e.height)).label
       tiers[t] = (tiers[t] || 0) + 1
-      clientMem += e.width * e.height * 4
+      clientMem += Math.round(e.width * e.height * 4 * MIP_FACTOR)
     }
-    // Prefer the server aggregate (per physical file, counted once, incl. the
-    // mip chain); the per-row client sum is the fallback before it arrives.
+    // Prefer the server aggregate (real channels/bit depth per file); the
+    // client sum assumes 8-bit RGBA and is only the fallback before it lands.
     const mem = report?.textures?.total_vram ?? clientMem
     const top = [...withPx].sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3)
     return { tiers, mem, top, count: withPx.length }
@@ -136,7 +144,10 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     out.sort((a, b) => b.value - a.value)
     const tiers = RES_TIERS.filter((t) => usedTiers.has(t.color))
     return { data: out.slice(0, 40), full: out.slice(0, 150), tiers }
-  }, [report, org])
+    // `org` itself is a fresh object every render (1 s dirty poll) — depending
+    // on it would rebuild the whole treemap every tick; doFocusMaterial is a
+    // stable callback.
+  }, [report, org.doFocusMaterial])
 
   // Category legend for the geometry map — only the categories present among
   // objects that carry polygons (same order as the fixed category palette).
@@ -145,19 +156,22 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     const present = new Set((report?.nodes || []).filter((n) => n.polygons > 0).map((n) => n.category))
     return order.filter((c) => present.has(c as never))
       .map((c) => ({ label: c, color: catColor(c) }))
-  }, [report, org])
+  }, [report])
 
+  // Casing distribution for display: detection classes that are COMPATIBLE
+  // with the chosen convention fold into it — a single-word ALL-CAPS name
+  // cannot be anything but "UPPER", yet it fully matches UPPER_SNAKE. Same
+  // table the naming score is graded against.
   const displayCasing = React.useMemo(() => {
     const raw = report?.casing || {}
     const conv = org.casing
-    const fold = new Set(COMPAT[conv] || [])
+    const fold = new Set(CASING_COMPAT[conv] || [])
     const out: Record<string, number> = {}
     for (const [k, v] of Object.entries(raw)) {
       const key = k === conv || fold.has(k) ? conv || k : k
       out[key] = (out[key] || 0) + (v as number)
     }
     return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, org.casing])
 
   if (!report || compliance == null) {
@@ -383,19 +397,19 @@ export default function OverviewTab({ org }: { org: Organizer }) {
                   </td>
                 </tr>
                 <tr><td>Resolution mix</td><td>
-                  {['8K', '4K', '2K', '< 2K'].filter((t) => texBudget.tiers[t])
+                  {RES_TIERS.map((t) => t.label).filter((t) => texBudget.tiers[t])
                     .map((t) => `${texBudget.tiers[t]}× ${t}`).join(' · ') || '—'}
                 </td></tr>
               </tbody></table>
               <div className="chipgroup-label" style={{ marginTop: 10 }}>Heaviest maps</div>
               <div className="rename-list">
                 {texBudget.top.map((e, i) => (
-                  <button key={i} className="fl-row fl-click tb-row"
+                  <button key={i} className="fl-row tb-row"
                     title={`${e.path}\nClick to select material “${e.material}”`}
                     onClick={() => org.doFocusMaterial(e.material)}>
                     <span className="fl-name">{e.file}</span>
                     <span className="dim">{e.width}×{e.height}</span>
-                    <span className="dim">{humanBytes(e.width * e.height * 4)}</span>
+                    <span className="dim">{humanBytes(Math.round(e.width * e.height * 4 * MIP_FACTOR))}</span>
                   </button>
                 ))}
               </div>

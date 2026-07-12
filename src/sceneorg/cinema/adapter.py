@@ -1201,7 +1201,7 @@ class SceneAdapter:
         c4d.EventAdd()
         return {"changed": changed, "skipped": skipped}
 
-    def _owners_for_path(self, raw: str, material: str | None = None) -> list:
+    def _owner_index(self) -> dict:
         filled: list = []
         try:
             flags = getattr(c4d, "ASSETDATA_FLAG_TEXTURESONLY",
@@ -1209,21 +1209,30 @@ class SceneAdapter:
             c4d.documents.GetAllAssetsNew(self.doc, False, "", flags, filled)
         except Exception:
             filled = []
-        owners: list = []
+        index: dict = {}
         seen: set = set()
         for a in filled:
             if not isinstance(a, dict):
                 continue
             owner = a.get("owner")
-            if owner is None or str(a.get("filename") or "") != raw:
+            raw = str(a.get("filename") or "")
+            if owner is None or not raw:
                 continue
-            if material and self._owner_material_name(owner) != material:
+            key = (raw, id(owner))
+            if key in seen:
                 continue
-            if id(owner) in seen:
-                continue
-            seen.add(id(owner))
-            owners.append(owner)
-        return owners
+            seen.add(key)
+            index.setdefault(raw, []).append(owner)
+        return index
+
+    def _owners_for_path(self, raw: str, material: str | None = None,
+                         index: dict | None = None) -> list:
+        owners = (self._owner_index() if index is None
+                  else index).get(raw, [])
+        if not material:
+            return list(owners)
+        return [o for o in owners
+                if self._owner_material_name(o) == material]
 
     def _repath_targets(self, raws, mode: str) -> list:
         import os
@@ -1265,10 +1274,11 @@ class SceneAdapter:
             return {"changed": 0, "skipped": 0}
 
         changed = skipped = 0
+        index = self._owner_index()
         self.doc.StartUndo()
         for raw, new_path in targets:
             wrote = False
-            for owner in self._owners_for_path(raw, material):
+            for owner in self._owners_for_path(raw, material, index):
                 if self._write_path_refs(owner, raw, new_path):
                     wrote = True
             if wrote:
@@ -1360,6 +1370,7 @@ class SceneAdapter:
         done_copies: dict = {}
         self.last_changes = []
         seen_raw: set = set()
+        index = self._owner_index()
 
         self.doc.StartUndo()
         for raw in (paths or []):
@@ -1406,7 +1417,7 @@ class SceneAdapter:
 
             new_raw = texmod.resize_target(raw, percent)
             relinked_here = False
-            for owner in self._owners_for_path(raw):
+            for owner in self._owners_for_path(raw, None, index):
                 if self._write_path_refs(owner, raw, new_raw):
                     relinked_here = True
             if relinked_here:
@@ -1526,6 +1537,21 @@ class SceneAdapter:
         return (obj_counts.get(name, 0) == 0 and mats.get(name, 0) == 0
                 and tags.get(name, 0) == 0)
 
+    def _is_layer_branch_empty(self, lay, keep: set, obj_counts: dict,
+                               mats: dict, tags: dict) -> bool:
+        name = lay.GetName()
+        if name in keep:
+            return False
+        if not self._is_layer_empty(name, obj_counts, mats, tags):
+            return False
+        child = lay.GetDown()
+        while child:
+            if not self._is_layer_branch_empty(child, keep, obj_counts,
+                                               mats, tags):
+                return False
+            child = child.GetNext()
+        return True
+
     def delete_empty_layers(self, keep: set | None = None) -> int:
         keep = keep or set()
         try:
@@ -1540,7 +1566,7 @@ class SceneAdapter:
         lay = root.GetDown()
         while lay:
             nxt = lay.GetNext()
-            if lay.GetName() not in keep and self._is_layer_empty(lay.GetName(), obj_counts, mats, tags):
+            if self._is_layer_branch_empty(lay, keep, obj_counts, mats, tags):
                 targets.append(lay)
             lay = nxt
         if not targets:
@@ -1566,8 +1592,8 @@ class SceneAdapter:
         target = None
         lay = root.GetDown()
         while lay:
-            if lay.GetName() == name and self._is_layer_empty(
-                    name, obj_counts, mats, tags):
+            if lay.GetName() == name and self._is_layer_branch_empty(
+                    lay, set(), obj_counts, mats, tags):
                 target = lay
                 break
             lay = lay.GetNext()
@@ -1623,6 +1649,35 @@ class SceneAdapter:
             return True
         return canonical is not None and canonical(name) == segment
 
+    def _resolve_group_path(self, path: str, canonical=None):
+        parent = None
+        for segment in path.split("/"):
+            found = None
+            child = parent.GetDown() if parent is not None \
+                else self.doc.GetFirstObject()
+            while child:
+                if self._match_group(child, segment, canonical):
+                    found = child
+                    break
+                child = child.GetNext()
+            if found is None:
+                return None
+            parent = found
+        return parent
+
+    def _find_group_anywhere(self, segment: str, canonical=None):
+        stack = [self.doc.GetFirstObject()]
+        while stack:
+            op = stack.pop()
+            while op:
+                if self._match_group(op, segment, canonical):
+                    return op
+                down = op.GetDown()
+                if down:
+                    stack.append(down)
+                op = op.GetNext()
+        return None
+
     def ensure_group_path(self, path: str, created: list[object],
                           canonical=None) -> object:
         parent = None
@@ -1647,9 +1702,6 @@ class SceneAdapter:
             parent = found
         return parent
 
-    def _find_or_create_group(self, name: str, created: list[object]) -> object:
-        return self.ensure_group_path(name, created)
-
     def _log_change(self, obj, field: str, before, after) -> None:
         self.last_changes.append({
             "sid": stable_id(obj),
@@ -1659,11 +1711,7 @@ class SceneAdapter:
             "after": after,
         })
 
-    def apply_renames(self, renames: list[RenameOp]) -> int:
-        self.last_changes = []
-        if not renames:
-            return 0
-        self.doc.StartUndo()
+    def _do_renames(self, renames: list[RenameOp]) -> int:
         count = 0
         for op in renames:
             obj = self._by_guid.get(op.guid)
@@ -1674,6 +1722,14 @@ class SceneAdapter:
             obj.SetName(op.new_name)
             self._log_change(obj, "name", before, op.new_name)
             count += 1
+        return count
+
+    def apply_renames(self, renames: list[RenameOp]) -> int:
+        self.last_changes = []
+        if not renames:
+            return 0
+        self.doc.StartUndo()
+        count = self._do_renames(renames)
         self.doc.EndUndo()
         c4d.EventAdd()
         return count
@@ -1725,13 +1781,8 @@ class SceneAdapter:
         except Exception:
             return ""
 
-    def apply_layers(self, layerops: list[LayerOp]) -> int:
-        self.last_changes = []
-        if not layerops:
-            return 0
-        self.doc.StartUndo()
-        created: list = []
-        cache: dict = {}
+    def _do_layers(self, layerops: list[LayerOp], created: list,
+                   cache: dict) -> int:
         count = 0
         for op in layerops:
             obj = self._by_guid.get(op.guid)
@@ -1743,9 +1794,28 @@ class SceneAdapter:
             obj.SetLayerObject(layer)
             self._log_change(obj, "layer", before, op.layer)
             count += 1
+        return count
+
+    def apply_layers(self, layerops: list[LayerOp]) -> int:
+        self.last_changes = []
+        if not layerops:
+            return 0
+        self.doc.StartUndo()
+        created: list = []
+        cache: dict = {}
+        count = self._do_layers(layerops, created, cache)
         self.doc.EndUndo()
         c4d.EventAdd()
         return count
+
+    @staticmethod
+    def _is_ancestor_of(obj, group) -> bool:
+        up = group.GetUp()
+        while up is not None:
+            if up == obj:
+                return True
+            up = up.GetUp()
+        return False
 
     def _do_reparents(self, reparents: list[ReparentOp], created: list,
                       canonical=None) -> int:
@@ -1755,7 +1825,7 @@ class SceneAdapter:
             if obj is None:
                 continue
             group = self.ensure_group_path(op.to_group, created, canonical)
-            if obj == group:
+            if obj == group or self._is_ancestor_of(obj, group):
                 continue
             self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
             mg = obj.GetMg()
@@ -1787,28 +1857,9 @@ class SceneAdapter:
         self.doc.StartUndo()
         created: list = []
         lay_cache: dict = {}
-        renamed = 0
-        for op in renames:
-            obj = self._by_guid.get(op.guid)
-            if obj is None:
-                continue
-            before = obj.GetName()
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-            obj.SetName(op.new_name)
-            self._log_change(obj, "name", before, op.new_name)
-            renamed += 1
+        renamed = self._do_renames(renames)
         reparented = self._do_reparents(reparents, created, canonical)
-        layered = 0
-        for op in layerops:
-            obj = self._by_guid.get(op.guid)
-            if obj is None:
-                continue
-            before = self._current_layer_name(obj)
-            layer = self._find_or_create_layer(op.layer, created, lay_cache)
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-            obj.SetLayerObject(layer)
-            self._log_change(obj, "layer", before, op.layer)
-            layered += 1
+        layered = self._do_layers(layerops, created, lay_cache)
         self.doc.EndUndo()
         c4d.EventAdd()
         return {"renames": renamed, "reparents": reparented, "layers": layered}
@@ -1830,6 +1881,7 @@ class SceneAdapter:
         self.doc.StartUndo()
         created: list = []
         cache: dict = {}
+        index: dict | None = None
         for item in items:
             field = item.get("field")
             note = {"name": item.get("name"), "field": field}
@@ -1837,8 +1889,10 @@ class SceneAdapter:
             if field == "texpath":
                 before = item.get("before")
                 after = item.get("after")
+                if index is None:
+                    index = self._owner_index()
                 wrote = False
-                for owner in self._owners_for_path(after):
+                for owner in self._owners_for_path(after, None, index):
                     if self._write_path_refs(owner, after, before):
                         wrote = True
                 if wrote:
@@ -1871,8 +1925,11 @@ class SceneAdapter:
                 mg = obj.GetMg()
                 obj.Remove()
                 if before and before not in ("(root)", "/"):
-                    obj.InsertUnderLast(
-                        self.ensure_group_path(before, created, canonical))
+                    group = self._resolve_group_path(before, canonical) \
+                        or self._find_group_anywhere(before.split("/")[-1],
+                                                     canonical) \
+                        or self.ensure_group_path(before, created, canonical)
+                    obj.InsertUnderLast(group)
                 else:
                     self.doc.InsertObject(obj)
                 obj.SetMg(mg)

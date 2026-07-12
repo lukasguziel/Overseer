@@ -9,6 +9,7 @@ import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
+import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
 import { IconFolder } from '../components/icons'
@@ -83,11 +84,11 @@ function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, on
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
     <>
-    <div className={'tex-tr tex-click' + (actionable ? ' tex-actionable' : '')
+    <div className={'dg-tr cols-tex dg-click' + (actionable ? ' dg-actionable' : '')
         + (resized ? ' tex-resized' : '')}
       title={`${pathTip}${e.width > 0 ? `\n${specText(e)}` : ''}\nClick to select material “${e.material}” & frame its object`}
       onClick={() => onFocus(e.material)}>
-      <span className="tex-cell-file">
+      <span className="dg-cell-file">
         {thumb
           ? (
             <span className={'tex-thumb-wrap' + (e.exists ? ' openable' : '')}
@@ -102,21 +103,21 @@ function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, on
             </span>
           )
           : <span className="fl-dot" style={{ background: texDot(e) }} />}
-        <span className="tex-cut">{e.file}</span>
-        {!e.used && <span className="tex-badge unused">unused</span>}
-        {resized && <span className="tex-badge resized">resized</span>}
+        <span className="dg-cut">{e.file}</span>
+        {!e.used && <span className="pill unused">unused</span>}
+        {resized && <span className="pill resized">resized</span>}
       </span>
-      <span className="tex-cell-path dim">
+      <span className="dg-cell-path dim">
         {e.missing
           ? (e.accepted
-              ? <span className="tex-badge" title="Accepted as missing — no longer counted as a problem">accepted</span>
-              : <span className="tex-badge missing">missing</span>)
+              ? <span className="pill" title="Accepted as missing — no longer counted as a problem">accepted</span>
+              : <span className="pill missing">missing</span>)
           : e.relocatable
-            ? <span className="tex-badge fixable">→ relative</span>
-            : <span className="tex-badge">{e.absolute ? 'absolute' : 'relative'}</span>}
+            ? <span className="pill fixable">→ relative</span>
+            : <span className="pill">{e.absolute ? 'absolute' : 'relative'}</span>}
       </span>
       <span className="num">
-        {e.res_tag ? <span className={'tex-badge tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
+        {e.res_tag ? <span className={'pill tex-res ' + resTier(e)}>{e.res_tag}</span> : '—'}
       </span>
       <span className="num dim">
         {e.width > 0 ? `${e.width}×${e.height}` : '—'}
@@ -138,14 +139,14 @@ function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, on
           <span className="tex-spec tex-vram">~{humanBytes(e.vram!)} VRAM</span>
         )}
       </span>
-      <span className="dim tex-cut">{e.material}</span>
+      <span className="dim dg-cut">{e.material}</span>
       {/* The decision slot exists on every row (empty when there is nothing to
           decide) so the buttons stay in one column. */}
       <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
         {actionable && (
           <>
           {missingActions && onPick && (
-            <button className="rn-ok rn-icon" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
+            <button className="rn-ok" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
               onClick={() => onPick(e)}><IconFolder /></button>
           )}
           {missingActions && onClear && (
@@ -201,8 +202,8 @@ function TexTable({ rows, previews, resized, percent, busy, onFocus, onPick, onC
   onRepath?: (e: TextureEntry, mode: 'relative' | 'absolute') => void
 }) {
   return (
-    <div className="tex-table">
-      <div className="tex-tr tex-thead">
+    <div className="dg-table">
+      <div className="dg-tr dg-thead cols-tex">
         <Tip text="File name of the texture. Click the thumbnail to open the image in your picture viewer."><span>File</span></Tip>
         <Tip text="Badge shows absolute / relative / missing. Decide per row on the right: flip the path form, shrink the map, or fix a missing reference. Hover a row for its full path."><span>Path</span></Tip>
         <Tip text="Resolution tier (e.g. 4K/8K) — heavy maps stand out instantly."><span className="num">Res</span></Tip>
@@ -222,10 +223,15 @@ function TexTable({ rows, previews, resized, percent, busy, onFocus, onPick, onC
   )
 }
 
-// Resolution filter chips: narrow all three texture sections to one tier.
-// No "All" entry — an unset facet means all (chips toggle off on re-click).
-const RES_TIERS: [string, string][] = [
+// Facet vocabularies for the filter chips (order = display order).
+const RES_FILTERS: [string, string][] = [
   ['res-8k', '8K'], ['res-4k', '4K'], ['res-2k', '2K'], ['res-sm', '< 2K'],
+]
+const PATH_STATES: [string, string][] = [
+  ['absolute', 'Absolute'], ['relative', 'Relative'], ['missing', 'Missing'],
+]
+const MODES: [string, string][] = [
+  ['rgb', 'RGB'], ['rgba', 'RGBA'], ['grey', 'Greyscale'],
 ]
 
 // Missing maps first (they need a decision), then heaviest first.
@@ -460,7 +466,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                       <MatThumb src={previews[nm]} fallback={onHidden ? 'var(--warn)' : 'var(--dim2)'} />
                       <span className="rn-old" title={nm}>{nm}</span>
                       {onHidden && (
-                        <span className="tex-badge unused"
+                        <span className="pill unused"
                           title="Used only by objects that are hidden in the editor — deleting removes it from them too">
                           on hidden
                         </span>
@@ -509,123 +515,57 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             {/* Facet chips: no "All" entry — an unset facet means all, and
                 clicking the active chip toggles it back off. */}
             <div className="section-head sm"><span>Path status</span></div>
-            <div className="tex-filter tex-filter-col">
-              {([['absolute', 'Absolute'],
-                ['relative', 'Relative'],
-                ['missing', 'Missing'],
-              ] as [string, string][]).map(([key, label]) => {
-                const n = nPath(key)
-                const on = pathFilter === key
-                const off = n === 0 && !on
-                return (
-                  <button key={key} disabled={off}
-                    className={'tex-filter-btn' + (on ? ' on' : '')
-                      + (key === 'missing' && n > 0 ? ' tf-warn' : '')}
-                    title={off ? 'No matches with the current filters'
-                      : on ? 'Click again to clear this filter'
-                        : `Show only ${label.toLowerCase()} paths`}
-                    onClick={() => setPathFilter(on ? '' : key)}>
-                    {label} <em>{n}</em>
-                  </button>
-                )
-              })}
-            </div>
+            <FilterChips value={pathFilter} empty="" onChange={setPathFilter}
+              options={PATH_STATES.map(([key, label]) => ({
+                key,
+                label,
+                count: nPath(key),
+                title: `Show only ${label.toLowerCase()} paths`,
+                cls: key === 'missing' && nPath(key) > 0 ? 'tf-warn' : undefined,
+              }))} />
 
             <div className="section-head sm"><span>Resolution</span></div>
-            <div className="tex-filter tex-filter-col">
-              {RES_TIERS.map(([key, label]) => {
-                const n = nRes(key)
-                const on = resFilter === key
-                const off = n === 0 && !on
-                return (
-                  <button key={key} disabled={off}
-                    className={'tex-filter-btn' + (on ? ' on' : '')}
-                    title={off ? 'No matches with the current filters'
-                      : on ? 'Click again to clear this filter'
-                        : `Show only ${label} textures`}
-                    onClick={() => setResFilter(on ? '' : key)}>
-                    {label} <em>{n}</em>
-                  </button>
-                )
-              })}
-            </div>
+            <FilterChips value={resFilter} empty="" onChange={setResFilter}
+              options={RES_FILTERS.map(([key, label]) => ({
+                key, label, count: nRes(key), title: `Show only ${label} textures`,
+              }))} />
 
             <div className="section-head sm">
               <Tip text="Filter by the channel mode from the spec badge (e.g. “RGB 32b linear”). Maps without readable pixel data drop out while a filter is active.">
                 <span>Channels</span>
               </Tip>
             </div>
-            <div className="tex-filter tex-filter-col">
-              {([['rgb', 'RGB'],
-                ['rgba', 'RGBA'],
-                ['grey', 'Greyscale'],
-              ] as [string, string][]).map(([key, label]) => {
-                const n = nMode(key)
-                const on = modeFilter === key
-                const off = n === 0 && !on
-                return (
-                  <button key={key} disabled={off}
-                    className={'tex-filter-btn' + (on ? ' on' : '')}
-                    title={off ? 'No matches with the current filters'
-                      : on ? 'Click again to clear this filter'
-                        : `Show only ${label} textures`}
-                    onClick={() => setModeFilter(on ? '' : key)}>
-                    {label} <em>{n}</em>
-                  </button>
-                )
-              })}
-            </div>
+            <FilterChips value={modeFilter} empty="" onChange={setModeFilter}
+              options={MODES.map(([key, label]) => ({
+                key, label, count: nMode(key), title: `Show only ${label} textures`,
+              }))} />
+
             {depths.length > 1 && (
-              <div className="section-head sm">
-                <Tip text="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs.">
-                  <span>Bit depth</span>
-                </Tip>
-              </div>
-            )}
-            {depths.length > 1 && (
-              <div className="tex-filter tex-filter-col">
-                {depths.map((d) => {
-                  const n = nDepth(d)
-                  const on = depthFilter === d
-                  const off = n === 0 && !on
-                  return (
-                    <button key={d} disabled={off}
-                      className={'tex-filter-btn' + (on ? ' on' : '')}
-                      title={off ? 'No matches with the current filters'
-                        : on ? 'Click again to clear this filter'
-                          : `Show only ${d}-bit textures`}
-                      onClick={() => setDepthFilter(on ? 0 : d)}>
-                      {d} bit <em>{n}</em>
-                    </button>
-                  )
-                })}
-              </div>
+              <>
+                <div className="section-head sm">
+                  <Tip text="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs.">
+                    <span>Bit depth</span>
+                  </Tip>
+                </div>
+                <FilterChips value={depthFilter} empty={0} onChange={setDepthFilter}
+                  options={depths.map((d) => ({
+                    key: d, label: `${d} bit`, count: nDepth(d),
+                    title: `Show only ${d}-bit textures`,
+                  }))} />
+              </>
             )}
             {spaces.length > 1 && (
-              <div className="section-head sm">
-                <Tip text="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear).">
-                  <span>Colorspace</span>
-                </Tip>
-              </div>
-            )}
-            {spaces.length > 1 && (
-              <div className="tex-filter tex-filter-col">
-                {spaces.map((s) => {
-                  const n = nSpace(s)
-                  const on = spaceFilter === s
-                  const off = n === 0 && !on
-                  return (
-                    <button key={s} disabled={off}
-                      className={'tex-filter-btn' + (on ? ' on' : '')}
-                      title={off ? 'No matches with the current filters'
-                        : on ? 'Click again to clear this filter'
-                          : `Show only ${s} textures`}
-                      onClick={() => setSpaceFilter(on ? '' : s)}>
-                      {s} <em>{n}</em>
-                    </button>
-                  )
-                })}
-              </div>
+              <>
+                <div className="section-head sm">
+                  <Tip text="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear).">
+                    <span>Colorspace</span>
+                  </Tip>
+                </div>
+                <FilterChips value={spaceFilter} empty="" onChange={setSpaceFilter}
+                  options={spaces.map((s) => ({
+                    key: s, label: s, count: nSpace(s), title: `Show only ${s} textures`,
+                  }))} />
+              </>
             )}
 
           </aside>
@@ -700,10 +640,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 with the material relinked to it. The original file is never
                 touched.
               </p>
-              <div className="tex-filter">
+              <div className="chip-row">
                 {[25, 50, 75].map((p) => (
                   <button key={p}
-                    className={'tex-filter-btn' + (resizePercent === p ? ' on' : '')}
+                    className={'chip-btn' + (resizePercent === p ? ' on' : '')}
                     title={`Row buttons will write copies at ${p}% of the original size`}
                     onClick={() => setResizePercent(p)}>{p}%</button>
                 ))}

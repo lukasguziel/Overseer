@@ -1,9 +1,49 @@
-"""Shared test helpers: building SceneTrees without c4d."""
+import struct
+import zlib
 
 import pytest
 
 from sceneorg.core import model
 from sceneorg.structure.standard import GroupRule, StructureStandard
+
+
+def png_chunk(ctype, body):
+    return (struct.pack(">I", len(body)) + ctype + body
+            + struct.pack(">I", zlib.crc32(ctype + body) & 0xffffffff))
+
+
+def make_png(path, w, h, color_type=6, bit_depth=8, srgb=False, pixels=True):
+    ihdr = struct.pack(">IIBBBBB", w, h, bit_depth, color_type, 0, 0, 0)
+    data = b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", ihdr)
+    if srgb:
+        data += png_chunk(b"sRGB", b"\x00")
+    if pixels:
+        channels = {0: 1, 2: 3, 4: 2, 6: 4}[color_type]
+        raw = bytearray()
+        for _y in range(h):
+            raw.append(0)
+            raw += bytes([128] * channels * w)
+        data += png_chunk(b"IDAT", zlib.compress(bytes(raw)))
+    data += png_chunk(b"IEND", b"")
+    if path is not None:
+        path.write_bytes(data)
+    return data
+
+
+def make_bmp(path, w, h, bpp=24):
+    data = (b"BM" + b"\x00" * 16 + struct.pack("<ii", w, h)
+            + struct.pack("<HH", 1, bpp) + b"\x00" * 16)
+    path.write_bytes(data)
+    return data
+
+
+def make_tga(path, w, h, depth=24):
+    head = bytearray(18)
+    head[2] = 2
+    struct.pack_into("<HH", head, 12, w, h)
+    head[16] = depth
+    path.write_bytes(bytes(head))
+    return bytes(head)
 
 
 def node(name, category=model.CAT_OTHER, type_name=None, guid=-1, children=None):

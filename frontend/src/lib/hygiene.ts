@@ -17,12 +17,16 @@ function baseName(name: string): string {
   return (name || '').replace(/[._\s]*\d+$/, '').trim().toLowerCase()
 }
 
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')
+
+// The bare type word (plus a "copy" suffix) is a default name; a descriptive
+// remainder is NOT ("Camera_Main", "Light_Key" are deliberate names).
 export function isDefaultName(name: string, type?: string): boolean {
   const b = baseName(name)
   if (!b) return true
   if (DEFAULT_TOKENS.has(b)) return true
   const t = (type || '').toLowerCase()
-  if (t && (b === t || b.startsWith(t))) return true
+  if (t && new RegExp('^' + escapeRe(t) + '([ ._-]*(copy|kopie))?$').test(b)) return true
   return false
 }
 
@@ -53,7 +57,7 @@ export function detectCasing(name: string): string {
 // style. Single words are ambiguous — "Chair" is valid PascalCase, "chair"
 // is valid camelCase/lower_snake/kebab — so they credit every style they
 // are compatible with instead of punishing clean scenes.
-const CASING_COMPAT: Record<string, string[]> = {
+export const CASING_COMPAT: Record<string, string[]> = {
   PascalCase: ['PascalCase', 'Capitalized'],
   camelCase: ['camelCase', 'lower'],
   lower_snake: ['lower_snake', 'lower'],
@@ -102,28 +106,31 @@ export function computeHygiene(nodes: SceneNode[], totalPolys: number,
   const emptyGroups: SceneNode[] = []
   const rootClutter: SceneNode[] = []
   const outliers: SceneNode[] = []
-  const byName: Record<string, SceneNode[]> = {}
+  // A Map, not an object: scene names can collide with Object.prototype
+  // members ("constructor", "__proto__") in imported hierarchies.
+  const byName = new Map<string, SceneNode[]>()
   const depth: Record<number, number> = {}
   const buckets: string[] = []
   const thr = Math.max(50000, totalPolys * 0.05)   // outlier: alone >5% of the scene
   for (const n of nodes) {
-    depth[n.depth] = (depth[n.depth] || 0) + 1;
-    (byName[n.name] = byName[n.name] || []).push(n)
+    depth[n.depth] = (depth[n.depth] || 0) + 1
+    const same = byName.get(n.name)
+    if (same) same.push(n)
+    else byName.set(n.name, [n])
     buckets.push(detectCasing(n.name))
     if (!isKept(n.name) && isDefaultName(n.name, n.type)) defaults.push(n)
     if (n.category === 'null' && !n.children) emptyGroups.push(n)
     if (n.depth === 0 && n.category !== 'null') rootClutter.push(n)
     if (n.polygons > thr) outliers.push(n)
   }
-  const dupes: DupeEntry[] = Object.entries(byName)
+  const dupeGroups = [...byName.entries()]
     .filter(([name, a]) => a.length > 1 && !isKept(name))
+  const dupes: DupeEntry[] = dupeGroups
     .map(([name, a]) => ({ name, count: a.length, guid: a[0].guid }))
     .sort((x, y) => y.count - x.count)
   // Every object carrying a duplicated (unkept) name — for guid-level todo
   // unions with the rename plan (avoids double counting with dedupe on).
-  const dupeGuids = Object.entries(byName)
-    .filter(([name, a]) => a.length > 1 && !isKept(name))
-    .flatMap(([, a]) => a.map((n) => n.guid))
+  const dupeGuids = dupeGroups.flatMap(([, a]) => a.map((n) => n.guid))
   outliers.sort((a, b) => b.polygons - a.polygons)
 
   // Pick the target style: the user's choice, else the best-fitting one.

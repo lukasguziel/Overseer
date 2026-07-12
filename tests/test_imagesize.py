@@ -1,7 +1,4 @@
-"""Header-only image dimension reader (pure, no c4d)."""
-
-import struct
-import zlib
+from conftest import make_bmp, make_png, make_tga
 
 from sceneorg.core import imagesize
 
@@ -16,18 +13,10 @@ def test_resolution_tag():
     assert imagesize.resolution_tag(0) == ""
 
 
-def _write_png(path, w, h):
-    sig = b"\x89PNG\r\n\x1a\n"
-    ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
-    chunk = struct.pack(">I", len(ihdr)) + b"IHDR" + ihdr \
-        + struct.pack(">I", zlib.crc32(b"IHDR" + ihdr))
-    path.write_bytes(sig + chunk)
-
-
 def test_png(tmp_path):
-    # setup
+    # setup: header only -- a 4096x4096 pixel payload would be pointless here
     p = tmp_path / "diffuse.png"
-    _write_png(p, 4096, 4096)
+    make_png(p, 4096, 4096, pixels=False)
 
     # postcondition
     assert imagesize.image_size(str(p)) == (4096, 4096)
@@ -36,8 +25,7 @@ def test_png(tmp_path):
 def test_bmp(tmp_path):
     # setup
     p = tmp_path / "t.bmp"
-    header = b"BM" + b"\x00" * 16 + struct.pack("<ii", 2048, 1024) + b"\x00" * 8
-    p.write_bytes(header)
+    make_bmp(p, 2048, 1024)
 
     # postcondition
     assert imagesize.image_size(str(p)) == (2048, 1024)
@@ -46,9 +34,7 @@ def test_bmp(tmp_path):
 def test_tga(tmp_path):
     # setup
     p = tmp_path / "t.tga"
-    head = bytearray(18)
-    struct.pack_into("<HH", head, 12, 1920, 1080)
-    p.write_bytes(bytes(head))
+    make_tga(p, 1920, 1080)
 
     # postcondition
     assert imagesize.image_size(str(p)) == (1920, 1080)

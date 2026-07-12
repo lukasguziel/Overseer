@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+_ROW_PITCH = 190
+_CATEGORY_PITCH = 70
+
 
 def graph_from_structure(structure: list[dict]) -> dict:
     nodes: list[dict] = []
     edges: list[dict] = []
     nid = [1]
-    row = [0]
+    top = [0]
 
     def new_id(t: str) -> str:
         i = "%s_%d" % (t, nid[0])
@@ -13,7 +16,7 @@ def graph_from_structure(structure: list[dict]) -> dict:
         return i
 
     def emit(group: dict, depth: int, parent_gid: str | None) -> None:
-        y = row[0] * 190
+        y = top[0]
         gid = new_id("group")
         nodes.append({
             "id": gid, "type": "group",
@@ -28,22 +31,26 @@ def graph_from_structure(structure: list[dict]) -> dict:
             edges.append({"id": "e_%s_%s" % (gid, parent_gid),
                           "source": gid, "target": parent_gid,
                           "animated": False})
+
+        cat_y = y
         for cat in group.get("categories", []):
             cid = new_id("category")
             nodes.append({"id": cid, "type": "category",
-                          "position": {"x": 60, "y": y},
+                          "position": {"x": 60, "y": cat_y},
                           "data": {"category": cat}})
             edges.append({"id": "e_%s_%s" % (cid, gid),
                           "source": cid, "target": gid, "animated": True})
-            y += 70
+            cat_y += _CATEGORY_PITCH
+
         if group.get("keywords"):
             kid = new_id("keyword")
             nodes.append({"id": kid, "type": "keyword",
-                          "position": {"x": 270, "y": row[0] * 190},
+                          "position": {"x": 270, "y": y},
                           "data": {"keywords": ", ".join(group["keywords"])}})
             edges.append({"id": "e_%s_%s" % (kid, gid),
                           "source": kid, "target": gid, "animated": True})
-        row[0] += 1
+
+        top[0] = max(y + _ROW_PITCH, cat_y)
         for child in group.get("children", []) or []:
             emit(child, depth + 1, gid)
 
@@ -54,40 +61,4 @@ def graph_from_structure(structure: list[dict]) -> dict:
 
 
 def graph_from_groups(groups: list[dict]) -> dict:
-    nodes: list[dict] = []
-    edges: list[dict] = []
-    nid = [1]
-
-    def new_id(t: str) -> str:
-        i = "%s_%d" % (t, nid[0])
-        nid[0] += 1
-        return i
-
-    for gi, g in enumerate(groups):
-        y = gi * 190
-        gid = new_id("group")
-        nodes.append({
-            "id": gid, "type": "group", "position": {"x": 520, "y": y},
-            "data": {
-                "name": g.get("name", "Group"),
-                "aliases": ", ".join(g.get("aliases", [])),
-                "priority": g.get("priority", 50),
-            },
-        })
-        for cat in g.get("categories", []):
-            cid = new_id("category")
-            nodes.append({"id": cid, "type": "category",
-                          "position": {"x": 60, "y": y},
-                          "data": {"category": cat}})
-            edges.append({"id": "e_%s_%s" % (cid, gid),
-                          "source": cid, "target": gid, "animated": True})
-            y += 70
-        if g.get("keywords"):
-            kid = new_id("keyword")
-            nodes.append({"id": kid, "type": "keyword",
-                          "position": {"x": 270, "y": gi * 190},
-                          "data": {"keywords": ", ".join(g["keywords"])}})
-            edges.append({"id": "e_%s_%s" % (kid, gid),
-                          "source": kid, "target": gid, "animated": True})
-
-    return {"nodes": nodes, "edges": edges}
+    return graph_from_structure(groups)

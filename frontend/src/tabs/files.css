@@ -1,26 +1,10 @@
-.fa-table { display: flex; flex-direction: column; }
-.fa-tr { display: grid; align-items: center; gap: 10px; padding: 3px 6px;
-  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr);
-  border-bottom: 1px solid var(--line2); font-size: 12px; }
-.fa-tr:last-child { border-bottom: none; }
-.fa-tr > span { min-width: 0; }
-.fa-tr .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fa-thead { color: var(--dim2); font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .05em; padding-bottom: 5px; }
-.fa-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fa-cell-file { display: flex; align-items: center; gap: 7px; }
-.fa-cell-path { display: flex; align-items: center; gap: 7px; font-size: 11px;
-  font-variant-numeric: tabular-nums; }
-
-.fa-click { background: transparent; border: none; border-bottom: 1px solid var(--line2);
-  color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: none;
-  width: 100%; border-radius: 0; }
-.fa-click:last-child { border-bottom: none; }
-.fa-click:hover { background: var(--panel2); box-shadow: none; border-color: var(--line2); }
-/* Missing rows carry their own …/= decision buttons in an extra column. */
-.fa-tr.fa-actionable {
-  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr) auto; }
-.fa-tr .rn-actions { flex: none; }
+/* Columns of the external-files table — the only files-specific part of the
+   shared `.dg-*` data grid (styles.css). Actionable tables reserve the decision
+   column on EVERY row (and on the header), so the columns stay aligned. */
+.dg-tr.cols-files {
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr); }
+.dg-tr.cols-files.dg-actionable {
+  grid-template-columns: minmax(0, 6fr) minmax(0, 3fr) 74px minmax(0, 6fr) 52px; }
 
 .fa-kind { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   padding: 1px 6px; border-radius: 6px; flex: none; white-space: nowrap;

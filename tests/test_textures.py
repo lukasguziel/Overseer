@@ -1,31 +1,8 @@
-"""Pure texture analysis: header parsers, VRAM estimate, resize plan + PNG resize."""
-
 import struct
-import zlib
+
+from conftest import make_bmp, make_png, make_tga
 
 from sceneorg.core import textures
-
-
-def _make_png(path, w, h, color_type=6, bit_depth=8, srgb=False):
-    sig = b"\x89PNG\r\n\x1a\n"
-
-    def chunk(ctype, body):
-        return (struct.pack(">I", len(body)) + ctype + body
-                + struct.pack(">I", zlib.crc32(ctype + body) & 0xffffffff))
-
-    ihdr = struct.pack(">IIBBBBB", w, h, bit_depth, color_type, 0, 0, 0)
-    ch = {0: 1, 2: 3, 4: 2, 6: 4}[color_type]
-    raw = bytearray()
-    for _y in range(h):
-        raw.append(0)
-        for _x in range(w):
-            raw += bytes([128] * ch)
-    data = sig + chunk(b"IHDR", ihdr)
-    if srgb:
-        data += chunk(b"sRGB", b"\x00")
-    data += chunk(b"IDAT", zlib.compress(bytes(raw))) + chunk(b"IEND", b"")
-    path.write_bytes(data)
-    return data
 
 
 def test_vram_estimate_includes_mipmaps():
@@ -55,7 +32,7 @@ def test_vram_scales_with_channels_and_bit_depth():
 def test_png_header_parser_rgba_srgb(tmp_path):
     # setup: exercise the PURE header path (Pillow, if present, has no sRGB tag)
     p = tmp_path / "diffuse.png"
-    _make_png(p, 64, 32, color_type=6, srgb=True)
+    make_png(p, 64, 32, color_type=6, srgb=True)
 
     # do it
     info = textures._header_info(str(p))
@@ -72,7 +49,7 @@ def test_png_header_parser_rgba_srgb(tmp_path):
 def test_png_analysis_rgba(tmp_path):
     # setup
     p = tmp_path / "diffuse.png"
-    _make_png(p, 64, 32, color_type=6)
+    make_png(p, 64, 32, color_type=6)
 
     # do it
     info = textures.analyze_image(str(p))
@@ -87,7 +64,7 @@ def test_png_analysis_rgba(tmp_path):
 def test_png_analysis_greyscale(tmp_path):
     # setup
     p = tmp_path / "mask.png"
-    _make_png(p, 16, 16, color_type=0)
+    make_png(p, 16, 16, color_type=0)
 
     # do it
     info = textures._header_info(str(p))
@@ -116,12 +93,8 @@ def test_jpeg_header_parser(tmp_path):
 
 def test_tga_alpha_from_depth(tmp_path):
     # setup: 32-bit uncompressed truecolor TGA
-    head = bytearray(18)
-    head[2] = 2
-    struct.pack_into("<HH", head, 12, 256, 128)
-    head[16] = 32
     p = tmp_path / "t.tga"
-    p.write_bytes(bytes(head))
+    make_tga(p, 256, 128, depth=32)
 
     # do it
     info = textures._header_info(str(p))
@@ -134,10 +107,8 @@ def test_tga_alpha_from_depth(tmp_path):
 
 def test_bmp_header_parser(tmp_path):
     # setup: 32-bit BMP
-    head = b"BM" + b"\x00" * 16 + struct.pack("<ii", 512, 256) \
-        + struct.pack("<HH", 1, 32)
     p = tmp_path / "t.bmp"
-    p.write_bytes(head + b"\x00" * 16)
+    make_bmp(p, 512, 256, bpp=32)
 
     # do it
     info = textures._header_info(str(p))
@@ -282,7 +253,7 @@ def test_resize_target_and_dims():
 
 def test_pure_png_resize_roundtrip(tmp_path):
     # setup
-    src = _make_png(tmp_path / "in.png", 8, 8, color_type=6)
+    src = make_png(tmp_path / "in.png", 8, 8, color_type=6)
 
     # do it
     out = textures.resize_png_bytes(src, 50)
@@ -296,11 +267,8 @@ def test_pure_png_resize_roundtrip(tmp_path):
 
 
 def test_pure_png_resize_skips_non_8bit():
-    # postcondition: 16-bit / indexed PNGs are declined (None), never mangled
-    ihdr = struct.pack(">IIBBBBB", 4, 4, 16, 6, 0, 0, 0)
+    # setup
+    data = make_png(None, 4, 4, bit_depth=16, pixels=False)
 
-    def chunk(ctype, body):
-        return (struct.pack(">I", len(body)) + ctype + body
-                + struct.pack(">I", zlib.crc32(ctype + body) & 0xffffffff))
-    data = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IEND", b"")
+    # postcondition: 16-bit / indexed PNGs are declined (None), never mangled
     assert textures.resize_png_bytes(data, 50) is None

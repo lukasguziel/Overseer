@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeHygiene, detectCasing } from './hygiene'
+import { computeHygiene, detectCasing, isDefaultName } from './hygiene'
 import type { SceneNode } from '../types'
 
 const node = (name: string, i: number): SceneNode => ({
@@ -17,6 +17,21 @@ describe('detectCasing', () => {
     expect(detectCasing('Chair01')).toBe('Capitalized')
     expect(detectCasing('chair')).toBe('lower')
     expect(detectCasing('My Chair')).toBe('spaced')
+  })
+})
+
+describe('isDefaultName', () => {
+  it('flags the bare type word, a numbered copy and a "copy" suffix', () => {
+    expect(isDefaultName('Camera', 'Camera')).toBe(true)
+    expect(isDefaultName('Camera.1', 'Camera')).toBe(true)
+    expect(isDefaultName('Camera copy', 'Camera')).toBe(true)
+    expect(isDefaultName('Cube', 'Polygon')).toBe(true)
+  })
+
+  it('keeps type-prefixed descriptive names', () => {
+    expect(isDefaultName('Camera_Main', 'Camera')).toBe(false)
+    expect(isDefaultName('Light_Key', 'Light')).toBe(false)
+    expect(isDefaultName('SplineProfile', 'Spline')).toBe(false)
   })
 })
 
@@ -44,6 +59,13 @@ describe('computeHygiene naming score (decision-based)', () => {
     expect(after.namingScore).toBe(100)
     expect(after.defaults).toHaveLength(0)
     expect(after.dupes).toHaveLength(0)
+  })
+
+  it('survives names that collide with Object.prototype members', () => {
+    const nodes = [node('__proto__', 1), node('constructor', 2), node('constructor', 3)]
+    const h = computeHygiene(nodes, 30, { casing: 'PascalCase' })
+    expect(h.dupes).toEqual([{ name: 'constructor', count: 2, guid: 2 }])
+    expect(h.dupeGuids).toEqual([2, 3])
   })
 
   it('without a chosen casing the best-fitting style wins', () => {

@@ -65,6 +65,12 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
   const offCount = param.outliers.length
   const sorted = [...param.distribution].sort((a, b) => b.count - a.count)
 
+  // A rescan can drop the picked value from the distribution; without this the
+  // select would show something else while `pick` still applies the vanished value.
+  const stale = param.kind !== 'int'
+    && !param.distribution.some((b) => sameValue(b.value, pick))
+  const value = stale ? param.dominant : pick
+
   return (
     <div className="gens-param">
       <div className="gens-param-head">
@@ -103,19 +109,19 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
           <span className="gens-microlabel accent">Change all to</span>
         </Tip>
         {param.kind === 'int' ? (
-          <input className="gens-num" type="number" value={pick ?? ''}
+          <input className="gens-num" type="number" value={value ?? ''}
             onChange={(e) => setPick(e.target.value === '' ? '' : Number(e.target.value))} />
         ) : (
-          <select className="gens-select" value={JSON.stringify(pick)}
+          <select className="gens-select" value={JSON.stringify(value)}
             onChange={(e) => setPick(JSON.parse(e.target.value))}>
             {sorted.map((b, i) => (
               <option key={i} value={JSON.stringify(b.value)}>{fmt(b.value, param)}</option>
             ))}
           </select>
         )}
-        <button className="apply gens-align-btn" disabled={busy || pick === ''}
-          title={`Set ${param.label} to ${fmt(pick, param)} on all ${type.count} ${type.label} objects (one undo step)`}
-          onClick={() => onApply(param, pick, undefined, type.count)}>
+        <button className="apply gens-align-btn" disabled={busy || value === ''}
+          title={`Set ${param.label} to ${fmt(value, param)} on all ${type.count} ${type.label} objects (one undo step)`}
+          onClick={() => onApply(param, value, undefined, type.count)}>
           ✓ Apply to all {type.count}
         </button>
       </div>
@@ -279,11 +285,14 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
   if (!org.report && !data) {
     return <EmptyState onAction={org.doAnalyze} busy={org.busy} />
   }
-  if (error) {
-    return <div className="empty-note">Generators scan failed: {error}</div>
-  }
   if (!data) {
-    return <div className="empty-note">Scanning generators…</div>
+    return loading
+      ? <EmptyState message="Scanning generators…" />
+      : error
+        ? <EmptyState message={`Generators scan failed: ${error}`}
+            actionLabel="Retry" onAction={reload} busy={loading} />
+        : <EmptyState message="No generator data yet." actionLabel="Scan"
+            onAction={reload} busy={loading} />
   }
   // No AUDITED types (SDS/Cloner/…) still leaves plenty to measure: the cost
   // audit covers every generator and deformer in the scene.
@@ -339,6 +348,12 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
           </Tip>
         </div>
         {loading && <p className="hint-sm" style={{ marginTop: 12 }}>Refreshing…</p>}
+        {error && (
+          <div className="error" style={{ marginTop: 12 }}>
+            Generators scan failed: {error}{' '}
+            <button className="mini" onClick={reload} disabled={loading}>Retry</button>
+          </div>
+        )}
         {applyError && <div className="error" style={{ marginTop: 12 }}>{applyError}</div>}
       </aside>
 

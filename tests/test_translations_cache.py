@@ -18,7 +18,7 @@ def test_bulk_parse_survives_module_purge():
     assert t2.UNIQUE_LANG is unique_first
 
 
-def test_cache_invalidates_on_file_key_change(monkeypatch):
+def test_cache_invalidates_on_file_key_change():
     # setup
     import sceneorg.naming.translations as t
     cache = t._data_cache()
@@ -28,9 +28,10 @@ def test_cache_invalidates_on_file_key_change(monkeypatch):
     # do it
     t2 = importlib.reload(t)
 
-    # postcondition
+    # postcondition: the tampered key is gone and the TSV was parsed again
+    assert cache["de"][0] == key
+    assert t2.BULK["de"] is not payload[0]  # a fresh dict, not the cached one
     assert t2.BULK["de"] == payload[0]
-    assert cache["de"][0][1] != key[1] + 1 or cache["de"][1][0] == payload[0]
 
 
 def test_lookup_still_works_after_reload():

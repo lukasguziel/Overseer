@@ -23,11 +23,14 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
   onFocus: (guid: number, name: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(suggestion || '')
+  const [value, setValue] = useState('')
   const commit = () => {
     const v = value.trim()
     if (v) { onAssign(n.guid, v); setEditing(false) }
   }
+  // Suggestions arrive after the rows are mounted, so seed the input when the
+  // picker opens, not at mount.
+  const startEditing = () => { setValue(suggestion || ''); setEditing(true) }
   return (
     <div className="rename-row">
       <span className="cat-dot" style={{ background: catColor(n.category) }} />
@@ -60,7 +63,7 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
               <>
                 <button className="rn-ok" disabled={busy} onClick={() => onAssign(n.guid, suggestion)}
                   title={`Assign the suggested layer “${suggestion}” (undoable)`}>✓</button>
-                <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
+                <button className="rn-ok" disabled={busy} onClick={startEditing}
                   title="Pick a different layer instead">✎</button>
                 <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
                   title="Accept as-is — fine without a layer (restore below)">=</button>
@@ -68,7 +71,7 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
             )
             : (
               <>
-                <button className="rn-ok" disabled={busy} onClick={() => setEditing(true)}
+                <button className="rn-ok" disabled={busy} onClick={startEditing}
                   title="Assign a layer — pick an existing one or type a new name">✓</button>
                 <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
                   title="Accept as-is — fine without a layer (restore below)">=</button>
@@ -111,6 +114,12 @@ export default function LayersTab({ org }: { org: Organizer }) {
   const layerNames = (lr?.layers || []).map((l) => l.name)
   const [batchLayer, setBatchLayer] = useState('')
   const [confirmAssign, setConfirmAssign] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const mmPager = usePager(layerMismatches)
+  const doDeleteEmpty = () => {
+    setConfirmDelete(false)
+    org.doDeleteEmptyLayers(Array.from(keeps.layers))
+  }
   const assignAll = () => {
     const v = batchLayer.trim()
     if (!v || !noLayer.length) return
@@ -142,12 +151,19 @@ export default function LayersTab({ org }: { org: Organizer }) {
             )}
             {emptyOpen > 0 && (
               <button className="sm" disabled={busy}
-                onClick={() => org.doDeleteEmptyLayers(Array.from(keeps.layers))}
+                onClick={() => setConfirmDelete(true)}
                 title="Delete every empty layer that nothing references and you have not accepted (one undo step)">
                 ✕ Delete {emptyOpen} empty
               </button>
             )}
           </div>
+          {confirmDelete && (
+            <ConfirmModal title="Delete empty layers"
+              message={`You are about to delete ${emptyOpen} empty layer${emptyOpen === 1 ? '' : 's'} that nothing references and you have not accepted as-is (one undo step). Continue?`}
+              confirmLabel={`✕ Delete ${emptyOpen}`}
+              onConfirm={doDeleteEmpty}
+              onCancel={() => setConfirmDelete(false)} />
+          )}
           {lr
             ? (
               <LayerTree
@@ -275,7 +291,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             accept one to hide it from this list.
           </p>
           <div className="rename-list">
-            {layerMismatches.map((m) => (
+            {mmPager.rows.map((m) => (
               <div className="rename-row" key={m.guid}>
                 <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
                   onClick={() => org.doFocus(m.guid, m.name)}>{m.name}</span>
@@ -289,6 +305,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
               </div>
             ))}
           </div>
+          <Pager pager={mmPager} />
         </section>
       )}
 

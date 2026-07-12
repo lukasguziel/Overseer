@@ -11,16 +11,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install ruff
         run: pip install ruff
 
+      # Lints src/scene_organizer.pyp too (extend-include in pyproject.toml).
       - name: Lint (ruff)
         run: ruff check src tests
+
+      - name: Syntax-check the plugin entry point
+        run: python -m py_compile src/scene_organizer.pyp
 
   plugin-test:
     needs: plugin-lint
@@ -28,10 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python 3.12
+      # Cinema 4D 2024 embeds Python 3.11 — test against the real runtime.
+      - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install pytest
         run: pip install pytest
@@ -92,5 +97,6 @@ jobs:
       - name: Run unit tests
         run: pnpm test
 
+      # vite only: `pnpm run build` would re-run the tsc pass frontend-lint did.
       - name: Build (vite)
-        run: pnpm run build
+        run: pnpm exec vite build

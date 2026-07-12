@@ -195,7 +195,7 @@ export interface PresetMeta {
 // Kept as an alias so older call sites keep compiling.
 export type Preset = PresetMeta
 
-// ---- Rule engine v2 (config schema 2) ------------------------------------
+// ---- Rule engine v2 (config schema 3) ------------------------------------
 
 // A predicate that selects which objects a rule applies to.
 export interface MatchJson {
@@ -253,13 +253,15 @@ export interface StructureNode {
   children?: StructureNode[]
 }
 
-// config.json schema 2 as read/written through the `config` op.
+// config.json schema 3 as read/written through the `config` op.
+// (The type name is kept: it is the shape of the v2 rule engine's config.)
 export interface ConfigV2 {
   schema?: number
   casing?: string
   language?: string | null
   number_pad?: number
   translations?: Record<string, string>
+  keeps?: Record<string, string[]>   // per-section "accepted as-is" names
   structure?: StructureNode[]
   rules?: RuleV2[]
   graph?: { nodes: unknown[]; edges: unknown[] }

@@ -1,5 +1,3 @@
-"""Tests for the declarative rule engine (sceneorg.rules)."""
-
 from conftest import node
 
 from sceneorg.core import model
