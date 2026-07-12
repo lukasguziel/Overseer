@@ -35,7 +35,9 @@ The JSON API. `handle(payload)` dispatches on `op`, publishes an `_OP_LABELS`
 progress string, and drops the scene cache for `_MUTATING_OPS` afterward.
 `_get_scene()` caches `(adapter, tree)` on the `sceneorg` package keyed by the
 doc dirty counter; selection is re-read on every hit (dirty ignores selection).
-Owns preset/plan/config/history/journal file IO, Google-translate online engine
+Owns preset/plan/config/journal file IO and the PER-PROJECT analysis log
+(`history/<project-slug>.json`, same slug as the UI settings; the flat
+`analysis_history.json` is the pre-split log and is still read as a seed), Google-translate online engine
 (stdlib urllib, persistent file cache — module globals do not survive hot-reload),
 and the export mirror. Writes go to `DATA_DIR` (prefs dir when the plugin lives
 under read-only Program Files). Audit ops (`tags_`/`gens_`/`files_`/`sims_`

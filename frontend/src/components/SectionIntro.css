@@ -1,0 +1,10 @@
+/* SectionIntro — owned by SectionIntro.tsx, imported there. Only the wrapper
+   and its description live here; the `.section-head` inside is a shared
+   primitive (styles.css) used by plenty of places that never touch this
+   component. See frontend/STYLEGUIDE.md. */
+.section-intro { display: flex; flex-direction: column; gap: 4px; }
+.section-intro-desc { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.4; }
+
+/* `.lead` = this intro opens a whole tab, so it carries its own bottom gap;
+   an intro inside a tab is spaced by the parent's flex gap. */
+.section-intro.lead { margin-bottom: 16px; }

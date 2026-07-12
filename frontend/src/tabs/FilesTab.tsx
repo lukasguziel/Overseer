@@ -214,7 +214,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             <span className={s.missing_count ? 'warn' : ''}><b>{s.missing_count}</b> missing</span>
           </div>
 
-          <div className="rule-group-head"><span>Kind</span></div>
+          <div className="section-head sm"><span>Kind</span></div>
           <div className="tex-filter tex-filter-col">
             {KINDS.map(([key, label]) => {
               const n = key ? (s.by_kind[key] || 0) : s.total
@@ -229,7 +229,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             })}
           </div>
 
-          <div className="rule-group-head"><span>Actions</span></div>
+          <div className="section-head sm"><span>Actions</span></div>
           <h4 className="side-action-title">Relative paths</h4>
           {!data.doc_path && (
             <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>

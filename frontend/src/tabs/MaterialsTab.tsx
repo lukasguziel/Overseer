@@ -10,7 +10,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
 import Tip from '../components/Tip'
-import TabIntro from '../components/TabIntro'
+import SectionIntro from '../components/SectionIntro'
 import { IconFolder } from '../components/icons'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
@@ -484,7 +484,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
       {tex ? (
         <>
-        <TabIntro title="Textures"
+        <SectionIntro lead title="Textures"
           desc="Every map the scene references — real pixel size, disk size and resolution per texture. Spot oversized maps, fix absolute or missing paths, and shrink maps in place." />
         <div className="workbench">
           <aside className="wb-side">
@@ -506,7 +506,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
             {/* Facet chips: no "All" entry — an unset facet means all, and
                 clicking the active chip toggles it back off. */}
-            <div className="rule-group-head"><span>Path status</span></div>
+            <div className="section-head sm"><span>Path status</span></div>
             <div className="tex-filter tex-filter-col">
               {([['absolute', 'Absolute'],
                 ['relative', 'Relative'],
@@ -529,7 +529,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               })}
             </div>
 
-            <div className="rule-group-head"><span>Resolution</span></div>
+            <div className="section-head sm"><span>Resolution</span></div>
             <div className="tex-filter tex-filter-col">
               {RES_TIERS.map(([key, label]) => {
                 const n = nRes(key)
@@ -548,7 +548,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               })}
             </div>
 
-            <div className="rule-group-head">
+            <div className="section-head sm">
               <Tip text="Filter by the channel mode from the spec badge (e.g. “RGB 32b linear”). Maps without readable pixel data drop out while a filter is active.">
                 <span>Channels</span>
               </Tip>
@@ -574,7 +574,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               })}
             </div>
             {depths.length > 1 && (
-              <div className="rule-group-head">
+              <div className="section-head sm">
                 <Tip text="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs.">
                   <span>Bit depth</span>
                 </Tip>
@@ -600,7 +600,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
             )}
             {spaces.length > 1 && (
-              <div className="rule-group-head">
+              <div className="section-head sm">
                 <Tip text="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear).">
                   <span>Colorspace</span>
                 </Tip>
@@ -626,7 +626,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
             )}
 
-            <div className="rule-group-head"><span>Paths</span></div>
+            <div className="section-head sm"><span>Paths</span></div>
             <button className="ghost sm" disabled={busy || !fixable}
               title={fixable
                 ? `Rewrite ${fixable} absolute path(s) inside the project folder to relative (undoable)`
@@ -663,7 +663,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               Rewrite relative paths to their full absolute form.
             </p>
 
-            <div className="rule-group-head"><span>Shrink</span></div>
+            <div className="section-head sm"><span>Shrink</span></div>
             <div className="tex-filter" style={{ marginBottom: 8 }}>
               {[25, 50, 75].map((p) => (
                 <button key={p}
