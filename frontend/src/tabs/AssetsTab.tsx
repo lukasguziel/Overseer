@@ -4,6 +4,7 @@ import { CAT_ORDER, SORTS } from '../lib/constants'
 import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
 import Tip from '../components/Tip'
+import ActionButton from '../components/ActionButton'
 import type { FocusFn } from '../components/Treemap'
 
 // Searchable, faceted, sortable asset browser with batching and
@@ -139,63 +140,86 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
   )
 
   return (
-    <div className="assets">
-      <div className="asset-controls">
+    <div className="workbench assets">
+      <aside className="wb-side">
+        <h3>Filters</h3>
+        <p className="hint-sm">Search and narrow the object list on the right —
+          nothing here changes the scene.</p>
+
         <input className="search" placeholder="Search name, type or layer…" value={query}
           onChange={(e) => setQuery(e.target.value)} />
+
         <Tip text="Show only objects with polygons — hides nulls, splines and empty containers.">
-          <label className="check inline">
+          <label className="check">
             <input type="checkbox" checked={onlyGeo} onChange={(e) => setOnlyGeo(e.target.checked)} />
-            only geometry
+            Only geometry
           </label>
         </Tip>
         <Tip text="Show only objects that are not assigned to any layer.">
-          <label className="check inline">
+          <label className="check">
             <input type="checkbox" checked={noLayer} onChange={(e) => setNoLayer(e.target.checked)} />
-            no layer
+            No layer
           </label>
         </Tip>
-        <label className="sortsel">Sort
-          <select value={sortKey} onChange={(e) => setSort(e.target.value)}>
-            {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <button type="button" className="sortdir"
-            title={sortDir === 'desc' ? 'Descending — click for ascending' : 'Ascending — click for descending'}
-            onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}>
-            {sortDir === 'desc' ? '▾' : '▴'}
-          </button>
+
+        <label>Sort
+          <span className="sortsel">
+            <select value={sortKey} onChange={(e) => setSort(e.target.value)}>
+              {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <button type="button" className="sortdir"
+              title={sortDir === 'desc' ? 'Descending — click for ascending' : 'Ascending — click for descending'}
+              onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}>
+              {sortDir === 'desc' ? '▾' : '▴'}
+            </button>
+          </span>
         </label>
-      </div>
 
-      <div className="facets">
-        {CAT_ORDER.filter((c) => catCounts[c]).map((c) => (
-          <button key={c} className={'facet' + (cats.has(c) ? ' on' : '')} onClick={() => toggleCat(c)}
-            style={cats.has(c) ? { borderColor: catColor(c), color: catColor(c) } : undefined}>
-            <span className="facet-dot" style={{ background: catColor(c) }} />
-            {c}<b>{catCounts[c]}</b>
-          </button>
-        ))}
-        {cats.size > 0 && <button className="facet clear" onClick={() => setCats(new Set())}>clear</button>}
-        {typeCounts.length > 1 && (
-          <button className={'facet type-toggle' + (showTypes ? ' on' : '')}
-            onClick={() => setShowTypes((v) => !v)}>
-            Types {types.size > 0 && <b>{types.size}</b>}<span className="caret">{showTypes ? '▾' : '▸'}</span>
-          </button>
-        )}
-      </div>
-
-      {showTypes && typeCounts.length > 1 && (
-        <div className="facets type-facets">
-          {typeCounts.map(([t, n]) => (
-            <button key={t} className={'facet' + (types.has(t) ? ' on' : '')} onClick={() => toggleType(t)}
-              title={t}>
-              {t}<b>{n}</b>
+        <div className="section-head sm">
+          <span>Category</span>
+          {cats.size > 0 && (
+            <ActionButton title="Show every category again"
+              onClick={() => setCats(new Set())}>Clear</ActionButton>
+          )}
+        </div>
+        <div className="facets">
+          {CAT_ORDER.filter((c) => catCounts[c]).map((c) => (
+            <button key={c} className={'facet' + (cats.has(c) ? ' on' : '')} onClick={() => toggleCat(c)}
+              style={cats.has(c) ? { borderColor: catColor(c), color: catColor(c) } : undefined}>
+              <span className="facet-dot" style={{ background: catColor(c) }} />
+              {c}<b>{catCounts[c]}</b>
             </button>
           ))}
-          {types.size > 0 && <button className="facet clear" onClick={() => setTypes(new Set())}>clear types</button>}
         </div>
-      )}
 
+        {typeCounts.length > 1 && (<>
+          <div className="section-head sm">
+            <span>Type</span>
+            {types.size > 0 && (
+              <ActionButton title="Show every type again"
+                onClick={() => setTypes(new Set())}>Clear</ActionButton>
+            )}
+          </div>
+          <ActionButton className="facet-more"
+            title={showTypes ? 'Hide the type list' : 'Narrow the list down to single object types'}
+            onClick={() => setShowTypes((v) => !v)}>
+            {showTypes ? 'Hide types' : 'Filter by type'}
+            {types.size > 0 && <b>{types.size}</b>}
+          </ActionButton>
+          {showTypes && (
+            <div className="facets type-facets">
+              {typeCounts.map(([t, n]) => (
+                <button key={t} className={'facet' + (types.has(t) ? ' on' : '')} onClick={() => toggleType(t)}
+                  title={t}>
+                  {t}<b>{n}</b>
+                </button>
+              ))}
+            </div>
+          )}
+        </>)}
+      </aside>
+
+      <div className="stacked" style={{ minWidth: 0 }}>
       {sel.size > 0 && (onAssignLayer || onMoveToGroup) && (
         <div className="asset-batch">
           <b>{sel.size} selected</b>
@@ -227,7 +251,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
               </button>
             </span>
           )}
-          <button className="facet clear" onClick={() => setSel(new Set())}>clear selection</button>
+          <ActionButton onClick={() => setSel(new Set())}>Clear selection</ActionButton>
         </div>
       )}
 
@@ -276,11 +300,12 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
 
       {limit < filtered.length && (
         <div className="asset-more">
-          <button className="ghost" onClick={() => setLimit((l) => l + 60)}>
+          <ActionButton onClick={() => setLimit((l) => l + 60)}>
             Load more ({filtered.length - limit} left)
-          </button>
+          </ActionButton>
         </div>
       )}
+      </div>
     </div>
   )
 }
