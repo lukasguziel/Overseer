@@ -7,11 +7,15 @@ import './AcceptedSection.css'
 // Everything the user accepted as-is in one area. Same block in every tab: a
 // section intro says what the area is, and one toggle opens the list — the
 // entries themselves are the only thing behind the fold.
-export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }: {
+export default function AcceptedSection({ items, onRestore, onRestoreAll, hint, title }: {
   items: string[]
   onRestore: (key: string) => void
   onRestoreAll?: () => void
   hint?: string
+  // A tab with SEVERAL accepted lists (Materials: materials + textures) names
+  // each one, so two identical "Accepted as-is" heads cannot sit on top of
+  // each other. A tab with one list leaves it at the default.
+  title?: string
 }) {
   const [open, setOpen] = useState(false)
   const pager = usePager([...items].sort())
@@ -19,7 +23,7 @@ export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }
   const n = pager.total
   return (
     <>
-    <SectionIntro title="Accepted as-is"
+    <SectionIntro title={title || 'Accepted as-is'}
       desc={hint || 'Accepted items are remembered (config) and never counted as todos. Items with the same name are accepted together.'} />
     <section className="card kept-card">
       <div className="kept-head-row">

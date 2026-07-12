@@ -494,10 +494,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
               <Pager pager={unusedPager} />
             </Workbench>
-            <AcceptedSection items={mat.accepted_all || []}
-              onRestore={(nm) => org.unkeep('materials', nm)}
-              onRestoreAll={() => org.unkeepAll('materials')}
-              hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
           </>
         ) : <div className="empty-note">No material data.</div>}
       </section>
@@ -663,10 +659,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
           </div>
         </div>
-        <AcceptedSection items={texAccepted}
-          onRestore={(p) => setTexKeeps(texAccepted.filter((a) => a !== p))}
-          onRestoreAll={() => setTexKeeps([])}
-          hint="Accepted-as-missing textures are remembered (config) and no longer count as problems — restore to treat them as missing again." />
         </>
       ) : (
         <section className="card">
@@ -679,6 +671,18 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           )}
         </section>
       )}
+
+      {/* Everything accepted on this tab, collected at its foot — decisions
+          the artist already made belong out of the worklists, not wedged in
+          between the Materials section and the Textures one. */}
+      <AcceptedSection title="Accepted materials" items={mat?.accepted_all || []}
+        onRestore={(nm) => org.unkeep('materials', nm)}
+        onRestoreAll={() => org.unkeepAll('materials')}
+        hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
+      <AcceptedSection title="Accepted textures" items={texAccepted}
+        onRestore={(p) => setTexKeeps(texAccepted.filter((a) => a !== p))}
+        onRestoreAll={() => setTexKeeps([])}
+        hint="Accepted-as-missing textures are remembered (config) and no longer count as problems — restore to treat them as missing again." />
 
       {relinkConfirm && (
         <ConfirmModal
