@@ -336,25 +336,28 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const bySpec = (e: TextureEntry) =>
     mMode(e, modeFilter) && mDepth(e, depthFilter) && mSpace(e, spaceFilter)
   const allTex = tex ? [...tex.absolute, ...tex.relative] : []
+  // THE list the chips describe. Accepted-as-missing maps are decided: they
+  // live in the Accepted panel below, not in the worklist. Every faceted count
+  // must be taken over exactly THIS set — counting the accepted ones is what
+  // produced a "missing 31" chip that opened an empty list.
+  const listable = allTex.filter((e) => !e.accepted)
   // Faceted counts: how many rows a chip WOULD show given the other active
   // filters — numbers shrink as filters stack, 0 chips gray out.
-  const nRes = (k: string) => allTex.filter((e) =>
+  const nRes = (k: string) => listable.filter((e) =>
     mRes(e, k) && byPath(e) && bySpec(e)).length
-  const nPath = (k: string) => allTex.filter((e) =>
+  const nPath = (k: string) => listable.filter((e) =>
     byRes(e) && mPath(e, k) && bySpec(e)).length
-  const nMode = (k: string) => allTex.filter((e) =>
+  const nMode = (k: string) => listable.filter((e) =>
     byRes(e) && byPath(e) && mMode(e, k) && mDepth(e, depthFilter) && mSpace(e, spaceFilter)).length
-  const nDepth = (k: number) => allTex.filter((e) =>
+  const nDepth = (k: number) => listable.filter((e) =>
     byRes(e) && byPath(e) && mMode(e, modeFilter) && mDepth(e, k) && mSpace(e, spaceFilter)).length
-  const nSpace = (k: string) => allTex.filter((e) =>
+  const nSpace = (k: string) => listable.filter((e) =>
     byRes(e) && byPath(e) && mMode(e, modeFilter) && mDepth(e, depthFilter) && mSpace(e, k)).length
   // Distinct bit depths / colorspaces actually present, for the filter chips.
-  const depths = [...new Set(allTex.map(depthOf).filter((d): d is number => d != null))].sort((a, b) => a - b)
-  const spaces = [...new Set(allTex.map(spaceOf).filter((s): s is string => s != null))].sort()
+  const depths = [...new Set(listable.map(depthOf).filter((d): d is number => d != null))].sort((a, b) => a - b)
+  const spaces = [...new Set(listable.map(spaceOf).filter((s): s is string => s != null))].sort()
   const pathPager = usePager(
-    // Accepted-as-missing maps drop out of the paths list — they live in the
-    // Accepted panel below, like every other area (naming, files, …).
-    allTex.filter((e) => !e.accepted && byRes(e) && byPath(e) && bySpec(e)).sort(bySize),
+    listable.filter((e) => byRes(e) && byPath(e) && bySpec(e)).sort(bySize),
     undefined, [resFilter, pathFilter, modeFilter, depthFilter, spaceFilter].join('|'))
 
   // Mini image previews for the texture rows currently on screen (keyed by
@@ -646,7 +649,13 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     <Pager pager={pathPager} />
                   </>
                 : <div className="empty-note mid">
-                    {pathFilter === 'missing' ? 'No missing textures 🎉'
+                    {/* An empty list with accepted maps behind it is NOT "none
+                        found" — say where they went, or the count and the list
+                        look like they disagree. */}
+                    {pathFilter === 'missing'
+                      ? (texAccepted.length > 0
+                          ? `No missing textures left to decide — ${texAccepted.length} accepted as missing (restore them below).`
+                          : 'No missing textures 🎉')
                       : pathFilter === 'absolute' ? 'No absolute texture paths 🎉'
                         : 'No textures match the filters.'}
                   </div>}
