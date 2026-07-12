@@ -16,7 +16,7 @@ import ActionButton from '../components/ActionButton'
 import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
-import { IconFolder, IconShrink } from '../components/icons'
+import { IconCheck, IconFolder, IconShrink } from '../components/icons'
 import './materials.css'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
@@ -171,7 +171,7 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
           )}
           {missingActions && onAccept && (
             <button className="rn-keep" title="Accept as-is — acknowledge the missing file; it stops counting as a problem (restore below)"
-              onClick={() => onAccept(e)}>=</button>
+              onClick={() => onAccept(e)}><IconCheck /></button>
           )}
           {canRepath && (
             <button className="rn-keep tex-chip" disabled={busy}
@@ -457,7 +457,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   )}
                 </>
               }
-              hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
+              hint="Click a row to select the material in Cinema 4D · the green ✓ deletes it · the grey one keeps it"
               applyLabel="Delete all" applyTone="danger"
               onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
@@ -508,8 +508,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               Narrow the list. Every map is then decided on its own row — the
               buttons on the right. Heaviest map first.
             </p>
+            {/* No map COUNT here: the list header already says how many rows
+                it shows, and this number counted the accepted ones too — two
+                different totals under the same word ("114 maps" vs "88 maps"). */}
             <div className="substats" style={{ marginBottom: 12 }}>
-              <span><b>{tex.total}</b> maps</span>
               <span><b>{humanBytes(tex.total_bytes)}</b> on disk</span>
               {totalVram > 0 && (
                 <Tip text="Estimated uncompressed memory of all maps combined (width × height × 4 bytes, incl. mipmaps ~1.33×) — what they cost in RAM/VRAM.">

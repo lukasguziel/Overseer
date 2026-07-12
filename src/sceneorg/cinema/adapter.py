@@ -1265,6 +1265,37 @@ class SceneAdapter:
                 out.append((raw, rp.replace("\\", "/")))
         return out
 
+    def _write_path_anywhere(self, raw: str, new_path: str) -> bool:
+        """Rewrite a reference we have no owner for.
+
+        `GetAllAssetsNew` does not report an owner for every reference (node
+        materials of third-party renderers in particular). With no owner the
+        owner loop never runs — and every fallback inside `_write_path_refs`
+        lives behind that loop, so the path was counted as "skipped" while it
+        sat right there in the scene. This walks the materials/shaders itself.
+        """
+        wrote = False
+        seen: set = set()
+        for holder in self._all_material_holders():
+            if id(holder) in seen:
+                continue
+            seen.add(id(holder))
+            for h, pid in self._find_path_params(holder, raw):
+                try:
+                    self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, h)
+                    h[pid] = new_path
+                    wrote = True
+                except Exception:
+                    continue
+        if not wrote:
+            try:
+                for m in self.doc.GetMaterials():
+                    if self._write_node_paths(m, raw, new_path):
+                        wrote = True
+            except Exception:
+                pass
+        return wrote
+
     def texture_repath(self, paths, mode: str = "relative",
                        material: str | None = None) -> dict:
         mode = "absolute" if str(mode).lower() == "absolute" else "relative"
@@ -1281,6 +1312,11 @@ class SceneAdapter:
             for owner in self._owners_for_path(raw, material, index):
                 if self._write_path_refs(owner, raw, new_path):
                     wrote = True
+            # No owner reported (or none of them held the path): the reference
+            # is still in the scene — rewrite it document-wide instead of
+            # quietly reporting "nothing changed".
+            if not wrote and not material:
+                wrote = self._write_path_anywhere(raw, new_path)
             if wrote:
                 changed += 1
                 self._log_texpath(raw, new_path)
