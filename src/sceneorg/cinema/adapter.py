@@ -978,12 +978,35 @@ class SceneAdapter:
                         stack.append(down)
                     sh = sh.GetNext()
 
+    # Fallback only. The real list comes from C4D's node-space REGISTRY (see
+    # _node_space_ids): hardcoding renderer ids means every renderer we did not
+    # think of — Octane, Corona, a new one next year — silently gets no texture
+    # rewrite at all. Ask the host what it has instead of guessing.
     _NODE_SPACE_IDS = (
         "com.redshift3d.redshift4c4d.class.nodespace",
         "net.maxon.nodespace.standard",
         "com.autodesk.arnold.nodespace",
         "com.chaos.vantage.class.nodespace",
     )
+
+    def _node_space_ids(self) -> list:
+        """Every node space registered in this Cinema — renderer-agnostic."""
+        out: list = []
+        try:
+            import maxon
+            for entry in maxon.registries.NodeSpaces:
+                try:
+                    sid = str(entry.GetId())
+                except Exception:
+                    continue
+                if sid and sid not in out:
+                    out.append(sid)
+        except Exception:
+            out = []
+        for sid in self._NODE_SPACE_IDS:
+            if sid not in out:
+                out.append(sid)
+        return out
 
     @staticmethod
     def _url_to_syspath(s: str) -> str:
@@ -1021,7 +1044,7 @@ class SceneAdapter:
         if node_mat is None:
             return []
         out: list = []
-        for sid in self._NODE_SPACE_IDS:
+        for sid in self._node_space_ids():
             try:
                 spid = maxon.Id(sid)
                 if not node_mat.HasSpace(spid):
@@ -1081,7 +1104,7 @@ class SceneAdapter:
                 continue
             if node_mat is None:
                 continue
-            for sid in self._NODE_SPACE_IDS:
+            for sid in self._node_space_ids():
                 try:
                     spid = maxon.Id(sid)
                     if not node_mat.HasSpace(spid):
@@ -1621,12 +1644,25 @@ class SceneAdapter:
             for owner in self._owners_for_path(raw, None, index):
                 if self._write_path_refs(owner, raw, new_raw):
                     relinked_here = True
+            # Same fallback as the repath: an owner C4D does not report (or one
+            # that does not hold the string) must not end the search.
+            if not relinked_here:
+                relinked_here = self._write_path_anywhere(raw, new_raw)
             if relinked_here:
                 relinked += 1
                 self._log_texpath(raw, new_raw)
-            resized += 1
-            results.append({"file": base, "status": "resized",
-                            "note": "", "to": os.path.basename(new_raw)})
+                resized += 1
+                results.append({"file": base, "status": "resized",
+                                "note": "", "to": os.path.basename(new_raw)})
+            else:
+                # The copy is on disk but the material still points at the
+                # original. Reporting that as "resized" would be a lie: nothing
+                # in the scene got lighter.
+                skipped += 1
+                results.append({
+                    "file": base, "status": "skipped",
+                    "note": "copy written (%s), but the material could not be "
+                            "relinked to it" % os.path.basename(new_raw)})
         self.doc.EndUndo()
         c4d.EventAdd()
         return {"resized": resized, "skipped": skipped, "relinked": relinked,
