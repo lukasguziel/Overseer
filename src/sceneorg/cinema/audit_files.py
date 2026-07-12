@@ -35,6 +35,25 @@ def _owner_name(owner) -> str:
         return ""
 
 
+def _owner_kind(owner) -> str:
+    if owner is None:
+        return ""
+    try:
+        main = owner.GetMain()
+    except Exception:
+        main = None
+    if main is None:
+        main = owner
+    try:
+        if isinstance(main, c4d.BaseObject):
+            return "object"
+        if isinstance(main, c4d.BaseMaterial):
+            return "material"
+    except Exception:
+        pass
+    return ""
+
+
 def _guid_for(obj, adapter) -> int | None:
     if obj is None:
         return None
@@ -52,7 +71,8 @@ def _guid_for(obj, adapter) -> int | None:
     return None
 
 
-def _entry(kind: str, raw: str, owner_name: str, guid, doc_path: str) -> dict:
+def _entry(kind: str, raw: str, owner_name: str, guid, doc_path: str,
+           owner_kind: str = "") -> dict:
     resolved = _generate_path(doc_path, raw)
     exists = bool(resolved) and os.path.isfile(resolved)
     absolute = os.path.isabs(raw)
@@ -76,6 +96,9 @@ def _entry(kind: str, raw: str, owner_name: str, guid, doc_path: str) -> dict:
         "bytes": disk_bytes,
         "owner": owner_name,
         "guid": guid,
+        # What the owner IS, so the UI does not have to guess how to select it:
+        # an asset can also belong to a take or the render data, which is neither.
+        "owner_kind": owner_kind,
     }
 
 
@@ -100,7 +123,8 @@ def _asset_entries(doc, adapter, doc_path: str) -> list:
         owner = a.get("owner")
         out.append(_entry(fl.classify_kind(raw), raw,
                           _owner_name(owner) or str(a.get("assetname") or ""),
-                          _guid_for(owner, adapter), doc_path))
+                          _guid_for(owner, adapter), doc_path,
+                          _owner_kind(owner)))
     return out
 
 
@@ -118,7 +142,7 @@ def _alembic_entries(adapter, doc_path: str) -> list:
             continue
         if not raw:
             continue
-        out.append(_entry("alembic", raw, op.GetName(), guid, doc_path))
+        out.append(_entry("alembic", raw, op.GetName(), guid, doc_path, "object"))
     return out
 
 
