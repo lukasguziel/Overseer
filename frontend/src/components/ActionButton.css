@@ -23,6 +23,8 @@
     border-color var(--t) var(--ease);
 }
 .act:disabled { opacity: .4; cursor: default; }
+/* The chip also serves as a link (credits) — kill the underline, keep the look */
+a.act { text-decoration: none; }
 
 /* neutral (default) — reads the scene, changes nothing: Select in C4D, Browse,
    Accept as-is. Hover only lifts it out of the panel. */
