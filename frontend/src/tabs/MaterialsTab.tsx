@@ -685,7 +685,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </p>
 
             {!tex.doc_path && (
-              <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>
+              <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
             )}
           </aside>
 

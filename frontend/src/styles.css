@@ -303,9 +303,14 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint-sm { color: var(--dim2); font-size: 12px; margin: 4px 0 12px; }
 
-/* Title of a single action inside a sidebar "Actions" section */
-.side-action-title { font-size: 12px; font-weight: 600; margin: 0 0 6px; }
-.side-action-title + .example { margin-top: 0; }
+/* Sidebar text hierarchy, loudest first:
+   .wb-side h3        panel title    — uppercase, --text
+   .rule-group-head   section rule   — uppercase 10px, --dim
+   .side-action-title single action  — sentence case, --dim (a label, not a heading)
+   .hint-sm/.example  explanation    — 12px, --dim2/--dim */
+.side-action-title { font-size: 13px; font-weight: 500; color: var(--dim);
+  margin: 0 0 6px; }
+.side-action-title + .example, .side-action-title + .hint-sm { margin-top: 0; }
 
 /* Small right-aligned hint inside a card head ("click a tile to …") */
 .card-hint { color: var(--dim); font-size: 11px; }
