@@ -152,6 +152,43 @@ def translate_preserving(name: str, target: str = naming.LANG_EN,
     return new, changed
 
 
+# Words shorter than this are left alone: a lone "a" or "x" is an index or an
+# axis, never a word worth translating.
+MIN_WORD = 2
+
+
+def translatable_words(name: str) -> list[str]:
+    """The words inside an object name, lowercased, in order.
+
+    Object names are not sentences: "body_rear_wing_part_usm.1" is five words
+    glued together with separators plus a code and an index. A translator fed
+    the raw name recognizes nothing — fed the WORDS it recognizes almost all
+    of them.
+    """
+    return [w.lower() for w in _WORD.findall(name) if len(w) >= MIN_WORD]
+
+
+def rebuild_with(name: str, mapping: dict) -> tuple[str, list]:
+    """Put translated words back into the name, keeping everything else.
+
+    Separators, digits, codes and the casing of each word survive — only the
+    words the mapping knows are swapped, so "Body_Rear_Wing.1" stays
+    "<Word>_<Word>_<Word>.1" in the target language.
+    """
+    changed: list = []
+
+    def repl(m: re.Match) -> str:
+        word = m.group(0)
+        tgt = str(mapping.get(word.lower()) or "").strip()
+        if not tgt or tgt.lower() == word.lower():
+            return word
+        cased = _match_case(word, tgt)
+        changed.append((word, cased))
+        return cased
+
+    return _WORD.sub(repl, name), changed
+
+
 def plan_translations(tree, scope: set | None = None,
                       target: str = naming.LANG_EN) -> list[TranslateProposal]:
     out: list[TranslateProposal] = []

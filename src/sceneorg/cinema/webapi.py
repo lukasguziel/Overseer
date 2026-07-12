@@ -498,17 +498,21 @@ def _google_plan(tree, scope, target: str, progress=None):
 
     cache = _load_gcache()
 
-    def key(name: str) -> str:
-        return target + "\x00" + name.strip()
+    def key(word: str) -> str:
+        return target + "\x00" + word
 
+    # Translate WORDS, not raw names. "body_rear_wing_part_usm.1" means nothing
+    # to a translator — "body", "rear", "wing", "part" are trivial. Words also
+    # repeat across a scene, so the cache hit rate is far higher than per name.
     todo: list = []
     seen: set = set()
     for n in nodes:
-        k = key(n.name)
-        entry = cache.get(k)
-        if (entry is None or isinstance(entry, str)) and k not in seen:
-            seen.add(k)
-            todo.append(n.name.strip())
+        for word in translatemod.translatable_words(n.name):
+            k = key(word)
+            entry = cache.get(k)
+            if (entry is None or isinstance(entry, str)) and k not in seen:
+                seen.add(k)
+                todo.append(word)
 
     err = None
     batch = 40
@@ -539,8 +543,8 @@ def _google_plan(tree, scope, target: str, progress=None):
             err = "batch mismatch (%d names -> %d lines)" % (
                 len(chunk), len(lines))
             continue
-        for name, new in zip(chunk, lines):  # noqa: B905
-            cache[key(name)] = {"t": new.strip(), "src": src}
+        for word, new in zip(chunk, lines):  # noqa: B905
+            cache[key(word)] = {"t": new.strip(), "src": src}
         fetched += len(chunk)
     if todo:
         _save_gcache(cache)
@@ -550,20 +554,30 @@ def _google_plan(tree, scope, target: str, progress=None):
     proposals = []
     counts: dict = {}
     for node in nodes:
-        entry = cache.get(key(node.name))
-        new = _gcache_text(entry).strip()
-        src = _gcache_src(entry)
-        changes = bool(new) and new.lower() != node.name.strip().lower()
-        if changes:
+        words = translatemod.translatable_words(node.name)
+        mapping = {}
+        langs: list = []
+        for word in words:
+            entry = cache.get(key(word))
+            if entry is None:
+                continue
+            mapping[word] = _gcache_text(entry)
+            src = _gcache_src(entry)
+            if src != "unknown":
+                langs.append(src)
+        new, changed = translatemod.rebuild_with(node.name, mapping)
+        # The name's source language is what most of its words came from.
+        src = max(set(langs), key=langs.count) if langs else "unknown"
+        if changed:
             bucket = src
-        elif entry is not None:
+        elif mapping:
             bucket = target
         else:
             bucket = "unknown"
         counts[bucket] = counts.get(bucket, 0) + 1
-        if changes:
+        if changed and new != node.name:
             proposals.append(translatemod.TranslateProposal(
-                node=node, new=new, words=[(node.name, new)],
+                node=node, new=new, words=changed,
                 lang=src if src != "unknown" else "auto"))
     dominant = max(counts, key=counts.get) if counts else "unknown"
     detected = {"total": len(nodes), "counts": counts, "dominant": dominant}
