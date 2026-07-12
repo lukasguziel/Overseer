@@ -11,6 +11,7 @@ import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
 import ShrinkModal from '../components/ShrinkModal'
 import CollectModal from '../components/CollectModal'
+import ResizeNote from '../components/ResizeNote'
 import ActionButton from '../components/ActionButton'
 import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
@@ -179,7 +180,7 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
             </button>
           )}
           {canResize && (
-            <button className="rn-ok tex-act" disabled={busy}
+            <button className="rn-keep tex-act" disabled={busy}
               title={`Shrink this map (${e.width}×${e.height}) — pick the size in the next step`}
               onClick={() => onResize!(e)}>
               <IconShrink />
@@ -189,13 +190,11 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
         )}
       </span>
     </div>
-    {resized && (
-      <div className="tex-resized-note"
-        title="This map was just resized — the material now links to this smaller copy. Undo in Cinema 4D to go back.">
-        ↳ resized to {resized.percent}% · replaced <b>{resized.fromFile}</b> ({resized.fromDims}
-        {' → '}{e.width > 0 ? `${e.width}×${e.height}` : 'smaller'})
-      </div>
-    )}
+    {resized && (() => {
+      const [fw, fh] = resized.fromDims.split('×').map((n) => parseInt(n, 10) || 0)
+      return <ResizeNote fromW={fw} fromH={fh} toW={e.width} toH={e.height}
+        file={resized.fromFile} />
+    })()}
     </>
   )
 }
