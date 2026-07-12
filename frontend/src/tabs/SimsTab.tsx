@@ -81,7 +81,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
 
   const s = data.summary
   if (s.total === 0) {
-    return <div className="fl-empty">No simulation setups found in this scene.</div>
+    return <div className="empty-note">No simulation setups found in this scene.</div>
   }
 
   const doFocus = (h: SimHit) => org.doFocus(h.guid, h.object)

@@ -271,7 +271,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
             ))}
           </tbody>
         </table>
-        {!filtered.length && <div className="wb-empty">No objects match.</div>}
+        {!filtered.length && <div className="empty-note mid">No objects match.</div>}
       </div>
 
       {limit < filtered.length && (

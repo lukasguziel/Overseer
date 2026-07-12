@@ -76,7 +76,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
   const dupPager = usePager(data?.findings.duplicate_material_tags || [])
 
   if (!data && !loading && error) {
-    return <div className="fl-empty">Tag scan failed: <code>{error}</code></div>
+    return <div className="empty-note">Tag scan failed: <code>{error}</code></div>
   }
   if (!data && !loading) {
     return <EmptyState message="No tag data yet." actionLabel="Scan tags"
@@ -230,7 +230,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
           {dominant != null && <span className="card-hint">dominant {dominant}°</span>}
         </div>
         {(data?.findings.phong_angles.distribution.length ?? 0) === 0
-          ? <div className="fl-empty">No phong tags in the scene.</div>
+          ? <div className="empty-note">No phong tags in the scene.</div>
           : (
             <>
               <div className="tags-dist">
@@ -268,7 +268,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
           <span className="card-hint">{data?.types.length ?? 0}</span>
         </div>
         {(data?.types.length ?? 0) === 0
-          ? <div className="fl-empty">No tags in the scene.</div>
+          ? <div className="empty-note">No tags in the scene.</div>
           : (
             <div className="tags-type-list">
               {data!.types.map((t) => (

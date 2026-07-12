@@ -12,7 +12,7 @@ export default function Strip({ data, colorFn, format = humanNum, legendMax = 6 
 }) {
   const entries = Object.entries(data || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
   const total = entries.reduce((s, [, v]) => s + v, 0)
-  if (!total) return <div className="fl-empty">No data.</div>
+  if (!total) return <div className="empty-note">No data.</div>
   const col: ColorFn = colorFn || ((_, i) => STRIP_PALETTE[i % STRIP_PALETTE.length])
   return (
     <div className="strip-wrap">

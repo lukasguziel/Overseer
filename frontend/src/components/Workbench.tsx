@@ -73,7 +73,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
       {hint && count > 0 && !loading && <p className="hint-sm wb-hint">{hint}</p>}
       <div className={'wb-scroll' + (loading ? ' wb-loading' : '')}>
         {count === 0 && (extra?.count ?? 0) === 0 && !loading
-          ? <div className="wb-empty">{empty}</div>
+          ? <div className="empty-note mid">{empty}</div>
           : children}
         {prog && (
           <div className="wb-progress">

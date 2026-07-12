@@ -184,7 +184,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
 
   if (!data) {
     return loading
-      ? <div className="fl-empty">Scanning external files…</div>
+      ? <div className="empty-note">Scanning external files…</div>
       : error
         ? <div className="empty-state"><p>Files scan failed: {error}</p>
             <button onClick={reload}>Retry</button></div>
@@ -247,7 +247,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
         <div className="stacked" style={{ minWidth: 0 }}>
           {missPager.total > 0 && (
             <section className="card">
-              <div className="card-head" style={{ gap: 10 }}>
+              <div className="card-head">
                 <h3>Missing files</h3>
                 <span className="card-hint">{missPager.total}</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
@@ -295,7 +295,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                   <FileTable rows={pager.rows} onFocus={onFocus} />
                   <Pager pager={pager} />
                 </>
-              : <div className="fl-empty">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
+              : <div className="empty-note">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
           </section>
 
           <AcceptedSection items={accepted}

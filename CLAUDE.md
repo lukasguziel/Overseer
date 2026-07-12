@@ -61,6 +61,9 @@ src/
                           / frozen restructuring plans (skill artifacts)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
 frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
+  STYLEGUIDE.md           UI vocabulary: every reusable block, its class + markup
+                          (.section-head, sidebar text ranks, buttons, colour meaning).
+                          READ BEFORE touching CSS — reuse a block, never fork a near-copy.
 tests/                    pytest, runs WITHOUT c4d
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
 .github/workflows/release.yml  builds SceneOrganizer-<version>.zip + creates a GitHub Release
