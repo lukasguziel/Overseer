@@ -37,7 +37,7 @@ import SimsTab from './tabs/SimsTab'
 // Headline + one-line description shown at the top of each area (Overview,
 // Naming and Misc intentionally excluded — they carry their own intros).
 const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string }>> = {
-  translate: { title: 'Translate', desc: 'Translate object names into your target language — Google (online) or bundled dictionaries. Every rename is previewed before you apply.' },
+  translate: { title: 'Translate', desc: 'Translate object names into your target language — offline on your machine, or Google online for any language. Every rename is previewed before you apply.' },
   structure: { title: 'Structure', desc: 'Group loose objects into a clean container hierarchy. Generator children stay protected; changes apply as one undo step.' },
   layers: { title: 'Layers', desc: 'Assign objects to layers and tidy the layer table. Nothing changes until you apply a suggestion.' },
   materials: { title: 'Materials', desc: 'Audit materials and textures: unused materials, missing maps, oversized textures and absolute paths.' },
