@@ -423,18 +423,17 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
 
   return (
     <div className="stacked">
-      {/* ---- Materials overview (shading definitions) ---------------- */}
-      <section className="card">
-        <div className="card-head">
-          <h3>Materials</h3>
-        </div>
-        {mat ? (
+      {/* ---- Materials: the scene's numbers, then the ONE worklist.
+           No card wrapping a card — the Workbench IS the panel, and its batch
+           buttons sit top right like in every other area. The tab's own
+           SectionIntro (App.tsx TAB_INTRO) already titles this area. ------ */}
+      {mat ? (
           <>
             {/* Visibility toggle = scope: 'Visible only' lists materials used
                 NOWHERE; 'All objects' additionally lists the ones used only
                 by hidden objects — same list, fully actionable, badge marks
                 them. Materials any visible object uses never show up. */}
-            <div className="substats" style={{ marginBottom: 12 }}>
+            <div className="substats">
               <span><b>{mat.total}</b> total</span>
               <span className={deletable ? 'warn' : ''}><b>{deletable}</b> unused</span>
               {(mat.only_hidden?.length ?? 0) > 0 && (
@@ -495,8 +494,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <Pager pager={unusedPager} />
             </Workbench>
           </>
-        ) : <div className="empty-note">No material data.</div>}
-      </section>
+      ) : <div className="empty-note">No material data.</div>}
 
       {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
       {tex ? (
