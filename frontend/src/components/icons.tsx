@@ -37,3 +37,10 @@ export const IconSelection = () => (
   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7"
     strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none" opacity=".85" /></svg>
 )
+
+// Shrink a texture: a frame with arrows pulling inward (scale down), not a
+// percentage — the size itself is chosen in the dialog the button opens.
+export const IconShrink = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h5v5" /><path d="m3 3 6 6" /><path d="M21 21h-5v-5" /><path d="m21 21-6-6" /><rect x="9" y="9" width="6" height="6" rx="1" /></svg>
+)
