@@ -45,12 +45,21 @@ def _is_candidate(obj) -> bool:
 
 
 def _type_label(obj) -> str:
+    """Readable object type. C4D knows the name of every type it ships (incl.
+    plugins and MoGraph) — ask it first; the hand-kept table is only a
+    fallback, and a raw type id must never reach the screen."""
     from .constants import KNOWN_TYPES
+    try:
+        name = obj.GetTypeName()
+        if name:
+            return str(name)
+    except Exception:
+        pass
     try:
         tid = obj.GetType()
     except Exception:
         return "Object"
-    return KNOWN_TYPES.get(tid, "Type %d" % tid)
+    return KNOWN_TYPES.get(tid, "Object")
 
 
 def _candidates(adapter, tree) -> list:
