@@ -98,7 +98,7 @@ function Deploy-To([string]$Dir) {
 
   # Loader + config template (the user's config.json is NOT overwritten)
   Step "scene_organizer.pyp" { Copy-Item (Join-Path $src "scene_organizer.pyp") $Dir -Force }
-  Step "so_logo.jpg" { Copy-Item (Join-Path $src "so_logo.jpg") $Dir -Force }
+  Step "so_logo.png" { Copy-Item (Join-Path $src "so_logo.png") $Dir -Force }
   Step "config.example.json" { Copy-Item (Join-Path $src "config.example.json") $Dir -Force }
 
   # config.json: ONLY seed if none exists in the target (never overwrite user/preset
