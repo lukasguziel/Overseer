@@ -394,9 +394,15 @@ export function useOrganizer() {
     call('texture_repath', { paths, mode })
       .then((r) => {
         if (r.error) { setStatus(r.error); return }
+        // "Nothing happened" is never an acceptable answer: the server reports
+        // per path WHY it could not rewrite it (file gone, already relative,
+        // outside the project, no parameter held the path) — show that.
+        const why: string[] = (r.diag || []) as string[]
         setStatus(r.changed
           ? `Rewrote ${r.changed} path${r.changed === 1 ? '' : 's'} to ${mode} ✓ (undoable)`
-          : `No paths to make ${mode}.`)
+          : why.length
+            ? `Nothing rewritten — ${why.join(' · ')}`
+            : `No paths to make ${mode}.`)
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Repath ✗') })

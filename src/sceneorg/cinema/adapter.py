@@ -1299,17 +1299,26 @@ class SceneAdapter:
     def texture_repath(self, paths, mode: str = "relative",
                        material: str | None = None) -> dict:
         mode = "absolute" if str(mode).lower() == "absolute" else "relative"
-        targets = self._repath_targets(list(paths or []), mode)
+        import os
+        raws = [str(p) for p in (paths or []) if p]
+        targets = self._repath_targets(raws, mode)
         self.last_changes = []
+        # Why a path produced no target at all (missing file, already in the
+        # requested form, outside the project) — otherwise a no-op looks like
+        # a broken button.
         if not targets:
-            return {"changed": 0, "skipped": 0}
+            return {"changed": 0, "skipped": len(raws), "mode": mode,
+                    "targets": 0,
+                    "diag": [self._repath_diag(r, mode) for r in raws]}
 
         changed = skipped = 0
+        diag: list = []
         index = self._owner_index()
         self.doc.StartUndo()
         for raw, new_path in targets:
+            owners = self._owners_for_path(raw, material, index)
             wrote = False
-            for owner in self._owners_for_path(raw, material, index):
+            for owner in owners:
                 if self._write_path_refs(owner, raw, new_path):
                     wrote = True
             # No owner reported (or none of them held the path): the reference
@@ -1322,9 +1331,38 @@ class SceneAdapter:
                 self._log_texpath(raw, new_path)
             else:
                 skipped += 1
+                diag.append("%s: %d owner(s), no parameter held the path"
+                            % (os.path.basename(raw), len(owners)))
         self.doc.EndUndo()
         c4d.EventAdd()
-        return {"changed": changed, "skipped": skipped, "mode": mode}
+        return {"changed": changed, "skipped": skipped, "mode": mode,
+                "targets": len(targets), "diag": diag}
+
+    def _repath_diag(self, raw: str, mode: str) -> str:
+        """Plain-language reason a path cannot be rewritten into `mode`."""
+        import os
+        doc_path = self.doc.GetDocumentPath() or ""
+        base = os.path.basename(raw) or raw
+        if not doc_path:
+            return "%s: the project has never been saved" % base
+        try:
+            resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
+        except Exception:
+            resolved = ""
+        if not resolved or not os.path.isfile(resolved):
+            return "%s: the file cannot be found on disk" % base
+        if mode == "relative":
+            if not os.path.isabs(raw):
+                return "%s: already relative" % base
+            try:
+                rp = os.path.relpath(resolved, doc_path)
+            except Exception:
+                return "%s: not on the same drive as the project" % base
+            if rp.startswith(".."):
+                return "%s: lives outside the project folder" % base
+        elif os.path.isabs(raw):
+            return "%s: already absolute" % base
+        return "%s: no change needed" % base
 
     def _has_alpha(self, path: str) -> bool:
         try:
