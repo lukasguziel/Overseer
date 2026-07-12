@@ -63,7 +63,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
           empty="Everything is already in the right group 🎉"
-          hint="Click a row to select & frame the object in Cinema 4D · ✓ moves it · = keeps its place"
+          hint="Click a row to select & frame the object in Cinema 4D · the green ✓ moves it · the grey one keeps its place"
           applyLabel="Apply all" onApply={org.applyStructure}
           onAcceptAll={() => org.keepAll('structure')} busy={busy}
           progress={org.progress}

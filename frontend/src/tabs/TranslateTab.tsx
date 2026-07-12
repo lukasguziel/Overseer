@@ -99,7 +99,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
       <Workbench
         title="Translation preview" count={translation?.count ?? 0} loading={previewing}
         empty={`Every name is already ${LANG_LABEL[translateTarget]} 🎉`}
-        hint="Click a row to select & frame the object in Cinema 4D · ✓ translates it · = keeps the name"
+        hint="Click a row to select & frame the object in Cinema 4D · the green ✓ translates it · the grey one keeps the name"
         applyLabel="Apply all" onApply={org.applyTranslate}
         onAcceptAll={() => org.keepAll('translate')} busy={busy}
         progress={org.progress}

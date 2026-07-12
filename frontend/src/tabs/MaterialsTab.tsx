@@ -520,10 +520,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               )}
             </div>
 
-            {/* Facet chips: no "All" entry — an unset facet means all, and
-                clicking the active chip toggles it back off. */}
-            <div className="section-head sm"><span>Path status</span></div>
-            <FilterChips value={pathFilter} empty="" onChange={setPathFilter}
+            <FilterChips label="Path status" value={pathFilter} empty="" onChange={setPathFilter}
               options={PATH_STATES.map(([key, label]) => ({
                 key,
                 label,
@@ -532,56 +529,38 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 cls: key === 'missing' && nPath(key) > 0 ? 'tf-warn' : undefined,
               }))} />
 
-            <div className="section-head sm"><span>Resolution</span></div>
-            <FilterChips value={resFilter} empty="" onChange={setResFilter}
+            <FilterChips label="Resolution" value={resFilter} empty="" onChange={setResFilter}
               options={RES_FILTERS.map(([key, label]) => ({
                 key, label, count: nRes(key), title: `Show only ${label} textures`,
               }))} />
 
-            <div className="section-head sm">
-              <Tip text="Filter by the channel mode from the spec badge (e.g. “RGB 32b linear”). Maps without readable pixel data drop out while a filter is active.">
-                <span>Channels</span>
-              </Tip>
-            </div>
-            <FilterChips value={modeFilter} empty="" onChange={setModeFilter}
+            <FilterChips label="Channels" value={modeFilter} empty="" onChange={setModeFilter}
+              tip="Filter by the channel mode from the spec badge (e.g. “RGB 32b linear”). Maps without readable pixel data drop out while a filter is active."
               options={MODES.map(([key, label]) => ({
                 key, label, count: nMode(key), title: `Show only ${label} textures`,
               }))} />
 
             {depths.length > 1 && (
-              <>
-                <div className="section-head sm">
-                  <Tip text="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs.">
-                    <span>Bit depth</span>
-                  </Tip>
-                </div>
-                <FilterChips value={depthFilter} empty={0} onChange={setDepthFilter}
-                  options={depths.map((d) => ({
-                    key: d, label: `${d} bit`, count: nDepth(d),
-                    title: `Show only ${d}-bit textures`,
-                  }))} />
-              </>
+              <FilterChips label="Bit depth" value={depthFilter} empty={0} onChange={setDepthFilter}
+                tip="Filter by bits per channel — 32-bit maps (EXR/HDR) are the memory hogs."
+                options={depths.map((d) => ({
+                  key: d, label: `${d} bit`, count: nDepth(d),
+                  title: `Show only ${d}-bit textures`,
+                }))} />
             )}
             {spaces.length > 1 && (
-              <>
-                <div className="section-head sm">
-                  <Tip text="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear).">
-                    <span>Colorspace</span>
-                  </Tip>
-                </div>
-                <FilterChips value={spaceFilter} empty="" onChange={setSpaceFilter}
-                  options={spaces.map((s) => ({
-                    key: s, label: s, count: nSpace(s), title: `Show only ${s} textures`,
-                  }))} />
-              </>
+              <FilterChips label="Colorspace" value={spaceFilter} empty="" onChange={setSpaceFilter}
+                tip="Filter by the colorspace tag where it is readable from the file (e.g. sRGB, linear)."
+                options={spaces.map((s) => ({
+                  key: s, label: s, count: nSpace(s), title: `Show only ${s} textures`,
+                }))} />
             )}
-
           </aside>
 
           <div className="wb-preview">
             <div className="wb-preview-head">
               <h3>Paths</h3>
-              <span className="wb-count">
+              <span className="head-count">
                 {pathPager.total === 0 ? 'nothing to show'
                   : `${pathPager.total} map${pathPager.total === 1 ? '' : 's'}`}
               </span>
@@ -629,7 +608,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               Click a row to select its material in Cinema 4D. Decide per map on
               the right: the shrink icon writes a smaller copy (you pick the
               size), <b>→ rel</b> makes an in-project path relative; missing maps
-              offer … pick a replacement · ✕ clear · = accept.
+              offer the folder icon to pick a replacement · ✕ clear · the grey ✓ accepts.
             </p>
             <div className="wb-scroll">
               {pathPager.total
