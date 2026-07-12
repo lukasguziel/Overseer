@@ -532,6 +532,53 @@ class SceneAdapter:
         except Exception:
             return ""
 
+    def _stored_path_for(self, owner, resolved: str) -> str:
+        """The path the material ACTUALLY stores for this texture.
+
+        `GetAllAssetsNew` reports the RESOLVED path — always absolute, even for
+        a material that stores "tex/wall.png". Taking that as the reference is
+        what made every map look absolute (relative: 0) and made a rewrite
+        search the shaders for a string that is not in them ("no parameter held
+        the path"). So: match by FILE NAME and return the string the shader
+        really holds; the resolved path stays the fallback.
+        """
+        import os
+        base = os.path.basename(resolved).lower()
+        if not base or owner is None:
+            return resolved
+        holders = [owner]
+        try:
+            main = owner.GetMain()
+            if main is not None and main is not owner:
+                holders.append(main)
+        except Exception:
+            pass
+        for holder in list(holders):
+            try:
+                holders.extend(self._iter_bitmap_shaders(holder))
+            except Exception:
+                pass
+        for holder in holders:
+            try:
+                val = str(holder[c4d.BITMAPSHADER_FILENAME] or "")
+            except Exception:
+                val = ""
+            if val and os.path.basename(val).lower() == base:
+                return val
+            try:
+                description = holder.GetDescription(c4d.DESCFLAGS_DESC_NONE)
+            except Exception:
+                continue
+            for _bc, paramid, _group in description:
+                try:
+                    v = holder[paramid]
+                except Exception:
+                    continue
+                if isinstance(v, str) and v and \
+                        os.path.basename(v).lower() == base:
+                    return v
+        return resolved
+
     def _texture_refs(self, effective_used: set | None = None) -> list:
         doc = self.doc
         used_names = (effective_used if effective_used is not None
@@ -550,12 +597,17 @@ class SceneAdapter:
             assets = []
         for a in assets:
             try:
-                raw = str(a.get("filename") or "")
+                resolved = str(a.get("filename") or "")
             except Exception:
-                raw = ""
-            if not raw or not self._is_texture_file(raw):
+                resolved = ""
+            if not resolved or not self._is_texture_file(resolved):
                 continue
-            name = self._owner_material_name(a.get("owner")) \
+            owner = a.get("owner")
+            # The reference is what the material STORES, not what C4D resolved
+            # it to (see _stored_path_for) — otherwise every map reads as
+            # absolute and no rewrite can find the string it wants to replace.
+            raw = self._stored_path_for(owner, resolved)
+            name = self._owner_material_name(owner) \
                 or str(a.get("assetname") or "")
             key = (name, raw)
             if key in seen:
@@ -1279,14 +1331,18 @@ class SceneAdapter:
             if not isinstance(a, dict):
                 continue
             owner = a.get("owner")
-            raw = str(a.get("filename") or "")
-            if owner is None or not raw:
+            resolved = str(a.get("filename") or "")
+            if owner is None or not resolved:
                 continue
-            key = (raw, id(owner))
-            if key in seen:
-                continue
-            seen.add(key)
-            index.setdefault(raw, []).append(owner)
+            # Key by the STORED path (what the UI sends back), not the resolved
+            # one — and by the resolved one too, so an owner is found either way.
+            stored = self._stored_path_for(owner, resolved)
+            for raw in {stored, resolved}:
+                key = (raw, id(owner))
+                if key in seen:
+                    continue
+                seen.add(key)
+                index.setdefault(raw, []).append(owner)
         return index
 
     def _owners_for_path(self, raw: str, material: str | None = None,
