@@ -349,8 +349,18 @@ export function useOrganizer() {
     call('texture_resize', { paths, percent })
       .then((r) => {
         if (r.error) { setStatus(r.error); return }
-        setStatus(`Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
-          + (r.skipped ? ` · ${r.skipped} skipped` : ''))
+        // A skip is a non-event to the user unless they learn WHY — the
+        // backend gives a reason per file, so surface it instead of a count.
+        const why: string[] = [...new Set((r.results || [])
+          .filter((x: { status: string }) => x.status === 'skipped')
+          .map((x: { note: string }) => x.note)
+          .filter(Boolean) as string[])]
+        if (!r.resized) {
+          setStatus(`Nothing resized${why.length ? ` — ${why.join(' · ')}` : ''}`)
+        } else {
+          setStatus(`Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
+            + (r.skipped ? ` · ${r.skipped} skipped: ${why.join(' · ')}` : ''))
+        }
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Resize ✗') })
