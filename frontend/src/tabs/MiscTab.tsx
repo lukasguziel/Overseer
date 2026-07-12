@@ -144,12 +144,6 @@ export default function MiscTab({ org }: { org: Organizer }) {
             <b className="credits-label">Beta testers:</b>
             {BETA_TESTERS.join(', ')}
           </p>
-          <div className="credits-links">
-            <a className="credits-link" href="https://github.com/Goodsoup-Family-Crypt/scene-organizer"
-              target="_blank" rel="noreferrer">GitHub ↗</a>
-            <a className="credits-link donate" href="https://www.buymeacoffee.com/bamerus"
-              target="_blank" rel="noreferrer">♥ Donate to support</a>
-          </div>
         </section>
 
         {import.meta.env.DEV && (
@@ -159,7 +153,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
               The server runs while the “Scene Organizer” window is open in
               C4D — closing that window stops it.
             </p>
-            <div className="btns">
+            <div className="btns btns-auto">
               <ActionButton onClick={() => window.location.reload()}>Reload UI</ActionButton>
               <ActionButton onClick={() => window.open('/', '_blank')}>Open in new tab</ActionButton>
             </div>
@@ -169,6 +163,17 @@ export default function MiscTab({ org }: { org: Organizer }) {
           </section>
         )}
       </div>
+
+      {/* Support sits BELOW the cards, spanning the whole tab. The hearts drift
+          out of the button itself — decorative, hence aria-hidden and no pointer
+          events (see styles.css). */}
+      <span className="donate-wrap">
+        <a className="credits-link donate" href="https://www.buymeacoffee.com/bamerus"
+          target="_blank" rel="noreferrer">♥ Support me</a>
+        <span className="donate-hearts" aria-hidden="true">
+          <i>♥</i><i>♥</i><i>♥</i><i>♥</i>
+        </span>
+      </span>
     </div>
   )
 }
