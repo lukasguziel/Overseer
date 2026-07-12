@@ -9,6 +9,7 @@ import Pager, { usePager } from '../components/Pager'
 import BarList from '../components/BarList'
 import Tip from '../components/Tip'
 import './generators.css'
+import ActionButton from '../components/ActionButton'
 
 type ParamKind = 'int' | 'bool' | 'choice'
 
@@ -204,9 +205,9 @@ function PerfCard() {
         <Tip text="Each generator is rebuilt on its own while the clock runs — the time it takes is what it costs the viewport on every change. Nothing in the scene is modified.">
           <h3>Viewport cost</h3>
         </Tip>
-        <button className="ghost sm" disabled={measuring} onClick={measure}>
+        <ActionButton tone="go" disabled={measuring} onClick={measure}>
           {measuring ? 'Measuring…' : perf ? 'Measure again' : 'Measure'}
-        </button>
+        </ActionButton>
       </div>
       <p className="hint-sm">
         Which generator makes the viewport crawl? Each one is rebuilt by
@@ -351,7 +352,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
         {error && (
           <div className="error" style={{ marginTop: 12 }}>
             Generators scan failed: {error}{' '}
-            <button className="mini" onClick={reload} disabled={loading}>Retry</button>
+            <ActionButton onClick={reload} disabled={loading}>Retry</ActionButton>
           </div>
         )}
         {applyError && <div className="error" style={{ marginTop: 12 }}>{applyError}</div>}
@@ -372,11 +373,11 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
                 {type.label} <span className="gens-count">{type.count}</span>
               </h3>
               {mixed.length === 0 && <span className="gens-uniform">all settings uniform ✓</span>}
-              <button className="mini gens-selall" disabled={busy}
+              <ActionButton className="gens-selall" disabled={busy}
                 title={`Select all ${type.count} ${type.label} objects in Cinema 4D`}
                 onClick={() => call('gens_select', { type_key: type.key }).catch(() => {})}>
                 Select in C4D
-              </button>
+              </ActionButton>
             </div>
 
             {mixed.length > 0 && (

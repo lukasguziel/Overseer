@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import './files.css'
+import ActionButton from '../components/ActionButton'
 
 interface FileEntry {
   kind: string
@@ -236,13 +237,13 @@ export default function FilesTab({ org }: { org: Organizer }) {
           {!data.doc_path && (
             <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
           )}
-          <button className="mini" disabled={loading || !canFix}
+          <ActionButton tone="go" disabled={loading || !canFix}
             title={canFix
               ? `Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`
               : 'No absolute paths inside the project folder'}
             onClick={() => setConfirm(true)}>
             Make relative ({reloc})
-          </button>
+          </ActionButton>
           {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
         </aside>
 
@@ -253,7 +254,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                 <h3>Missing files</h3>
                 <span className="card-hint">{missPager.total}</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                  <button className="mini" disabled={loading}
+                  <ActionButton tone="go" disabled={loading}
                     title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
                     onClick={() => {
                       call('pick_folder', { title: 'Folder to search for the missing files' })
@@ -261,8 +262,8 @@ export default function FilesTab({ org }: { org: Organizer }) {
                         .catch(() => {})
                     }}>
                     … Relink {allMissing.length}
-                  </button>
-                  <button className="mini" disabled={loading || !missing.some((e) => e.guid != null)}
+                  </ActionButton>
+                  <ActionButton disabled={loading || !missing.some((e) => e.guid != null)}
                     title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
                     onClick={async () => {
                       const guids = missing.map((e) => e.guid).filter((g): g is number => g != null)
@@ -272,12 +273,12 @@ export default function FilesTab({ org }: { org: Organizer }) {
                       } catch (e: any) { setNote(String(e.message || e)) }
                     }}>
                     Select in C4D
-                  </button>
-                  <button className="mini" disabled={loading}
+                  </ActionButton>
+                  <ActionButton disabled={loading}
                     title="Accept all as missing — they stop counting as problems (restore below)"
                     onClick={() => setAcceptConfirm(true)}>
-                    = Accept {missPager.total}
-                  </button>
+                    Accept {missPager.total}
+                  </ActionButton>
                 </span>
               </div>
               <p className="hint-sm">Per row: … pick the replacement file in C4D's file dialog · = accept it as missing.</p>

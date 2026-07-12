@@ -1,0 +1,47 @@
+/* ACTION BUTTON — the one button of the listing/preview views.
+   See frontend/STYLEGUIDE.md > Buttons.
+
+   Base is ALWAYS the same quiet grey chip: an action must not shout before the
+   artist has decided to run it. Only the HOVER carries the meaning, and only as
+   a tint — it says what will happen, it does not repaint the row. */
+.act {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease),
+    border-color var(--t) var(--ease);
+}
+.act:disabled { opacity: .4; cursor: default; }
+
+/* neutral (default) — reads the scene, changes nothing: Select in C4D, Browse,
+   Accept as-is. Hover only lifts it out of the panel. */
+.act:hover:not(:disabled) {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--hover);
+}
+
+/* go — builds or repairs something: Apply, Relink, Add phong tag, Make relative. */
+.act.go:hover:not(:disabled) {
+  background: rgba(52, 211, 153, .16);
+  color: #cdeede;
+  border-color: var(--apply);
+}
+
+/* danger — removes something: Delete all unused, Delete duplicates, Clear refs. */
+.act.danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, .14);
+  color: #f6d5d5;
+  border-color: var(--err);
+}

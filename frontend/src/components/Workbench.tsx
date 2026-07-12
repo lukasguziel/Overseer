@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import type { ProgressInfo } from '../types'
 import useSteadyProgress from '../hooks/useSteadyProgress'
 import ConfirmModal from './ConfirmModal'
+import ActionButton, { type ActionTone } from './ActionButton'
 
 // Live preview panel — loading style 2 of 3: the inline preview loader.
 // Header carries the change count and the batch pair
@@ -10,12 +11,15 @@ import ConfirmModal from './ConfirmModal'
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
 // progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, onApply, onAcceptAll, busy, note, hint, progress, extra, children }: {
+export default function Workbench({ title, count, loading, empty, applyLabel, applyTone = 'go', onApply, onAcceptAll, busy, note, hint, progress, extra, children }: {
   title: string
   count: number
   loading: boolean
   empty: ReactNode
   applyLabel?: string
+  // What the batch apply DOES: it usually builds ('go'), but "Delete all
+  // unused materials" removes — that one asks for the danger tone.
+  applyTone?: ActionTone
   onApply?: () => void
   onAcceptAll?: () => void
   busy: boolean
@@ -43,16 +47,16 @@ export default function Workbench({ title, count, loading, empty, applyLabel, on
           {!loading && (extra?.count ?? 0) > 0 && ` · ${extra!.count} ${extra!.label}`}
         </span>
         {onApply && (
-          <button className="apply wb-apply" disabled={busy || !count} onClick={() => setConfirm('apply')}
+          <ActionButton tone={applyTone} disabled={busy || !count} onClick={() => setConfirm('apply')}
             title="Apply every suggestion in the list (one undo step)">
-            ✓ {applyLabel || 'Apply all'}
-          </button>
+            {applyLabel || 'Apply all'}
+          </ActionButton>
         )}
         {onAcceptAll && (
-          <button className="wb-accept-all" disabled={busy || !count} onClick={() => setConfirm('accept')}
+          <ActionButton disabled={busy || !count} onClick={() => setConfirm('accept')}
             title="Keep everything exactly as it is — nothing changes in the scene, the items stop counting as todos (restore below)">
-            = Keep all as-is
-          </button>
+            Keep all as-is
+          </ActionButton>
         )}
       </div>
       {confirm === 'apply' && onApply && (

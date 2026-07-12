@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import './tags.css'
+import ActionButton from '../components/ActionButton'
 
 interface TagObjectRef { guid: number; name: string; tag_name: string }
 interface TagType { type_id: number; label: string; count: number; objects: TagObjectRef[] }
@@ -41,13 +42,13 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
           <span className="tags-type-label">{type.label}</span>
           <span className="pill">{type.count}</span>
         </button>
-        <button className="mini" disabled={org.busy}
+        <ActionButton disabled={org.busy}
           title="Select every object carrying this tag type in Cinema 4D"
           onClick={() => call('tags_select', { type_id: type.type_id })
             .then((r) => org.setStatus(`Selected ${r.selected ?? type.count} object${type.count === 1 ? '' : 's'} in Cinema 4D`))
             .catch((e) => org.setStatus(`Select ✗ ${String(e.message || e)}`))}>
           Select in C4D
-        </button>
+        </ActionButton>
       </div>
       {open && (
         <div className="tags-type-objs">
@@ -194,7 +195,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
           count={dupPager.total} loading={loading}
           empty="No duplicate material tags 🎉"
           hint="Click a row to select it in Cinema 4D · ✓ removes the redundant copies"
-          applyLabel="Delete all duplicates"
+          applyLabel="Delete all duplicates" applyTone="danger"
           onApply={() => ask(
             'Delete duplicate material tags',
             `Remove the redundant material tags on ${dupPager.total} object${dupPager.total === 1 ? '' : 's'}, keeping the first per material (one undo step). Continue?`,
@@ -256,11 +257,11 @@ export default function TagsTab({ org }: { org: Organizer }) {
                 <input className="nl-input tags-angle-input" type="number" min={0} max={180}
                   placeholder="custom" value={angleInput}
                   onChange={(e) => setAngleInput(e.target.value)} />
-                <button className="apply" disabled={busy || customAngle === null}
+                <ActionButton tone="go" disabled={busy || customAngle === null}
                   title={angleInput !== '' && customAngle === null ? 'Enter an angle between 0 and 180°' : 'Set this angle on all phong tags'}
                   onClick={() => { if (customAngle !== null) setUniformAngle(customAngle) }}>
                   Set
-                </button>
+                </ActionButton>
               </div>
             </>
           )}

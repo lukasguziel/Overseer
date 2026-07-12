@@ -444,7 +444,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 </>
               }
               hint="Click a row to select the material in Cinema 4D · ✓ deletes it · = keeps it"
-              applyLabel="Delete all"
+              applyLabel="Delete all" applyTone="danger"
               onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
               busy={busy} progress={org.progress}

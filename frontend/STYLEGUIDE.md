@@ -170,12 +170,44 @@ whole tab has no data yet ("Run an analysis").
 
 | Class | Look | Use for |
 | --- | --- | --- |
-| `.mini` | 10px bold **UPPERCASE**, compact, accent on hover | actions in a card head or sidebar (Relink, Accept all, Make relative) |
-| `.ghost` | full-size, quiet outline | secondary actions that carry weight |
-| `.primary` | accent fill | the one action a screen is about |
+| `<ActionButton>` / `.act` | 10px bold **UPPERCASE**, compact grey chip | every action in a listing / preview view (Relink, Select in C4D, Keep all as-is, Delete all) |
+| `.ghost` | full-size, quiet outline | a `.side-action` in a sidebar, where the button spans the panel |
+| `.apply` | green outline fill | the confirm button INSIDE a modal — the point of no return |
 
-`button.mini` is the default for narrow, repeated actions — it stays small and
-does not stretch, so several fit next to each other.
+### Action button — `<ActionButton>`
+
+**The** button of the app. Always the component, never a hand-rolled
+`<button className="mini">`:
+
+```jsx
+<ActionButton onClick={selectInC4D}>Select in C4D</ActionButton>
+<ActionButton tone="go" disabled={busy} onClick={relink}>Relink 12</ActionButton>
+<ActionButton tone="danger" onClick={deleteAll}>Delete all unused</ActionButton>
+```
+
+**The resting state is always the same quiet grey.** An action must not shout
+before the artist has decided to run it, and a row of actions has to read as a
+row — not as a traffic light. What differs is only the **hover**, and only as a
+tint:
+
+| Tone | Hover | The action… |
+| --- | --- | --- |
+| `neutral` (default) | lifts out of the panel, no colour | changes **nothing** in the scene: Select in C4D, Browse, Accept as-is, Clear log |
+| `go` | green tint | **builds or repairs**: Apply, Relink, Add phong tag, Make relative, Measure |
+| `danger` | red tint | **removes**: Delete all unused, Delete duplicates, Clear dead references |
+
+Pick the tone by **consequence, not by importance**. "Delete all unused
+materials" is the batch action of its panel, but it destroys — it is `danger`,
+not the loud primary. "Keep all as-is" sounds passive but is the panel's other
+big button — it is still `neutral`, because the scene does not change.
+
+**No accent-blue hover.** A full accent fill on hover repaints the button and
+reads like the state changed rather than like a preview of what a click will
+do. The hover is a whisper, not an announcement.
+
+`Workbench` renders the batch pair for every worklist (`onApply` + `onAcceptAll`)
+with exactly these tones — pass `applyTone="danger"` when the batch apply
+deletes (Materials: "Delete all", Tags: "Delete all duplicates").
 
 ---
 
