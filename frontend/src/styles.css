@@ -470,8 +470,11 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .rn-keep:disabled { opacity: .4; cursor: default; }
 
 /* Layers tab: batch assign row above the no-layer list */
-.nl-batch { display: flex; align-items: center; gap: 8px; padding: 8px 0 10px;
-  border-bottom: 1px solid var(--line2); margin-bottom: 4px; }
+/* Batch row: the field and its Assign chip sit at the RIGHT edge, in the same
+   column as the per-row action buttons underneath — the batch does to all rows
+   what those buttons do to one. */
+.nl-batch { display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 8px 0 10px; border-bottom: 1px solid var(--line2); margin-bottom: 4px; }
 .nl-batch .act { flex: none; }
 /* The batch layer field sits next to its Assign chip, so it takes the chip's
    shape and metrics (see ActionButton.css) and is only as wide as its
@@ -488,6 +491,37 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .nl-input::placeholder { color: var(--dim2); }
 .nl-input:focus { outline: none; border-color: var(--hover); }
 .rename-row .nl-input { padding: 3px 8px; border-radius: 6px; }
+/* Chrome draws its own datalist arrow, but only on hover — so at rest nothing
+   said "there is a list behind this". Hide that one and draw a permanent arrow
+   instead, same glyph and inset as `select`. */
+.nl-input { padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--dim2) 50%),
+    linear-gradient(135deg, var(--dim2) 50%, transparent 50%);
+  background-position: right 12px center, right 7px center;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.nl-input::-webkit-calendar-picker-indicator { display: none !important; }
+
+/* PER-ROW LAYER PICKER — the value itself opens the list; there is no pencil.
+   At rest it is plain text: a worklist of 200 rows must not look like 200
+   buttons. The row's hover reveals that it is a control — chip frame + caret,
+   the ActionButton's shape. */
+.nl-pick { flex: 1 1 0; min-width: 0; text-align: left; display: flex;
+  align-items: center; gap: 6px; font: inherit; font-size: 12px;
+  color: var(--dim); background: transparent; border: 1px solid transparent;
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; box-shadow: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background var(--t) var(--ease), border-color var(--t) var(--ease),
+    color var(--t) var(--ease); }
+.nl-pick.empty { color: var(--dim2); font-style: italic; }
+/* Same swatch as the layer overview — the colour IS how the artist recognises
+   the layer, so the suggestion must wear it too. */
+.nl-swatch { margin-right: 1px; }
+.nl-caret { margin-left: auto; flex: none; font-size: 9px; color: var(--dim2); opacity: 0;
+  transition: opacity var(--t) var(--ease); }
+.rename-row:hover .nl-pick { background: var(--panel2); border-color: var(--line); }
+.rename-row:hover .nl-caret { opacity: 1; }
+.nl-pick:hover:not(:disabled) { background: var(--panel); border-color: var(--hover);
+  color: var(--text); box-shadow: none; }
 
 /* Shared pagination (previews, accepted lists): 25 rows per page */
 .pager { position: relative; display: flex; align-items: center;
@@ -1257,9 +1291,15 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .shrink-size:hover { background: var(--panel); color: var(--text); border-color: var(--hover); }
 .shrink-size.on { border-color: var(--apply); background: rgba(52, 211, 153, .12);
   color: var(--text); }
-.shrink-pct { font-size: 13px; font-weight: 700; }
+.shrink-tier { font-size: 13px; font-weight: 700; }
 .shrink-dims { font-size: 11px; color: var(--dim2); font-variant-numeric: tabular-nums; }
-.shrink-size.on .shrink-dims { color: #cdeede; }
+.shrink-pct { font-size: 10px; color: var(--dim2); font-variant-numeric: tabular-nums; }
+.shrink-size.on .shrink-dims, .shrink-size.on .shrink-pct { color: #cdeede; }
+.shrink-note { margin: 0 0 16px; }
+.shrink-note code { color: var(--text); }
+
+/* Resolution tiers in the resized-row note (components/ResizeNote.tsx) */
+.rz-tier { font-weight: 700; }
 
 /* --- Background progress chip (non-blocking work, bottom left) ----------- */
 .progress-chip {

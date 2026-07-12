@@ -27,6 +27,11 @@ export default function ResizeNote({ fromW, fromH, toW, toH, file }: {
   // Uncompressed memory is what the GPU pays: w*h*4 bytes, +1/3 for mipmaps
   // (same formula as core/textures.vram_bytes).
   const vram = (w: number, h: number) => Math.round(w * h * 4 * (4 / 3))
+  // Same tiers as the list and the shrink dialog: "8K → 2K" is the sentence an
+  // artist actually thinks in; raw pixel counts are the proof underneath it.
+  const tier = (longest: number) =>
+    longest >= 8192 ? '8K' : longest >= 4096 ? '4K'
+      : longest >= 2048 ? '2K' : longest >= 1024 ? '1K' : '< 1K' 
   const before = vram(fromW, fromH)
   const after = vram(toW, toH)
   const savedPct = before > 0 ? Math.round((1 - after / before) * 100) : 0
@@ -38,6 +43,9 @@ export default function ResizeNote({ fromW, fromH, toW, toH, file }: {
         <rect x="0.5" y="0.5" width={ow - 1} height={oh - 1} className="rz-old" />
         <rect x="0.5" y="0.5" width={nw} height={nh} className="rz-new" />
       </svg>
+      <span className="rz-tier">
+        {tier(Math.max(fromW, fromH))} → <b>{tier(Math.max(toW, toH))}</b>
+      </span>
       <span className="rz-dims">
         <s>{fromW}×{fromH}</s> → <b>{toW}×{toH}</b>
       </span>
