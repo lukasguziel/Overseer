@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import Pager, { usePager } from './Pager'
+import SectionIntro from './SectionIntro'
+import ActionButton from './ActionButton'
+import './AcceptedSection.css'
 
-// Collapsed accordion listing everything the user accepted as-is in this
-// area. Identical in every tab; entries can be pulled back with "restore".
+// Everything the user accepted as-is in one area. Same block in every tab: a
+// section intro says what the area is, and one toggle opens the list — the
+// entries themselves are the only thing behind the fold.
 export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }: {
   items: string[]
   onRestore: (key: string) => void
@@ -12,17 +16,23 @@ export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }
   const [open, setOpen] = useState(false)
   const pager = usePager([...items].sort())
   if (!items.length) return null
+  const n = pager.total
   return (
-    <section className="card">
+    <>
+    <SectionIntro title="Accepted as-is"
+      desc={hint || 'Accepted items are remembered (config) and never counted as todos. Items with the same name are accepted together.'} />
+    <section className="card kept-card">
       <div className="kept-head-row">
-        <button className="kept-head" onClick={() => setOpen(!open)}>
-          <span className="cl-caret">{open ? '▾' : '▸'}</span>
-          Accepted as-is <span className="kept-count">{pager.total}</span>
+        <button className={'kept-toggle' + (open ? ' on' : '')} aria-expanded={open}
+          title={open ? 'Hide the accepted items' : 'Show the accepted items'}
+          onClick={() => setOpen(!open)}>
+          <span className="kept-caret">▸</span>
+          {open ? 'Hide' : 'Show'} {n} accepted item{n === 1 ? '' : 's'}
         </button>
         {onRestoreAll && (
-          <button className="kept-restore-all"
+          <ActionButton
             title="Restore every accepted item in this area — they all become todos again"
-            onClick={onRestoreAll}>restore all ✕</button>
+            onClick={onRestoreAll}>Restore all</ActionButton>
         )}
       </div>
       {open && (
@@ -31,17 +41,15 @@ export default function AcceptedSection({ items, onRestore, onRestoreAll, hint }
             {pager.rows.map((k) => (
               <div className="kept-row" key={k}>
                 <span className="fl-name" title={k}>{k}</span>
-                <button className="kept-restore" title="Restore — treat as a todo again"
-                  onClick={() => onRestore(k)}>restore</button>
+                <ActionButton title="Restore — treat as a todo again"
+                  onClick={() => onRestore(k)}>Restore</ActionButton>
               </div>
             ))}
           </div>
           <Pager pager={pager} />
         </>
       )}
-      <p className="hint-sm" style={{ marginTop: 8 }}>
-        {hint || 'Accepted items are remembered (config) and never counted as todos. Items with the same name are accepted together.'}
-      </p>
     </section>
+    </>
   )
 }

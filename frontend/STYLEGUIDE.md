@@ -137,6 +137,24 @@ a preference is not a defect, and the UI must not call the user's pipeline wrong
 
 ---
 
+## Accepted-as-is — `<AcceptedSection>`
+
+The card at the foot of every worklist area listing what the artist accepted
+as-is. One component, seven usages (Naming, Layers, Structure, Translate,
+Files, Materials ×2) — never rebuild it per tab.
+
+Its shape is the pattern for **any collapsible area**:
+
+1. `<SectionIntro>` — the title and the one-line explanation, always visible.
+2. one framed toggle (`.kept-toggle`) — the only affordance, so it must *look*
+   like a control: border, hover, and a caret that rotates when open.
+3. the entries — **only** the results live behind the fold.
+
+Never hide the explanation inside the fold, and never make a bare text label
+the toggle: a heading-shaped button reads as a heading and nobody clicks it.
+
+---
+
 ## Empty note — `.empty-note`
 
 The one-line message that stands in for a list's content: nothing found, still
