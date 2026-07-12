@@ -5,6 +5,15 @@ const CATCOLOR: Record<string, string> = {
 }
 export const catColor = (k: string): string => CATCOLOR[k] || '#64748b'
 
+// A C4D layer's own colour (0..1 floats) as a CSS colour — the swatch in the
+// layer overview and the one in the no-layer picker must be the same colour, so
+// they read the same layer.
+export const layerSwatch = (color: [number, number, number] | null | undefined): string => {
+  if (!color) return 'var(--dim2)'
+  const [r, g, b] = color
+  return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
+}
+
 // Composition strips (casing, language, categories) are NEUTRAL data — a slice
 // is a fact, not a verdict. No warn yellow in here: yellow means "todo" system
 // wide, and a palette slot must not hand that meaning to whatever class happens
