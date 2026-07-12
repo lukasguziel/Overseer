@@ -27,6 +27,24 @@ def level_for(share: float, ms: float) -> str:
     return "light"
 
 
+def median(samples: list) -> float:
+    """Middle sample — one hiccup (a background process, a GC pause) cannot
+    drag it, the way it drags a mean."""
+    vals = sorted(float(s) for s in samples)
+    if not vals:
+        return 0.0
+    mid = len(vals) // 2
+    if len(vals) % 2:
+        return vals[mid]
+    return (vals[mid - 1] + vals[mid]) / 2.0
+
+
+def jitter(samples: list) -> float:
+    """Spread between the fastest and slowest run — how much to trust the value."""
+    vals = [float(s) for s in samples]
+    return (max(vals) - min(vals)) if vals else 0.0
+
+
 def overlap_ratio(sum_ms: float, scene_ms: float) -> float:
     """How much the per-object times overcount, vs one full rebuild.
 

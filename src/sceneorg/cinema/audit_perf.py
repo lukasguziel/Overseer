@@ -19,9 +19,11 @@ from ..core import perf_logic
 _BUILDFLAGS = getattr(c4d, "BUILDFLAGS_0", getattr(c4d, "BUILDFLAGS_NONE", 0))
 _DIRTY_CACHE = getattr(c4d, "DIRTYFLAGS_CACHE", getattr(c4d, "DIRTYFLAGS_DATA", 0))
 
-# How often each object is measured; the FASTEST run counts (the slow ones
-# carry whatever else the machine was doing — the minimum is the honest cost).
-_REPEATS = 2
+# How often each object is measured. The MEDIAN of the runs counts: a single
+# hiccup (background process, GC pause) then cannot invent a hotspot, and an
+# unlucky fast run cannot hide one — with 2 runs and "fastest wins", objects
+# around the noise floor flickered in and out of the list between scans.
+_REPEATS = 3
 
 
 def _exec_passes(doc) -> float:
@@ -94,27 +96,28 @@ def _scan(payload, doc, adapter, tree, progress):
     # Warm up (everything gets built once), then time a pass with nothing
     # dirty — that is the fixed overhead of a pass, which we subtract below.
     _exec_passes(doc)
-    baseline = min(_exec_passes(doc) for _ in range(2))
+    baseline = perf_logic.median([_exec_passes(doc) for _ in range(repeats)])
 
     entries = []
     total = len(cands)
     for i, (node, obj) in enumerate(cands):
         progress("Measuring rebuild times", i, total, node.name)
-        best = None
+        samples = []
         for _ in range(repeats):
             try:
                 obj.SetDirty(_DIRTY_CACHE)
             except Exception:
                 break
-            dt = _exec_passes(doc)
-            best = dt if best is None else min(best, dt)
-        if best is None:
+            samples.append(_exec_passes(doc))
+        if not samples:
             continue
         entries.append({
             "guid": node.guid,
             "name": node.name,
             "type": _type_label(obj),
-            "ms": max(0.0, (best - baseline) * 1000.0),
+            "ms": max(0.0, (perf_logic.median(samples) - baseline) * 1000.0),
+            "jitter_ms": perf_logic.jitter(samples) * 1000.0,
+            "runs": len(samples),
             "polygons": getattr(node, "polygons", 0) or 0,
         })
 
@@ -124,16 +127,15 @@ def _scan(payload, doc, adapter, tree, progress):
     # parent too, so the parent's cost is counted in several children) — the
     # ratio tells the user how much to trust a single row.
     progress("Measuring rebuild times", total, total, "full scene")
-    scene_ms = 0.0
+    scene_runs = []
     for _ in range(repeats):
         for _node, obj in cands:
             try:
                 obj.SetDirty(_DIRTY_CACHE)
             except Exception:
                 pass
-        dt = _exec_passes(doc)
-        scene_ms = dt if scene_ms == 0.0 else min(scene_ms, dt)
-    scene_ms = max(0.0, (scene_ms - baseline) * 1000.0)
+        scene_runs.append(_exec_passes(doc))
+    scene_ms = max(0.0, (perf_logic.median(scene_runs) - baseline) * 1000.0)
 
     result = perf_logic.rank(entries)
     result["ok"] = True
