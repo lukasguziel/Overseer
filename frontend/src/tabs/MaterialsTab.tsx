@@ -17,6 +17,7 @@ import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
 import { IconFolder, IconShrink } from '../components/icons'
+import './materials.css'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
