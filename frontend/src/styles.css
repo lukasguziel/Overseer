@@ -479,7 +479,7 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 /* The batch layer field sits next to its Assign chip, so it takes the chip's
    shape and metrics (see ActionButton.css) and is only as wide as its
    placeholder — a name is short, a full-width field promised a paragraph. */
-.nl-batch .nl-input { flex: none; width: 23ch; padding: 3px 9px; border-radius: 6px;
+.nl-batch .nl-input { flex: none; width: 30ch; padding: 3px 9px; border-radius: 6px;
   font-size: 10px; letter-spacing: .03em; }
 .nl-batch .nl-input::placeholder { text-transform: uppercase; font-weight: 700; }
 
