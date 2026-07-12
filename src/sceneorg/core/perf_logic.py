@@ -27,6 +27,18 @@ def level_for(share: float, ms: float) -> str:
     return "light"
 
 
+def overlap_ratio(sum_ms: float, scene_ms: float) -> float:
+    """How much the per-object times overcount, vs one full rebuild.
+
+    1.0 = the parts add up to the whole (each row is that object's own cost).
+    2.0 = the parts add up to twice the whole — nested generators, so a row is
+    the cost of that object's whole BRANCH, not of the object alone.
+    """
+    if scene_ms <= NOISE_MS or sum_ms <= 0:
+        return 1.0
+    return sum_ms / scene_ms
+
+
 def rank(entries: list) -> dict:
     """Sort measurements slowest first and attach share + level.
 

@@ -109,9 +109,30 @@ def _scan(payload, doc, adapter, tree, progress):
             "polygons": getattr(node, "polygons", 0) or 0,
         })
 
+    # Calibration: rebuild EVERYTHING at once. If the per-object times were
+    # perfectly isolated, they would add up to this. They add up to more when
+    # a generator sits under another one (rebuilding the child forces the
+    # parent too, so the parent's cost is counted in several children) — the
+    # ratio tells the user how much to trust a single row.
+    progress("Measuring rebuild times", total, total, "full scene")
+    scene_ms = 0.0
+    for _ in range(repeats):
+        for _node, obj in cands:
+            try:
+                obj.SetDirty(_DIRTY_CACHE)
+            except Exception:
+                pass
+        dt = _exec_passes(doc)
+        scene_ms = dt if scene_ms == 0.0 else min(scene_ms, dt)
+    scene_ms = max(0.0, (scene_ms - baseline) * 1000.0)
+
     result = perf_logic.rank(entries)
     result["ok"] = True
     result["baseline_ms"] = baseline * 1000.0
+    result["scene_ms"] = scene_ms
+    result["summary"]["scene_ms"] = scene_ms
+    result["summary"]["overlap"] = perf_logic.overlap_ratio(
+        result["summary"]["total_ms"], scene_ms)
     return result
 
 
