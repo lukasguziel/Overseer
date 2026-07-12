@@ -312,13 +312,13 @@ export function useOrganizer() {
     call('collect_textures', { subdir })
       .then((r) => {
         if (r.error) { setStatus(r.error); return }
-        setStatus(r.relinked
+        note(r.relinked
           ? `Copied ${r.copied} file${r.copied === 1 ? '' : 's'} → ${subdir}/ · relinked ${r.relinked} shader${r.relinked === 1 ? '' : 's'} ✓ (relink undoable)`
           : 'No out-of-project textures to collect.')
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Collect ✗') })
-  }, [doAnalyze])
+  }, [doAnalyze, note])
 
   // Relink missing textures by searching a folder recursively for the file
   // names; matches are rewritten (project-relative when possible).
@@ -377,36 +377,36 @@ export function useOrganizer() {
           .filter((x: { status: string }) => x.status === 'skipped')
           .map((x: { note: string }) => x.note)
           .filter(Boolean) as string[])]
-        if (!r.resized) {
-          setStatus(`Nothing resized${why.length ? ` — ${why.join(' · ')}` : ''}`)
-        } else {
-          setStatus(`Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
+        note(!r.resized
+          ? `Nothing resized${why.length ? ` — ${why.join(' · ')}` : ''}`
+          : `Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
             + (r.skipped ? ` · ${r.skipped} skipped: ${why.join(' · ')}` : ''))
-        }
         doAnalyze()
       })
       .catch((e) => { setError(String(e.message || e)); setStatus('Resize ✗') })
-  }, [doAnalyze])
+  }, [doAnalyze, note])
 
   // Convert texture paths between relative and absolute form (undoable, journaled).
-  const doTextureRepath = useCallback((paths: string[], mode: 'relative' | 'absolute') => {
-    setStatus(`Making ${paths.length} path${paths.length === 1 ? '' : 's'} ${mode}…`)
-    call('texture_repath', { paths, mode })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        // "Nothing happened" is never an acceptable answer: the server reports
-        // per path WHY it could not rewrite it (file gone, already relative,
-        // outside the project, no parameter held the path) — show that.
-        const why: string[] = (r.diag || []) as string[]
-        setStatus(r.changed
-          ? `Rewrote ${r.changed} path${r.changed === 1 ? '' : 's'} to ${mode} ✓ (undoable)`
-          : why.length
-            ? `Nothing rewritten — ${why.join(' · ')}`
-            : `No paths to make ${mode}.`)
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Repath ✗') })
-  }, [doAnalyze])
+  const doTextureRepath = useCallback((paths: string[], mode: 'relative' | 'absolute') =>
+    // Wrapped in run(): the follow-up analysis then nests (busy depth 2) and
+    // leaves the pinned outcome alone. Outside run() the analysis would reset
+    // the pin and overwrite the message with "Analyzing ✓" — which is why the
+    // result of this action was invisible.
+    run(`Making ${paths.length} path${paths.length === 1 ? '' : 's'} ${mode}`, async () => {
+      const r = await call('texture_repath', { paths, mode })
+      if (r.error) { note(String(r.error)); return }
+      // "Nothing happened" is never an acceptable answer: the server reports
+      // per path WHY it could not rewrite it (file gone, already relative,
+      // outside the project, no parameter held the path) — show that.
+      const why: string[] = (r.diag || []) as string[]
+      note(r.changed
+        ? `Rewrote ${r.changed} path${r.changed === 1 ? '' : 's'} to ${mode} ✓ (undoable)`
+        : why.length
+          ? `Nothing rewritten — ${why.join(' · ')}`
+          : `No paths to make ${mode}.`)
+      await doAnalyze()
+    }),
+  [doAnalyze, note])
 
   // Clear dead references: blank the path on shaders whose file is missing.
   const doClearMissingTextures = useCallback(() => {
