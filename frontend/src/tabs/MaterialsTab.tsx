@@ -9,10 +9,11 @@ import AcceptedSection from '../components/AcceptedSection'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
+import ShrinkModal from '../components/ShrinkModal'
 import FilterChips from '../components/FilterChips'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
-import { IconFolder } from '../components/icons'
+import { IconFolder, IconShrink } from '../components/icons'
 
 // Colour the resolution tag by tier so heavy 4K/8K maps jump out.
 function resTier(e: TextureEntry): string {
@@ -62,11 +63,10 @@ function resizeTargetPath(path: string, percent: number): string {
 // gesture as accept/keep everywhere else in the app. A missing map can be
 // re-picked, cleared or accepted; a map that is there can be shrunk, and its
 // path flipped between relative and absolute. No batch button decides for you.
-function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
+function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
   e: TextureEntry
   thumb?: string
   resized?: ResizeInfo
-  percent: number
   busy?: boolean
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
@@ -168,9 +168,9 @@ function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, on
           )}
           {canResize && (
             <button className="rn-ok tex-act" disabled={busy}
-              title={`Write a copy of this map at ${percent}% (${e.width}×${e.height} → ${Math.max(1, Math.round(e.width * percent / 100))}×${Math.max(1, Math.round(e.height * percent / 100))}) and relink the material to it (undoable)`}
+              title={`Shrink this map (${e.width}×${e.height}) — pick the size in the next step`}
               onClick={() => onResize!(e)}>
-              ↓ {percent}%
+              <IconShrink />
             </button>
           )}
           </>
@@ -188,11 +188,10 @@ function TexRow({ e, thumb, resized, percent, busy, onFocus, onPick, onClear, on
   )
 }
 
-function TexTable({ rows, previews, resized, percent, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
+function TexTable({ rows, previews, resized, busy, onFocus, onPick, onClear, onAccept, onResize, onRepath }: {
   rows: TextureEntry[]
   previews: Record<string, string>
   resized: Record<string, ResizeInfo>
-  percent: number
   busy?: boolean
   onFocus: (material: string) => void
   onPick?: (e: TextureEntry) => void
@@ -214,7 +213,7 @@ function TexTable({ rows, previews, resized, percent, busy, onFocus, onPick, onC
       </div>
       {rows.map((e, i) => (
         <TexRow key={e.path + '|' + e.material + '|' + i} e={e}
-          thumb={previews[e.resolved || e.path]} percent={percent} busy={busy}
+          thumb={previews[e.resolved || e.path]} busy={busy}
           resized={resized[e.path]}
           onFocus={onFocus} onPick={onPick} onClear={onClear} onAccept={onAccept}
           onResize={onResize} onRepath={onRepath} />
@@ -281,9 +280,9 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
   const [relinkDir, setRelinkDir] = useState('')
   const [relinkConfirm, setRelinkConfirm] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
-  // What the per-row "↓ %" button writes. A setting, not an action — the
-  // decision to shrink is made on the row itself.
-  const [resizePercent, setResizePercent] = useState(50)
+  // The map whose shrink dialog is open (null = none). The size is picked in
+  // the dialog, so the row button carries an icon and no number.
+  const [shrink, setShrink] = useState<TextureEntry | null>(null)
   // Recently resized maps, keyed by the relinked copy's path — annotates that
   // row with a "resized" badge + a note showing what it replaced.
   const [resizedInfo, setResizedInfo] = useState<Record<string, ResizeInfo>>({})
@@ -296,18 +295,19 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       .catch((e) => org.setStatus(`Accept ✗ ${String(e.message || e)}`))
   }
   const acceptTexture = (e: TextureEntry) => setTexKeeps([...texAccepted, e.path])
-  // Shrink ONE map. The copy's path is predictable, so the row it will become
-  // after the re-analyze is annotated up front with what it replaced.
-  const resizeOne = (e: TextureEntry) => {
+  // Shrink ONE map at the size chosen in the dialog. The copy's path is
+  // predictable, so the row it will become after the re-analyze is annotated
+  // up front with what it replaced.
+  const resizeOne = (e: TextureEntry, percent: number) => {
     setResizedInfo((prev) => ({
       ...prev,
-      [resizeTargetPath(e.path, resizePercent)]: {
+      [resizeTargetPath(e.path, percent)]: {
         fromFile: e.file,
         fromDims: `${e.width}×${e.height}`,
-        percent: resizePercent,
+        percent,
       },
     }))
-    org.doTextureResize([e.path], resizePercent)
+    org.doTextureResize([e.path], percent)
   }
   // Parameterized facet matchers — shared by the row filter AND the faceted
   // chip counts (each facet is counted with every OTHER facet applied).
@@ -574,8 +574,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             <h3>Actions</h3>
             <p className="hint-sm">
               Each block says what it does before you run it. Every action is a
-              single undo step. Path actions cover the whole scene;
-              <b> Shrink</b> follows your filter and selection.
+              single undo step. Shrinking a map is decided per row (the
+              <b> shrink</b> icon on the right of the list).
             </p>
 
             {missingCount > 0 && (
@@ -630,26 +630,6 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </>
             )}
 
-            <div className="section-head sm"><span>Shrink</span></div>
-
-            <div className="side-action">
-              <p className="side-action-title">Size of the shrunk copy</p>
-              <p className="hint-sm">
-                Sets what the <b>↓ %</b> button on each row writes: a downsized
-                <b> copy</b> next to the original (suffix <code>_{resizePercent}</code>),
-                with the material relinked to it. The original file is never
-                touched.
-              </p>
-              <div className="chip-row">
-                {[25, 50, 75].map((p) => (
-                  <button key={p}
-                    className={'chip-btn' + (resizePercent === p ? ' on' : '')}
-                    title={`Row buttons will write copies at ${p}% of the original size`}
-                    onClick={() => setResizePercent(p)}>{p}%</button>
-                ))}
-              </div>
-            </div>
-
             <div className="section-head sm"><span>Paths</span></div>
             <p className="hint-sm">
               Relative or absolute is a pipeline choice, not a defect — neither
@@ -695,8 +675,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
             </div>
             <p className="hint-sm wb-hint">
               Click a row to select its material in Cinema 4D. Decide per map on
-              the right: <b>→ rel</b>/<b>→ abs</b> flips its path form,
-              <b> ↓ {resizePercent}%</b> writes a smaller copy and relinks it;
+              the right: <b>→ rel</b>/<b>→ abs</b> flips its path form, the
+              shrink icon writes a smaller copy (you pick the size);
               missing maps offer … pick a replacement · ✕ clear · = accept.
             </p>
             <div className="wb-scroll">
@@ -704,12 +684,12 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                 ? <>
                     <TexTable rows={pathPager.rows}
                       previews={texPreviews}
-                      resized={resizedInfo} percent={resizePercent} busy={busy}
+                      resized={resizedInfo} busy={busy}
                       onFocus={org.doFocusMaterial}
                       onPick={(e) => org.doPickTexturePath(e.path, e.material)}
                       onClear={(e) => org.doSetTexturePath(e.path, '', e.material)}
                       onAccept={acceptTexture}
-                      onResize={resizeOne}
+                      onResize={(e) => setShrink(e)}
                       onRepath={(e, mode) => org.doTextureRepath([e.path], mode)} />
                     <Pager pager={pathPager} />
                   </>
@@ -755,6 +735,11 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           onConfirm={() => { setClearConfirm(false); org.doClearMissingTextures() }}
           onCancel={() => setClearConfirm(false)}
         />
+      )}
+      {shrink && (
+        <ShrinkModal file={shrink.file} width={shrink.width} height={shrink.height} busy={busy}
+          onConfirm={(percent) => { const e = shrink; setShrink(null); resizeOne(e, percent) }}
+          onCancel={() => setShrink(null)} />
       )}
       {collectConfirm && (
         <ConfirmModal
