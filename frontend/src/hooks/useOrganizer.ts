@@ -986,6 +986,10 @@ export function useOrganizer() {
 
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null
+    // An empty scene has nothing to judge — scoring it 100 (or 0) is noise.
+    // No objects and no materials => no score anywhere.
+    if (!(report.nodes?.length || report.object_count)
+      && !(report.materials?.total)) return null
     switch (t) {
       case 'naming': {
         // Score = what the tab actually shows as open work: the rename plan

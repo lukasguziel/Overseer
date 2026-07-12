@@ -182,10 +182,11 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   ]
   const subScores = AREAS.map((a) => ({ ...a, pct: org.areaScore(a.tab) }))
   const known = subScores.filter((s): s is typeof s & { pct: number } => s.pct != null)
+  // No area has a score yet (empty scene, or nothing loaded) -> no health.
   const health = known.length
     ? Math.round(known.reduce((s, x) => s + x.pct, 0) / known.length)
-    : 100
-  const healthTone = toneOf(health)
+    : null
+  const healthTone = health == null ? 'low' : toneOf(health)
 
   // Trends from the analysis history (this file only, chronological).
   const fh = (history || []).filter((h) => h.file === report.file).sort((a, b) => a.ts - b.ts)
@@ -223,21 +224,21 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           })()} />
 
         {/* Health tile: big overall ring, sub-scores as a mini-ring list below. */}
-        <div className={'tile health-tile tile--' + healthTone}>
-          <div className={'health-main' + (health >= 100 && glow ? ' health-perfect' : '')}>
-            <span className={'health-ring-btn' + (health >= 100 ? ' clickable' : '')}
-              title={health >= 100 ? (glow ? 'Click to turn off the glow' : 'Click to turn the glow back on') : undefined}
-              onClick={health >= 100 ? toggleGlow : undefined}>
+        <div className={'tile health-tile' + (health == null ? '' : ' tile--' + healthTone)}>
+          <div className={'health-main' + (health != null && health >= 100 && glow ? ' health-perfect' : '')}>
+            <span className={'health-ring-btn' + (health != null && health >= 100 ? ' clickable' : '')}
+              title={health != null && health >= 100 ? (glow ? 'Click to turn off the glow' : 'Click to turn the glow back on') : undefined}
+              onClick={health != null && health >= 100 ? toggleGlow : undefined}>
               <Ring pct={health} tone={healthTone} />
             </span>
-            <Tip text="Overall health = average of the per-area scores (Naming, Layers, Materials …), 0–100. From 80 an area counts as good, from 95 as top. A value only counts once its area has been loaded.">
-              <div className="tile-label">Health · {scoreRating(health)}</div>
+            <Tip text="Overall health = average of the per-area scores (Naming, Layers, Materials …), 0–100. From 80 an area counts as good, from 95 as top. A value only counts once its area has been loaded. An empty scene has nothing to judge — no score.">
+              <div className="tile-label">Health · {health == null ? 'Nothing to score' : scoreRating(health)}</div>
             </Tip>
           </div>
           <div className="health-subs">
             {subScores.map((s) => (
               <button className="hs" key={s.key} onClick={() => org.setTab(s.tab)} title={`Open ${s.label}`}>
-                <Ring pct={s.pct ?? 0} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
+                <Ring pct={s.pct} tone={s.pct == null ? 'low' : toneOf(s.pct)} text={false} />
                 <span className="hs-pct">{s.pct == null ? '…' : s.pct}</span>
                 <span className="hs-label">{s.label}</span>
               </button>
