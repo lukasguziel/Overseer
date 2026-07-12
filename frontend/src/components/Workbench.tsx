@@ -6,7 +6,7 @@ import ActionButton, { type ActionTone } from './ActionButton'
 
 // Live preview panel — loading style 2 of 3: the inline preview loader.
 // Header carries the change count and the batch pair
-// (top right): ✓ apply everything, = accept everything as-is — both valid
+// (top right): apply everything, accept everything as-is — both valid
 // ways to clear an area. Either action is optional, so worklists without a
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
@@ -42,7 +42,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
     <div className="wb-preview">
       <div className="wb-preview-head">
         <h3>{title}</h3>
-        <span className="wb-count">
+        <span className="head-count">
           {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
           {!loading && (extra?.count ?? 0) > 0 && ` · ${extra!.count} ${extra!.label}`}
         </span>
@@ -69,7 +69,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
       {confirm === 'accept' && onAcceptAll && (
         <ConfirmModal title="Keep all as-is"
           message={`You are about to accept ${n} as-is. Nothing changes in the scene — they just stop counting as todos (restore any time below). Continue?`}
-          confirmLabel={`= Accept ${n}`}
+          confirmLabel={`✓ Accept ${n}`}
           onConfirm={() => { setConfirm(null); onAcceptAll() }}
           onCancel={() => setConfirm(null)} />
       )}

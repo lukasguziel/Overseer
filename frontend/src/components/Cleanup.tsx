@@ -3,6 +3,7 @@ import type { FocusFn } from './Treemap'
 import Pager, { usePager } from './Pager'
 import ConfirmModal from './ConfirmModal'
 import ActionButton from './ActionButton'
+import { IconCheck } from './icons'
 
 export interface CleanupItem {
   guid: number
@@ -44,7 +45,7 @@ function Row({ it, onFocus, onRename, onKeep, busy }: {
             if (e.key === 'Enter') commit()
             else if (e.key === 'Escape') setEditing(false)
           }} />
-        <button className="rn-ok" title="Rename (undoable)" onClick={commit}>✓</button>
+        <button className="rn-ok" title="Rename (undoable)" onClick={commit}><IconCheck /></button>
         <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
       </div>
     )
@@ -63,7 +64,7 @@ function Row({ it, onFocus, onRename, onKeep, busy }: {
       {onKeep && (
         <button className="rn-keep cl-keep" disabled={busy}
           title="Accept as-is — no longer counts as a todo (restore in the Accepted section)"
-          onClick={() => onKeep(it.name)}>=</button>
+          onClick={() => onKeep(it.name)}><IconCheck /></button>
       )}
     </div>
   )

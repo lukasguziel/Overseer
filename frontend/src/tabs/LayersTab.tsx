@@ -10,6 +10,8 @@ import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
+import ActionButton from '../components/ActionButton'
+import { IconCheck } from '../components/icons'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
@@ -54,7 +56,7 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
           ? (
             <>
               <button className="rn-ok" disabled={busy || !value.trim()} onClick={commit}
-                title="Assign to this layer (created if missing, undoable)">✓</button>
+                title="Assign to this layer (created if missing, undoable)"><IconCheck /></button>
               <button className="rn-no" title="Cancel" onClick={() => setEditing(false)}>✕</button>
             </>
           )
@@ -62,19 +64,19 @@ function NoLayerRow({ n, busy, suggestion, onAssign, onKeep, onFocus }: {
             ? (
               <>
                 <button className="rn-ok" disabled={busy} onClick={() => onAssign(n.guid, suggestion)}
-                  title={`Assign the suggested layer “${suggestion}” (undoable)`}>✓</button>
+                  title={`Assign the suggested layer “${suggestion}” (undoable)`}><IconCheck /></button>
                 <button className="rn-ok" disabled={busy} onClick={startEditing}
                   title="Pick a different layer instead">✎</button>
                 <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
-                  title="Accept as-is — fine without a layer (restore below)">=</button>
+                  title="Accept as-is — fine without a layer (restore below)"><IconCheck /></button>
               </>
             )
             : (
               <>
                 <button className="rn-ok" disabled={busy} onClick={startEditing}
-                  title="Assign a layer — pick an existing one or type a new name">✓</button>
+                  title="Assign a layer — pick an existing one or type a new name"><IconCheck /></button>
                 <button className="rn-keep" disabled={busy} onClick={() => onKeep(n.name)}
-                  title="Accept as-is — fine without a layer (restore below)">=</button>
+                  title="Accept as-is — fine without a layer (restore below)"><IconCheck /></button>
               </>
             )}
       </span>
@@ -143,18 +145,18 @@ export default function LayersTab({ org }: { org: Organizer }) {
           <div className="card-head">
             <h3>Layer overview</h3>
             {lr && (
-              <span className="hint-sm" style={{ margin: 0 }}>
+              <span className="head-count">
                 {lr.total_layers} layer{lr.total_layers === 1 ? '' : 's'}
                 {lr.empty_layers > 0 && ` · ${lr.empty_layers} empty`}
                 {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
               </span>
             )}
             {emptyOpen > 0 && (
-              <button className="sm" disabled={busy}
+              <ActionButton tone="danger" disabled={busy}
                 onClick={() => setConfirmDelete(true)}
                 title="Delete every empty layer that nothing references and you have not accepted (one undo step)">
-                ✕ Delete {emptyOpen} empty
-              </button>
+                Delete {emptyOpen} empty
+              </ActionButton>
             )}
           </div>
           {confirmDelete && (
@@ -190,11 +192,11 @@ export default function LayersTab({ org }: { org: Organizer }) {
             <input className="nl-input" list="nl-layers" placeholder="layer for ALL of these…"
               value={batchLayer} onChange={(e) => setBatchLayer(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') assignAll() }} />
-            <button className="sm" disabled={busy || !batchLayer.trim() || !noLayer.length}
+            <ActionButton tone="go" disabled={busy || !batchLayer.trim() || !noLayer.length}
               onClick={assignAll}
               title="Assign every listed object to this layer (created if missing, undoable)">
-              ✓ Assign all
-            </button>
+              Assign all
+            </ActionButton>
           </div>
           {confirmAssign && (
             <ConfirmModal title="Assign all"
@@ -250,7 +252,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
         <Workbench
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
           empty="Every light, camera and instance is already on its layer 🎉"
-          hint="Click a row to select & frame the object in Cinema 4D · ✓ tags it · = keeps it layerless"
+          hint="Click a row to select & frame the object in Cinema 4D · the green ✓ tags it · the grey one keeps it layerless"
           applyLabel="Apply all" onApply={org.applyLayers}
           onAcceptAll={() => org.keepAll('layers')} busy={busy}
           progress={org.progress}
@@ -281,7 +283,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             <Tip text="Object sits on a different layer than its parent. Informational only — often intentional; nothing here is ever changed automatically.">
               <h3>Mixed-layer hierarchies</h3>
             </Tip>
-            <span className="hint-sm" style={{ margin: 0 }}>
+            <span className="head-count">
               {layerMismatches.length} object{layerMismatches.length === 1 ? '' : 's'} on a different layer than their parent
             </span>
           </div>
@@ -300,7 +302,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 </span>
                 <span className="rn-actions">
                   <button className="rn-keep" disabled={busy} onClick={() => org.keep('layers', m.name)}
-                    title="Accept as-is — this mix is intentional (restore below)">=</button>
+                    title="Accept as-is — this mix is intentional (restore below)"><IconCheck /></button>
                 </span>
               </div>
             ))}

@@ -9,7 +9,7 @@ import AcceptedPanel from '../components/AcceptedPanel'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
-import { IconFolder } from '../components/icons'
+import { IconCheck, IconFolder } from '../components/icons'
 import './files.css'
 import ActionButton from '../components/ActionButton'
 
@@ -119,7 +119,7 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
                 )}
                 {onAccept && (
                   <button className="rn-keep" title="Accept as missing — stops counting as a problem (restore below)"
-                    onClick={() => onAccept(e)}>=</button>
+                    onClick={() => onAccept(e)}><IconCheck /></button>
                 )}
               </span>
             )}
@@ -237,8 +237,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             <span className={s.missing_count ? 'warn' : ''}><b>{s.missing_count}</b> missing</span>
           </div>
 
-          <div className="section-head sm"><span>Kind</span></div>
-          <FilterChips value={kind} empty="" onChange={setKind}
+          <FilterChips label="Kind" value={kind} empty="" onChange={setKind}
             options={KINDS
               .filter(([key]) => !key || s.by_kind[key])
               .map(([key, label]) => ({
@@ -268,7 +267,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             <section className="card">
               <div className="card-head">
                 <h3>Missing files</h3>
-                <span className="card-hint">{missPager.total}</span>
+                <span className="head-count">{missPager.total} missing</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   <ActionButton tone="go" disabled={loading}
                     title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
@@ -297,7 +296,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                   </ActionButton>
                 </span>
               </div>
-              <p className="hint-sm">Per row: the folder icon picks the replacement file in C4D's file dialog · = accept it as missing.</p>
+              <p className="hint-sm">Per row: the folder icon picks the replacement file in C4D's file dialog · the grey ✓ accepts it as missing.</p>
               <FileTable rows={missPager.rows} onFocus={onFocus}
                 onPick={pickOne} onAccept={acceptOne} />
               <Pager pager={missPager} />
@@ -307,7 +306,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           <section className="card">
             <div className="card-head">
               <h3>Referenced files</h3>
-              <span className="card-hint">{pager.total}</span>
+              <span className="head-count">{pager.total} files</span>
             </div>
             {pager.total
               ? <>

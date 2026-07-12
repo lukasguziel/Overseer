@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
-import { IconTrash } from './icons'
+import { IconCheck, IconTrash } from './icons'
 import type { FocusFn } from './Treemap'
 import type { LayerInfo, SceneNode } from '../types'
 
@@ -110,7 +110,7 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
                   )}
                   {onKeepLayer && (
                     <button className="rn-keep" title="Accept as-is — keep this empty layer (restore below)"
-                      onClick={() => onKeepLayer(l.name)}>=</button>
+                      onClick={() => onKeepLayer(l.name)}><IconCheck /></button>
                   )}
                 </span>
               )}

@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
+import { IconCheck } from '../components/icons'
 import './sims.css'
 import ActionButton from '../components/ActionButton'
 
@@ -136,11 +137,11 @@ export default function SimsTab({ org }: { org: Organizer }) {
 
       <FindingCard
         title="Active on hidden objects"
-        hint="Enabled simulations on hidden objects still cost solve time you never see. ✓ disables one · click a row to frame it."
+        hint="Enabled simulations on hidden objects still cost solve time you never see. The green ✓ disables one · click a row to frame it."
         hits={data.findings.active_hidden} tone="warn"
         rowAction={(h) => (
           <button className="rn-ok" disabled={busy} title="Disable this simulation (undoable)"
-            onClick={() => doDisable([h], h.object)}>✓</button>
+            onClick={() => doDisable([h], h.object)}><IconCheck /></button>
         )}
         onFocus={doFocus}
         batch={data.findings.active_hidden.length > 0 ? {
@@ -198,7 +199,7 @@ function FindingCard({ title, hint, hits, tone, rowAction, onFocus, batch }: {
     <section className="card">
       <div className="card-head">
         <h3 className={'sim-find-' + tone}>{title}</h3>
-        <span className="card-hint">{hits.length}</span>
+        <span className="head-count">{hits.length} found</span>
         {batch && (
           <ActionButton tone="go" onClick={batch.onClick}
             title="Disable all of these in one undo step">{batch.label}</ActionButton>
@@ -247,7 +248,7 @@ function KindGroup({ kind, hits, onFocus, onSelect }: {
     <div className="sim-group">
       <div className="section-head sm">
         <span>{kind}</span>
-        <span className="card-hint">{hits.length}</span>
+        <span className="head-count">{hits.length}</span>
         <ActionButton onClick={onSelect}
           title={`Select all ${kind} objects in Cinema 4D`}>Select in C4D</ActionButton>
       </div>
