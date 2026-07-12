@@ -125,9 +125,9 @@ def analyze_image(path: str) -> ImageInfo | None:
 
 
 def _pillow_info(path: str) -> ImageInfo | None:
-    try:
-        from PIL import Image
-    except Exception:
+    from ..vendor import import_pillow
+    Image = import_pillow()
+    if Image is None:
         return None
     try:
         with Image.open(path) as im:
@@ -386,12 +386,36 @@ def resize_file(src: str, dst: str, percent: int, has_pillow: bool) -> bool:
 
 
 def _resize_pillow(src: str, dst: str, percent: int) -> bool:
+    """Downscale with LANCZOS — the best-quality resampler Pillow offers.
+
+    Everything that makes a texture a texture is carried over: the pixel mode
+    (so RGBA keeps its alpha and an "I;16"/"F" map keeps its bit depth), the
+    ICC profile, and for JPEG a high quality + 4:4:4 chroma so the copy is not
+    visibly worse than the original beyond the intended downscale.
+    """
+    from ..vendor import import_pillow
+    Image = import_pillow()
+    if Image is None:
+        return False
     try:
-        from PIL import Image
         with Image.open(src) as im:
+            icc = im.info.get("icc_profile")
             nw, nh = scaled_dims(im.width, im.height, percent)
-            resized = im.resize((nw, nh), Image.BOX)
-            resized.save(dst)
+            # LANCZOS needs a float/8-bit-per-channel mode; exotic modes
+            # (paletted, 1-bit) are converted, never silently mangled.
+            work = im
+            if im.mode in ("P", "1"):
+                work = im.convert("RGBA" if "transparency" in im.info else "RGB")
+            resized = work.resize((nw, nh), Image.LANCZOS)
+            params = {}
+            if icc:
+                params["icc_profile"] = icc
+            ext = os.path.splitext(dst)[1].lower()
+            if ext in (".jpg", ".jpeg"):
+                if resized.mode not in ("RGB", "L"):
+                    resized = resized.convert("RGB")
+                params.update(quality=95, subsampling=0, optimize=True)
+            resized.save(dst, **params)
         return True
     except Exception:
         return False
@@ -430,6 +454,7 @@ def _png_decode(data: bytes):
         return None
     pos = 8
     width = height = bit_depth = color_type = 0
+    interlace = 0
     idat = bytearray()
     n = len(data)
     while pos + 8 <= n:
@@ -438,13 +463,21 @@ def _png_decode(data: bytes):
         body = data[pos + 8:pos + 8 + length]
         pos += 12 + length
         if ctype == b"IHDR":
+            if len(body) < 13:
+                return None
             width, height, bit_depth, color_type = struct.unpack(
                 ">IIBB", body[:10])
+            interlace = body[12]
         elif ctype == b"IDAT":
             idat += body
         elif ctype == b"IEND":
             break
     if bit_depth != 8 or color_type not in _PNG_COLOR_CHANNELS:
+        return None
+
+    # Adam7 rows are laid out per pass, not per scanline: unfiltering them as
+    # if they were sequential yields a scrambled image, so refuse instead.
+    if interlace:
         return None
     ch = _PNG_COLOR_CHANNELS[color_type]
     try:

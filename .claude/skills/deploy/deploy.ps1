@@ -112,6 +112,17 @@ function Deploy-To([string]$Dir) {
   # Mirror package recursively (subpackages: core/, naming/, structure/, cinema/).
   Step "sceneorg/" { Mirror (Join-Path $src "sceneorg") (Join-Path $Dir "sceneorg") }
 
+  # Bundled third-party packages (Pillow, for high-quality texture resampling).
+  # Optional: generate with: python tools/vendor_pillow.py
+  # Without it the plugin falls back to the Cinema bitmap engine.
+  # ASCII only in this file: PS 5.1 reads it as ANSI and chokes on fancy dashes.
+  $vendorSrc = Join-Path $src "vendor"
+  if (Test-Path $vendorSrc) {
+    Step "vendor/ (Pillow)" { Mirror $vendorSrc (Join-Path $Dir "vendor") }
+  } else {
+    Write-Host "  WARN: no vendor/ - texture resize falls back to the Cinema scaler" -ForegroundColor Yellow
+  }
+
   # Merge presets: repo presets are copied in, but presets the user saved in
   # the plugin ("Save current settings as preset") are NEVER deleted.
   Step "presets/" {
