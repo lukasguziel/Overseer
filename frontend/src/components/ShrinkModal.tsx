@@ -45,7 +45,7 @@ export default function ShrinkModal({ file, width, height, busy, onConfirm, onCa
         </div>
         <div className="confirm-actions">
           <button className="ghost" onClick={onCancel}>Cancel</button>
-          <ActionButton tone="go" autoFocus disabled={busy}
+          <ActionButton autoFocus disabled={busy}
             onClick={() => onConfirm(percent)}>
             Shrink to {dim(width, percent)}×{dim(height, percent)}
           </ActionButton>

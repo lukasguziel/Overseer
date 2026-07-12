@@ -717,19 +717,22 @@ table.diff td { word-break: break-word; }
 .dg-tr.tex-resized { background: color-mix(in srgb, var(--apply) 10%, transparent); border-bottom: none; }
 .pill.resized { background: color-mix(in srgb, var(--apply) 22%, transparent);
   color: var(--apply); border-color: color-mix(in srgb, var(--apply) 40%, transparent); }
-.tex-resized-note { font-size: 10px; color: var(--apply); padding: 1px 6px 5px 34px;
-  border-bottom: 1px solid var(--line2); line-height: 1.4; }
-.tex-resized-note b { color: var(--text); font-weight: 600; }
-.tex-thumb { width: 22px; height: 22px; border-radius: 4px; flex: none;
-  object-fit: cover; background: var(--sunken); border: 1px solid var(--line2); }
-/* Hover eye on texture thumbnails: click opens the image in the user's
-   default picture viewer (backend os.startfile). */
-.tex-thumb-wrap { position: relative; flex: none; display: inline-flex; }
-.tex-thumb-wrap.openable { cursor: zoom-in; }
-.tex-thumb-eye { position: absolute; inset: 0; display: none;
-  align-items: center; justify-content: center; font-size: 12px;
-  background: rgba(0, 0, 0, .55); border-radius: 4px; }
-.tex-thumb-wrap.openable:hover .tex-thumb-eye { display: flex; }
+/* What a shrink bought (components/ResizeNote.tsx). Sits under the resized row,
+   inside the same green tint, and shows the two sizes TO SCALE — "50%" is half
+   the edge but a quarter of the pixels, and only a drawing makes that land. */
+.rz-note { display: flex; align-items: center; gap: 10px; font-size: 10px;
+  color: var(--apply); padding: 2px 6px 6px 34px;
+  background: color-mix(in srgb, var(--apply) 10%, transparent);
+  border-bottom: 1px solid var(--line2); }
+.rz-fig { flex: none; overflow: visible; }
+.rz-old { fill: none; stroke: var(--dim2); stroke-width: 1; stroke-dasharray: 2 2; }
+.rz-new { fill: color-mix(in srgb, var(--apply) 35%, transparent); stroke: var(--apply); stroke-width: 1; }
+.rz-dims s { color: var(--dim2); }
+.rz-dims b, .rz-vram b { color: var(--text); font-weight: 600; }
+.rz-vram { color: var(--dim2); }
+.rz-saved { margin-left: auto; font-weight: 700; color: var(--apply);
+  background: color-mix(in srgb, var(--apply) 16%, transparent);
+  border-radius: 5px; padding: 1px 6px; }
 
 /* CHIP BUTTON — the app's filter chip (a toggle that narrows a list): the
    resolution/kind/channel filters on Materials and Files, the angle presets on
@@ -927,26 +930,7 @@ table.diff tr:last-child td { border-bottom: none; }
 table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .dim { color: var(--dim); }
 
-/* Accepted-as-is accordion (shared across all suggestion areas) */
-.kept-box { margin-top: 18px; border-top: 1px solid var(--line2); padding-top: 12px; }
-.kept-head { display: flex; align-items: center; gap: 6px; width: 100%; background: transparent;
-  border: none; color: var(--dim); font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.04em; padding: 0; box-shadow: none; cursor: pointer; }
-.kept-head:hover { color: var(--text); box-shadow: none; border-color: transparent; }
-.kept-count { background: var(--panel2); color: var(--dim); border: 1px solid var(--line);
-  border-radius: 8px; font-size: 10px; font-weight: 700; padding: 0 6px; margin-left: auto; }
-.kept-list { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-.kept-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
-.kept-restore { background: transparent; border: none; color: var(--dim2); font-size: 10px;
-  padding: 1px 4px; box-shadow: none; cursor: pointer; flex: none; }
-.kept-restore:hover { color: var(--accent); box-shadow: none; border-color: transparent; }
-/* Header row: the collapse toggle plus a "restore all" button on the right. */
-.kept-head-row { display: flex; align-items: center; gap: 10px; }
-.kept-head-row .kept-head { width: auto; flex: 1; }
-.kept-restore-all { background: transparent; border: 1px solid var(--line); color: var(--dim);
-  font-size: 10px; text-transform: uppercase; letter-spacing: .04em; border-radius: 7px;
-  padding: 3px 8px; cursor: pointer; flex: none; box-shadow: none; white-space: nowrap; }
-.kept-restore-all:hover { color: var(--accent); border-color: var(--accent); box-shadow: none; }
+/* ACCEPTED-AS-IS card lives with its component: components/AcceptedSection.css */
 
 /* ---------- Change history ---------- */
 .ch-list { display: flex; flex-direction: column; gap: 6px; }
