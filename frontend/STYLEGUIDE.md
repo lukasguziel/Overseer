@@ -137,26 +137,37 @@ a preference is not a defect, and the UI must not call the user's pipeline wrong
 
 ---
 
-## Accepted-as-is — `<AcceptedSection>`
+## Accepted-as-is — `<AcceptedPanel>`
 
-The card at the foot of every worklist area listing what the artist accepted
-as-is. One component, seven usages (Naming, Layers, Structure, Translate,
-Files, Materials ×2) — never rebuild it per tab.
+**One** panel, rendered at the foot of EVERY tab that can accept anything
+(Naming, Translate, Structure, Layers, Materials, Files). It shows *all*
+accepted decisions of the project, grouped by the area they came from — so it
+looks and reads identically wherever the artist stands:
+
+```jsx
+<AcceptedPanel org={org} />
+```
+
+Why one panel and not one list per tab: there is only ONE pile of accepted
+decisions in a project. Splitting it per tab made "accepted" mean something
+different depending on where you were, and hid the decisions you had made
+elsewhere. The groups are the persisted keep sections (`core/keeps.py`:
+naming, translate, layers, structure, materials, textures, files); a group with
+nothing in it is not rendered, and an empty panel renders nothing at all.
 
 Its shape is the pattern for **any collapsible area**:
 
 1. `<SectionIntro>` — the title and the one-line explanation, always visible.
 2. one framed toggle (`.kept-toggle`) — the only affordance, so it must *look*
-   like a control: border, hover, and a caret that rotates when open.
-3. the entries — **only** the results live behind the fold.
+   like a control: border, hover, and a caret that rotates when open. Its right
+   edge summarises the groups ("Naming 4 · Textures 31").
+3. the entries — **only** the results live behind the fold, split by area with
+   a `.section-head sm` per group and a Restore-all next to it.
 
 Never hide the explanation inside the fold, and never make a bare text label
 the toggle: a heading-shaped button reads as a heading and nobody clicks it.
-
-**It belongs at the FOOT of the tab, never between two worklists.** An accepted
-item is a decision the artist already made — it must not sit in the middle of
-the work still to do. A tab with several accepted lists (Materials: materials +
-textures) names each one via `title`, so two identical heads cannot stack.
+It belongs at the FOOT of the tab, never between two worklists — an accepted
+item is a decision already made and must not sit inside the work still to do.
 
 ---
 

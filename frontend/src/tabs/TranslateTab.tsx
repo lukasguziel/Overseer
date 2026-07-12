@@ -1,7 +1,7 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
@@ -20,7 +20,7 @@ const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs',
   'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar']
 
 export default function TranslateTab({ org }: { org: Organizer }) {
-  const { translation, keeps, busy, previewing,
+  const { translation, busy, previewing,
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
   const pager = usePager(translation?.diff || [], 10)
   const detected = translation?.detected
@@ -129,9 +129,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
       </Workbench>
     </div>
 
-    <AcceptedSection items={Array.from(keeps.translate)}
-      onRestore={(nm) => org.unkeep('translate', nm)}
-      onRestoreAll={() => org.unkeepAll('translate')} />
+    <AcceptedPanel org={org} />
     </div>
   )
 }

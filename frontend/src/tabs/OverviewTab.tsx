@@ -14,6 +14,7 @@ import EmptyState from '../components/EmptyState'
 import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 import { IconExpand } from '../components/icons'
+import ActionButton from '../components/ActionButton'
 
 // ONE resolution taxonomy for the whole page: the texture map, its legend and
 // the resolution-mix table all bucket by lib/colors' RES_TIERS (ordered
@@ -348,7 +349,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head">
             <h3>Materials &amp; textures</h3>
-            <button className="ghost sm" onClick={() => org.setTab('materials')}>Manage →</button>
+            <ActionButton onClick={() => org.setTab('materials')}>Manage →</ActionButton>
           </div>
           <table className="mini"><tbody>
             <tr><td>Materials</td><td>{mat?.total ?? 0}</td></tr>
@@ -366,7 +367,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head">
             <h3>Polygon concentration</h3>
-            <button className="ghost sm" onClick={() => org.setTab('assets')}>Browse all →</button>
+            <ActionButton onClick={() => org.setTab('assets')}>Browse all →</ActionButton>
           </div>
           <table className="mini"><tbody>
             <tr><td>Total polygons</td><td>{humanNum(report.total_polys)}</td></tr>
@@ -384,7 +385,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             <Tip text="Estimated texture memory: width × height × 4 bytes per map, incl. mipmaps (~1.33×) — what the maps cost uncompressed in RAM/VRAM, regardless of JPG size on disk.">
               <h3>Texture budget</h3>
             </Tip>
-            <button className="ghost sm" onClick={() => org.setTab('materials')}>Inspect →</button>
+            <ActionButton onClick={() => org.setTab('materials')}>Inspect →</ActionButton>
           </div>
           {texBudget.count > 0 ? (
             <>

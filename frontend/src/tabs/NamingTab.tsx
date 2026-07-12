@@ -4,7 +4,7 @@ import { CASINGS, exampleName } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -213,9 +213,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
           onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
       </section>
 
-      <AcceptedSection items={Array.from(keeps.naming)}
-        onRestore={(nm) => org.unkeep('naming', nm)}
-        onRestoreAll={() => org.unkeepAll('naming')} />
+    <AcceptedPanel org={org} />
     </div>
   )
 }

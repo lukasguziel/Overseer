@@ -4,7 +4,7 @@ import type { SceneNode } from '../types'
 import { catColor } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
-import AcceptedSection from '../components/AcceptedSection'
+import AcceptedPanel from '../components/AcceptedPanel'
 import LayerTree from '../components/LayerTree'
 import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
@@ -309,9 +309,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
         </section>
       )}
 
-      <AcceptedSection items={Array.from(keeps.layers)}
-        onRestore={(nm) => org.unkeep('layers', nm)}
-        onRestoreAll={() => org.unkeepAll('layers')} />
+    <AcceptedPanel org={org} />
     </div>
   )
 }

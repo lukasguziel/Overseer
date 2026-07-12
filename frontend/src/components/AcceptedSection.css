@@ -22,3 +22,10 @@
 .kept-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
 .kept-row .fl-name { flex: 1; min-width: 0; }
 .kept-row .act { flex: none; }
+
+/* AcceptedPanel — the ONE accepted-as-is block, shown at the foot of every tab
+   and split into the areas the decisions came from. */
+.kept-areas { margin-left: auto; color: var(--dim2); font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kept-groups { margin-top: 12px; display: flex; flex-direction: column; gap: 14px; }
+.kept-group-n { color: var(--dim2); font-size: 11px; font-variant-numeric: tabular-nums; }

@@ -205,15 +205,19 @@ function PerfCard() {
         <Tip text="Each generator is rebuilt on its own while the clock runs — the time it takes is what it costs the viewport on every change. Nothing in the scene is modified.">
           <h3>Viewport cost</h3>
         </Tip>
-        <ActionButton tone="go" disabled={measuring} onClick={measure}>
-          {measuring ? 'Measuring…' : perf ? 'Measure again' : 'Measure'}
-        </ActionButton>
       </div>
       <p className="hint-sm">
         Which generator makes the viewport crawl? Each one is rebuilt by
         itself and timed, slowest first — click a bar to select that object in
         Cinema 4D. The scene is only rebuilt, never changed.
       </p>
+      {/* The one thing this card is FOR — centred under its own description,
+          not tucked into the head where it read as a corner decoration. */}
+      <div className="card-cta">
+        <ActionButton tone="go" disabled={measuring} onClick={measure}>
+          {measuring ? 'Measuring…' : perf ? 'Measure again' : 'Measure'}
+        </ActionButton>
+      </div>
       {error && <div className="error" style={{ marginTop: 10 }}>Measuring failed: {error}</div>}
       {measuring && !perf && (
         <div className="empty-note mid">Rebuilding every generator once — this takes a moment on a heavy scene.</div>
