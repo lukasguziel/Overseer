@@ -15,7 +15,7 @@ export default function FocusList({ items, onFocus, empty, max = 8 }: {
   empty?: string
   max?: number
 }) {
-  if (!items.length) return <div className="fl-empty">{empty || 'None 🎉'}</div>
+  if (!items.length) return <div className="empty-note">{empty || 'None 🎉'}</div>
   return (
     <div className="focuslist">
       {items.slice(0, max).map((n, i) => (

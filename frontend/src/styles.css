@@ -269,12 +269,37 @@ select, input[type=range] { width: 100%; margin-top: 5px; }
 select { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 8px; }
 input[type=range] { accent-color: var(--accent); }
+
+/* CHECKBOX — one custom box for every checkbox in the app (filters, settings,
+   row selection). Native rendering ignores the dark theme, so we draw it:
+   square + accent fill, a tick when checked, a dash when indeterminate (the
+   "select all" boxes use that third state when only some rows are ticked). */
+input[type=checkbox] { appearance: none; -webkit-appearance: none; flex: none;
+  width: 14px; height: 14px; margin: 0; padding: 0; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--panel2); cursor: pointer;
+  display: inline-grid; place-content: center;
+  transition: background var(--t) var(--ease), border-color var(--t) var(--ease); }
+input[type=checkbox]:hover:not(:disabled) { border-color: var(--hover); }
+input[type=checkbox]:checked, input[type=checkbox]:indeterminate {
+  background: var(--accent); border-color: var(--accent); }
+/* Tick: two borders of a rotated box. Dark ink, as on `button.mini:hover`. */
+input[type=checkbox]:checked::after { content: ""; width: 3px; height: 7px;
+  border: solid #06121a; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px); }
+input[type=checkbox]:indeterminate::after { content: ""; width: 8px; height: 2px;
+  background: #06121a; border-radius: 1px; }
+input[type=checkbox]:focus-visible { outline: 1px solid var(--hover); outline-offset: 1px; }
+input[type=checkbox]:disabled { opacity: .45; cursor: default; }
+
 .example { color: var(--dim); font-size: 12px; margin: -2px 0 12px; }
 .example code, .meta b { color: var(--text); }
 code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
 
+/* A button's label is a control, not text: never selectable. Without this, a
+   sloppy drag across the tab bar leaves the nav highlighted in blue. */
 button { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
   border-radius: 7px; padding: 8px 12px; cursor: pointer; font: inherit;
+  user-select: none; -webkit-user-select: none;
   transition: border-color var(--t) var(--ease), background var(--t) var(--ease),
     color var(--t) var(--ease), transform var(--t) var(--ease); }
 button:hover:not(:disabled) { border-color: var(--hover); background: var(--panel); }
@@ -403,7 +428,10 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 /* ---------- Cards ---------- */
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03); }
-.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+/* `gap` is the floor: space-between alone lets a title and the chip next to it
+   touch as soon as the card gets narrow. */
+.card-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px; }
 .card-head h3, .wb-side h3, .wb-preview-head h3 { font-size: 12px; text-transform: uppercase;
   letter-spacing: .06em; color: var(--dim); margin: 0; font-weight: 600; }
 
@@ -643,8 +671,8 @@ table.diff td { word-break: break-word; }
 .tex-tr.tex-actionable {
   grid-template-columns: 16px minmax(0, 7fr) 84px 46px 84px 74px minmax(0, 4fr) auto; }
 .tex-tr .rn-actions { flex: none; }
-/* Far-left select checkbox — ticked rows scope the batch actions on the left. */
-.tex-cb { width: 13px; height: 13px; margin: 0; cursor: pointer; accent-color: var(--accent); flex: none; }
+/* Far-left select checkbox — ticked rows scope the batch actions on the left.
+   Look comes from the shared `input[type=checkbox]` block; nothing to add. */
 .tex-tr.tex-sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tex-tr.tex-sel:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* Just-resized map: highlight the relinked row + a note line showing the swap. */

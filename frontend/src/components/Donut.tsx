@@ -9,7 +9,7 @@ export default function Donut({ data, colorFn = catColor, format = humanNum }: {
 }) {
   const entries = Object.entries(data || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
   const total = entries.reduce((s, [, v]) => s + v, 0)
-  if (!total) return <div className="wb-empty">No data.</div>
+  if (!total) return <div className="empty-note mid">No data.</div>
   const R = 52; const SW = 20; const C = 2 * Math.PI * R
   let off = 0
   return (

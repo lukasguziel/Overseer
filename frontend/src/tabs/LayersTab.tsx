@@ -158,7 +158,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 keptEmpty={keeps.layers}
               />
             )
-            : <div className="fl-empty">Run an analysis to see the layer usage.</div>}
+            : <div className="empty-note">Run an analysis to see the layer usage.</div>}
         </section>
 
         <Workbench

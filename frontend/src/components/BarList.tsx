@@ -13,7 +13,7 @@ export default function BarList({ rows, format = humanNum, empty }: {
   rows: BarRow[]; format?: (n: number) => string; empty?: string
 }) {
   const max = Math.max(1, ...rows.map((r) => r.value))
-  if (!rows.length) return <div className="wb-empty">{empty || 'No data.'}</div>
+  if (!rows.length) return <div className="empty-note mid">{empty || 'No data.'}</div>
   return (
     <div className="barlist">
       {rows.map((r, i) => {

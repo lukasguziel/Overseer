@@ -1,9 +1,12 @@
 import './SectionIntro.css'
 
 // A section head plus the one-line description of what that section is for —
-// the titled opening of an area. `lead` marks the variant that opens a whole
-// tab (it carries its own bottom gap); inside a tab the flex gap spaces it.
-// See frontend/STYLEGUIDE.md.
+// the titled opening of an area. See frontend/STYLEGUIDE.md.
+//
+// `lead` is ONLY for the tab intro App.tsx renders ABOVE the tab: it adds the
+// bottom gap that a flex parent would otherwise provide. Inside a tab (a
+// `.stacked` container) the parent's gap already spaces it — passing `lead`
+// there doubles the gap to 32px.
 export default function SectionIntro({ title, desc, lead }: {
   title: string
   desc: string

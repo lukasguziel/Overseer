@@ -9,7 +9,7 @@ export default function AssetTable({ rows, onFocus, empty }: {
   onFocus?: FocusFn
   empty?: string
 }) {
-  if (!rows.length) return <div className="fl-empty">{empty || 'None.'}</div>
+  if (!rows.length) return <div className="empty-note">{empty || 'None.'}</div>
   return (
     <div className="asset-table-wrap flat">
       <table className="asset-table"><tbody>

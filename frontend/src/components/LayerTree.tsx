@@ -69,7 +69,7 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
     })
   }
 
-  if (!rows.length) return <div className="fl-empty">This scene uses no layers.</div>
+  if (!rows.length) return <div className="empty-note">This scene uses no layers.</div>
 
   return (
     <div className="layertree">

@@ -72,7 +72,7 @@ export default function ChangeHistory({ changes, onRevert }: {
   changes: ChangeEntry[]
   onRevert: (id: string, items?: number[]) => void
 }) {
-  if (changes.length === 0) return <div className="fl-empty">No tool changes recorded yet.</div>
+  if (changes.length === 0) return <div className="empty-note">No tool changes recorded yet.</div>
   const rows: HistoryRow[] = changes.map((e) => ({
     id: e.id,
     time: clock(e.at),

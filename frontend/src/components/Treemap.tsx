@@ -58,7 +58,7 @@ export function TreemapChart({ data, height = 300, empty = 'Nothing to map.', de
     if (items.length) treemapBinary(items, 0, 0, 100, 100, out)
     return out
   }, [data])
-  if (!cells.length) return <div className="wb-empty">{empty}</div>
+  if (!cells.length) return <div className="empty-note mid">{empty}</div>
   const minW = dense ? 3.5 : 13
   const minH = dense ? 4.5 : 11
   return (
