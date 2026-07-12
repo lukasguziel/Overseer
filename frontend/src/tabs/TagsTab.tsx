@@ -271,7 +271,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
       <section className="card">
         <div className="card-head">
           <h3>All tag types</h3>
-          <span className="card-hint">{data?.types.length ?? 0}</span>
+          <span className="head-count">{data?.types.length ?? 0} types</span>
         </div>
         {(data?.types.length ?? 0) === 0
           ? <div className="empty-note">No tags in the scene.</div>

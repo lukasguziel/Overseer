@@ -36,6 +36,30 @@ function RuleTags({ rules }: { rules: string[] }) {
 
 const pad = (n: number, p: number) => (p > 0 ? String(n).padStart(p, '0') : String(n))
 
+// One rename rule in the settings sidebar: the section head carries the on/off
+// switch, and the controls below only exist while the rule is on — switched off
+// it collapses to a single line stating what stays untouched.
+function RuleSection({ title, tip, on, onToggle, off, children }: {
+  title: string
+  tip: string
+  on: boolean
+  onToggle: (v: boolean) => void
+  off: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className={'rule-section' + (on ? '' : ' is-off')}>
+      <div className="section-head sm">
+        <label className="check rule-switch" title={on ? `Turn the ${title.toLowerCase()} rule off` : `Turn the ${title.toLowerCase()} rule on`}>
+          <input type="checkbox" checked={on} onChange={(e) => onToggle(e.target.checked)} />
+          <Tip text={tip}><span>{title}</span></Tip>
+        </label>
+      </div>
+      {on ? children : <p className="hint-sm tight">{off}</p>}
+    </div>
+  )
+}
+
 export default function NamingTab({ org }: { org: Organizer }) {
   const { report, casing, applyCasing, keepSeparators, keepSpecials, numberPad, applyNumbering, dedupe, naming, busy, previewing, keeps } = org
 
@@ -67,43 +91,26 @@ export default function NamingTab({ org }: { org: Organizer }) {
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Settings</h3>
-          <p className="hint-sm">Toggle which rules apply — all are active by
-            default. Every preview row is tagged with the rule that caused it,
-            so you always see why a name would change.</p>
+          <p className="hint-sm">Toggle which rules apply. Every preview row is
+            tagged with the rule that changed the name.</p>
 
-          <div className="section-head sm">
-            <Tip text="Casing style of the names — e.g. PascalCase, camelCase or lower_snake. Unifies capitalization and separators without changing the language.">
-              <span>Casing</span>
-            </Tip>
-          </div>
-          <label className="check">
-            <input type="checkbox" checked={applyCasing} onChange={(e) => org.setApplyCasing(e.target.checked)} />
-            Casing
-          </label>
-          {applyCasing
-            ? (
-              <label>Style
-                <select value={casing} onChange={(e) => org.setCasing(e.target.value)}>
-                  {casing === '' && <option value="">Choose preferred casing…</option>}
-                  {CASINGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </label>
-            )
-            : <p className="hint-sm" style={{ marginTop: 0 }}>Casing &amp; separators kept as-is.</p>}
-          {applyCasing && (
+          {/* The section head IS the on/off switch — the rule's name was
+              printed twice before: once as the heading, once as the checkbox
+              next to it. */}
+          <RuleSection title="Casing" on={applyCasing} onToggle={org.setApplyCasing}
+            tip="Casing style of the names — e.g. PascalCase, camelCase or lower_snake. Unifies capitalization and separators without changing the language."
+            off="Casing and separators kept as-is.">
+            <label>Style
+              <select value={casing} onChange={(e) => org.setCasing(e.target.value)}>
+                {casing === '' && <option value="">Choose preferred casing…</option>}
+                {CASINGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </label>
             <label className="check">
               <input type="checkbox" checked={keepSeparators}
                 onChange={(e) => org.setKeepSeparators(e.target.checked)} />
               Keep separators
             </label>
-          )}
-          {applyCasing && keepSeparators && (
-            <p className="hint-sm" style={{ marginTop: 0 }}>Only word case changes;
-              existing separators and special characters stay — <code>-</code>, <code>_</code>,
-              brackets &amp; co. <code>Wand-01_test</code> → <code>WAND-01_TEST</code>,
-              <code>[test]</code> → <code>[TEST]</code>.</p>
-          )}
-          {applyCasing && (
             <label className="check" title={keepSeparators
               ? 'Already covered: “Keep separators” keeps every character as-is'
               : 'Keep special characters like [ ] ( ) * — [test] stays [Test] instead of Test'}>
@@ -113,52 +120,38 @@ export default function NamingTab({ org }: { org: Organizer }) {
                 onChange={(e) => org.setKeepSpecials(e.target.checked)} />
               Keep special characters
             </label>
-          )}
-          {applyCasing && !keepSeparators && (
-            <p className="hint-sm" style={{ marginTop: 0 }}>
-              {keepSpecials
-                ? <>Brackets &amp; co. survive full normalization: <code>[test]</code> → <code>[Test]</code>.</>
-                : <>Special characters are stripped: <code>[test]</code> → <code>Test</code>.</>}
+            <p className="hint-sm tight">
+              {keepSeparators
+                ? <>Only word case changes — <code>Wand-01_test</code> → <code>WAND-01_TEST</code>.</>
+                : keepSpecials
+                  ? <>Brackets &amp; co. survive: <code>[test]</code> → <code>[Test]</code>.</>
+                  : <>Special characters are stripped: <code>[test]</code> → <code>Test</code>.</>}
             </p>
-          )}
+          </RuleSection>
 
-          <div className="section-head sm">
-            <Tip text="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01). “None” leaves existing numbers unchanged.">
-              <span>Numbering</span>
-            </Tip>
-          </div>
-          <label className="check">
-            <input type="checkbox" checked={applyNumbering} onChange={(e) => org.setApplyNumbering(e.target.checked)} />
-            Numbering
-          </label>
-          {applyNumbering
-            ? (
-              <label>Pad <b>{numberPad === 0 ? 'none' : numberPad + '-digit'}</b>
-                <div className="pad-btns">
-                  {[1, 2, 3, 4].map((p) => (
-                    <button key={p} type="button"
-                      className={'pad-btn' + (numberPad === p ? ' on' : '')}
-                      onClick={() => org.setNumberPad(numberPad === p ? 0 : p)}
-                      title={p + '-digit padding' + (numberPad === p ? ' — click again for none' : '')}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-                {applyCasing && casing !== '' && <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>}
-              </label>
-            )
-            : <p className="hint-sm" style={{ marginTop: 0 }}>Numbers kept exactly as they are.</p>}
+          <RuleSection title="Numbering" on={applyNumbering} onToggle={org.setApplyNumbering}
+            tip="Pad trailing numbers to a fixed digit count (e.g. Wand1 → Wand01). “None” leaves existing numbers unchanged."
+            off="Numbers kept exactly as they are.">
+            <label>Pad <b>{numberPad === 0 ? 'none' : numberPad + '-digit'}</b>
+              <div className="pad-btns">
+                {[1, 2, 3, 4].map((p) => (
+                  <button key={p} type="button"
+                    className={'pad-btn' + (numberPad === p ? ' on' : '')}
+                    onClick={() => org.setNumberPad(numberPad === p ? 0 : p)}
+                    title={p + '-digit padding' + (numberPad === p ? ' — click again for none' : '')}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+              {applyCasing && casing !== '' && <div className="example">e.g. <code>{exampleName(casing, numberPad)}</code></div>}
+            </label>
+          </RuleSection>
 
-          <label className="check">
-            <input type="checkbox" checked={dedupe} onChange={(e) => org.setDedupe(e.target.checked)} />
-            Make duplicates unique
-          </label>
-          {dedupe && (
-            <div className="example">e.g. <code>Wall, Wall</code> → <code>Wall{pad(1, numberPad)}, Wall{pad(2, numberPad)}</code></div>
-          )}
-          <p className="hint-sm">Only casing &amp; numbers — never the language, and
-            never swallows info (a name like <code>ROCK_UV_2.1</code> keeps its dot).
-            To translate names, use the <b>Translate</b> tab.</p>
+          <RuleSection title="Duplicates" on={dedupe} onToggle={org.setDedupe}
+            tip="Objects sharing a name get a number appended, so every name is unique."
+            off="Duplicate names are left alone.">
+            <div className="example tight">e.g. <code>Wall, Wall</code> → <code>Wall{pad(1, numberPad)}, Wall{pad(2, numberPad)}</code></div>
+          </RuleSection>
         </aside>
 
         <Workbench
@@ -174,7 +167,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
               )}
             </>
           }
-          hint="Click a row to select & frame the object in Cinema 4D · ✓ renames it · = keeps the name"
+          hint="Click a row to select & frame the object in Cinema 4D · the green ✓ renames it · the grey one keeps the name"
           applyLabel="Apply all" onApply={org.applyNaming}
           onAcceptAll={() => org.keepAll('naming')} busy={busy}
           progress={org.progress}
@@ -203,7 +196,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
           and no second heading repeating the intro's title (same shape as
           Materials and Textures). Objects the rules cannot fix on their own. */}
       <SectionIntro title="Name cleanup"
-        desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates. Click an item to select & frame it, ✎ renames it, = accepts it as-is." />
+        desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates. Click an item to select & frame it, ✎ renames it, the grey ✓ accepts it as-is." />
       <section className="card">
         <Cleanup buckets={nameBuckets} onFocus={org.doFocus} onRename={org.doRenameObject}
           onKeep={(nm) => org.keep('naming', nm)}
