@@ -79,7 +79,15 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
   const missingActions = e.missing && !e.accepted && (onPick || onClear || onAccept)
   // Present maps: shrink (needs real pixels on disk) and flip the path form.
   const canResize = !e.missing && e.exists && e.width > 0 && onResize
-  const canRepath = !e.missing && e.exists && onRepath
+  // Only offer the flip that actually leads somewhere:
+  //   absolute -> relative only when the file lives UNDER the project folder
+  //     (`relocatable`); an absolute path to a shared library elsewhere has no
+  //     relative form, so the button would promise something it cannot do.
+  //   relative -> absolute always works (the resolved path is the full one).
+  const repathTo: 'relative' | 'absolute' | null = e.missing || !e.exists ? null
+    : e.absolute ? (e.relocatable ? 'relative' : null)
+      : 'absolute'
+  const canRepath = repathTo !== null && !!onRepath
   const actionable = missingActions || canResize || canRepath
   const pathTip = `${e.path}${e.resolved && e.resolved !== e.path ? `\n→ ${e.resolved}` : ''}`
   return (
@@ -159,11 +167,11 @@ function TexRow({ e, thumb, resized, busy, onFocus, onPick, onClear, onAccept, o
           )}
           {canRepath && (
             <button className="rn-keep tex-act" disabled={busy}
-              title={e.absolute
-                ? `Rewrite this one path relative to the project folder (undoable)`
-                : `Rewrite this one path to its full absolute form (undoable)`}
-              onClick={() => onRepath!(e, e.absolute ? 'relative' : 'absolute')}>
-              {e.absolute ? '→ rel' : '→ abs'}
+              title={repathTo === 'relative'
+                ? 'Rewrite this one path relative to the project folder (undoable)'
+                : 'Rewrite this one path to its full absolute form (undoable)'}
+              onClick={() => onRepath!(e, repathTo!)}>
+              {repathTo === 'relative' ? '→ rel' : '→ abs'}
             </button>
           )}
           {canResize && (
