@@ -1,9 +1,13 @@
 import type { Organizer } from '../hooks/useOrganizer'
+import ActionButton from '../components/ActionButton'
 import ChangeHistory from '../components/ChangeHistory'
 import HistoryList, { type HistoryRow } from '../components/HistoryList'
 import Tip from '../components/Tip'
 import type { HistoryEntry } from '../types'
 import { humanBytes, humanNum } from '../lib/format'
+
+// The artists who ran the plugin on real production scenes before it shipped.
+const BETA_TESTERS = ['Cornelius Dämmrich', 'Raphael Rau']
 
 // Analysis snapshots in the change-history look: time · chip · summary,
 // expandable to the full numbers of that run.
@@ -89,8 +93,8 @@ export default function MiscTab({ org }: { org: Organizer }) {
               <h3>Change history</h3>
             </Tip>
             {changes.length > 0 && (
-              <button className="ghost sm" onClick={org.doClearChanges}
-                title="Clear the log (does not undo anything in the scene)">Clear log</button>
+              <ActionButton onClick={org.doClearChanges}
+                title="Clear the log (does not undo anything in the scene)">Clear log</ActionButton>
             )}
           </div>
           <p className="hint-sm">
@@ -107,8 +111,8 @@ export default function MiscTab({ org }: { org: Organizer }) {
               <h3>Analysis history</h3>
             </Tip>
             {history.length > 0 && (
-              <button className="ghost sm" onClick={org.doClearHistory}
-                title="Clear this project's log (the scene is untouched; trend sparklines start over)">Clear log</button>
+              <ActionButton onClick={org.doClearHistory}
+                title="Clear this project's log (the scene is untouched; trend sparklines start over)">Clear log</ActionButton>
             )}
           </div>
           <p className="hint-sm">
@@ -122,32 +126,48 @@ export default function MiscTab({ org }: { org: Organizer }) {
       </div>
 
       <SectionHead title="Additional" />
-      <div className="ov-cols2">
-        <section className="card">
-          <div className="card-head"><h3>Debug</h3></div>
-          <p className="hint-sm">
-            The server runs while the “Scene Organizer” window is open in
-            C4D — closing that window stops it.
-          </p>
-          <div className="btns">
-            <button onClick={() => window.location.reload()}>Reload UI</button>
-            <button onClick={() => window.open('/', '_blank')}>Open in new tab</button>
-          </div>
-          <p className="example" style={{ marginTop: 12 }}>
-            Serving at <code>{window.location.origin}</code>
-          </p>
-        </section>
-
-        <section className="card about-card">
-          <div className="card-head"><h3>About</h3></div>
+      {/* Debug is a dev-only tool: `import.meta.env.DEV` is false in the
+          production bundle, so Vite drops the whole card from the shipped UI.
+          Without it the row holds only the credits card. */}
+      <div className={import.meta.env.DEV ? 'ov-cols2' : 'stacked'}>
+        <section className="card credits-card">
+          <div className="card-head"><h3>Credits</h3></div>
           <p className="hint-sm">Scene Organizer — analyze, name and structure your C4D scenes.</p>
-          <div className="about-links">
-            <a className="about-link" href="https://github.com/Goodsoup-Family-Crypt/scene-organizer"
+          <p className="hint-sm">
+            <b className="credits-label">Special thanks:</b>
+            <a className="act" href="https://corneliusdammrich.com"
+              target="_blank" rel="noreferrer">Cornelius Dämmrich ↗</a> — many of the
+            features in here exist because of him; his input pushed the plugin far
+            beyond what I had imagined for it.
+          </p>
+          <p className="hint-sm">
+            <b className="credits-label">Beta testers:</b>
+            {BETA_TESTERS.join(', ')}
+          </p>
+          <div className="credits-links">
+            <a className="credits-link" href="https://github.com/Goodsoup-Family-Crypt/scene-organizer"
               target="_blank" rel="noreferrer">GitHub ↗</a>
-            <a className="about-link donate" href="https://www.buymeacoffee.com/bamerus"
+            <a className="credits-link donate" href="https://www.buymeacoffee.com/bamerus"
               target="_blank" rel="noreferrer">♥ Donate to support</a>
           </div>
         </section>
+
+        {import.meta.env.DEV && (
+          <section className="card">
+            <div className="card-head"><h3>Debug</h3></div>
+            <p className="hint-sm">
+              The server runs while the “Scene Organizer” window is open in
+              C4D — closing that window stops it.
+            </p>
+            <div className="btns">
+              <ActionButton onClick={() => window.location.reload()}>Reload UI</ActionButton>
+              <ActionButton onClick={() => window.open('/', '_blank')}>Open in new tab</ActionButton>
+            </div>
+            <p className="example" style={{ marginTop: 12 }}>
+              Serving at <code>{window.location.origin}</code>
+            </p>
+          </section>
+        )}
       </div>
     </div>
   )
