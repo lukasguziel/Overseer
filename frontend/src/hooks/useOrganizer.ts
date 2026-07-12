@@ -1108,6 +1108,15 @@ export function useOrganizer() {
     call('clear_changes').then(() => loadChanges()).catch(() => {})
   }, [loadChanges])
 
+  // Wipe the analysis-run log (the snapshots behind the trend sparklines).
+  // Purely a log — nothing in the scene changes.
+  const doClearHistory = useCallback(() => {
+    setStatus('Clearing analysis log…')
+    call('clear_history')
+      .then(() => { setHistory([]); setStatus('Analysis log cleared ✓') })
+      .catch((e) => { setError(String(e.message || e)); setStatus('Clear ✗') })
+  }, [])
+
   // Direct single-object rename (Name cleanup inline edit).
   const doRenameObject = useCallback((guid: number, name: string) => {
     setStatus('Renaming…')
@@ -1135,7 +1144,7 @@ export function useOrganizer() {
     naming, structure, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
     keeps, keep, unkeep, unkeepAll, keepAll, keepMany, planCount, areaScore, doRenameObject,
-    changes, doRevertChange, doClearChanges,
+    changes, doRevertChange, doClearChanges, doClearHistory,
     rules, exported, history, presets, activePreset,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
     doAssignLayer, doMoveToGroup,

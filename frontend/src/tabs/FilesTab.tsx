@@ -234,7 +234,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           {!data.doc_path && (
             <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
           )}
-          <button className="ghost" disabled={loading || !canFix}
+          <button className="mini" disabled={loading || !canFix}
             title={canFix
               ? `Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`
               : 'No absolute paths inside the project folder'}
