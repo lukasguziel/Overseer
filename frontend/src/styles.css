@@ -303,6 +303,10 @@ button.apply.lg { padding: 10px 20px; font-weight: 600; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint-sm { color: var(--dim2); font-size: 12px; margin: 4px 0 12px; }
 
+/* Title of a single action inside a sidebar "Actions" section */
+.side-action-title { font-size: 12px; font-weight: 600; margin: 0 0 6px; }
+.side-action-title + .example { margin-top: 0; }
+
 /* Small right-aligned hint inside a card head ("click a tile to …") */
 .card-hint { color: var(--dim); font-size: 11px; }
 
