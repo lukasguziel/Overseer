@@ -1005,6 +1005,70 @@ class SceneAdapter:
                         out.append((graph, port, is_url))
         return out
 
+    def _node_path_values(self, limit: int = 6) -> list:
+        """Every path-ish value the node graphs actually hold.
+
+        Diagnostic only: when a rewrite finds no port for a path, the useful
+        question is what the graph DOES store for it (a relative string? a
+        file:// url? an asset-db id?) — guessing that from the outside is how
+        an afternoon disappears.
+        """
+        out: list = []
+        try:
+            import maxon
+        except ImportError:
+            return out
+        try:
+            mats = list(self.doc.GetMaterials())
+        except Exception:
+            return out
+        for mat in mats:
+            try:
+                node_mat = mat.GetNodeMaterialReference()
+            except Exception:
+                continue
+            if node_mat is None:
+                continue
+            for sid in self._NODE_SPACE_IDS:
+                try:
+                    spid = maxon.Id(sid)
+                    if not node_mat.HasSpace(spid):
+                        continue
+                    graph = node_mat.GetGraph(spid)
+                    nodes = list(graph.GetViewRoot().GetInnerNodes(
+                        maxon.NODE_KIND.NODE, False))
+                except Exception:
+                    continue
+                for node in nodes:
+                    try:
+                        stack = list(node.GetInputs().GetChildren())
+                    except Exception:
+                        continue
+                    while stack:
+                        port = stack.pop()
+                        try:
+                            stack.extend(port.GetChildren())
+                        except Exception:
+                            pass
+                        try:
+                            val = port.GetDefaultValue()
+                        except Exception:
+                            continue
+                        sval = str(val) if val is not None else ""
+                        if not sval or len(sval) < 4:
+                            continue
+                        low = sval.lower()
+                        if not any(low.endswith(e) for e in
+                                   (".tif", ".tiff", ".png", ".jpg", ".jpeg",
+                                    ".exr", ".tga", ".hdr", ".psd")):
+                            continue
+                        entry = "%s [%s]" % (sval, type(val).__name__)
+                        if entry not in out:
+                            out.append(entry)
+                        if len(out) >= limit:
+                            return out
+        return out
+
     def _write_node_paths(self, mat, raw: str, new_path: str) -> bool:
         ports = self._node_path_ports(mat, raw)
         if not ports:
@@ -1333,6 +1397,13 @@ class SceneAdapter:
                 skipped += 1
                 diag.append("%s: %d owner(s), no parameter held the path"
                             % (os.path.basename(raw), len(owners)))
+        # Nothing matched anywhere: report what the node graphs DO hold, so the
+        # mismatch (relative string? file:// url? asset id?) is visible instead
+        # of guessed at.
+        if changed == 0 and skipped:
+            seen_vals = self._node_path_values()
+            if seen_vals:
+                diag.append("graph holds: " + " | ".join(seen_vals))
         self.doc.EndUndo()
         c4d.EventAdd()
         return {"changed": changed, "skipped": skipped, "mode": mode,
