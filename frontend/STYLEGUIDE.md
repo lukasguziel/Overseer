@@ -153,6 +153,11 @@ Its shape is the pattern for **any collapsible area**:
 Never hide the explanation inside the fold, and never make a bare text label
 the toggle: a heading-shaped button reads as a heading and nobody clicks it.
 
+**It belongs at the FOOT of the tab, never between two worklists.** An accepted
+item is a decision the artist already made — it must not sit in the middle of
+the work still to do. A tab with several accepted lists (Materials: materials +
+textures) names each one via `title`, so two identical heads cannot stack.
+
 ---
 
 ## Empty note — `.empty-note`
