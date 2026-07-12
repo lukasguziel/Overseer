@@ -14,6 +14,10 @@ frontend/dist/
 # Vite build output (built from frontend/, distributed by deploy.ps1)
 src/web/
 
+# Vendored third-party wheels (Pillow), unpacked by tools/vendor_pillow.py and
+# by the release workflow. Generated, never committed — no binaries in git.
+src/vendor/
+
 # C4D SDK reference archives (large vendor zips). Only the Python 2024 SDK
 # relevant to this Python plugin is versioned; the rest stays local
 # (C++ 2024-2026, ProjectTool exceed GitHub's 100 MB limit).

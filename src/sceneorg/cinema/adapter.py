@@ -52,26 +52,33 @@ def type_name(op) -> str:
     return "type_%d" % t
 
 
+def _is_control_object(op) -> bool:
+    try:
+        return bool(op.GetBit(c4d.BIT_CONTROLOBJECT))
+    except Exception:
+        return False
+
+
 def _virtual_geo(op) -> tuple:
     pts = polys = 0
     o = op
     while o:
-        if o.IsInstanceOf(c4d.Opolygon):
+        dc = o.GetDeformCache()
+        c = o.GetCache() if dc is None else None
+        if dc:
+            p2, q2 = _virtual_geo(dc)
+            pts += p2
+            polys += q2
+        elif c:
+            p2, q2 = _virtual_geo(c)
+            pts += p2
+            polys += q2
+        elif o.IsInstanceOf(c4d.Opolygon) and not _is_control_object(o):
             try:
                 pts += o.GetPointCount()
                 polys += o.GetPolygonCount()
             except Exception:
                 pass
-        dc = o.GetDeformCache()
-        if dc:
-            p2, q2 = _virtual_geo(dc)
-            pts += p2
-            polys += q2
-        c = o.GetCache()
-        if c:
-            p2, q2 = _virtual_geo(c)
-            pts += p2
-            polys += q2
         down = o.GetDown()
         if down:
             p2, q2 = _virtual_geo(down)
@@ -128,11 +135,20 @@ def stable_id(op) -> int:
         return 0
 
 
-def editor_hidden(op) -> bool:
+def editor_visibility(op) -> int:
     try:
-        return op[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] == c4d.MODE_OFF
+        return op[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR]
     except Exception:
+        return c4d.MODE_UNDEF
+
+
+def editor_hidden(op, hidden_ancestor: bool = False) -> bool:
+    mode = editor_visibility(op)
+    if mode == c4d.MODE_ON:
         return False
+    if mode == c4d.MODE_OFF:
+        return True
+    return hidden_ancestor
 
 
 class SceneAdapter:
@@ -175,7 +191,7 @@ class SceneAdapter:
             if progress and counter[0] % 50 == 0:
                 progress(counter[0], total, op.GetName())
             pts, polys = own_geo(op)
-            hidden = hidden_ancestor or editor_hidden(op)
+            hidden = editor_hidden(op, hidden_ancestor)
             node = model.SceneNode(
                 name=op.GetName(),
                 type_name=type_name(op),
@@ -242,7 +258,10 @@ class SceneAdapter:
             forward = cm.v3
             dist = r * 2.8
             cm.off = center - forward * dist
+            self.doc.StartUndo()
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, cam)
             cam.SetMg(cm)
+            self.doc.EndUndo()
 
         c4d.EventAdd()
         try:
@@ -267,7 +286,7 @@ class SceneAdapter:
 
         def visit(op, hidden_anc):
             while op:
-                hidden = hidden_anc or editor_hidden(op)
+                hidden = editor_hidden(op, hidden_anc)
                 try:
                     for tag in op.GetTags():
                         if tag.IsInstanceOf(c4d.Ttexture):
@@ -334,19 +353,17 @@ class SceneAdapter:
                     unused.append(name)
                     if hidden_only:
                         only_hidden.append(name)
-            try:
-                sh = m.GetFirstShader()
-                while sh:
-                    if sh.IsInstanceOf(c4d.Xbitmap):
-                        fn = sh[c4d.BITMAPSHADER_FILENAME]
-                        if fn:
-                            resolved = c4d.GenerateTexturePath(doc_path, fn, "")
-                            if not resolved or not os.path.isfile(resolved):
-                                missing.append({"material": name,
-                                                "file": os.path.basename(str(fn))})
-                    sh = sh.GetNext()
-            except Exception:
-                pass
+            for sh in self._iter_bitmap_shaders(m):
+                try:
+                    fn = sh[c4d.BITMAPSHADER_FILENAME]
+                    if not fn:
+                        continue
+                    resolved = c4d.GenerateTexturePath(doc_path, fn, "")
+                    if not resolved or not os.path.isfile(resolved):
+                        missing.append({"material": name,
+                                        "file": os.path.basename(str(fn))})
+                except Exception:
+                    continue
 
         return {
             "total": len(mats),
@@ -723,6 +740,7 @@ class SceneAdapter:
 
     def collect_textures(self, materials: list | None = None,
                          subdir: str = "tex") -> dict:
+        import filecmp
         import os
         import shutil
         doc = self.doc
@@ -769,13 +787,22 @@ class SceneAdapter:
         if not targets:
             return {"copied": 0, "relinked": 0, "skipped": 0}
 
-        copied = relinked = skipped = 0
+        relinked = skipped = 0
+        copies = [0]
         dest_by_src: dict = {}
         used_names: set = set()
         try:
             used_names = {fn.lower() for fn in os.listdir(target_dir)}
         except OSError:
             pass
+
+        def same_file(a: str, b: str) -> bool:
+            try:
+                if os.path.getsize(a) != os.path.getsize(b):
+                    return False
+                return filecmp.cmp(a, b, shallow=False)
+            except OSError:
+                return False
 
         def dest_for(src: str) -> str | None:
             if src in dest_by_src:
@@ -784,19 +811,24 @@ class SceneAdapter:
             dst = os.path.join(target_dir, base)
             try:
                 if os.path.isfile(dst):
-                    if os.path.getsize(dst) == os.path.getsize(src):
+                    if same_file(dst, src):
                         dest_by_src[src] = dst
                         return dst
                     stem, ext = os.path.splitext(base)
                     n = 1
                     while True:
-                        cand = "%s_%d%s" % (stem, n, ext)
-                        if cand.lower() not in used_names and \
-                                not os.path.isfile(os.path.join(target_dir, cand)):
-                            dst = os.path.join(target_dir, cand)
+                        cname = "%s_%d%s" % (stem, n, ext)
+                        cand = os.path.join(target_dir, cname)
+                        if os.path.isfile(cand):
+                            if same_file(cand, src):
+                                dest_by_src[src] = cand
+                                return cand
+                        elif cname.lower() not in used_names:
+                            dst = cand
                             break
                         n += 1
                 shutil.copy2(src, dst)
+                copies[0] += 1
                 used_names.add(os.path.basename(dst).lower())
                 dest_by_src[src] = dst
                 return dst
@@ -817,7 +849,7 @@ class SceneAdapter:
             except Exception:
                 skipped += 1
         doc.EndUndo()
-        copied = len(dest_by_src)
+        copied = copies[0]
         c4d.EventAdd()
         return {"copied": copied, "relinked": relinked, "skipped": skipped,
                 "target": target_dir}
@@ -1318,12 +1350,8 @@ class SceneAdapter:
             return {"resized": 0, "skipped": 0, "relinked": 0,
                     "error": "percent must be one of %s"
                     % (texmod.RESIZE_PERCENTS,)}
-        has_pillow = False
-        try:
-            import PIL  # noqa: F401
-            has_pillow = True
-        except Exception:
-            has_pillow = False
+        from .. import vendor
+        has_pillow = vendor.import_pillow() is not None
         has_host = bool(_SAVE_FILTERS)
 
         doc_path = self.doc.GetDocumentPath() or ""
@@ -1358,15 +1386,17 @@ class SceneAdapter:
             dst = texmod.resize_target(resolved, percent)
             wrote = done_copies.get(resolved)
             if wrote is None:
-                # C4D's own engine first (no dependency, knows every format it
-                # can load); Pillow / the built-in PNG writer as fallbacks.
-                wrote = self._host_resize(resolved, dst, percent) \
-                    or texmod.resize_file(resolved, dst, percent, has_pillow)
+                # Pillow FIRST: LANCZOS, keeps alpha, bit depth and the ICC
+                # profile. It ships with the plugin (src/vendor). Cinema's own
+                # engine is the fallback when Pillow is absent or refuses the
+                # format (e.g. EXR), which it handles natively.
+                wrote = texmod.resize_file(resolved, dst, percent, has_pillow) \
+                    or self._host_resize(resolved, dst, percent)
                 done_copies[resolved] = wrote
             if not wrote:
-                # Name the real reason: an alpha channel is the one case the
-                # host scaler refuses, and it is fixable (install Pillow).
-                note = "has an alpha channel — needs Pillow to resize" \
+                # Without the bundled Pillow, Cinema's scaler is all we have —
+                # and it refuses alpha maps rather than dropping the mask.
+                note = "has an alpha channel — the bundled resizer is missing" \
                     if self._has_alpha(resolved) and not has_pillow \
                     else "could not write the resized copy"
                 results.append({"file": base, "status": "skipped",

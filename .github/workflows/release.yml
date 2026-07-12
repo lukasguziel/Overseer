@@ -53,14 +53,27 @@ jobs:
           pnpm test
           pnpm run build
 
+      # Pillow for C4D's interpreter (CPython 3.11, win_amd64) — shipped INSIDE
+      # the plugin so the artist never pip-installs into Cinema's Python. The
+      # wheel is fetched here rather than committed, so no binaries in git.
+      - name: Vendor Pillow (cp311 / win_amd64)
+        run: python tools/vendor_pillow.py
+
       # --- Package: same layout as deploy.ps1 produces ---
       - name: Assemble plugin folder
         run: |
           pkg=dist/SceneOrganizer
-          mkdir -p "$pkg/sceneorg"
+          mkdir -p "$pkg"
           cp src/scene_organizer.pyp "$pkg/"
+          cp src/so_logo.jpg "$pkg/"
           cp src/config.example.json "$pkg/"
-          cp src/sceneorg/*.py "$pkg/sceneorg/"
+          # The whole package, not just its top-level modules: sceneorg/ has
+          # subpackages (core, naming, structure, cinema) and a flat *.py glob
+          # silently shipped a plugin that cannot import itself.
+          cp -r src/sceneorg "$pkg/sceneorg"
+          find "$pkg/sceneorg" -name __pycache__ -type d -prune -exec rm -rf {} +
+          cp -r src/vendor "$pkg/vendor"
+          find "$pkg/vendor" -name __pycache__ -type d -prune -exec rm -rf {} +
           [ -d src/presets ] && cp -r src/presets "$pkg/presets"
           if [ -d src/plans ]; then mkdir -p "$pkg/plans"; cp src/plans/*.json "$pkg/plans/" 2>/dev/null || true; fi
           cp -r src/web "$pkg/web"
