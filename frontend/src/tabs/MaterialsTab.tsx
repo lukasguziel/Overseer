@@ -478,21 +478,23 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               onRestoreAll={() => org.unkeepAll('materials')}
               hint="Accepted materials stay in the scene, are remembered (config) and no longer count as problems." />
           </>
-        ) : <div className="fl-empty">No material data.</div>}
+        ) : <div className="empty-note">No material data.</div>}
       </section>
 
       {/* ---- Textures: ONE area — settings/filters left, paths right --- */}
       {tex ? (
         <>
-        <SectionIntro lead title="Textures"
+        <SectionIntro title="Textures"
           desc="Every map the scene references — real pixel size, disk size and resolution per texture. Spot oversized maps, fix absolute or missing paths, and shrink maps in place." />
         <div className="workbench">
+          {/* Left column: two stacked panels — narrowing the list (Filters)
+              and acting on it (Actions) are separate jobs. */}
+          <div className="wb-col">
           <aside className="wb-side">
             <h3>Filters</h3>
             <p className="hint-sm">
-              Real pixel size, disk size and a resolution tag per map — spot the
-              8K textures eating memory that could be 4K, and the paths that
-              break when the project moves. Heaviest first.
+              Narrow the list — every action below applies to what is left
+              (or to the rows you tick). Heaviest map first.
             </p>
             <div className="substats" style={{ marginBottom: 12 }}>
               <span><b>{tex.total}</b> maps</span>
@@ -626,6 +628,52 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               </div>
             )}
 
+          </aside>
+
+          <aside className="wb-side">
+            <h3>Actions</h3>
+            <p className="hint-sm">
+              Every rewrite is one undo step. Path actions cover the whole
+              scene; <b>Shrink</b> follows your filter and selection.
+            </p>
+
+            {missingCount > 0 && (
+              <>
+                <div className="section-head sm"><span>Missing</span></div>
+                <button className="ghost sm" disabled={busy}
+                  title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
+                  onClick={() => {
+                    call('pick_folder', { title: 'Folder to search for the missing textures' })
+                      .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
+                      .catch(() => {})
+                  }}>
+                  Relink {missingCount} missing
+                </button>
+                <p className="hint-sm" style={{ marginTop: 4 }}>
+                  Search a folder for the missing file names and relink every match.
+                </p>
+                <button className="ghost sm" disabled={busy}
+                  title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
+                  onClick={() => setClearConfirm(true)}>
+                  Clear {missingCount} missing
+                </button>
+                <p className="hint-sm" style={{ marginTop: 4 }}>
+                  Blank the dead paths — the materials stay, the broken links go.
+                </p>
+                <button className="ghost sm"
+                  title="Accept every missing map as-is — they stop counting as problems (restore below)"
+                  onClick={() => {
+                    const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
+                    setTexKeeps([...texAccepted, ...add])
+                  }}>
+                  Accept {missingCount} missing
+                </button>
+                <p className="hint-sm" style={{ marginTop: 4 }}>
+                  Acknowledge them — they stop counting as problems.
+                </p>
+              </>
+            )}
+
             <div className="section-head sm"><span>Paths</span></div>
             <button className="ghost sm" disabled={busy || !fixable}
               title={fixable
@@ -688,6 +736,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
             )}
           </aside>
+          </div>
 
           <div className="wb-preview">
             <div className="wb-preview-head">
@@ -702,32 +751,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   {selected.size} selected · clear ✕
                 </button>
               )}
-              {missingCount > 0 && (
-                <>
-                  <button className="wb-accept-all" disabled={busy}
-                    title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
-                    onClick={() => {
-                      call('pick_folder', { title: 'Folder to search for the missing textures' })
-                        .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
-                        .catch(() => {})
-                    }}>
-                    <IconFolder /> Relink {missingCount} missing
-                  </button>
-                  <button className="wb-accept-all" disabled={busy}
-                    title="Blank the dead path on every reference whose file is missing — the materials stay, the broken references go (undoable)"
-                    onClick={() => setClearConfirm(true)}>
-                    ✕ Clear {missingCount} missing
-                  </button>
-                  <button className="wb-accept-all"
-                    title="Accept every missing map as-is — they stop counting as problems (restore below)"
-                    onClick={() => {
-                      const add = allTex.filter((e) => e.missing && !e.accepted).map((e) => e.path)
-                      setTexKeeps([...texAccepted, ...add])
-                    }}>
-                    = Accept {missingCount} missing
-                  </button>
-                </>
-              )}
+              {/* Batch actions on the missing maps live in the Actions panel. */}
             </div>
             <p className="hint-sm wb-hint">Click a row to select its material in Cinema 4D · missing rows: … pick the replacement file · ✕ clear the dead reference.</p>
             <div className="wb-scroll">
@@ -744,7 +768,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                       onAccept={acceptTexture} />
                     <Pager pager={pathPager} />
                   </>
-                : <div className="wb-empty">
+                : <div className="empty-note mid">
                     {pathFilter === 'missing' ? 'No missing textures 🎉'
                       : pathFilter === 'absolute' ? 'No absolute texture paths 🎉'
                         : 'No textures match the filters.'}
@@ -760,7 +784,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
       ) : (
         <section className="card">
           <div className="card-head"><h3>Textures</h3></div>
-          <div className="fl-empty">No texture data.</div>
+          <div className="empty-note">No texture data.</div>
           {report.textures_error && (
             <p className="example warn" style={{ marginTop: 8 }}>
               Texture scan failed: <code>{report.textures_error}</code>
