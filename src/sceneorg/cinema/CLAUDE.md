@@ -58,6 +58,14 @@ with several candidate symbol names resolved to the first valid id. Dropdown
 Manager strings), never hand-tabled. Deliberately does NOT diff on/off state
 (a per-shot artistic choice, not a finding).
 
+### audit_perf.py
+Rebuild-cost audit (`perf_scan/select`) — which generator/deformer stalls the
+viewport. Marks ONE object's cache dirty (`DIRTYFLAGS_CACHE`, no data change, no
+undo step) and times `doc.ExecutePasses`; the fixed cost of an idle pass is
+measured once and subtracted, the fastest of N runs counts. Ranking/verdict is
+pure (`core/perf_logic.py`). Expensive by nature — the web UI only runs it on an
+explicit click, never as a background scan.
+
 ### audit_sims.py
 Simulation/cache audit (`sims_scan/select/set_enabled`). Tag/object type ids and
 enable-parameter ids resolved via `getattr(c4d, ...)` with hardcoded numeric

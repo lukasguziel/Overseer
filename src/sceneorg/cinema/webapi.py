@@ -717,6 +717,7 @@ _OP_LABELS = {
     "pick_folder": "Waiting for the folder picker (switch to Cinema 4D)",
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
+    "perf_scan": "Measuring generator rebuild times",
 }
 
 
@@ -725,6 +726,7 @@ _AUDIT_MODULES = {
     "gens": "audit_generators",
     "files": "audit_files",
     "sims": "audit_sims",
+    "perf": "audit_perf",
 }
 
 
