@@ -199,15 +199,12 @@ export default function NamingTab({ org }: { org: Organizer }) {
         </Workbench>
       </div>
 
-      <SectionIntro title="Cleanup"
-        desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates — rename them by hand or accept them as-is." />
-
-      {/* Name hygiene: default & duplicate names — click to select in C4D. */}
+      {/* Name cleanup: intro, then the area itself — no card wrapping a card,
+          and no second heading repeating the intro's title (same shape as
+          Materials and Textures). Objects the rules cannot fix on their own. */}
+      <SectionIntro title="Name cleanup"
+        desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates. Click an item to select & frame it, ✎ renames it, = accepts it as-is." />
       <section className="card">
-        <div className="card-head">
-          <h3>Name cleanup</h3>
-          <span className="card-hint">click an item to select &amp; frame it · ✎ to rename</span>
-        </div>
         <Cleanup buckets={nameBuckets} onFocus={org.doFocus} onRename={org.doRenameObject}
           onKeep={(nm) => org.keep('naming', nm)}
           onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />

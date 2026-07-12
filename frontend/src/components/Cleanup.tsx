@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FocusFn } from './Treemap'
 import Pager, { usePager } from './Pager'
 import ConfirmModal from './ConfirmModal'
+import ActionButton from './ActionButton'
 
 export interface CleanupItem {
   guid: number
@@ -116,11 +117,11 @@ export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll,
                 <span className={'cl-count' + (b.items.length ? ' warn' : '')}>{b.items.length}</span>
               </button>
               {onKeepAll && b.items.length > 0 && (
-                <button className="mini cl-keepall" disabled={busy}
+                <ActionButton className="cl-keepall" disabled={busy}
                   title={`Accept all ${b.items.length} as-is — they stop counting as todos (restore in the Accepted section)`}
                   onClick={() => setConfirm(b)}>
-                  = keep all
-                </button>
+                  Keep all as-is
+                </ActionButton>
               )}
             </div>
             {isOpen && b.hint && <p className="cl-hint">{b.hint}</p>}
