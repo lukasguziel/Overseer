@@ -238,7 +238,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             Make relative ({reloc})
           </button>
           {!data.doc_path && (
-            <p className="example warn">Project not saved — paths cannot be made relative yet.</p>
+            <p className="example warn" style={{ marginTop: 8 }}>Project not saved — paths cannot be made relative yet.</p>
           )}
           {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
         </aside>

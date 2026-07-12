@@ -138,9 +138,19 @@ def _scan(doc, adapter, progress=None) -> dict:
     raw_entries = _asset_entries(doc, adapter, doc_path) + \
         _alembic_entries(adapter, doc_path)
 
-    own = os.path.normcase(os.path.join(doc_path, doc.GetDocumentName() or ""))
-    raw_entries = [e for e in raw_entries
-                   if os.path.normcase(e.get("resolved") or "") != own]
+    doc_name = doc.GetDocumentName() or ""
+    own = os.path.normcase(os.path.join(doc_path, doc_name))
+    own_name = os.path.normcase(doc_name)
+
+    def _is_own(e) -> bool:
+        if os.path.normcase(e.get("resolved") or "") == own:
+            return True
+        # An unsaved document has no path, so its own entry never resolves and
+        # would show up as a missing file — match it by name instead.
+        return (not doc_path) and bool(own_name) \
+            and os.path.normcase(e.get("file") or "") == own_name
+
+    raw_entries = [e for e in raw_entries if not _is_own(e)]
 
     entries: list = []
     seen: set = set()
