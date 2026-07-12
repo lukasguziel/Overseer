@@ -105,6 +105,10 @@ export default function MiscTab({ org }: { org: Organizer }) {
             <Tip text="Every analysis run, newest first. Expand to see the full metrics of that snapshot. Up to 100 are kept.">
               <h3>Analysis history</h3>
             </Tip>
+            {history.length > 0 && (
+              <button className="ghost sm" onClick={org.doClearHistory}
+                title="Clear the log (the scene is untouched; trend sparklines start over)">Clear log</button>
+            )}
           </div>
           <p className="hint-sm">
             Every analysis run, newest first — expand an entry for the full

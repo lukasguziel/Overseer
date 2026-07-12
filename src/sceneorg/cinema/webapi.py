@@ -847,6 +847,14 @@ def _handle(payload: dict) -> dict:
     if op == "history":
         return {"ok": True, "history": list(reversed(_read_history()))}
 
+    if op == "clear_history":
+        try:
+            if os.path.isfile(HISTORY_PATH):
+                os.remove(HISTORY_PATH)
+        except Exception as ex:
+            return {"error": str(ex)}
+        return {"ok": True}
+
     if op == "presets":
         return {"ok": True, "presets": _list_presets(),
                 "active": data.get("preset")}
