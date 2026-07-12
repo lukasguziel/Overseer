@@ -1,0 +1,39 @@
+/* Materials tab — the texture thumbnail in the paths list.
+   These rules were lost when the table moved to the shared `.dg-*` grid: with
+   no width the <img> rendered at its natural size (a 4K map filled the row),
+   and the eye overlay, having no positioning context, dropped BELOW the image
+   instead of sitting on it. A row is a row: the thumb is a 22px chip. */
+
+.tex-thumb-wrap {
+  position: relative;          /* the overlay's anchor — this is what was missing */
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  display: inline-flex;
+}
+
+.tex-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;           /* fill the chip, never stretch the map */
+  display: block;
+}
+
+/* Only maps that exist on disk can be opened, so only those show the eye —
+   and only on hover, over the image, never as a stray glyph under it. */
+.tex-thumb-eye {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  background: rgba(0, 0, 0, .55);
+}
+.tex-thumb-wrap.openable { cursor: zoom-in; }
+.tex-thumb-wrap.openable:hover .tex-thumb-eye { display: flex; }
