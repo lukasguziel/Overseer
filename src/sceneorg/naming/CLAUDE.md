@@ -34,6 +34,10 @@ padding is only inferred from numbers with a leading zero.
 ### translate.py
 Guarded multi-language -> EN (or EN->DE) rename proposals. `translate_preserving`
 recases word-by-word, `plan_translations`/`detect_languages` walk a SceneTree.
+`translatable_words()` / `rebuild_with()` are the split/reassemble pair the ONLINE
+(Google) engine uses: an object name is not a sentence, so the raw name is never
+sent — the words are, and the name is rebuilt around them (separators, digits,
+codes and per-word casing preserved).
 Gotcha: ambiguous tokens that look English (`AMBIGUOUS_DE`) are only translated
 when the name carries independent language evidence (special chars or a
 uniquely-single-language token).
