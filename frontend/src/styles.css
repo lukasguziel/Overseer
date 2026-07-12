@@ -80,14 +80,18 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .section-head.sm:first-of-type { margin-top: 6px; }
 .section-head.sm span { font-size: 10px; }
 
-/* Naming sidebar: number-pad picker — small square buttons (1–4), active = accent.
-   Clicking the active one again deselects (pad: none). */
+/* Naming sidebar: number-pad picker — small square buttons (1–4). Same selected
+   look as a filter chip (`.chip-btn.on`): lifted out of the panel, accent as an
+   OUTLINE, never as a fill. Clicking the active one again deselects (pad: none). */
 .pad-btns { display: flex; gap: 4px; margin: 4px 0 10px; }
 .pad-btn { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 6px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
-  border: 1px solid var(--line); background: var(--panel2); color: var(--dim); padding: 0; }
-.pad-btn:hover { border-color: var(--dim); color: var(--text); }
-.pad-btn.on { background: var(--accent); border-color: transparent; color: #06121a; }
+  border-radius: 6px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel2); color: var(--dim); padding: 0;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease),
+    border-color var(--t) var(--ease); }
+.pad-btn:hover:not(:disabled) { background: var(--panel); border-color: var(--hover); color: var(--text); }
+.pad-btn.on { background: var(--panel); border-color: var(--accent); color: var(--text); }
+.pad-btn.on:hover { border-color: var(--accent); }
 
 /* Naming: rename rows with rule badge + always-visible accept/ignore icons */
 .rename-list { display: flex; flex-direction: column; gap: 1px; }
