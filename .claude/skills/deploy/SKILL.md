@@ -1,7 +1,7 @@
 ---
 name: deploy
 description: >-
-  Deploy the Scene Organizer plugin into one or more Cinema 4D installations.
+  Deploy the Overseer plugin into one or more Cinema 4D installations.
   The repo carries no target path: the machine-local, gitignored
   deploy.config.json holds each WINDOWS USER's target list (schema 2, keyed by
   $env:USERNAME — different users on the same machine can point at different
@@ -65,8 +65,8 @@ oder mehrere** (z. B. `1,3` oder `1 und 3`), Mehrfachauswahl = Deploy auf
 mehrere Cinemas gleichzeitig:
 
 ```
- 1. Cinema 4D 2024 — prefs   ·  …\Maxon Cinema 4D 2024_A5DBFF93\plugins\SceneOrganizer   (kein Admin)
- 2. Cinema 4D 2024 — app     ·  C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer   (Admin)
+ 1. Cinema 4D 2024 — prefs   ·  …\Maxon Cinema 4D 2024_A5DBFF93\plugins\Overseer   (kein Admin)
+ 2. Cinema 4D 2024 — app     ·  C:\Program Files\Maxon Cinema 4D 2024\plugins\Overseer   (Admin)
  …
 ```
 - Reihenfolge: pro Version zuerst `prefs` (kein Admin), dann `app` (Admin);
@@ -98,7 +98,7 @@ Get-Content $log
 ```
 (UAC-Prompt beim User ankuendigen.) `prefs`-Ziele danach normal ohne Elevation
 deployen (`-Target` mit den prefs-Pfaden). Danach Erfolg PRO ZIEL pruefen:
-`Test-Path "<plugin_dir>\scene_organizer.pyp"` und bei Frontend-Aenderungen
+`Test-Path "<plugin_dir>\overseer.pyp"` und bei Frontend-Aenderungen
 die Asset-Hashes in `<plugin_dir>\web\index.html` gegen `src/web/index.html`
 vergleichen.
 

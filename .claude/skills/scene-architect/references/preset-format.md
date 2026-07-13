@@ -49,7 +49,7 @@ curl -s -X POST 127.0.0.1:8787/api/apply_preset -H "Content-Type: application/js
 ```
 Server aus? `apply_preset` schreibt nur die deployte config.json — ohne Server
 den config-Inhalt direkt nach
-`…\plugins\SceneOrganizer\config.json` schreiben (Format: die cfg-Keys plus
+`…\plugins\Overseer\config.json` schreiben (Format: die cfg-Keys plus
 `"graph"` aus `graph_from_groups` und `"preset": "<id>"`).
 
 Vorher immer `deploy.ps1` laufen lassen, sonst kennt das Plugin die neue

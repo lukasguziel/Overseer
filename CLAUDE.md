@@ -1,4 +1,4 @@
-# CLAUDE.md — Scene Organizer
+# CLAUDE.md — Overseer
 
 Context for Claude Code. Keep short and current.
 **Binding conventions & gotchas: [.claude/rules.md](.claude/rules.md) — code and
@@ -25,7 +25,7 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 
 ```
 src/
-  scene_organizer.pyp     Loader. Registers ONE command "Scene Organizer" that
+  overseer.pyp     Loader. Registers ONE command "Overseer" that
                           starts the server + opens the web UI (the only UI).
   sceneorg/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
@@ -66,17 +66,22 @@ frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, componen
                           READ BEFORE touching CSS — reuse a block, never fork a near-copy.
 tests/                    pytest, runs WITHOUT c4d
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
-.github/workflows/release.yml  builds SceneOrganizer-<version>.zip + creates a GitHub Release
-                          (auto on v* tag push, or manually via workflow_dispatch with version input)
+.github/workflows/release.yml  builds Overseer-<version>.zip + creates a GitHub Release
+                          (auto on v* tag push, or manually via workflow_dispatch with version input).
+                          Every release is then MIRRORED to the public repo
+                          lukasguziel/overseer (releases + README/docs only, no code —
+                          the public data source; release skill step 8). This dev repo
+                          is Goodsoup-Family-Crypt/overseer.
 .claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + sceneorg/ +
                           presets/ + plans/ + web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)
 ```
 
-## Plugin IDs / port (scene_organizer.pyp)
+## Plugin IDs / port (overseer.pyp)
 
-Official Maxon base ID `1069217` ("GFCSceneOrganizer"):
-`1069217` CommandData "Scene Organizer" (the only command; opens the web UI) ·
+Official Maxon base ID `1069217` (registered at Maxon under the historical
+name "GFCSceneOrganizer" — the registration name never changes):
+`1069217` CommandData "Overseer" (the only command; opens the web UI) ·
 `1069220` ServerDialog ID. `1069218`/`1069219` are retired (former native
 dialog / web command) — do not reuse them for anything else.
 Web port `8787`. No MessageData — the ServerDialog timer drains the queue.
@@ -106,7 +111,7 @@ powershell -File .claude/skills/deploy/deploy.ps1   # copy to the C4D plugin dir
 
 ## Usage in C4D
 
-After one restart: `Shift+C` → **"Scene Organizer"** (starts the server and
+After one restart: `Shift+C` → **"Overseer"** (starts the server and
 opens `http://127.0.0.1:8787`; keep the server dialog open — the web UI is
 the only UI). Full API table:
 `.claude/skills/scene-conventions/references/api.md`.

@@ -1,17 +1,18 @@
-/* Gradient block in the layer overview (see LayerGradient.tsx). */
+/* Vertical multi-stop gradient beside the layer list (LayerGradient.tsx). */
 .lg-block { margin: 2px 0 10px; }
-.lg-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.lg-vwrap { display: flex; gap: 12px; margin-top: 6px; }
+.lg-vbar { position: relative; width: 14px; flex: none; align-self: stretch;
+  border-radius: 7px; border: 1px solid var(--line2); cursor: copy; }
+.lg-content { flex: 1; min-width: 0; }
 
-/* The two handles: native color inputs, trimmed to swatch-sized chips. */
-.lg-handle { width: 26px; height: 22px; padding: 0; border: 1px solid var(--line2);
-  border-radius: 5px; background: transparent; cursor: pointer; flex: none; }
-.lg-handle::-webkit-color-swatch-wrapper { padding: 1px; }
-.lg-handle::-webkit-color-swatch { border: none; border-radius: 4px; }
+/* Handles: native color inputs, trimmed to swatch-sized chips, centered on
+   their stop along the bar. */
+.lg-vhandle { position: absolute; left: 50%; transform: translate(-50%, -50%);
+  width: 22px; height: 18px; padding: 0; border: 1px solid var(--line2);
+  border-radius: 5px; background: var(--panel2, rgba(127,127,127,.2));
+  cursor: pointer; }
+.lg-vhandle::-webkit-color-swatch-wrapper { padding: 1px; }
+.lg-vhandle::-webkit-color-swatch { border: none; border-radius: 4px; }
 
-/* The bar previews the blend; the dots on it are the exact per-layer stops. */
-.lg-bar { position: relative; flex: 1; min-width: 0; height: 12px;
-  border-radius: 6px; border: 1px solid var(--line2); }
-.lg-stop { position: absolute; top: 50%; width: 9px; height: 9px;
-  border-radius: 50%; transform: translate(-50%, -50%);
-  border: 1px solid rgba(0, 0, 0, 0.55);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3); }
+/* Per-row live preview in the layer list: current swatch → gradient swatch. */
+.ly-grad-arrow { color: var(--dim2); font-size: 10px; margin: 0 1px; }

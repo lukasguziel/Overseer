@@ -65,4 +65,4 @@ ueberschreibt sie nicht). Vollstaendiges Schema: `src/sceneorg/config.py`
 Regeln bearbeiten: Node-Editor (Rules-Tab) speichert `groups`+`graph` via
 `POST /api/config` in dieselbe config.json. Live-Hot-Reload:
 `POST /api/config {"save":true,"data":{...}}`; ist der Server aus, direkt die
-deployte Datei schreiben (`…\plugins\SceneOrganizer\config.json`).
+deployte Datei schreiben (`…\plugins\Overseer\config.json`).

@@ -4,7 +4,7 @@ description: >-
   Learn a C4D artist's personal naming & structure conventions from one or
   more real projects — including per-category affix habits like "ABC_ before
   every spline" — then confirm them in a short interview and freeze them into
-  a validated Scene Organizer preset (schema 2) plus rules the plugin enforces
+  a validated Overseer preset (schema 2) plus rules the plugin enforces
   deterministically. Use when the user says "lern wie ich arbeite", "analysiere
   mein(e) Projekt(e)", "bau ein Preset aus meinen Szenen", "versteh meine
   Naming-Regeln", or wants their convention captured as rules.
@@ -137,7 +137,7 @@ Abschließend gegen [references/review-checklist.md](references/review-checklist
 ## Fehlerbilder
 
 - `Connection refused` beim Export → Web-Dialog in C4D öffnen (`Shift+C` →
-  „Scene Organizer"), Server-Fenster offen lassen.
+  „Overseer"), Server-Fenster offen lassen.
 - `(sceneorg not importable)` im Miner → vom Repo-Root ausführen.
 - Miner findet nichts unter AFFIXES → Szene hat schlicht keine Affix-Gewohnheit;
   nicht erfinden. Casing/Numbering/Structure tragen das Preset auch allein.

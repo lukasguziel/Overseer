@@ -1,11 +1,11 @@
-# Scene Organizer — code docs
+# Overseer — code docs
 
 Source files carry no docstrings or explanatory comments (see
 [.claude/rules.md](../.claude/rules.md)). The prose lives here instead — one
 markdown file per module, mirroring `src/`.
 
 ## Entry / host glue
-- [scene_organizer.md](scene_organizer.md) — plugin loader (`src/scene_organizer.pyp`)
+- [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)
 - [sceneorg/bridge.md](sceneorg/bridge.md) — HTTP server + main-thread queue (process singleton)
 - [sceneorg/config.md](sceneorg/config.md) — config.json schema 2 + migration
 

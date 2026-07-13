@@ -186,7 +186,10 @@ def _config_lan_enabled():
     except Exception:
         base = None
     if base:
+        # Legacy prefs dir from the Scene Organizer days — webapi migrates it
+        # on first write, but the server may start before any API call ran.
         candidates.insert(0, os.path.join(base, "scene_organizer", "config.json"))
+        candidates.insert(0, os.path.join(base, "overseer", "config.json"))
     for path in candidates:
         try:
             with open(path, encoding="utf-8") as f:
@@ -248,7 +251,7 @@ class ServerDialog(c4d.gui.GeDialog):
         return "http://127.0.0.1:%d/" % self._port
 
     def CreateLayout(self):
-        self.SetTitle("Scene Organizer")
+        self.SetTitle("Overseer")
         self.GroupBegin(1000, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, cols=1, rows=1)
         self.GroupBorderSpace(6, 6, 6, 6)
 

@@ -21,7 +21,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     this.setState({ info })
     // Also log to the JS console in case someone has the DevTools open.
-    console.error('[SceneOrganizer] render error:', error, info)
+    console.error('[Overseer] render error:', error, info)
   }
 
   render() {

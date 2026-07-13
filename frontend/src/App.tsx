@@ -88,7 +88,7 @@ export default function App() {
         <div className="brand">
           <img className="brand-logo" src={logo} alt="" />
           <div className="brand-text">
-            <span className="brand-title">Scene Organizer
+            <span className="brand-title">Overseer
               <span className="brand-version">v{version}</span>
               <SupportHeart />
             </span>

@@ -1,7 +1,7 @@
 ---
 name: scene-rules
 description: >-
-  Generate or refresh the Scene Organizer rule set (src/config.json) from the
+  Generate or refresh the Overseer rule set (src/config.json) from the
   user's live Cinema 4D scene. Pulls a fresh scene_report.json from the running
   plugin's HTTP API (or reads the existing file), analyses the real naming +
   structure, writes a config.json (convention, translations, group rules), and
@@ -28,7 +28,7 @@ Report-Aufbau: [../scene-architect/references/report-schema.md](../scene-archite
 curl -s -X POST 127.0.0.1:8787/api/export -H "Content-Type: application/json" -d "{}"
 ```
 Schreibt `scene_report.json` ins Repo-Root. Connection refused → User bittet
-`Shift+C` → **"Scene Organizer"** oeffnen, Server-Fenster offen lassen.
+`Shift+C` → **"Overseer"** oeffnen, Server-Fenster offen lassen.
 
 **B) Fallback:** vorhandene `scene_report.json` nutzen — Dateidatum/`file`-Feld
 gegenpruefen und dem User sagen, wenn veraltet.

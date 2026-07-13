@@ -1,4 +1,4 @@
-# Clean-install a released SceneOrganizer-<version>.zip into a Cinema 4D plugin
+# Clean-install a released Overseer-<version>.zip into a Cinema 4D plugin
 # folder — the way a new user would get it. Wipes the target (after a full
 # backup) so no dev leftovers (config.json, presets/, plans/, dev_repo.txt)
 # can mask a packaging bug.
@@ -6,8 +6,8 @@
 # Program Files targets need an ELEVATED shell. Cinema 4D must be closed.
 #
 #   powershell -File .claude/skills/release/test-release.ps1 `
-#       -Zip  C:\path\SceneOrganizer-v1.0.0.zip `
-#       -Target "C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer"
+#       -Zip  C:\path\Overseer-v1.0.0.zip `
+#       -Target "C:\Program Files\Maxon Cinema 4D 2024\plugins\Overseer"
 #
 # The target holds real user data (config.json with the rule set, presets/,
 # plans/). A verified full backup is ALWAYS taken first; nothing is deleted
@@ -20,7 +20,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Zip,
     [Parameter(Mandatory = $true)][string]$Target,
-    [string]$BackupRoot = (Join-Path $env:TEMP "SceneOrganizer-release-test"),
+    [string]$BackupRoot = (Join-Path $env:TEMP "Overseer-release-test"),
     [switch]$KeepData,
     [switch]$Restore
 )
@@ -46,7 +46,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 # --- Restore mode: newest backup wins ------------------------------------
 if ($Restore) {
     $bak = Get-ChildItem $BackupRoot -Directory -ErrorAction SilentlyContinue |
-           Where-Object { Test-Path (Join-Path $_.FullName "scene_organizer.pyp") } |
+           Where-Object { Test-Path (Join-Path $_.FullName "overseer.pyp") } |
            Sort-Object Name -Descending | Select-Object -First 1
     if (-not $bak) { Fail "No usable backup found under $BackupRoot" }
     Step "Restoring $($bak.Name) -> $Target"
@@ -64,11 +64,11 @@ if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 Step "Unpacking $(Split-Path $Zip -Leaf)"
 Expand-Archive -Path $Zip -DestinationPath $work
 
-# The zip carries a top-level SceneOrganizer/ folder; install its CONTENTS.
-$src = Join-Path $work "SceneOrganizer"
+# The zip carries a top-level Overseer/ folder; install its CONTENTS.
+$src = Join-Path $work "Overseer"
 if (-not (Test-Path $src)) { $src = $work }
-if (-not (Test-Path (Join-Path $src "scene_organizer.pyp"))) {
-    Fail "No scene_organizer.pyp in the zip - wrong artifact or broken packaging."
+if (-not (Test-Path (Join-Path $src "overseer.pyp"))) {
+    Fail "No overseer.pyp in the zip - wrong artifact or broken packaging."
 }
 
 # --- Backup (MANDATORY - the target holds the user's real config.json, ----
@@ -102,7 +102,7 @@ if ($KeepData -and $bak) {
 
 # --- Verify --------------------------------------------------------------
 $count = (Get-ChildItem $Target -Recurse -File).Count
-if (-not (Test-Path (Join-Path $Target "scene_organizer.pyp"))) { Fail "Loader missing after install." }
+if (-not (Test-Path (Join-Path $Target "overseer.pyp"))) { Fail "Loader missing after install." }
 if (-not (Test-Path (Join-Path $Target "web\index.html")))      { Fail "Frontend (web/index.html) missing - zip built without a frontend build." }
 if (-not $KeepData) {
     foreach ($item in $DataItems) {
@@ -112,6 +112,6 @@ if (-not $KeepData) {
 
 Write-Host "OK: $count files installed from $(Split-Path $Zip -Leaf)" -ForegroundColor Green
 if ($bak) { Write-Host "Backup: $bak" -ForegroundColor DarkGray }
-Write-Host "Next: start Cinema 4D, Shift+C -> 'Scene Organizer'." -ForegroundColor Green
+Write-Host "Next: start Cinema 4D, Shift+C -> 'Overseer'." -ForegroundColor Green
 Write-Host "Then ALWAYS restore (this install is throwaway, it has none of your data):" -ForegroundColor Yellow
 Write-Host "  test-release.ps1 -Target `"$Target`" -Restore" -ForegroundColor Yellow

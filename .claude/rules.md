@@ -1,4 +1,4 @@
-# Rules — Scene Organizer
+# Rules — Overseer
 
 Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both current.
 
@@ -15,8 +15,8 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - **Prose explanation lives in `docs/`**, one markdown file per module,
   mirroring the source tree (`src/sceneorg/cinema/bridge.py` ->
   `docs/sceneorg/bridge.md`, `src/sceneorg/core/ops.py` ->
-  `docs/sceneorg/core/ops.md`, `src/scene_organizer.pyp` ->
-  `docs/scene_organizer.md`). Update the module's doc when you change its
+  `docs/sceneorg/core/ops.md`, `src/overseer.pyp` ->
+  `docs/overseer.md`). Update the module's doc when you change its
   behavior. Hard-won c4d gotchas that used to sit in comments now live there.
 
 ## Language

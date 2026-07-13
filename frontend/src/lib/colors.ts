@@ -22,20 +22,43 @@ export function hexToRgb01(hex: string): [number, number, number] {
   return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255]
 }
 
-// n colors evenly spaced along the from->to gradient (sRGB lerp): the first
-// layer sits on `from`, the last on `to`. Values are rounded to 3 decimals —
-// the same rounding the backend uses when it reads layer colors back, so the
-// swatch after a re-analysis is exactly the color that was applied.
-export function gradientColors(
-  n: number, from: string, to: string,
+export const rgb01ToHex = (c: [number, number, number]): string =>
+  '#' + c.map((v) =>
+    Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')
+
+// One handle of the layer gradient: position t (0 = first layer, 1 = last
+// layer) and its color. The two end stops sit at t=0 / t=1; any number of
+// stops can live in between.
+export interface GradientStop { t: number; color: string }
+
+// The gradient's color at position t (sRGB lerp between the two surrounding
+// stops). Rounded to 3 decimals — the same rounding the backend uses when it
+// reads layer colors back, so the swatch after a re-analysis is exactly the
+// color that was applied.
+export function gradientColorAt(
+  stops: GradientStop[], t: number,
+): [number, number, number] {
+  const sorted = [...stops].sort((a, b) => a.t - b.t)
+  if (!sorted.length) return [0.5, 0.5, 0.5]
+  let lo = sorted[0]
+  for (const s of sorted) { if (s.t <= t) lo = s; else break }
+  let hi = sorted[sorted.length - 1]
+  for (const s of sorted) { if (s.t >= t) { hi = s; break } }
+  const a = hexToRgb01(lo.color)
+  const b = hexToRgb01(hi.color)
+  const u = hi.t <= lo.t ? 0 : (Math.min(Math.max(t, lo.t), hi.t) - lo.t) / (hi.t - lo.t)
+  return [0, 1, 2].map((c) =>
+    Math.round((a[c] + (b[c] - a[c]) * u) * 1000) / 1000) as [number, number, number]
+}
+
+// n colors evenly spaced along the multi-stop gradient: the first layer sits
+// at t=0, the last at t=1.
+export function multiGradientColors(
+  n: number, stops: GradientStop[],
 ): [number, number, number][] {
-  const a = hexToRgb01(from)
-  const b = hexToRgb01(to)
   const out: [number, number, number][] = []
   for (let i = 0; i < n; i++) {
-    const t = n <= 1 ? 0 : i / (n - 1)
-    out.push([0, 1, 2].map((c) =>
-      Math.round((a[c] + (b[c] - a[c]) * t) * 1000) / 1000) as [number, number, number])
+    out.push(gradientColorAt(stops, n <= 1 ? 0 : i / (n - 1)))
   }
   return out
 }

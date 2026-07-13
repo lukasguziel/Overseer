@@ -6,7 +6,7 @@
 
 # Features
 
-Every area of the Scene Organizer web UI in detail. All changes across the
+Every area of the Overseer web UI in detail. All changes across the
 tool follow the same workflow: **preview first**, accept or skip per row,
 batch actions always confirm with the exact count, apply as one undo step,
 and everything is logged in the change history. Every clickable setting is
