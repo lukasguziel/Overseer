@@ -116,8 +116,8 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
                 no: 'No',
                 skip: 'Skip',
                 exit: 'Exit guide',
-                done: 'That was everything — your scene is worked through. 🎉',
-                empty: 'Nothing to decide — every area is already clean. 🎉',
+                done: 'That was everything — your scene is worked through.',
+                empty: 'Nothing to decide — every area is already clean.',
               }} />
           )}
       </div>

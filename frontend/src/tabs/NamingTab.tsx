@@ -11,6 +11,7 @@ import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
 import SectionIntro from '../components/SectionIntro'
+import AreaScore from '../components/AreaScore'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
 // a count chip you click to reveal them all (a rename can trigger more than
@@ -80,10 +81,12 @@ export default function NamingTab({ org }: { org: Organizer }) {
   const nameBuckets: CleanupBucket[] = [
     { key: 'default', label: 'Default names',
       hint: 'Objects still carrying the name Cinema 4D gave them (“Cube”, “Null”, “Light”…) — they say nothing about what the object IS. Give each one a descriptive name: click ✎ to rename it right here, or the name to find it in the viewport first.',
-      items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
+      items: hyg.defaults.map((n) => ({ guid: n.guid, name: n.name, meta: n.type })),
+      empty: 'Every object carries a descriptive name' },
     { key: 'dupes', label: 'Duplicate names',
       hint: 'The same name is used by several objects (×n = how many). Ambiguous names break the eye in the Object Manager — rename them individually with ✎, or turn on “Make duplicates unique” on the left and let the preview number them for you.',
-      items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })) },
+      items: hyg.dupes.map((d) => ({ guid: d.guid, name: d.name, meta: '×' + d.count })),
+      empty: 'No name is used twice within the same group' },
   ]
   const pager = usePager(naming?.diff || [], 10)
   // Open cleanup items (default + duplicate names not yet renamed/accepted) —
@@ -97,12 +100,11 @@ export default function NamingTab({ org }: { org: Organizer }) {
   return (
     <div className="stacked">
       <SectionIntro title="Rename rules"
-        desc="Set the naming convention on the left; every rename is previewed on the right before you apply anything." />
+        desc="Set the naming convention on the left; every rename is previewed on the right before you apply anything."
+        aside={<AreaScore score={org.areaScore('naming')} />} />
       <div className="workbench">
         <aside className={'wb-side' + (previewing ? ' side-loading' : '')}>
           <h3>Settings</h3>
-          <p className="hint-sm">Toggle which rules apply. Every preview row is
-            tagged with the rule that changed the name.</p>
 
           {/* The section head IS the on/off switch — the rule's name was
               printed twice before: once as the heading, once as the checkbox
@@ -174,7 +176,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty={
             <>
-              Every name already matches your rules 🎉
+              Every name already matches your rules
               {openCleanup > 0 && (
                 <span className="wb-empty-more">
                   Check the cleanup area below for {openCleanup} open item{openCleanup === 1 ? '' : 's'}
@@ -213,11 +215,16 @@ export default function NamingTab({ org }: { org: Organizer }) {
           Materials and Textures). Objects the rules cannot fix on their own. */}
       <SectionIntro title="Name cleanup"
         desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates. Click an item to select & frame it, ✎ renames it, the grey ✓ accepts it as-is." />
-      <section className="card">
-        <Cleanup buckets={nameBuckets} onFocus={org.doFocus} onRename={org.doRenameObject}
-          onKeep={(nm) => org.keep('naming', nm)}
-          onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
-      </section>
+      {/* Two OWN areas side by side — one card per bucket, not one shared card. */}
+      <div className="ov-cols2">
+        {nameBuckets.map((b) => (
+          <section className="card" key={b.key}>
+            <Cleanup buckets={[b]} onFocus={org.doFocus} onRename={org.doRenameObject}
+              onKeep={(nm) => org.keep('naming', nm)}
+              onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
+          </section>
+        ))}
+      </div>
 
     <AcceptedPanel org={org} />
     </div>

@@ -16,6 +16,7 @@ export interface CleanupBucket {
   label: string
   items: CleanupItem[]
   hint?: string          // short "what is this & what to do" line shown when open
+  empty?: string         // friendly all-done line (centered, like the Workbench empty state)
 }
 
 // One row: click the name to select & frame in C4D, ✎ opens an inline rename
@@ -79,7 +80,9 @@ function BucketBody({ b, onFocus, onRename, onKeep, busy }: {
   busy?: boolean
 }) {
   const pager = usePager(b.items, 10)
-  if (!b.items.length) return <div className="cl-clean">Clean 🎉</div>
+  if (!b.items.length) {
+    return <div className="empty-note mid">{b.empty || 'Nothing left to decide here'}</div>
+  }
   return (
     <div className="cl-items">
       {pager.rows.map((it) => (
@@ -91,9 +94,10 @@ function BucketBody({ b, onFocus, onRename, onKeep, busy }: {
   )
 }
 
-// Cleanup accordion: compact list of problem groups, one open at a time.
-// With `onKeepAll`, every bucket head carries a slim "keep all" button that
-// accepts the whole bucket as-is (confirm modal with the exact count).
+// Cleanup panels: the problem groups side by side (50/50), all open at once —
+// each with its own 10-per-page pager. With `onKeepAll`, every panel head
+// carries a slim "keep all" button that accepts the whole bucket as-is
+// (confirm modal with the exact count).
 export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll, busy }: {
   buckets: CleanupBucket[]
   onFocus?: FocusFn
@@ -102,40 +106,34 @@ export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll,
   onKeepAll?: (names: string[], bucket: CleanupBucket) => void
   busy?: boolean
 }) {
-  const [open, setOpen] = useState<string | null>(
-    () => buckets.find((b) => b.items.length)?.key || null)
   const [confirm, setConfirm] = useState<CleanupBucket | null>(null)
   return (
     <div className="cleanup">
-      {buckets.map((b) => {
-        const isOpen = open === b.key
-        return (
-          <div className={'cl-bucket' + (isOpen ? ' open' : '')} key={b.key}>
-            <div className="cl-head-row">
-              <button className="cl-head" onClick={() => setOpen(isOpen ? null : b.key)}>
-                <span className="cl-caret">{isOpen ? '▾' : '▸'}</span>
-                <span className="cl-label">{b.label}</span>
-                <span className={'cl-count' + (b.items.length ? ' warn' : '')}>{b.items.length}</span>
-              </button>
-              {onKeepAll && b.items.length > 0 && (
-                <ActionButton className="cl-keepall" disabled={busy}
-                  title={`Accept all ${b.items.length} as-is — they stop counting as todos (restore in the Accepted section)`}
-                  onClick={() => setConfirm(b)}>
-                  Keep all as-is
-                </ActionButton>
-              )}
-            </div>
-            {isOpen && b.hint && <p className="cl-hint">{b.hint}</p>}
-            {isOpen && <BucketBody b={b} onFocus={onFocus} onRename={onRename}
-              onKeep={onKeep} busy={busy} />}
+      {buckets.map((b) => (
+        <div className="cl-bucket" key={b.key}>
+          <div className="cl-head-row">
+            <h3 className="cl-label">{b.label}</h3>
+            {onKeepAll && b.items.length > 0 && (
+              <ActionButton className="cl-keepall" disabled={busy}
+                title={`Accept all ${b.items.length} as-is — they stop counting as todos (restore in the Accepted section)`}
+                onClick={() => setConfirm(b)}>
+                Keep all as-is
+              </ActionButton>
+            )}
+            <span className={'cl-count' + (b.items.length ? ' warn' : '')}>
+              {b.items.length ? `${b.items.length} change${b.items.length === 1 ? '' : 's'}` : 'no changes'}
+            </span>
           </div>
-        )
-      })}
+          {b.hint && <p className="cl-hint">{b.hint}</p>}
+          <BucketBody b={b} onFocus={onFocus} onRename={onRename}
+            onKeep={onKeep} busy={busy} />
+        </div>
+      ))}
       {confirm && onKeepAll && (
         <ConfirmModal
           title={`Keep all as-is — ${confirm.label}`}
           message={`Accept all ${confirm.items.length} item${confirm.items.length === 1 ? '' : 's'} in “${confirm.label}” as-is. Nothing changes in the scene — they just stop counting as todos (restore any time in the Accepted section). Continue?`}
-          confirmLabel={`= Accept ${confirm.items.length}`}
+          confirmLabel={`✓ Accept ${confirm.items.length}`}
           onConfirm={() => {
             const b = confirm
             setConfirm(null)

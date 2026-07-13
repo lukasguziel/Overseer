@@ -360,6 +360,7 @@ export interface OrganizerSettings {
   apply_numbering: boolean
   dedupe: boolean
   selection: boolean
+  include_hidden: boolean
   safe: boolean
   tidy: boolean
 }

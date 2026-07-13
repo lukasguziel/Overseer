@@ -176,11 +176,42 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def _config_lan_enabled():
+    """Read the listen_lan opt-in from config.json (plugin dir or the per-user
+    prefs dir webapi writes to). Evaluated once at server start — changing it
+    requires a C4D restart, like everything in this module."""
+    candidates = [os.path.join(os.path.dirname(WEB_DIR), "config.json")]
+    try:
+        base = c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)
+    except Exception:
+        base = None
+    if base:
+        candidates.insert(0, os.path.join(base, "scene_organizer", "config.json"))
+    for path in candidates:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return bool(json.load(f).get("listen_lan", False))
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+_lan = False
+
+
+def lan_enabled():
+    return _lan
+
+
 def start(port=DEFAULT_PORT):
-    global _server, _thread
+    global _server, _thread, _lan
     if _server is not None:
         return port
-    _server = http.server.ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    # 0.0.0.0 exposes the UI (and its scene-mutating API!) to the local
+    # network — for the scan-a-QR-code-on-your-phone flow. Strictly opt-in.
+    _lan = _config_lan_enabled()
+    host = "0.0.0.0" if _lan else "127.0.0.1"
+    _server = http.server.ThreadingHTTPServer((host, port), _Handler)
     _thread = threading.Thread(target=_server.serve_forever, daemon=True)
     _thread.start()
     return port

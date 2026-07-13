@@ -1,10 +1,12 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import ActionButton from '../components/ActionButton'
 import ChangeHistory from '../components/ChangeHistory'
+import PhoneAccess from '../components/PhoneAccess'
 import HistoryList, { type HistoryRow } from '../components/HistoryList'
 import Tip from '../components/Tip'
 import type { HistoryEntry } from '../types'
 import { humanBytes, humanNum } from '../lib/format'
+import { version } from '../../package.json'
 
 // The artists who ran the plugin on real production scenes before it shipped.
 const BETA_TESTERS = ['Cornelius Dämmrich', 'Raphael Rau']
@@ -126,49 +128,57 @@ export default function MiscTab({ org }: { org: Organizer }) {
       </div>
 
       <SectionHead title="Additional" />
-      {/* Debug is a dev-only tool: `import.meta.env.DEV` is false in the
-          production bundle, so Vite drops the whole card from the shipped UI.
-          Without it the row holds only the credits card. */}
-      <div className={import.meta.env.DEV ? 'ov-cols2' : 'stacked'}>
-        <section className="card credits-card">
-          <div className="card-head"><h3>Credits</h3></div>
-          <p className="hint-sm">Scene Organizer — analyze, name and structure your C4D scenes.</p>
-          <p className="hint-sm">
-            <b className="credits-label">Special thanks:</b>
-            <a className="act" href="https://corneliusdammrich.com"
-              target="_blank" rel="noreferrer">Cornelius Dämmrich ↗</a> — many of the
-            features in here exist because of him; his input pushed the plugin far
-            beyond what I had imagined for it.
-          </p>
-          <p className="hint-sm">
-            <b className="credits-label">Beta testers:</b>
-            {BETA_TESTERS.join(', ')}
-          </p>
-        </section>
-
-        {import.meta.env.DEV && (
-          <section className="card">
-            <div className="card-head"><h3>Debug</h3></div>
+      {/* Left column: Credits (+ the dev-only Debug card below it — Vite drops
+          it from the production bundle). Right column: open-on-phone QR. */}
+      <div className="ov-cols2">
+        <div className="stacked">
+          <section className="card credits-card">
+            <div className="card-head"><h3>Credits</h3></div>
+            <p className="hint-sm">Scene Organizer — analyze, name and structure your C4D scenes.</p>
+            <p className="hint-sm">Version v{version}</p>
             <p className="hint-sm">
-              The server runs while the “Scene Organizer” window is open in
-              C4D — closing that window stops it.
+              <b className="credits-label">Special thanks:</b>
+              <a className="act" href="https://corneliusdammrich.com"
+                target="_blank" rel="noreferrer">Cornelius Dämmrich ↗</a> — many of the
+              features in here exist because of him; his input pushed the plugin far
+              beyond what I had imagined for it. Also thanks to him I could use
+              juicy production scenes to improve the plugin.
             </p>
-            <div className="btns btns-auto">
-              <ActionButton onClick={() => window.location.reload()}>Reload UI</ActionButton>
-              <ActionButton onClick={() => window.open('/', '_blank')}>Open in new tab</ActionButton>
-            </div>
-            <p className="example" style={{ marginTop: 12 }}>
-              Serving at <code>{window.location.origin}</code>
+            <p className="hint-sm">
+              <b className="credits-label">Beta testers:</b>
+              {BETA_TESTERS.join(', ')}
             </p>
           </section>
-        )}
+
+          {import.meta.env.DEV && (
+            <section className="card">
+              <div className="card-head"><h3>Debug</h3></div>
+              <p className="hint-sm">
+                The server runs while the “Scene Organizer” window is open in
+                C4D — closing that window stops it.
+              </p>
+              <div className="btns btns-auto">
+                <ActionButton onClick={() => window.location.reload()}>Reload UI</ActionButton>
+                <ActionButton onClick={() => window.open('/', '_blank')}>Open in new tab</ActionButton>
+              </div>
+              <p className="example" style={{ marginTop: 12 }}>
+                Serving at <code>{window.location.origin}</code>
+              </p>
+            </section>
+          )}
+        </div>
+
+        <section className="card">
+          <div className="card-head"><h3>Read the scene on your phone</h3></div>
+          <PhoneAccess />
+        </section>
       </div>
 
       {/* Support sits BELOW the cards, spanning the whole tab. The hearts drift
           out of the button itself — decorative, hence aria-hidden and no pointer
           events (see styles.css). */}
       <span className="donate-wrap">
-        <a className="credits-link donate" href="https://www.buymeacoffee.com/bamerus"
+        <a className="credits-link donate" href="https://www.paypal.com/paypalme/LukasGuziel"
           target="_blank" rel="noreferrer">♥ Support me</a>
         <span className="donate-hearts" aria-hidden="true">
           <i>♥</i><i>♥</i><i>♥</i><i>♥</i>

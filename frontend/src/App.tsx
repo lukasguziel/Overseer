@@ -17,8 +17,9 @@ import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
 import SectionIntro from './components/SectionIntro'
+import SupportHeart from './components/SupportHeart'
 import type { TabId } from './lib/constants'
-import Ring, { type Tone } from './components/Ring'
+import AreaScore from './components/AreaScore'
 import { scoreTone } from './lib/score'
 import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
@@ -37,7 +38,7 @@ import SimsTab from './tabs/SimsTab'
 // Headline + one-line description shown at the top of each area (Overview,
 // Naming and Misc intentionally excluded — they carry their own intros).
 const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string }>> = {
-  translate: { title: 'Translate', desc: 'Translate object names into your target language — offline on your machine, or Google online for any language. Every rename is previewed before you apply.' },
+  translate: { title: 'Translate', desc: 'Translate object names into your target language — offline on your machine, or Google online for any language.' },
   structure: { title: 'Structure', desc: 'Group loose objects into a clean container hierarchy. Generator children stay protected; changes apply as one undo step.' },
   layers: { title: 'Layers', desc: 'Assign objects to layers and tidy the layer table. Nothing changes until you apply a suggestion.' },
   materials: { title: 'Materials', desc: 'Audit materials and textures: unused materials, missing maps, oversized textures and absolute paths.' },
@@ -59,6 +60,10 @@ export default function App() {
   // "Take my hand" guided mode — reachable from every tab via the small
   // hand button next to the area score.
   const [hand, setHand] = useState(false)
+  // Phone layout: the tab nav folds behind a burger button (CSS shows the
+  // burger only below the mobile breakpoint; on desktop the nav is always
+  // visible and this state is irrelevant).
+  const [navOpen, setNavOpen] = useState(false)
 
   // Hold the whole UI behind the preloader until the first boot preload is
   // fully done (analyze + settings hydration + previews). This keeps the wrong
@@ -70,10 +75,9 @@ export default function App() {
       </div>
     )
   }
-  // Area score ring next to the nav: how far this area is worked through
-  // (fixed OR deliberately accepted both count — 100 is always reachable).
+  // Area score ring in the tab's intro line: how far this area is worked
+  // through (fixed OR deliberately accepted both count — 100 is reachable).
   const score = org.areaScore(tab)
-  const tone: Tone = score == null ? 'low' : scoreTone(score)
 
   return (
     <div className="app">
@@ -86,6 +90,7 @@ export default function App() {
           <div className="brand-text">
             <span className="brand-title">Scene Organizer
               <span className="brand-version">v{version}</span>
+              <SupportHeart />
             </span>
             {report && (
               <span className="scene-meta">
@@ -114,7 +119,13 @@ export default function App() {
       </header>
 
       <div className="tabs-row">
-        <nav className="tabs">
+        <button className="nav-burger" onClick={() => setNavOpen((o) => !o)}
+          aria-expanded={navOpen}
+          title={navOpen ? 'Close the menu' : 'Open the menu'}>
+          <span className="nav-burger-icon">{navOpen ? '✕' : '☰'}</span>
+          {TABS.find(([id]) => id === tab)?.[1] || 'Menu'}
+        </button>
+        <nav className={'tabs' + (navOpen ? ' nav-open' : '')}>
           {TABS.map(([id, label, soon]) => {
             // `soon` tabs (Rules) are parked — visible but disabled,
             // so the roadmap stays honest without confusing anyone.
@@ -133,7 +144,7 @@ export default function App() {
             return (
               <button key={id} disabled={disabled}
                 className={'tab' + (tab === id ? ' on' : '') + (disabled ? ' off' : '')}
-                onClick={() => !disabled && org.setTab(id)}
+                onClick={() => { if (!disabled) { org.setTab(id); setNavOpen(false) } }}
                 title={emptyArea
                   ? (id === 'generators'
                       ? 'No generators in this scene'
@@ -152,28 +163,24 @@ export default function App() {
             )
           })}
         </nav>
-        {/* Right of the tabs: the Overview (which has no own score) gets the
-            "Take my hand" entry point; every other tab keeps its score ring. */}
-        <div className="tabs-right">
-          {tab === 'overview'
-            ? SHOW_HAND_GUIDE && (
-              <button className="hand-nav-btn" onClick={() => setHand(true)}
-                title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
-                🫱
-              </button>
-            )
-            : score != null && (
-              <div className="area-score"
-                title="How far this area is worked through — applied fixes and accepted-as-is both count. Reach 100% by deciding on every item.">
-                <Ring pct={score} tone={tone} />
-              </div>
-            )}
-        </div>
+        {/* The area score ring moved into the tab's intro line — only the
+            (parked) "Take my hand" entry point still docks right of the tabs. */}
+        {tab === 'overview' && SHOW_HAND_GUIDE && (
+          <div className="tabs-right">
+            <button className="hand-nav-btn" onClick={() => setHand(true)}
+              title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
+              🫱
+            </button>
+          </div>
+        )}
       </div>
 
       {error && tab !== 'rules' && <div className="error">{error}</div>}
 
-      {TAB_INTRO[tab] && <SectionIntro lead title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc} />}
+      {TAB_INTRO[tab] && (
+        <SectionIntro lead title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc}
+          aside={<AreaScore score={score} />} />
+      )}
 
       {tab === 'overview' && <OverviewTab org={org} />}
       {tab === 'assets' && (

@@ -8,3 +8,14 @@
 /* `.lead` = this intro opens a whole tab, so it carries its own bottom gap;
    an intro inside a tab is spaced by the parent's flex gap. */
 .section-intro.lead { margin-bottom: 16px; }
+
+/* Intro with a docked aside (the area score ring): text left, widget right.
+   The aside is centered on the HEAD RULE, not on the intro's full height —
+   anchored to the top so a longer description never shifts it down. The
+   negative margin centers the 40px ring on the ~14px head line; it may
+   overflow a little into the gap above, which is fine. The head's rule ends
+   at the column edge — the gap keeps it stopping short of the ring. */
+.section-intro-row { display: flex; align-items: flex-start; gap: 16px; }
+.section-intro-row > .area-score { margin-top: -13px; }
+.section-intro-row > .section-intro { flex: 1; min-width: 0; }
+.section-intro-row.lead { margin-bottom: 16px; }

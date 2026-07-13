@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene, CASING_COMPAT } from '../lib/hygiene'
 import { catColor, resTierColor, RES_TIERS } from '../lib/colors'
@@ -393,7 +394,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
                 <tr><td>Maps with pixel data</td><td>{texBudget.count}</td></tr>
                 <tr>
                   <td>Est. uncompressed memory</td>
-                  <td title="width × height × 4 bytes per map incl. mipmaps (~1.33×) — what the maps cost in RAM/VRAM, regardless of JPG compression on disk">
+                  <td title={'# Estimated texture memory\nWhat the maps cost in RAM/VRAM once loaded — independent of JPG compression on disk.\n- width × height × 4 bytes per map\n- mipmaps add ~1.33×'}>
                     {humanBytes(texBudget.mem)}
                   </td>
                 </tr>
@@ -419,7 +420,10 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         </section>
       </div>
 
-      {zoom && (
+      {/* Portal to <body>: the tab containers run a transform animation, which
+          would otherwise become the containing block for position:fixed — the
+          overlay then opens mid-page instead of over the viewport. */}
+      {zoom && createPortal(
         <div className="zoom-overlay" onClick={() => setZoom(null)}>
           <div className="zoom-box" onClick={(e) => e.stopPropagation()}>
             <div className="zoom-head">
@@ -436,7 +440,8 @@ export default function OverviewTab({ org }: { org: Organizer }) {
                 <MapLegend items={texMap.tiers} />
               </>}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -447,8 +447,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               empty={
                 <>
                   {org.includeHidden
-                    ? 'Every material is in use 🎉'
-                    : 'Every material is used by a visible object 🎉 (switch to All objects to include hidden usage)'}
+                    ? 'Every material is in use'
+                    : 'Every material is used by a visible object (switch to All objects to include hidden usage)'}
                   {missingCount > 0 && (
                     <span className="wb-empty-more">
                       Check the missing texture paths below — {missingCount} still need{missingCount === 1 ? 's' : ''} attention
@@ -631,8 +631,8 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                     {pathFilter === 'missing'
                       ? (texAccepted.length > 0
                           ? `No missing textures left to decide — ${texAccepted.length} accepted as missing (restore them below).`
-                          : 'No missing textures 🎉')
-                      : pathFilter === 'absolute' ? 'No absolute texture paths 🎉'
+                          : 'No missing textures')
+                      : pathFilter === 'absolute' ? 'No absolute texture paths'
                         : 'No textures match the filters.'}
                   </div>}
             </div>

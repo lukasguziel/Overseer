@@ -11,7 +11,7 @@ import ActionButton, { type ActionTone } from './ActionButton'
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
 // progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, applyTone = 'go', onApply, onAcceptAll, busy, note, hint, progress, extra, children }: {
+export default function Workbench({ title, count, loading, empty, applyLabel, applyTone = 'go', onApply, onAcceptAll, busy, note, hint, progress, extra, actions, children }: {
   title: string
   count: number
   loading: boolean
@@ -30,6 +30,9 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
   // (e.g. only-on-hidden materials): counted in the header, keep the list
   // visible even when nothing is actionable, but batch buttons ignore them.
   extra?: { count: number; label: string } | null
+  // Extra head buttons a tab brings along (rendered before the batch pair) —
+  // they manage their own confirm/labels, e.g. "Assign suggested".
+  actions?: ReactNode
   children?: ReactNode
 }) {
   const steady = useSteadyProgress(progress)
@@ -38,14 +41,17 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
   // Batch actions always confirm first — with the exact count on the table.
   const [confirm, setConfirm] = useState<'apply' | 'accept' | null>(null)
   const n = `${count} item${count === 1 ? '' : 's'}`
+  // An empty result list doesn't earn the full-height panel — collapse it.
+  const isEmpty = count === 0 && (extra?.count ?? 0) === 0 && !loading
   return (
-    <div className="wb-preview">
+    <div className={'wb-preview' + (isEmpty ? ' wb-empty' : '')}>
       <div className="wb-preview-head">
         <h3>{title}</h3>
-        <span className="head-count">
+        <span className={'head-count' + (!loading && count > 0 ? ' hc-todo' : '')}>
           {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
           {!loading && (extra?.count ?? 0) > 0 && ` · ${extra!.count} ${extra!.label}`}
         </span>
+        {actions}
         {onApply && (
           <ActionButton tone={applyTone} disabled={busy || !count} onClick={() => setConfirm('apply')}
             title="Apply every suggestion in the list (one undo step)">

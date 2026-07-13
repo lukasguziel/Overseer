@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
 
 // One tooltip to style them all. Instead of each `title=""` falling back to the
 // OS's ugly native tooltip, a single document-level listener intercepts any
@@ -114,7 +114,35 @@ export default function GlobalTooltip() {
         ? { left: coords.left, top: coords.top, ['--gtip-arrow' as string]: coords.arrow + 'px' }
         : { left: -9999, top: -9999 }}
       role="tooltip">
-      {anchor.text}
+      {renderTip(anchor.text)}
     </div>
   )
+}
+
+// Tooltip copy supports a tiny line-based markup so long titles read as a
+// structured card instead of a wall of text:
+//   "# Heading"      → bold headline (first line only)
+//   "- item"/"• item" → bullet list
+//   anything else     → paragraph; plain single-line titles render unchanged.
+function renderTip(text: string) {
+  const lines = text.split('\n')
+  if (lines.length === 1 && !lines[0].startsWith('# ')) return text
+  const out: ReactElement[] = []
+  let bullets: string[] = []
+  const flush = () => {
+    if (bullets.length) {
+      out.push(<ul className="gtip-list" key={out.length}>{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>)
+      bullets = []
+    }
+  }
+  lines.forEach((line, i) => {
+    const l = line.trim()
+    if (!l) { flush(); return }
+    if (i === 0 && l.startsWith('# ')) { out.push(<div className="gtip-title" key="t">{l.slice(2)}</div>); return }
+    if (l.startsWith('- ') || l.startsWith('• ')) { bullets.push(l.slice(2)); return }
+    flush()
+    out.push(<p className="gtip-p" key={out.length}>{l}</p>)
+  })
+  flush()
+  return out
 }

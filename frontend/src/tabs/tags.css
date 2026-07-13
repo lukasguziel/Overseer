@@ -8,8 +8,11 @@
 .tags-angle.dominant { color: var(--accent); font-weight: 600; }
 
 .tags-angle-set { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* The shared `.nl-input` carries the look; only the width is local. */
-.tags-angle-input { flex: none; width: 70px; }
+/* The shared `.nl-input` carries the look; only the width is local. No native
+   number spinners — typing (or the preset buttons) is the way to set an angle. */
+.tags-angle-input { flex: none; width: 70px; appearance: textfield; -moz-appearance: textfield; }
+.tags-angle-input::-webkit-inner-spin-button,
+.tags-angle-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 .tags-type-list { display: flex; flex-direction: column; gap: 4px; }
 .tags-type { border-radius: 6px; background: var(--panel2, rgba(127,127,127,.06)); }
