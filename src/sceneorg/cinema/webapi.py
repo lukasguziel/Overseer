@@ -743,6 +743,7 @@ _OP_LABELS = {
     "layer_mismatches": "Checking layer consistency",
     "delete_layer": "Deleting layer",
     "delete_empty_layers": "Deleting empty layers",
+    "set_layer_colors": "Coloring layers",
     "plan_translate": "Building translation preview",
     "apply_translate": "Applying translations",
     "plan_all": "Planning all areas",
@@ -787,7 +788,7 @@ _MUTATING_OPS = {
     "apply_layer_suggestions",
     "apply_all", "apply_plan", "rename_object", "revert_change",
     "assign_layer", "move_to_group",
-    "delete_layer", "delete_empty_layers",
+    "delete_layer", "delete_empty_layers", "set_layer_colors",
     "delete_material", "delete_unused_materials",
     "fix_textures_relative", "collect_textures", "relink_textures",
     "clear_missing_textures", "set_texture_path", "pick_texture_path",
@@ -1498,6 +1499,22 @@ def _handle(payload: dict) -> dict:
                                [], revertible=False,
                                doc=doc)
         return {"ok": True, "deleted": deleted}
+
+    if op == "set_layer_colors":
+        adapter, _ = _get_scene(doc, "layer colors")
+        colors: dict = {}
+        for e in payload.get("colors") or []:
+            name = str(e.get("name") or "").strip()
+            col = e.get("color")
+            if name and isinstance(col, (list, tuple)) and len(col) == 3:
+                colors[name] = [max(0.0, min(1.0, float(c))) for c in col]
+        if not colors:
+            return {"error": "no layer colors given"}
+        applied = adapter.set_layer_colors(colors)
+        if applied:
+            _record_change("layers", "%d layer colors set" % applied, [],
+                           revertible=False, doc=doc)
+        return {"ok": True, "applied": applied}
 
     if op in ("assign_layer", "move_to_group"):
         adapter, tree = _get_scene(doc, "batch action")

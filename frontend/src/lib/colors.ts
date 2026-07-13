@@ -14,6 +14,32 @@ export const layerSwatch = (color: [number, number, number] | null | undefined):
   return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
 }
 
+// '#rrggbb' -> [r,g,b] as 0..1 floats (C4D layer colors are float vectors).
+export function hexToRgb01(hex: string): [number, number, number] {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return [0.5, 0.5, 0.5]
+  const v = parseInt(m[1], 16)
+  return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255]
+}
+
+// n colors evenly spaced along the from->to gradient (sRGB lerp): the first
+// layer sits on `from`, the last on `to`. Values are rounded to 3 decimals —
+// the same rounding the backend uses when it reads layer colors back, so the
+// swatch after a re-analysis is exactly the color that was applied.
+export function gradientColors(
+  n: number, from: string, to: string,
+): [number, number, number][] {
+  const a = hexToRgb01(from)
+  const b = hexToRgb01(to)
+  const out: [number, number, number][] = []
+  for (let i = 0; i < n; i++) {
+    const t = n <= 1 ? 0 : i / (n - 1)
+    out.push([0, 1, 2].map((c) =>
+      Math.round((a[c] + (b[c] - a[c]) * t) * 1000) / 1000) as [number, number, number])
+  }
+  return out
+}
+
 // Composition strips (casing, language, categories) are NEUTRAL data — a slice
 // is a fact, not a verdict. No warn yellow in here: yellow means "todo" system
 // wide, and a palette slot must not hand that meaning to whatever class happens

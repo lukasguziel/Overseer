@@ -23,7 +23,15 @@ function Flags({ l }: { l: LayerInfo }) {
   )
 }
 
-export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer, onKeepLayer, keptEmpty }: {
+// Non-empty layers first, then empty layers — the order the overview renders
+// and the order the color gradient walks. Exported so the gradient targets in
+// LayersTab are guaranteed to match the rows on screen.
+export const orderLayers = (layers: LayerInfo[]): LayerInfo[] => [
+  ...layers.filter((l) => !l.empty),
+  ...layers.filter((l) => l.empty),
+]
+
+export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer, onKeepLayer, keptEmpty, selected, onToggleSelect }: {
   layers: LayerInfo[]
   noLayer: number
   nodes: SceneNode[]
@@ -31,6 +39,8 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
   onDeleteLayer?: (name: string) => void
   onKeepLayer?: (name: string) => void
   keptEmpty?: Set<string>
+  selected?: Set<string>
+  onToggleSelect?: (name: string) => void
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
   const toggle = (name: string) =>
@@ -49,12 +59,9 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
     else byLayer.set(key, [n])
   }
 
-  // Non-empty layers first, then empty layers, then the synthetic "No layer"
-  // bucket last — so the things that need attention sit together at the bottom.
-  const rows: LayerInfo[] = [
-    ...layers.filter((l) => !l.empty),
-    ...layers.filter((l) => l.empty),
-  ]
+  // Ordered layers, then the synthetic "No layer" bucket last — so the things
+  // that need attention sit together at the bottom.
+  const rows: LayerInfo[] = orderLayers(layers)
   if (noLayer > 0) {
     rows.push({
       name: NO_LAYER, color: null, solo: false, view: true, render: true,
@@ -76,6 +83,12 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
         return (
           <div key={l.name} className={`ly-group${isNo ? ' orphan' : ''}${!isNo && l.empty ? ' ly-empty' : ''}`}>
             <div className="ly-row">
+              {onToggleSelect && !isNo && (
+                <input type="checkbox" className="ly-tick"
+                  checked={selected?.has(l.name) || false}
+                  onChange={() => onToggleSelect(l.name)}
+                  title="Tick to include this layer in the color gradient (none ticked = all layers)" />
+              )}
               <button className="ly-head" disabled={!expandable}
                 onClick={() => expandable && toggle(l.name)}
                 title={expandable ? 'Show objects on this layer' : undefined}>
