@@ -26,6 +26,12 @@ Dieser Skill macht alles drumherum: Version, Gates, Tag, kuratierte Notes.
 - Format prüfen: Tag ist `v<semver>[-rcN|-beta[.N]]`. PEP-440-Form für
   `pyproject.toml` ableiten: `1.0.0-rc1 → 1.0.0rc1`, `1.0.0-beta → 1.0.0b0`.
 
+**Abkürzung — Version ist schon gebumpt:** Steht die Zielversion bereits an
+allen vier Stellen (Schritt 2) und ist committet/gepusht, Schritt 2 und den
+Version-Commit in Schritt 5 überspringen — es fehlen dann nur Gates, Notes,
+Tag-Push und Release-Nacharbeit. (Typischer Fall: der Bump war Teil der
+letzten Arbeitssession.)
+
 **2. Version überall setzen** (alle vier Stellen, sonst driftet es):
 - `frontend/package.json` → `"version": "<ohne v>"`
 - `src/sceneorg/__init__.py` → `__version__ = "<ohne v>"`
