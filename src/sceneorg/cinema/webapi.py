@@ -809,81 +809,6 @@ _MUTATING_OPS = {
 }
 
 
-# --- Embedded attribute-panel prototype (throwaway test) --------------------
-# Proves the C4D HtmlViewer (Edge WebView on Windows) can host a rebuilt
-# Attribute Manager panel: a dockable dialog shows attrtest.html, which polls
-# attr_get and writes edits back via attr_set. Opened via the API so no .pyp
-# change (= no restart) is needed.
-
-_ATTRTEST_DIALOG_ID = 1000009  # Maxon dev/test id range; never shipped
-_ATTRTEST_URL = "http://127.0.0.1:8787/attrtest.html"
-
-
-class _AttrTestDialog(c4d.gui.GeDialog):
-
-    def CreateLayout(self):
-        self.SetTitle("Attributes (Web)")
-        html_constant = getattr(c4d, "CUSTOMGUI_HTMLVIEWER", None)
-        if html_constant is None:
-            self.AddStaticText(
-                0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT,
-                name="HtmlViewer not available in this build.")
-            return True
-        gui = self.AddCustomGui(
-            1001, html_constant, "",
-            c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, 320, 420, c4d.BaseContainer())
-        if gui is not None:
-            try:
-                gui.SetUrl(_ATTRTEST_URL)
-            except Exception:
-                try:
-                    gui.SetUrl(_ATTRTEST_URL, 0)
-                except Exception:
-                    pass
-        return True
-
-
-def _attrtest_open() -> dict:
-    # The instance must survive hot-reloads -> parked on the sceneorg package
-    # (never purged), like the scene cache.
-    import sceneorg
-    dlg = getattr(sceneorg, "_attrtest_dialog", None)
-    if dlg is None or not dlg.IsOpen():
-        dlg = _AttrTestDialog()
-        sceneorg._attrtest_dialog = dlg
-        dlg.Open(c4d.DLG_TYPE_ASYNC, pluginid=_ATTRTEST_DIALOG_ID,
-                 defaultw=340, defaulth=460)
-    return {"ok": True, "url": _ATTRTEST_URL}
-
-
-def _attr_get(doc) -> dict:
-    obj = doc.GetActiveObject()
-    if obj is None:
-        return {"ok": True, "selected": False}
-    pos = obj.GetRelPos()
-    return {"ok": True, "selected": True, "name": obj.GetName(),
-            "type": obj.GetTypeName(),
-            "pos": {"x": pos.x, "y": pos.y, "z": pos.z}}
-
-
-def _attr_set(doc, payload) -> dict:
-    obj = doc.GetActiveObject()
-    if obj is None:
-        return {"error": "No active object."}
-    try:
-        vec = c4d.Vector(float(payload.get("x", 0.0)),
-                         float(payload.get("y", 0.0)),
-                         float(payload.get("z", 0.0)))
-    except (TypeError, ValueError):
-        return {"error": "x/y/z must be numbers"}
-    doc.StartUndo()
-    doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-    obj.SetRelPos(vec)
-    doc.EndUndo()
-    c4d.EventAdd()
-    return {"ok": True}
-
-
 def handle(payload: dict) -> dict:
     op = str(payload.get("op") or "")
     label = _OP_LABELS.get(op)
@@ -929,13 +854,6 @@ def _handle(payload: dict) -> dict:
                             doc.GetDocumentName() or "", payload.get("ui") or {})
         return {"ok": bool(res.get("ok")), "path": res.get("path"),
                 "error": res.get("error")}
-
-    if op == "attrtest_open":
-        return _attrtest_open()
-    if op == "attr_get":
-        return _attr_get(doc)
-    if op == "attr_set":
-        return _attr_set(doc, payload)
 
     cfg, data = _load_cfg()
 
