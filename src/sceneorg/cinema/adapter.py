@@ -1844,6 +1844,35 @@ class SceneAdapter:
         c4d.EventAdd()
         return 1
 
+    def set_layer_colors(self, colors: dict) -> int:
+        """Set each named layer's color (0..1 RGB), one undo step."""
+        try:
+            root = self.doc.GetLayerObjectRoot()
+        except Exception:
+            root = None
+        if root is None or not colors:
+            return 0
+        targets: list = []
+        lay = root.GetDown()
+        while lay:
+            col = colors.get(lay.GetName())
+            if col is not None:
+                targets.append((lay, col))
+            lay = lay.GetNext()
+        if not targets:
+            return 0
+
+        self.doc.StartUndo()
+        for lay, col in targets:
+            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, lay)
+            data = lay.GetLayerData(self.doc) or {}
+            data["color"] = c4d.Vector(float(col[0]), float(col[1]),
+                                       float(col[2]))
+            lay.SetLayerData(self.doc, data)
+        self.doc.EndUndo()
+        c4d.EventAdd()
+        return len(targets)
+
     def delete_material(self, name: str, include_hidden: bool = False) -> int:
         doc = self.doc
         used_any, used_visible = self._material_usage()
