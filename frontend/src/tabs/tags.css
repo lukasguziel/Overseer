@@ -35,4 +35,15 @@
 }
 .tags-obj-row:hover { background: rgba(127,127,127,.12); }
 .tags-obj-name { flex: 1; }
-.tags-obj-tag { font-size: 11px; }
+.tags-obj-count { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.tags-obj-tags {
+  display: flex; align-items: baseline; gap: 6px;
+  flex-wrap: wrap; justify-content: flex-end; max-width: 70%;
+}
+.tags-obj-tag { font-size: 11px; white-space: nowrap; }
+/* Selection kind (point/poly/edge) rides as a tiny badge on the tag chip. */
+.tags-kind {
+  font-style: normal; font-size: 9px; font-weight: 600; text-transform: uppercase;
+  margin-left: 4px; padding: 0 4px; border-radius: 4px;
+  background: rgba(127,127,127,.14); color: var(--dim);
+}
