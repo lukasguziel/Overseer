@@ -89,7 +89,7 @@ jobs:
           files: dist/SceneOrganizer-${{ env.VERSION }}.zip
           generate_release_notes: true
           body: |
-            Fertig geschnürtes Cinema-4D-2024-Plugin. Installation: Zip entpacken und den
-            Ordner `SceneOrganizer/` in einen C4D-Plugin-Ordner legen, z.B.
-            `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (kein Admin nötig)
-            oder `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.
+            Ready-to-use Cinema 4D 2024 plugin, nothing to compile. Installation: unpack
+            the zip and drop the `SceneOrganizer/` folder into a C4D plugins folder, e.g.
+            `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (no admin needed)
+            or `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.
