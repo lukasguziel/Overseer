@@ -619,7 +619,9 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .flow-step .done { color: var(--apply); font-weight: 700; }
 
 /* ---------- Cards ---------- */
+/* position:relative anchors the section-guide "i" (InfoButton) in the corner. */
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  position: relative;
   padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03); }
 /* `gap` is the floor: space-between alone lets a title and the chip next to it
    touch as soon as the card gets narrow. */
@@ -1122,6 +1124,7 @@ table.mini td.warn { color: var(--warn); }
 .grouplist li span { color: var(--dim2); font-size: 11px; }
 
 .wb-preview { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  position: relative;   /* anchors the section-guide "i" (InfoButton) */
   display: flex; flex-direction: column; min-height: 340px; max-height: calc(100vh - 130px); overflow: hidden; }
 /* No results -> no full-height panel: collapse to the head + a short note. */
 .wb-preview.wb-empty { min-height: 0; }

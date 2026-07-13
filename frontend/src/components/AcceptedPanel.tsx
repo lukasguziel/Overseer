@@ -5,6 +5,7 @@ import { useAuditData, refreshLoadedAudits } from '../hooks/useAudit'
 import Pager, { usePager } from './Pager'
 import SectionIntro from './SectionIntro'
 import ActionButton from './ActionButton'
+import InfoButton from './InfoButton'
 import './AcceptedSection.css'
 
 // EVERYTHING the artist accepted as-is, in one panel, identical on every tab.
@@ -112,6 +113,7 @@ export default function AcceptedPanel({ org }: { org: Organizer }) {
             ))}
           </div>
         )}
+        <InfoButton doc="accepted" />
       </section>
     </>
   )

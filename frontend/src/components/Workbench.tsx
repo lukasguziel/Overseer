@@ -3,6 +3,7 @@ import type { ProgressInfo } from '../types'
 import useSteadyProgress from '../hooks/useSteadyProgress'
 import ConfirmModal from './ConfirmModal'
 import ActionButton, { type ActionTone } from './ActionButton'
+import InfoButton from './InfoButton'
 
 // Live preview panel — loading style 2 of 3: the inline preview loader.
 // Header carries the change count and the batch pair
@@ -11,8 +12,10 @@ import ActionButton, { type ActionTone } from './ActionButton'
 // batch apply (e.g. the no-layer list) reuse the same panel. While
 // `loading` with server `progress`, the content blurs and a monotonic
 // progress bar shows what the plugin is fetching.
-export default function Workbench({ title, count, loading, empty, applyLabel, applyTone = 'go', onApply, onAcceptAll, busy, note, hint, progress, extra, actions, children }: {
+export default function Workbench({ title, count, loading, empty, applyLabel, applyTone = 'go', onApply, onAcceptAll, busy, note, hint, progress, extra, actions, doc, children }: {
   title: string
+  // Key into lib/sectionDocs.ts — renders the section-guide "i" in the corner.
+  doc?: string
   count: number
   loading: boolean
   empty: ReactNode
@@ -99,6 +102,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
           </div>
         )}
       </div>
+      {doc && <InfoButton doc={doc} />}
     </div>
   )
 }

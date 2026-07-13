@@ -179,6 +179,26 @@ log stays on Misc. A tab's area is defined by the journal kinds it passes
 
 ---
 
+## Section guide — `<InfoButton>` / `.info-dot`
+
+The little italic **i** in the bottom-left corner of a section: opens that
+section's guide (title, tagline, feature list, optional tip) in a modal. One
+component, self-contained — drop it as the LAST child of a `section.card` or
+pass `doc` to `Workbench`; both hosts are `position:relative` and anchor it.
+
+```jsx
+<section className="card">…<InfoButton doc="layers-overview" /></section>
+<Workbench doc="naming-preview" … />
+```
+
+Content lives in `lib/sectionDocs.ts`, keyed by section — never inline prose
+in the tab. The dot is deliberately dimmer than an `<ActionButton>` (opacity
+.55, 16px): it is a reference, not an action, and must never compete with the
+section's real buttons. Unknown keys render nothing, so a typo cannot break a
+tab. The modal (`.doc-box`) reuses `.confirm-overlay` for the backdrop.
+
+---
+
 ## Head count — `.head-count`
 
 What a card or panel holds, stated at the **far right** of its head — in one

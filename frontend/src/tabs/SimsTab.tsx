@@ -9,6 +9,7 @@ import Tip from '../components/Tip'
 import { IconCheck } from '../components/icons'
 import './sims.css'
 import ActionButton from '../components/ActionButton'
+import InfoButton from '../components/InfoButton'
 
 interface SimHit {
   guid: number
@@ -133,6 +134,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
           </Tip>
         </div>
         {note && <p className="wb-note">{note}</p>}
+        <InfoButton doc="sims-findings" />
       </section>
 
       <FindingCard
@@ -170,6 +172,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
             <KindGroup key={kind} kind={kind} hits={hits}
               onFocus={doFocus} onSelect={() => doSelect(kind)} />
           ))}
+          <InfoButton doc="sims-all" />
         </section>
       </div>
 
@@ -213,6 +216,7 @@ function FindingCard({ title, hint, hits, tone, rowAction, onFocus, batch }: {
         ))}
       </div>
       <Pager pager={pager} />
+      <InfoButton doc="sims-findings" />
     </section>
   )
 }

@@ -15,6 +15,7 @@ import CollectModal from '../components/CollectModal'
 import ResizeNote from '../components/ResizeNote'
 import ActionButton from '../components/ActionButton'
 import FilterChips from '../components/FilterChips'
+import InfoButton from '../components/InfoButton'
 import Tip from '../components/Tip'
 import SectionIntro from '../components/SectionIntro'
 import { IconCheck, IconFolder, IconShrink } from '../components/icons'
@@ -444,6 +445,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
               <span className={mat.missing_textures ? 'warn' : ''}><b>{mat.missing_textures || 0}</b> missing tex</span>
             </div>
             <Workbench
+              doc="mat-unused"
               title="Unused materials" count={deletable} loading={busy}
               empty={
                 <>
@@ -637,6 +639,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                         : 'No textures match the filters.'}
                   </div>}
             </div>
+            <InfoButton doc="mat-textures" />
           </div>
         </div>
         </>
