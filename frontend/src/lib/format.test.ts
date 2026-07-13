@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { humanBytes, humanNum } from './format'
+import { humanBytes, humanNum, resTag } from './format'
 
 describe('humanNum', () => {
   it('passes small numbers through', () => {
@@ -22,6 +22,27 @@ describe('humanNum', () => {
   it('treats null/undefined as zero', () => {
     expect(humanNum(null)).toBe('0')
     expect(humanNum(undefined)).toBe('0')
+  })
+})
+
+describe('resTag', () => {
+  it('labels the exact K count, not a bucket', () => {
+    expect(resTag(8192)).toBe('8K')
+    expect(resTag(6144)).toBe('6K')   // 6144 is 6K — never "4K"
+    expect(resTag(12288)).toBe('12K')
+    expect(resTag(4096)).toBe('4K')
+    expect(resTag(2048)).toBe('2K')
+    expect(resTag(1024)).toBe('1K')
+  })
+
+  it('shows raw pixels below 1K', () => {
+    expect(resTag(512)).toBe('512px')
+    expect(resTag(0)).toBe('')
+  })
+
+  it('rounds half-to-even like the backend resolution_tag', () => {
+    expect(resTag(2560)).toBe('2K')   // Python round(2.5) == 2
+    expect(resTag(3584)).toBe('4K')   // Python round(3.5) == 4
   })
 })
 

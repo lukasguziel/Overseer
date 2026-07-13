@@ -12,6 +12,14 @@ export const LANGS: [string, string][] = [
   ['none', 'No translation'],
 ]
 
+// Translate tab target languages. Offline dictionaries only translate into
+// EN/DE; Google takes any of these codes. English is the default target —
+// stored settings are validated against these lists so an unknown value can
+// never override it.
+export const OFFLINE_TARGETS = ['en', 'de']
+export const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl',
+  'cs', 'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar']
+
 export type TabId =
   | 'overview' | 'assets' | 'naming' | 'translate'
   | 'structure' | 'layers' | 'materials' | 'rules' | 'misc'

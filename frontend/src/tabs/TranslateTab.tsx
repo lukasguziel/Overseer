@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
+import { OFFLINE_TARGETS, GOOGLE_TARGETS } from '../lib/constants'
 
 const LANG_LABEL: Record<string, string> = {
   de: 'German', en: 'English', fr: 'French', es: 'Spanish', it: 'Italian',
@@ -13,11 +14,6 @@ const LANG_LABEL: Record<string, string> = {
   tr: 'Turkish', uk: 'Ukrainian', zh: 'Chinese', ja: 'Japanese', ko: 'Korean',
   ar: 'Arabic', auto: 'auto', unknown: 'Unknown',
 }
-
-// Offline dictionaries only translate into EN/DE; Google takes any code.
-const OFFLINE_TARGETS = ['en', 'de']
-const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs',
-  'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar']
 
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, busy, previewing,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import ActionButton from './ActionButton'
-import { humanBytes } from '../lib/format'
+import { humanBytes, resTag } from '../lib/format'
 
 // Pick the size for ONE texture. The row button only carries the shrink icon —
 // the numbers belong here, where the artist can see what each choice actually
@@ -10,15 +10,6 @@ import { humanBytes } from '../lib/format'
 const SIZES = [25, 50, 75] as const
 
 const dim = (px: number, percent: number) => Math.max(1, Math.round(px * percent / 100))
-
-// Same tiers as the texture list, so "8K" means the same thing everywhere.
-function tier(longest: number): string {
-  if (longest >= 8192) return '8K'
-  if (longest >= 4096) return '4K'
-  if (longest >= 2048) return '2K'
-  if (longest >= 1024) return '1K'
-  return '< 1K'
-}
 
 // Uncompressed memory: w × h × 4 bytes + 1/3 for the mip chain — the same
 // formula the backend uses (core/textures.vram_bytes).
@@ -47,7 +38,7 @@ export default function ShrinkModal({ file, width, height, busy, onConfirm, onCa
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
 
-  const fromTier = tier(Math.max(width, height))
+  const fromTier = resTag(Math.max(width, height))
   const nw = dim(width, percent)
   const nh = dim(height, percent)
   const before = vram(width, height)
@@ -71,9 +62,9 @@ export default function ShrinkModal({ file, width, height, busy, onConfirm, onCa
             return (
               <button key={p} type="button"
                 className={'shrink-size' + (percent === p ? ' on' : '')}
-                title={`${fromTier} → ${tier(Math.max(w, h))} · ${humanBytes(vram(w, h))} VRAM`}
+                title={`${fromTier} → ${resTag(Math.max(w, h))} · ${humanBytes(vram(w, h))} VRAM`}
                 onClick={() => setPercent(p)}>
-                <span className="shrink-tier">{fromTier} → {tier(Math.max(w, h))}</span>
+                <span className="shrink-tier">{fromTier} → {resTag(Math.max(w, h))}</span>
                 <span className="shrink-dims">{w}×{h}</span>
                 <span className="shrink-pct">{p}% · {humanBytes(vram(w, h))}</span>
               </button>
@@ -83,13 +74,14 @@ export default function ShrinkModal({ file, width, height, busy, onConfirm, onCa
         <p className="hint-sm shrink-note">
           Writes <code>{copyName(file, percent)}</code> next to the original —{' '}
           {humanBytes(before)} → <b>{humanBytes(after)}</b> VRAM
-          {saved > 0 && <> (<b>−{saved}%</b>)</>}.
+          {saved > 0 && <> (<b>−{saved}%</b> memory — it shrinks with the
+          square of the edge)</>}.
         </p>
         <div className="confirm-actions">
           <button className="ghost" onClick={onCancel}>Cancel</button>
           <ActionButton autoFocus disabled={busy}
             onClick={() => onConfirm(percent)}>
-            Shrink to {tier(Math.max(nw, nh))} ({nw}×{nh})
+            Shrink to {resTag(Math.max(nw, nh))} ({nw}×{nh})
           </ActionButton>
         </div>
       </div>
