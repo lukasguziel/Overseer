@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
-import { dominantCasing } from '../lib/constants'
+import { dominantCasing, GOOGLE_TARGETS } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import { prefetchAudit, refreshLoadedAudits, loadedAuditCount, useAuditData } from './useAudit'
 import type {
@@ -784,7 +784,10 @@ export function useOrganizer() {
     if (typeof ui.dedupe === 'boolean') setDedupe(ui.dedupe)
     if (typeof ui.safe === 'boolean') setSafe(ui.safe)
     if (typeof ui.tidy === 'boolean') setTidy(ui.tidy)
-    if (typeof ui.translateTarget === 'string') setTranslateTarget(ui.translateTarget)
+    // Only restore a known language code — anything else keeps the English
+    // default instead of silently driving the preview with a bogus target.
+    if (typeof ui.translateTarget === 'string'
+      && GOOGLE_TARGETS.includes(ui.translateTarget)) setTranslateTarget(ui.translateTarget)
     if (typeof ui.translateEngine === 'string') setTranslateEngine(ui.translateEngine)
     if (typeof ui.includeHidden === 'boolean') setIncludeHidden(ui.includeHidden)
   }, [])

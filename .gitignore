@@ -40,3 +40,6 @@ resp.json
 change_history.json
 analysis_history.json
 scene_structure.csv
+
+# Playwright MCP session artifacts
+.playwright-mcp/
