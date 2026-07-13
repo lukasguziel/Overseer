@@ -5,6 +5,7 @@ import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
+import AreaHistory from '../components/AreaHistory'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -227,6 +228,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
       </div>
 
     <AcceptedPanel org={org} />
+    <AreaHistory org={org} area="naming" kinds={['naming']} field="name" />
     </div>
   )
 }

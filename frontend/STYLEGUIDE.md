@@ -170,6 +170,13 @@ the toggle: a heading-shaped button reads as a heading and nobody clicks it.
 It belongs at the FOOT of the tab, never between two worklists — an accepted
 item is a decision already made and must not sit inside the work still to do.
 
+`<AreaHistory>` follows the exact same shape (and shares the toggle CSS in
+`AcceptedSection.css`): the change history of ONE area, right below the
+AcceptedPanel of its tab, with revert per run/op in place. The full cross-area
+log stays on Misc. A tab's area is defined by the journal kinds it passes
+(`kinds`) plus, for mixed one-click runs, the op field that belongs to it
+(`field`: name/parent/layer).
+
 ---
 
 ## Head count — `.head-count`

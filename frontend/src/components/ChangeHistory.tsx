@@ -10,6 +10,12 @@ const KIND_LABEL: Record<string, string> = {
   apply_all: 'One-click',
   materials_delete: 'Materials',
   textures_relative: 'Textures',
+  textures_collect: 'Textures',
+  textures_relink: 'Textures',
+  textures_edit: 'Textures',
+  textures_repath: 'Textures',
+  textures_resize: 'Textures',
+  textures_clear: 'Textures',
   plan: 'Plan',
 }
 
@@ -48,47 +54,64 @@ function ItemRow({ it, canRevert, onRevert }: {
   )
 }
 
-// Run-level revert (the whole apply-run in one click) with inline confirm.
-function RevertAction({ e, onRevert }: {
+// Run-level revert with inline confirm. Reverts the whole run — or, in an
+// area view of a mixed one-click run, only this area's ops (`indices`).
+function RevertAction({ e, indices, onRevert }: {
   e: ChangeEntry
+  indices?: number[]
   onRevert: (id: string, items?: number[]) => void
 }) {
   const [confirm, setConfirm] = useState(false)
-  if (e.reverted) return <span className="ch-reverted">reverted</span>
+  const done = e.reverted || (indices != null
+    && indices.every((i) => e.items[i]?.reverted))
+  if (done) return <span className="ch-reverted">reverted</span>
   if (!e.revertible) return null
   return confirm ? (
     <span className="mat-confirm">
-      revert all?
-      <button className="mat-yes" onClick={() => { onRevert(e.id); setConfirm(false) }}>✓</button>
+      revert {indices ? `${indices.length} op${indices.length === 1 ? '' : 's'}` : 'all'}?
+      <button className="mat-yes" onClick={() => { onRevert(e.id, indices); setConfirm(false) }}>✓</button>
       <button className="mat-no" onClick={() => setConfirm(false)}>✕</button>
     </span>
   ) : (
-    <button className="ch-revert" title="Revert the whole run (one undo step)"
-      onClick={() => setConfirm(true)}>revert run</button>
+    <button className="ch-revert"
+      title={indices
+        ? "Revert this area's ops within the run (one undo step)"
+        : 'Revert the whole run (one undo step)'}
+      onClick={() => setConfirm(true)}>{indices ? 'revert ops' : 'revert run'}</button>
   )
 }
 
-export default function ChangeHistory({ changes, onRevert }: {
+export default function ChangeHistory({ changes, onRevert, field }: {
   changes: ChangeEntry[]
   onRevert: (id: string, items?: number[]) => void
+  field?: ChangeItem['field']  // area view: reduce mixed one-click runs to this op field
 }) {
   if (changes.length === 0) return <div className="empty-note">No tool changes recorded yet.</div>
-  const rows: HistoryRow[] = changes.map((e) => ({
-    id: e.id,
-    time: clock(e.at),
-    kind: e.kind,
-    kindLabel: KIND_LABEL[e.kind] || e.kind,
-    summary: e.summary,
-    dimmed: e.reverted,
-    action: <RevertAction e={e} onRevert={onRevert} />,
-    details: e.items.length > 0 ? (
-      <table className="diff ch-items"><tbody>
-        {e.items.slice(0, 500).map((it, i) => (
-          <ItemRow key={i} it={it} canRevert={e.revertible && !e.reverted}
-            onRevert={() => onRevert(e.id, [i])} />
-        ))}
-      </tbody></table>
-    ) : undefined,
-  }))
+  const rows: HistoryRow[] = changes.map((e) => {
+    // An area view shows a mixed one-click run reduced to its own ops — kept
+    // with their ORIGINAL indices, so a per-op revert hits the right item.
+    const mixed = field != null && e.kind === 'apply_all'
+    const items = e.items
+      .map((it, i) => ({ it, i }))
+      .filter(({ it }) => !mixed || it.field === field)
+    return {
+      id: e.id,
+      time: clock(e.at),
+      kind: e.kind,
+      kindLabel: KIND_LABEL[e.kind] || e.kind,
+      summary: mixed ? `${e.summary} · ${items.length} here` : e.summary,
+      dimmed: e.reverted || (mixed && items.every(({ it }) => it.reverted)),
+      action: <RevertAction e={e} onRevert={onRevert}
+        indices={mixed ? items.map(({ i }) => i) : undefined} />,
+      details: items.length > 0 ? (
+        <table className="diff ch-items"><tbody>
+          {items.slice(0, 500).map(({ it, i }) => (
+            <ItemRow key={i} it={it} canRevert={e.revertible && !e.reverted}
+              onRevert={() => onRevert(e.id, [i])} />
+          ))}
+        </tbody></table>
+      ) : undefined,
+    }
+  })
   return <HistoryList rows={rows} perPage={10} />
 }

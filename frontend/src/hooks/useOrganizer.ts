@@ -1185,8 +1185,11 @@ export function useOrganizer() {
     call('changes').then((r) => setChanges(r.changes || [])).catch(() => {})
   }, [])
 
+  // The work tabs show their own slice of the log (AreaHistory), Misc the
+  // whole thing — load it for any of them, and again after each apply.
   useEffect(() => {
-    if (tab === 'misc') loadChanges()
+    if (['naming', 'translate', 'structure', 'layers', 'materials', 'misc']
+      .includes(tab)) loadChanges()
   }, [tab, sceneVersion, loadChanges])
 
   // Revert a whole run (items omitted) or selected ops within it (items =
