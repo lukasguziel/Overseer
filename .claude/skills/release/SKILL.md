@@ -115,18 +115,33 @@ Regeln dabei:
 - **Program Files braucht Elevation**: via
   `Start-Process powershell -Verb RunAs -Wait -ArgumentList ...` starten, der
   User bestätigt den UAC-Dialog. Ohne Elevation bricht das Skript ab.
-- Der Zielordner wird **gewipt** — vorher fragen, welche Variante:
-  **komplett frisch** (Default: kein `config.json`, keine `presets/`, kein
-  `dev_repo.txt` → echtes First-Run-Verhalten eines neuen Users) oder
-  `-KeepData` (Release-Code gegen die echten Daten des Users). Das Skript
-  legt in beiden Fällen ein vollständiges Backup an; `-Restore` spielt den
-  neuesten Stand zurück.
+- **Backup ist Pflicht, nie überspringen.** Der Zielordner wird gewipt, und
+  darin liegen die echten Nutzdaten (`config.json` mit dem Rule-Set,
+  `presets/`, `plans/`). Das Skript sichert den kompletten Ordner nach
+  `%TEMP%\SceneOrganizer-release-test\<timestamp>\`, BEVOR es löscht, und
+  bricht ab, wenn das Backup nicht schreibbar ist. Dem User den Backup-Pfad
+  nennen.
+- Der Test läuft **komplett frisch** (Default: kein `config.json`, keine
+  `presets/`, kein `dev_repo.txt` → echtes First-Run-Verhalten eines neuen
+  Users). Nur wenn der User ausdrücklich den Release-Code gegen seine echten
+  Daten sehen will: `-KeepData`.
 - Danach: C4D starten, `Shift+C` → **„Scene Organizer"**, Web-UI muss
   aufgehen. Läuft es nicht, ist das ein **Release-Bug** (Packaging), kein
   lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `sceneorg/`,
   `vendor/` vorhanden?), fixen, neue Version.
-- Nach dem Test: Der User arbeitet auf einem Release-Stand ohne seine Daten.
-  Fragen, ob er `-Restore` will (oder wieder normal deployen).
+
+**9. Restore — immer, nicht fragen.** Der Clean-Test ist ein Wegwerf-Zustand:
+Der User sitzt danach auf einem Release-Stand OHNE seine Daten. Sobald er den
+Test bestätigt hat (egal ob grün oder rot), den vorherigen Stand vollständig
+zurückspielen — C4D dazu wieder schließen lassen:
+```powershell
+powershell -File .claude/skills/release/test-release.ps1 `
+    -Target "<plugin_dir>" -Restore      # neuestes Backup zurück, elevated
+```
+Erst danach ist der Release-Job fertig. Der User bekommt gemeldet: Test-
+Ergebnis + „dein Stand (Rule-Set, Presets, Plans) ist zurück". Läuft er
+ohnehin gleich weiter am Code, ist ein normaler `deploy`-Lauf die Alternative
+— aber niemals den Release-Stand einfach stehen lassen.
 
 ## Fehlerbilder
 - **Workflow rot nach Tag-Push** → Ursache fixen, dann Tag neu setzen:
