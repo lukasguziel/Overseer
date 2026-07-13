@@ -6,7 +6,8 @@ import { catColor, layerSwatch } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
-import LayerTree from '../components/LayerTree'
+import LayerTree, { orderLayers } from '../components/LayerTree'
+import LayerGradient from '../components/LayerGradient'
 import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
 import Pager, { usePager } from '../components/Pager'
@@ -127,6 +128,29 @@ export default function LayersTab({ org }: { org: Organizer }) {
   const noLayer = React.useMemo(
     () => (report?.nodes || []).filter((n) => !n.layer && !keeps.layers.has(n.name)),
     [report, keeps.layers])
+
+  // Gradient targets: the ticked layers in overview order — or every layer
+  // when nothing is ticked. The tick set may hold names of layers that were
+  // deleted since; filtering against the current report drops them silently.
+  const [gradSel, setGradSel] = useState<Set<string>>(() => new Set())
+  const toggleGradSel = (name: string) =>
+    setGradSel((s) => {
+      const n = new Set(s)
+      n.has(name) ? n.delete(name) : n.add(name)
+      return n
+    })
+  const orderedLayers = React.useMemo(() => orderLayers(lr?.layers || []), [lr])
+  const gradTargets = React.useMemo(
+    () => (gradSel.size ? orderedLayers.filter((l) => gradSel.has(l.name)) : orderedLayers)
+      .map((l) => l.name),
+    [orderedLayers, gradSel])
+  const doApplyGradient = async (colors: { name: string; color: [number, number, number] }[]) => {
+    try {
+      const r = await call('set_layer_colors', { colors })
+      org.setStatus(`Colored ${r.applied} layer${r.applied === 1 ? '' : 's'} ✓ (undoable)`)
+      org.doAnalyze()
+    } catch (e: any) { org.setStatus(`Color ✗ ${String(e.message || e)}`) }
+  }
   const nlPager = usePager(noLayer)
   const layerNames = (lr?.layers || []).map((l) => l.name)
   const [batchLayer, setBatchLayer] = useState('')
@@ -195,13 +219,21 @@ export default function LayersTab({ org }: { org: Organizer }) {
           )}
           {lr
             ? (
-              <LayerTree
-                layers={lr.layers} noLayer={lr.no_layer}
-                nodes={report?.nodes || []} onFocus={org.doFocus}
-                onDeleteLayer={org.doDeleteLayer}
-                onKeepLayer={(nm) => org.keep('layers', nm)}
-                keptEmpty={keeps.layers}
-              />
+              <>
+                {orderedLayers.length > 1 && (
+                  <LayerGradient names={gradTargets}
+                    selectedCount={gradSel.size ? gradTargets.length : 0}
+                    busy={busy} onApply={doApplyGradient} />
+                )}
+                <LayerTree
+                  layers={lr.layers} noLayer={lr.no_layer}
+                  nodes={report?.nodes || []} onFocus={org.doFocus}
+                  onDeleteLayer={org.doDeleteLayer}
+                  onKeepLayer={(nm) => org.keep('layers', nm)}
+                  keptEmpty={keeps.layers}
+                  selected={gradSel} onToggleSelect={toggleGradSel}
+                />
+              </>
             )
             : <div className="empty-note">Run an analysis to see the layer usage.</div>}
         </section>
