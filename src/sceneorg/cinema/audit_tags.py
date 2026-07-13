@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import c4d
 
-from ..core.tags_logic import DEFAULT_PHONG_ANGLE_DEG, deg_from_rad, dominant_angle
+from ..core.tags_logic import (
+    DEFAULT_PHONG_ANGLE_DEG,
+    deg_from_rad,
+    dominant_angle,
+    merge_selection_types,
+)
 
 _TPHONG = getattr(c4d, "Tphong", 5612)
 _TTEXTURE = getattr(c4d, "Ttexture", 5616)
@@ -21,11 +26,40 @@ _INTERNAL_TAG_TYPES = {
         getattr(c4d, "Tpoint", 5600),
         getattr(c4d, "Tpolygon", 5604),
         getattr(c4d, "Ttangent", 5617),
+        getattr(c4d, "Tsegment", 5672),
+        getattr(c4d, "Tline", None),
         getattr(c4d, "Tsds", None),
-        getattr(c4d, "Tsdsdata", 5672),
+        getattr(c4d, "Tsdsdata", None),
         getattr(c4d, "Tbaselist4d", None),
     ) if tid is not None
 }
+
+# Point/polygon/edge selection tags are folded into ONE "Selection" entry;
+# the kind travels on each object's tags (merge_selection_types).
+_SELECTION_KINDS = {
+    getattr(c4d, "Tpointselection", 5674): "point",
+    getattr(c4d, "Tpolygonselection", 5673): "polygon",
+    getattr(c4d, "Tedgeselection", 5701): "edge",
+}
+
+_TAG_VISIBLE = getattr(c4d, "TAG_VISIBLE", 4)
+
+
+def _type_visible(type_id: int, cache: dict) -> bool:
+    """Whether this tag type shows up in the Object Manager. Data tags
+    (per-geometry point/weight/... payloads) are registered without
+    TAG_VISIBLE — auditing them only confuses, the artist can't see them.
+    Unknown types count as visible: showing too much beats hiding real tags.
+    """
+    cached = cache.get(type_id)
+    if cached is None:
+        try:
+            plug = c4d.plugins.FindPlugin(type_id, c4d.PLUGINTYPE_TAG)
+            cached = plug is None or bool(plug.GetInfo() & _TAG_VISIBLE)
+        except Exception:
+            cached = True
+        cache[type_id] = cached
+    return cached
 
 
 def _tag_type_label(tag) -> str:
@@ -62,6 +96,7 @@ def _scan(doc, adapter, tree, progress) -> dict:
     missing_phong: list = []
     duplicate_material_tags: list = []
     phong_angles: dict = {}
+    visible_cache: dict = {}
     total_tags = 0
 
     for i, node in enumerate(nodes):
@@ -76,10 +111,12 @@ def _scan(doc, adapter, tree, progress) -> dict:
             tags = []
 
         seen_materials: dict = {}
+        node_tags: dict = {}
         for tag in tags:
             try:
                 type_id = tag.GetType()
-                if type_id in _INTERNAL_TAG_TYPES:
+                if (type_id in _INTERNAL_TAG_TYPES
+                        or not _type_visible(type_id, visible_cache)):
                     continue
                 total_tags += 1
                 entry = types.get(type_id)
@@ -92,8 +129,10 @@ def _scan(doc, adapter, tree, progress) -> dict:
                     tag_name = tag.GetName()
                 except Exception:
                     tag_name = ""
-                entry["objects"].append(
-                    {"guid": node.guid, "name": node.name, "tag_name": tag_name})
+                # One row per OBJECT per type; every tag of that type lands
+                # in the row's tag list (an object with three selection tags
+                # must not show up three times).
+                node_tags.setdefault(type_id, []).append({"name": tag_name})
 
                 if type_id == _TTEXTURE:
                     try:
@@ -121,6 +160,10 @@ def _scan(doc, adapter, tree, progress) -> dict:
             except Exception:
                 continue
 
+        for type_id, tag_refs in node_tags.items():
+            types[type_id]["objects"].append(
+                {"guid": node.guid, "name": node.name, "tags": tag_refs})
+
         for _key, (mat_name, count) in seen_materials.items():
             if count > 1:
                 duplicate_material_tags.append(
@@ -134,6 +177,7 @@ def _scan(doc, adapter, tree, progress) -> dict:
         progress("Scanning tags", total, total, "")
 
     type_list = sorted(types.values(), key=lambda e: (-e["count"], e["label"]))
+    type_list = merge_selection_types(type_list, _SELECTION_KINDS)
     dominant = dominant_angle(phong_angles)
     angle_dist = [{"angle_deg": deg, "count": n}
                   for deg, n in sorted(phong_angles.items())]
@@ -291,24 +335,25 @@ def _delete_duplicates(doc, adapter, tree, payload) -> dict:
 
 
 def _select(doc, adapter, tree, payload) -> dict:
-    type_id = payload.get("type_id")
     guids = payload.get("guids")
+    # A merged entry ("Selection") sends type_ids; single entries send type_id.
+    type_ids = payload.get("type_ids") or [payload.get("type_id")]
 
     if guids is not None:
         wanted = set(guids)
         objs = [adapter._by_guid.get(g) for g in wanted]
     else:
         try:
-            type_id = int(type_id)
+            type_ids = [int(t) for t in type_ids]
         except (TypeError, ValueError):
-            return {"error": "type_id or guids required"}
+            return {"error": "type_id(s) or guids required"}
         objs = []
         for node in tree.walk():
             obj = adapter._by_guid.get(node.guid)
             if obj is None:
                 continue
             try:
-                if obj.GetTag(type_id) is not None:
+                if any(obj.GetTag(t) is not None for t in type_ids):
                     objs.append(obj)
             except Exception:
                 continue

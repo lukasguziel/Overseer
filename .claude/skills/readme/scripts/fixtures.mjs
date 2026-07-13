@@ -354,10 +354,18 @@ export const tagsScan = {
   types: [
     { type_id: 5612, label: 'Phong', count: 1176,
       objects: nodes.filter((n) => n.category === 'mesh').slice(0, 12)
-        .map((n) => ({ guid: n.guid, name: n.name, tag_name: 'Phong' })) },
+        .map((n) => ({ guid: n.guid, name: n.name, tags: [{ name: 'Phong' }] })) },
     { type_id: 5671, label: 'UVW', count: 1049, objects: [] },
     { type_id: 5616, label: 'Material', count: 954, objects: [] },
-    { type_id: 5673, label: 'Polygon Selection', count: 63, objects: [] },
+    // point/polygon/edge selection tags arrive merged as ONE "Selection"
+    // entry; multi-tag objects are one row with kind-badged tag chips.
+    { type_id: 5673, type_ids: [5673, 5674, 5701], label: 'Selection', count: 63,
+      objects: [
+        { guid: g('CoffeeTable'), name: 'CoffeeTable',
+          tags: [{ name: 'TopFaces', kind: 'polygon' }, { name: 'Bevel_Loop', kind: 'edge' }] },
+        { guid: g('Rug'), name: 'Rug', tags: [{ name: 'Fringe', kind: 'point' }] },
+        { guid: g('Cube'), name: 'Cube', tags: [{ name: 'R1', kind: 'polygon' }] },
+      ] },
     { type_id: 5682, label: 'Vertex Map', count: 18, objects: [] },
     { type_id: 180000102, label: 'Dynamics Body', count: 6, objects: [] },
   ],

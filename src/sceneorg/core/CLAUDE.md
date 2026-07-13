@@ -76,7 +76,10 @@ Simulation scan. `SimHit` plus predicates `is_active_hidden`, `is_unbaked`,
 `is_disabled_leftover`; `compute_findings`/`summarize`/`scan_result`.
 
 ### tags_logic.py
-Tag helpers: `deg_from_rad`, `dominant_angle`; `DEFAULT_PHONG_ANGLE_DEG`.
+Tag helpers: `deg_from_rad`, `dominant_angle`, `DEFAULT_PHONG_ANGLE_DEG`;
+`merge_selection_types` folds the point/polygon/edge selection tag entries of
+a tags scan into one "Selection" entry (kind stamped per tag, `type_ids` on
+the entry).
 
 ### ui_settings_logic.py
 UI-state persistence: `PERSISTED_KEYS`, `project_slug()` (via `_slug_text`),

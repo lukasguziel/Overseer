@@ -11,8 +11,11 @@ import Tip from '../components/Tip'
 import './tags.css'
 import ActionButton from '../components/ActionButton'
 
-interface TagObjectRef { guid: number; name: string; tag_name: string }
-interface TagType { type_id: number; label: string; count: number; objects: TagObjectRef[] }
+interface TagRef { name: string; kind?: 'point' | 'polygon' | 'edge' }
+interface TagObjectRef { guid: number; name: string; tags: TagRef[] }
+// type_ids is set on merged entries (point/polygon/edge → one "Selection")
+// so Select-in-C4D can cover every underlying tag type.
+interface TagType { type_id: number; type_ids?: number[]; label: string; count: number; objects: TagObjectRef[] }
 interface MissingPhong { guid: number; name: string }
 interface DuplicateMat { guid: number; name: string; material: string; count: number }
 interface AngleBucket { angle_deg: number; count: number }
@@ -28,8 +31,13 @@ interface TagsData {
 
 const ANGLE_PRESETS = [30, 40, 60, 80]
 
+// "polygon" would blow up every badge; Cornelius' vocabulary is point/poly/edge.
+const KIND_SHORT: Record<string, string> = { point: 'point', polygon: 'poly', edge: 'edge' }
+
 // One expandable tag-type row: header with count + "Select in C4D", and a
-// paged list of the objects carrying that tag when expanded.
+// paged list of the objects carrying that tag when expanded. Each object is
+// ONE row; several tags of the type show as chips on it (selection tags with
+// their kind).
 function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
   const [open, setOpen] = useState(false)
   const pager = usePager(type.objects)
@@ -44,7 +52,7 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
         </button>
         <ActionButton disabled={org.busy}
           title="Select every object carrying this tag type in Cinema 4D"
-          onClick={() => call('tags_select', { type_id: type.type_id })
+          onClick={() => call('tags_select', type.type_ids ? { type_ids: type.type_ids } : { type_id: type.type_id })
             .then((r) => org.setStatus(`Selected ${r.selected ?? type.count} object${type.count === 1 ? '' : 's'} in Cinema 4D`))
             .catch((e) => org.setStatus(`Select ✗ ${String(e.message || e)}`))}>
           Select in C4D
@@ -57,7 +65,15 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
               title="Click to select & frame it in Cinema 4D"
               onClick={() => org.doFocus(o.guid, o.name)}>
               <span className="tags-obj-name">{o.name}</span>
-              {o.tag_name && <span className="dim tags-obj-tag">{o.tag_name}</span>}
+              {o.tags.length > 1 && <span className="tags-obj-count">×{o.tags.length}</span>}
+              <span className="tags-obj-tags">
+                {o.tags.map((t, j) => (
+                  <span className="dim tags-obj-tag" key={j}>
+                    {t.name}
+                    {t.kind && <em className="tags-kind">{KIND_SHORT[t.kind] ?? t.kind}</em>}
+                  </span>
+                ))}
+              </span>
             </button>
           ))}
           <Pager pager={pager} />

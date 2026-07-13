@@ -45,10 +45,15 @@ prefixes) are delegated to the matching `audit_*` module.
 
 ### audit_tags.py
 Tag audit (`tags_scan/add_phong/set_phong_angle/delete_duplicates/select`).
-Skips `_INTERNAL_TAG_TYPES` (invisible per-geometry point/polygon/tangent/SDS
-data tags that would dwarf the real tags). Phong angles read/written in radians
-via `c4d.utils`; symbol ids resolved through `getattr(c4d, ...)` fallbacks so it
-survives across C4D versions.
+Skips `_INTERNAL_TAG_TYPES` plus every tag type registered without
+`TAG_VISIBLE` (invisible data tags the artist can't see in the Object Manager
+would dwarf the real tags). One row per OBJECT per type — an object's several
+tags of a type land in that row's `tags` list. Point/polygon/edge selection
+tags are folded into ONE "Selection" entry (`core.tags_logic.
+merge_selection_types`): each tag carries its `kind`, the entry carries
+`type_ids`, and `tags_select` accepts `type_ids` for it. Phong angles
+read/written in radians via `c4d.utils`; symbol ids resolved through
+`getattr(c4d, ...)` fallbacks so it survives across C4D versions.
 
 ### audit_generators.py
 Generator parameter audit (`gens_scan/apply/select`). A declarative `_REGISTRY`
