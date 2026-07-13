@@ -6,6 +6,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
 import AreaHistory from '../components/AreaHistory'
+import InfoButton from '../components/InfoButton'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -174,6 +175,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
         </aside>
 
         <Workbench
+          doc="naming-preview"
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty={
             <>
@@ -223,6 +225,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
             <Cleanup buckets={[b]} onFocus={org.doFocus} onRename={org.doRenameObject}
               onKeep={(nm) => org.keep('naming', nm)}
               onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
+            <InfoButton doc="naming-cleanup" />
           </section>
         ))}
       </div>

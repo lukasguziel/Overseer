@@ -7,6 +7,7 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
 import AreaHistory from '../components/AreaHistory'
+import InfoButton from '../components/InfoButton'
 import LayerTree, { orderLayers } from '../components/LayerTree'
 import LayerGradient from '../components/LayerGradient'
 import EmptyState from '../components/EmptyState'
@@ -131,11 +132,12 @@ export default function LayersTab({ org }: { org: Organizer }) {
     [report, keeps.layers])
 
   // The gradient colors ALL layers in overview order: top of the bar = first
-  // row, bottom = last. Stops are the editable handles on the vertical bar;
-  // every row previews its resulting color live via `gradPreview`.
+  // row, bottom = last. While an edit session runs, the row swatches show the
+  // gradient's colors instead of the current ones (`gradPreview`).
   const [gradStops, setGradStops] = useState<GradientStop[]>([
     { t: 0, color: '#38bdf8' }, { t: 1, color: '#f472b6' },
   ])
+  const [gradEditing, setGradEditing] = useState(false)
   const orderedLayers = React.useMemo(() => orderLayers(lr?.layers || []), [lr])
   const gradColors = React.useMemo(
     () => multiGradientColors(orderedLayers.length, gradStops),
@@ -226,22 +228,25 @@ export default function LayersTab({ org }: { org: Organizer }) {
                   onDeleteLayer={org.doDeleteLayer}
                   onKeepLayer={(nm) => org.keep('layers', nm)}
                   keptEmpty={keeps.layers}
-                  preview={orderedLayers.length > 1 ? gradPreview : undefined}
+                  preview={gradEditing ? gradPreview : undefined}
                 />
               )
               return orderedLayers.length > 1
                 ? (
                   <LayerGradient stops={gradStops} onChange={setGradStops}
-                    count={orderedLayers.length} busy={busy} onApply={doApplyGradient}>
+                    count={orderedLayers.length} busy={busy} onApply={doApplyGradient}
+                    onEditingChange={setGradEditing}>
                     {tree}
                   </LayerGradient>
                 )
                 : tree
             })()
             : <div className="empty-note">Run an analysis to see the layer usage.</div>}
+          <InfoButton doc="layers-overview" />
         </section>
 
         <Workbench
+          doc="layers-nolayer"
           title="No layer" count={noLayer.length} loading={previewing}
           empty="Every object is on a layer or accepted"
           onAcceptAll={() => org.keepMany('layers', noLayer.map((n) => n.name))}
@@ -327,6 +332,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
         </aside>
 
         <Workbench
+          doc="layers-assign"
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
           empty="Every light, camera and instance is already on its layer"
           hint="Click a row to select & frame the object in Cinema 4D · the green ✓ tags it · the grey one keeps it layerless"
@@ -385,6 +391,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             ))}
           </div>
           <Pager pager={mmPager} />
+          <InfoButton doc="layers-mismatch" />
         </section>
       )}
 

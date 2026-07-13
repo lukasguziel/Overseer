@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { ChangeEntry, ChangeItem } from '../types'
 import ChangeHistory from './ChangeHistory'
+import InfoButton from './InfoButton'
 import SectionIntro from './SectionIntro'
 import './AcceptedSection.css'
 
@@ -52,6 +53,7 @@ export default function AreaHistory({ org, area, kinds, field }: {
             <ChangeHistory changes={changes} onRevert={org.doRevertChange} field={field} />
           </div>
         )}
+        <InfoButton doc="area-history" />
       </section>
     </>
   )

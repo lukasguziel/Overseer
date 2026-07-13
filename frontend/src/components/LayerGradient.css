@@ -1,8 +1,11 @@
 /* Vertical multi-stop gradient beside the layer list (LayerGradient.tsx). */
 .lg-block { margin: 2px 0 10px; }
 .lg-vwrap { display: flex; gap: 12px; margin-top: 6px; }
+/* Edit mode: room on the left for each stop's ✕/pencil buttons. */
+.lg-vwrap.editing { padding-left: 46px; }
 .lg-vbar { position: relative; width: 14px; flex: none; align-self: stretch;
-  border-radius: 7px; border: 1px solid var(--line2); cursor: copy; }
+  border-radius: 7px; border: 1px solid var(--line2); }
+.lg-vbar.editing { cursor: copy; }
 .lg-content { flex: 1; min-width: 0; }
 
 /* Handles: native color inputs, trimmed to swatch-sized chips, centered on
@@ -13,6 +16,16 @@
   cursor: pointer; }
 .lg-vhandle::-webkit-color-swatch-wrapper { padding: 1px; }
 .lg-vhandle::-webkit-color-swatch { border: none; border-radius: 4px; }
+/* Middle stops are pure drag grips (the pencil recolors); touch-action off
+   so pointer capture owns the gesture. */
+.lg-vhandle.mid { cursor: ns-resize; touch-action: none; }
 
-/* Per-row live preview in the layer list: current swatch → gradient swatch. */
-.ly-grad-arrow { color: var(--dim2); font-size: 10px; margin: 0 1px; }
+/* A middle stop with its controls: [✕][✎][handle], right edge anchored so
+   the handle stays centered on the bar and the buttons ride along on drag. */
+.lg-stopwrap { position: absolute; left: 50%;
+  transform: translate(calc(11px - 100%), -50%);
+  display: flex; align-items: center; gap: 3px; }
+.lg-stopwrap .lg-vhandle { position: static; transform: none; }
+.lg-stopwrap .lg-mini { width: 18px; height: 18px; font-size: 10px;
+  border-radius: 5px; flex: none; }
+.lg-stopwrap .lg-mini svg { width: 11px; height: 11px; }

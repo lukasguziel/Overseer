@@ -1,27 +1,39 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import ActionButton from './ActionButton'
 import { gradientColorAt, rgb01ToHex, type GradientStop } from '../lib/colors'
+import { IconPencil } from './icons'
 import './LayerGradient.css'
 
 // Vertical multi-stop color gradient beside the layer list: the top of the
-// bar is the first layer, the bottom the last, and every layer row next to it
-// previews its resulting color live. Click the bar to add a stop in between
-// (it appears in the color the bar already has there — dragging the picker
-// then pulls the blend towards it), click a handle to change its color, drag
-// it to move it along the bar, right-click to remove it. The two end handles
-// stay put.
-export default function LayerGradient({ stops, onChange, count, busy, onApply, children }: {
+// bar is the first layer, the bottom the last. "Edit gradient" opens an edit
+// session — while it runs, every layer row shows the color it WOULD get (not
+// its current one), so the result is judged live. Click the bar to add a stop
+// in between (it appears in the color the bar already has there), drag its
+// handle to move it, use the pencil to recolor and the ✕ to remove — the
+// handle itself is a pure drag grip, so a click can't nudge it accidentally.
+// Cancel restores the gradient exactly as it was; "Set gradient" applies.
+export default function LayerGradient({ stops, onChange, count, busy, onApply, onEditingChange, children }: {
   stops: GradientStop[]
   onChange: (stops: GradientStop[]) => void
   count: number          // layers the gradient will color (drives the button)
   busy: boolean
   onApply: () => void
+  onEditingChange?: (editing: boolean) => void  // parent swaps row swatches to the live preview
   children: React.ReactNode  // the layer list the bar sits next to
 }) {
   const barRef = useRef<HTMLDivElement>(null)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   // Drag state for a middle handle. `moved` distinguishes a drag from a
-  // click: only a plain click may open the native color picker.
+  // click, so the picker never opens at the end of a drag.
   const dragRef = useRef<{ i: number; moved: boolean } | null>(null)
+  const [editing, setEditing] = useState(false)
+  // Snapshot at edit start — Cancel restores exactly this gradient.
+  const savedRef = useRef<GradientStop[]>(stops)
+
+  const setEdit = (on: boolean) => { setEditing(on); onEditingChange?.(on) }
+  const startEdit = () => { savedRef.current = stops; setEdit(true) }
+  const cancelEdit = () => { onChange(savedRef.current); setEdit(false) }
+  const applyEdit = () => { onApply(); setEdit(false) }
 
   const addStop = (e: React.MouseEvent) => {
     const bar = barRef.current
@@ -50,12 +62,6 @@ export default function LayerGradient({ stops, onChange, count, busy, onApply, c
     d.moved = true
     onChange(stops.map((s, j) => (j === d.i ? { ...s, t } : s)))
   }
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    // The click after a drag must not open the color picker.
-    if (dragRef.current?.moved) e.preventDefault()
-    dragRef.current = null
-  }
 
   const blend = [...stops].sort((a, b) => a.t - b.t)
     .map((s) => `${s.color} ${(s.t * 100).toFixed(1)}%`).join(', ')
@@ -64,35 +70,80 @@ export default function LayerGradient({ stops, onChange, count, busy, onApply, c
     <div className="lg-block">
       <div className="section-head sm">
         <span>Color gradient</span>
-        <ActionButton tone="go" disabled={busy || !count}
-          title="Assign each layer its color from the bar, top to bottom (one undo step)"
-          onClick={onApply}>
-          Color {count}
-        </ActionButton>
+        {editing
+          ? (
+            <>
+              <ActionButton disabled={busy} onClick={cancelEdit}
+                title="Discard the edits — the gradient goes back to how it was">
+                Cancel
+              </ActionButton>
+              <ActionButton tone="go" disabled={busy || !count} onClick={applyEdit}
+                title="Assign each layer its color from the bar, top to bottom (one undo step)">
+                Set gradient
+              </ActionButton>
+            </>
+          )
+          : (
+            <>
+              <ActionButton disabled={busy} onClick={startEdit}
+                title="Edit the gradient — add, move and recolor stops; the rows preview the result live">
+                Edit gradient
+              </ActionButton>
+              <ActionButton tone="go" disabled={busy || !count} onClick={onApply}
+                title="Assign each layer its color from the bar, top to bottom (one undo step)">
+                Color {count}
+              </ActionButton>
+            </>
+          )}
       </div>
-      <p className="hint-sm">
-        Top of the bar is the first layer, bottom the last — each row shows the
-        color it will get. Click the bar to add a color in between, click a
-        handle to change it, right-click to remove it.
-      </p>
-      <div className="lg-vwrap">
-        <div ref={barRef} className="lg-vbar" onClick={addStop}
-          title="Click to add a color stop here"
+      {editing && (
+        <p className="hint-sm">
+          Top of the bar is the first layer, bottom the last — each row shows
+          the color it will get. Click the bar to add a color in between, drag
+          a handle to move it, recolor it with the pencil, remove it with ✕.
+        </p>
+      )}
+      <div className={'lg-vwrap' + (editing ? ' editing' : '')}>
+        <div ref={barRef} className={'lg-vbar' + (editing ? ' editing' : '')}
+          onClick={editing ? addStop : undefined}
+          title={editing ? 'Click to add a color stop here' : undefined}
           style={{ background: `linear-gradient(180deg, ${blend})` }}>
-          {stops.map((s, i) => {
+          {editing && stops.map((s, i) => {
             const end = s.t === 0 || s.t === 1
+            if (end) {
+              return (
+                <input key={i} type="color" className="lg-vhandle" value={s.color}
+                  ref={(el) => { inputRefs.current[i] = el }}
+                  style={{ top: `${s.t * 100}%` }}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setColor(i, e.target.value)}
+                  title={s.t === 0 ? "The first layer's color" : "The last layer's color"} />
+              )
+            }
             return (
-              <input key={i} type="color"
-                className={'lg-vhandle' + (end ? '' : ' mid')} value={s.color}
-                style={{ top: `${s.t * 100}%` }}
-                onClick={handleClick}
-                onPointerDown={end ? undefined : dragStart(i)}
-                onPointerMove={end ? undefined : dragMove}
-                onChange={(e) => setColor(i, e.target.value)}
-                onContextMenu={(e) => { e.preventDefault(); if (!end) removeStop(i) }}
-                title={end
-                  ? (s.t === 0 ? "The first layer's color" : "The last layer's color")
-                  : 'Drag to move · click to change the color · right-click to remove'} />
+              <div key={i} className="lg-stopwrap" style={{ top: `${s.t * 100}%` }}
+                onClick={(e) => e.stopPropagation()}>
+                <button className="rn-no lg-mini" disabled={busy}
+                  title="Remove this stop" onClick={() => removeStop(i)}>✕</button>
+                <button className="rn-keep lg-mini" disabled={busy}
+                  title="Change this stop's color"
+                  onClick={() => inputRefs.current[i]?.click()}><IconPencil /></button>
+                <input type="color" className="lg-vhandle mid" value={s.color}
+                  ref={(el) => { inputRefs.current[i] = el }}
+                  onPointerDown={dragStart(i)}
+                  onPointerMove={dragMove}
+                  onClick={(e) => {
+                    // The grip only drags: a real click must not open the
+                    // picker (that is the pencil's job — a programmatic
+                    // pencil click is not "trusted" and passes through).
+                    e.stopPropagation()
+                    if (e.nativeEvent.isTrusted) e.preventDefault()
+                    dragRef.current = null
+                  }}
+                  onChange={(e) => setColor(i, e.target.value)}
+                  onContextMenu={(e) => { e.preventDefault(); removeStop(i) }}
+                  title="Drag to move this stop" />
+              </div>
             )
           })}
         </div>

@@ -39,8 +39,9 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
   onDeleteLayer?: (name: string) => void
   onKeepLayer?: (name: string) => void
   keptEmpty?: Set<string>
-  // layer name -> the color the gradient beside the tree would assign; shown
-  // live as a second swatch on the row.
+  // layer name -> the color the gradient beside the tree would assign. While
+  // a gradient edit runs, the row swatch shows THIS color instead of the
+  // current one — cancelling the edit brings the real colors back.
   preview?: Map<string, [number, number, number]>
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
@@ -90,14 +91,13 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
                 <span className={`ly-caret${isOpen ? ' open' : ''}`}>
                   {expandable ? '▸' : ''}
                 </span>
-                <span className="ly-swatch" style={{ background: isNo ? 'transparent' : layerSwatch(l.color) }} />
-                {preview?.has(l.name) && (
-                  <>
-                    <span className="ly-grad-arrow">→</span>
-                    <span className="ly-swatch" title="The color this layer gets from the gradient"
-                      style={{ background: layerSwatch(preview.get(l.name)) }} />
-                  </>
-                )}
+                <span className="ly-swatch"
+                  title={preview?.has(l.name) ? 'The color this layer gets from the gradient' : undefined}
+                  style={{
+                    background: preview?.has(l.name)
+                      ? layerSwatch(preview.get(l.name))
+                      : isNo ? 'transparent' : layerSwatch(l.color),
+                  }} />
                 <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
                 <Flags l={l} />
                 <span className="ly-count">{l.objects} obj</span>
