@@ -458,7 +458,7 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   )}
                 </>
               }
-              hint="Click a row to select the material in Cinema 4D · the green ✓ deletes it · the grey one keeps it"
+              hint="Click a row to select the material in Cinema 4D · the trash button deletes it · the grey ✓ keeps it"
               applyLabel="Delete all" applyTone="danger"
               onApply={() => org.doDeleteAllUnused(deletable)}
               onAcceptAll={() => org.keepAll('materials')}
@@ -470,10 +470,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
                   return (
                     // Names can legitimately repeat (duplicate materials) —
                     // the index keeps React keys unique, no ghost rows.
-                    <SuggestionRow key={`${nm}|${i}`} busy={busy}
+                    <SuggestionRow key={`${nm}|${i}`} busy={busy} deletes
                       applyTitle={onHidden
-                        ? 'Apply — delete this material. Careful: hidden objects still use it and will lose it (undoable)'
-                        : 'Apply — delete this material (undoable)'}
+                        ? 'Delete this material. Careful: hidden objects still use it and will lose it (undoable)'
+                        : 'Delete this material (undoable)'}
                       onApply={() => org.doDeleteMaterial(nm)}
                       onAcceptAsIs={() => org.keep('materials', nm)}
                       onFocus={() => org.doFocusMaterial(nm)}
