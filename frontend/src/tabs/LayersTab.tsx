@@ -6,6 +6,7 @@ import { catColor, layerSwatch } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
+import AreaHistory from '../components/AreaHistory'
 import LayerTree, { orderLayers } from '../components/LayerTree'
 import LayerGradient from '../components/LayerGradient'
 import EmptyState from '../components/EmptyState'
@@ -386,6 +387,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
       )}
 
     <AcceptedPanel org={org} />
+    <AreaHistory org={org} area="layers" kinds={['layers']} field="layer" />
     </div>
   )
 }

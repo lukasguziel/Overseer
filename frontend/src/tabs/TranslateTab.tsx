@@ -2,6 +2,7 @@ import type { Organizer } from '../hooks/useOrganizer'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
+import AreaHistory from '../components/AreaHistory'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
@@ -126,6 +127,7 @@ export default function TranslateTab({ org }: { org: Organizer }) {
     </div>
 
     <AcceptedPanel org={org} />
+    <AreaHistory org={org} area="translation" kinds={['translate']} />
     </div>
   )
 }

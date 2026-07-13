@@ -6,6 +6,7 @@ import { humanBytes } from '../lib/format'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
+import AreaHistory from '../components/AreaHistory'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import ConfirmModal from '../components/ConfirmModal'
@@ -684,6 +685,10 @@ export default function MaterialsTab({ org }: { org: Organizer }) {
           onCancel={() => setCollectConfirm(false)} />
       )}
     <AcceptedPanel org={org} />
+    <AreaHistory org={org} area="materials & textures"
+      kinds={['materials_delete', 'textures_relative', 'textures_collect',
+        'textures_relink', 'textures_edit', 'textures_repath',
+        'textures_resize', 'textures_clear']} />
     </div>
   )
 }

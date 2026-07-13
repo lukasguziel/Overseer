@@ -4,6 +4,7 @@ import { computeHygiene } from '../lib/hygiene'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
+import AreaHistory from '../components/AreaHistory'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -104,6 +105,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
           onKeepAll={(names) => org.keepMany('structure', names)} busy={busy} />
       </section>
     <AcceptedPanel org={org} />
+    <AreaHistory org={org} area="structure" kinds={['structure', 'plan']} field="parent" />
     </div>
   )
 }

@@ -1181,7 +1181,11 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .ch-kind.k-naming, .ch-kind.k-translate { color: var(--primary); border-color: rgba(56,189,248,.4); }
 .ch-kind.k-structure, .ch-kind.k-apply_all { color: var(--tab); border-color: var(--tab-ring); }
 .ch-kind.k-layers { color: var(--apply); border-color: rgba(52,211,153,.4); }
-.ch-kind.k-materials_delete, .ch-kind.k-textures_relative, .ch-kind.k-plan { color: var(--dim); }
+.ch-kind.k-materials_delete, .ch-kind.k-plan,
+.ch-kind.k-textures_relative, .ch-kind.k-textures_collect,
+.ch-kind.k-textures_relink, .ch-kind.k-textures_edit,
+.ch-kind.k-textures_repath, .ch-kind.k-textures_resize,
+.ch-kind.k-textures_clear { color: var(--dim); }
 /* An analysis is a read, not a todo — violet, so it stays distinct from the
    apply kinds above without borrowing the todo colour. */
 .ch-kind.k-analysis { color: #b07bff; border-color: rgba(176,123,255,.4); }

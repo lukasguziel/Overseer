@@ -1,5 +1,6 @@
-/* AcceptedSection — owned by AcceptedSection.tsx, imported there.
-   See frontend/STYLEGUIDE.md. */
+/* The collapsible-area block (framed toggle + caret + right-edge summary).
+   Shared by AcceptedPanel.tsx and AreaHistory.tsx — both import this file.
+   See frontend/STYLEGUIDE.md ("Accepted-as-is"). */
 
 /* The toggle is the one affordance of this card, so it looks like a control:
    framed, hoverable, with a caret that turns when the list is open. The bare
