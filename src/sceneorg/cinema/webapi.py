@@ -244,6 +244,43 @@ def _read_config_data() -> dict:
     return {}
 
 
+def _lan_ip():
+    """The machine's LAN address — a connectionless UDP 'connect' just picks
+    the outbound interface, nothing is sent."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+    except OSError:
+        return None
+
+
+def _netinfo(payload: dict) -> dict:
+    """LAN state for the open-on-phone QR flow. POST {"listen_lan": bool}
+    persists the opt-in; the bind itself only changes on a C4D restart."""
+    from .. import bridge
+    # getattr: bridge is the never-hot-reloaded singleton — right after a
+    # deploy the RUNNING bridge may predate lan_enabled() until a C4D restart.
+    lan = bool(getattr(bridge, "lan_enabled", lambda: False)())
+    changed = False
+    if "listen_lan" in payload:
+        data = _read_config_data()
+        data["listen_lan"] = bool(payload["listen_lan"])
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        changed = data["listen_lan"] != lan
+    return {"ok": True,
+            "lan": lan,
+            "wanted": bool(_read_config_data().get("listen_lan", False)),
+            "restart_needed": changed,
+            "ip": _lan_ip(),
+            "port": getattr(bridge, "DEFAULT_PORT", 8787)}
+
+
 def _preset_settings(data: dict) -> dict:
     if "settings" in data:
         return data.get("settings") or {}
@@ -702,6 +739,7 @@ _OP_LABELS = {
     "plan_layers": "Building layer preview",
     "apply_layers": "Assigning layers",
     "plan_layer_suggestions": "Suggesting layers",
+    "apply_layer_suggestions": "Assigning suggested layers",
     "layer_mismatches": "Checking layer consistency",
     "delete_layer": "Deleting layer",
     "delete_empty_layers": "Deleting empty layers",
@@ -746,6 +784,7 @@ _AUDIT_MODULES = {
 
 _MUTATING_OPS = {
     "apply_naming", "apply_structure", "apply_layers", "apply_translate",
+    "apply_layer_suggestions",
     "apply_all", "apply_plan", "rename_object", "revert_change",
     "assign_layer", "move_to_group",
     "delete_layer", "delete_empty_layers",
@@ -778,6 +817,10 @@ def handle(payload: dict) -> dict:
 def _handle(payload: dict) -> dict:
     op = payload.get("op")
     settings = payload.get("settings", {})
+
+    if op == "netinfo":
+        return _netinfo(payload)
+
     doc = c4d.documents.GetActiveDocument()
     if doc is None:
         return {"error": "No active document."}
@@ -1292,6 +1335,12 @@ def _handle(payload: dict) -> dict:
         adapter, tree = _get_scene(doc, "naming")
         conv = _convention(settings, cfg)
         scope = _scope(settings, adapter)
+        # The web UI's eye toggle: hidden objects leave the rename worklist
+        # (they keep their names and still block numbers/dedupe as siblings).
+        # Default True so API callers without the flag keep planning everything.
+        if not settings.get("include_hidden", True):
+            visible = {n.guid for n in tree.walk() if n.visible}
+            scope = visible if scope is None else (scope & visible)
         dedupe = bool(settings.get("dedupe", True))
         renames = ops.plan_renames(tree, conv, scope=scope,
                                    prefixes=cfg.prefixes, keep=cfg.keep_names,
@@ -1409,6 +1458,20 @@ def _handle(payload: dict) -> dict:
         diff = [{"guid": o.guid, "name": o.name, "layer": o.layer}
                 for o in sugg]
         return {"ok": True, "count": len(sugg), "diff": diff}
+
+    if op == "apply_layer_suggestions":
+        adapter, tree = _get_scene(doc, "layer suggestions")
+        scope = _scope(settings, adapter)
+        sugg = ops.plan_layer_suggestions(
+            tree, scope=scope, keep=cfg.kept("layers"))
+        accepted = payload.get("guids")
+        if accepted is not None:
+            wanted = set(accepted)
+            sugg = [o for o in sugg if o.guid in wanted]
+        applied = adapter.apply_layers(sugg)
+        _record_change("layers", "%d assigned to suggested layers" % applied,
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "count": len(sugg)}
 
     if op == "layer_mismatches":
         _, tree = _get_scene(doc, "layer mismatches")

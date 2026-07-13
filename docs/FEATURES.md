@@ -93,6 +93,10 @@ moving a single object**.
   accept "fine without a layer" per row.
 - ✅ **Batch assign** — type one layer name and give it to the whole list in
   a single undoable step, confirmation included.
+- ✅ **Suggested layers** — objects whose ancestors already sit on a layer
+  get that layer proposed; assign all suggestions in one confirmed step.
+- ✅ **Empty-layer cleanup** — layers nothing references can be deleted in
+  one undoable step, or accepted and kept.
 - ✅ **Never touches the hierarchy** — layers are orthogonal to your spatial
   null structure; this tool keeps it that way.
 
@@ -220,3 +224,6 @@ History — the plumbing that makes the rest trustworthy.
   undoable).
 - ✅ **Analysis history** — object/polygon/size/compliance over time feeds
   the Overview trends.
+- ✅ **Read the scene on your phone** — a QR code opens the tool on your
+  phone for reading through the scene away from the desk; opt-in, and best
+  turned off again afterwards.

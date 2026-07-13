@@ -139,9 +139,10 @@ export function useOrganizer() {
     apply_numbering: applyNumbering,
     dedupe,
     selection: scope,
+    include_hidden: includeHidden,
     safe,
     tidy,
-  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, safe, tidy])
+  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, includeHidden, safe, tidy])
 
   // An action that has something more informative to say than "<label> ✓"
   // PINS its message: run() (and any run() nested inside it, e.g. the follow-up
@@ -1026,25 +1027,14 @@ export function useOrganizer() {
       c + (!n.layer && !keeps.layers.has(n.name) ? 1 : 0), 0)
   }, [report, keeps.layers])
 
-  // Uniform todo count per area for the tab-header badges: live plan count
-  // once the tab was previewed, report-derived fallback before that.
-  const planCount = useCallback((t: TabId): number | undefined => {
-    switch (t) {
-      case 'naming': return naming?.count
-      case 'translate': return translation?.count
-      case 'layers': return noLayerOpen
-      case 'structure': return structure?.count ?? report?.misplaced?.length
-      case 'materials': {
-        // Badge = the same "todos" the score counts: unused (deletable)
-        // materials + still-missing textures.
-        const m = report?.materials
-        if (!m && report?.textures == null) return undefined
-        return (m?.deletable_count ?? m?.unused?.length ?? 0)
-          + (report?.textures?.missing_count ?? 0)
-      }
-      default: return undefined
-    }
-  }, [naming, translation, structure, report, noLayerOpen])
+  // Latest tags/files scans, shared from their tabs via the audit cache —
+  // feed the area scores and badges without re-running the scans here.
+  const tagsScan = useAuditData<{
+    summary?: { missing_phong?: number; duplicate_material_tags?: number }
+  }>('tags_scan')
+  const filesScan = useAuditData<{
+    summary?: { total?: number; missing_count?: number }
+  }>('files_scan')
 
   // Per-area score (0..100) for the ring next to the navigation. The score
   // measures DECISIONS, not absolute cleanliness: an open todo counts
@@ -1068,14 +1058,37 @@ export function useOrganizer() {
     return open.size
   }, [report, naming, namingHyg])
 
-  // Latest tags scan, shared from the Tags tab via the audit cache — feeds
-  // the tags area score without re-running the scan here.
-  const tagsScan = useAuditData<{
-    summary?: { missing_phong?: number; duplicate_material_tags?: number }
-  }>('tags_scan')
-  const filesScan = useAuditData<{
-    summary?: { total?: number; missing_count?: number }
-  }>('files_scan')
+  // Uniform todo count per area for the tab-header badges: live plan count
+  // once the tab was previewed, report-derived fallback before that.
+  const planCount = useCallback((t: TabId): number | undefined => {
+    switch (t) {
+      // Badge = the sum of the worklist rows the tab shows (rename preview
+      // + default names + duplicate-name groups). An object can appear in
+      // more than one list — each row is a case to work through, so the
+      // badge adds them up (the SCORE still counts objects, deduped).
+      case 'naming':
+        return naming?.count == null ? undefined
+          : naming.count
+            + (namingHyg?.defaults.length ?? 0)
+            + (namingHyg?.dupes.length ?? 0)
+      case 'translate': return translation?.count
+      case 'layers': return noLayerOpen
+      case 'structure': return structure?.count ?? report?.misplaced?.length
+      case 'materials': {
+        // Badge = the same "todos" the score counts: unused (deletable)
+        // materials + still-missing textures.
+        const m = report?.materials
+        if (!m && report?.textures == null) return undefined
+        return (m?.deletable_count ?? m?.unused?.length ?? 0)
+          + (report?.textures?.missing_count ?? 0)
+      }
+      // Badge = the same todos the files score counts: missing external
+      // files (needs the files scan — no badge before it ran).
+      case 'files': return filesScan?.summary
+        ? (filesScan.summary.missing_count || 0) : undefined
+      default: return undefined
+    }
+  }, [naming, namingHyg, translation, structure, report, noLayerOpen, filesScan])
 
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null

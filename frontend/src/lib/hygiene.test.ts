@@ -68,6 +68,23 @@ describe('computeHygiene naming score (decision-based)', () => {
     expect(h.dupeGuids).toEqual([2, 3])
   })
 
+  it('duplicates only clash among siblings, not across containers', () => {
+    // Walls > Wall, Wall  +  Backup > Wall : only the two siblings collide.
+    const group = (name: string, i: number, depth: number): SceneNode => ({
+      guid: i, name, type: 'Null', category: 'null', depth,
+      children: 2, polygons: 0, points: 0,
+    })
+    const at = (name: string, i: number, depth: number): SceneNode =>
+      ({ ...node(name, i), depth })
+    const nodes = [
+      group('Walls', 1, 0), at('Wall', 2, 1), at('Wall', 3, 1),
+      group('Backup', 4, 0), at('Wall', 5, 1),
+    ]
+    const h = computeHygiene(nodes, 30, { casing: 'PascalCase' })
+    expect(h.dupes).toEqual([{ name: 'Wall', count: 2, guid: 2 }])
+    expect(h.dupeGuids).toEqual([2, 3])
+  })
+
   it('without a chosen casing the best-fitting style wins', () => {
     const h = computeHygiene(
       [node('key_light', 1), node('back_wall', 2), node('Odd', 3)], 30, {})

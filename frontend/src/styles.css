@@ -31,6 +31,7 @@
   --tab-ring: rgba(245, 132, 60, .45);
   --apply: #34d399;     /* tech green */
   --warn: #fbbf24;
+  --mixed: #c084fc;     /* informational "mixed values" marker — NOT a todo */
   --err: #f87171;
   --font: 'Fragment Mono', ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, monospace;
   --radius: 10px;
@@ -231,6 +232,32 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .brand-title { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .brand-version { margin-left: 7px; font-size: 10px; font-weight: 500; color: var(--dim);
   border: 1px solid var(--dim2); border-radius: 8px; padding: 1px 6px; vertical-align: 2px; }
+
+/* "Support me" heart right of the version. Quiet by default; on the initial
+   open it pulses and puffs out mini hearts for ~1.4s so it gets noticed once. */
+.support-heart { position: relative; display: inline-block; margin-left: 8px;
+  font-size: 17px; line-height: 1; color: var(--err); text-decoration: none;
+  vertical-align: 2px; cursor: pointer;
+  transition: transform var(--t) var(--ease); }
+.support-heart:hover { transform: scale(1.08); }
+.support-heart.burst { animation: sh-pulse .45s ease-in-out 3; }
+@keyframes sh-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.45); }
+}
+/* the emitted mini hearts: float up, drift apart, fade out */
+.sh-mini { position: absolute; left: 50%; top: 0; font-size: 8px; color: var(--err);
+  pointer-events: none; opacity: 0; animation: sh-float 1.2s ease-out forwards; }
+.sh-mini-0 { animation-delay: .05s; --sh-x: -14px; }
+.sh-mini-1 { animation-delay: .2s;  --sh-x: 10px; }
+.sh-mini-2 { animation-delay: .35s; --sh-x: -6px; }
+.sh-mini-3 { animation-delay: .5s;  --sh-x: 16px; }
+.sh-mini-4 { animation-delay: .65s; --sh-x: 2px; }
+@keyframes sh-float {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
+  15% { opacity: .95; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--sh-x)), -26px) scale(1.15); }
+}
 .scene-meta { color: var(--dim); font-size: 11px; display: flex; align-items: center; gap: 6px;
   overflow: hidden; }
 .scene-name { color: var(--dim); font-weight: 500; max-width: 320px; overflow: hidden;
@@ -302,7 +329,7 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .tab.on:hover { background: var(--panel); border-color: var(--line); box-shadow: none; }
 /* Tab badges = open todos in that area (things to fix), amber to draw the eye */
 .tab .badge { background: var(--warn); color: #201800; font-size: 10px; font-weight: 700;
-  border-radius: 10px; padding: 0 6px; min-width: 16px; text-align: center; }
+  border-radius: 10px; padding: 0 6px; min-width: 16px; line-height: 15px; text-align: center; }
 /* Parked tab (feature disabled for now): dimmed, not clickable, "soon" tag */
 .tab.off, .tab.off:hover { color: var(--dim2); cursor: not-allowed; opacity: .55;
   background: transparent; border-color: transparent; }
@@ -333,6 +360,25 @@ select:focus-visible { outline: 1px solid var(--hover); outline-offset: 1px; }
 select:disabled { opacity: .45; cursor: default; }
 /* The list itself is drawn by the OS — keep it dark, not white-on-white. */
 select option { background: var(--panel2); color: var(--text); }
+/* Customizable select (Chromium 135+): opt into base-select so the dropdown
+   LIST matches the app instead of the OS picker. Other browsers ignore this
+   block and keep the dark native options above. */
+@supports (appearance: base-select) {
+  select, select::picker(select) { appearance: base-select; }
+  select::picker(select) {
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    margin-top: 4px; padding: 4px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+  }
+  select option {
+    padding: 5px 9px; border-radius: 5px;
+    font: inherit; font-size: 12px; cursor: pointer;
+    transition: background-color var(--t) var(--ease); }
+  select option:hover, select option:focus-visible { background: var(--panel); outline: none; }
+  select option:checked { color: var(--accent); }
+  select option::checkmark { display: none; }
+}
 input[type=range] { accent-color: var(--accent); }
 
 /* CHECKBOX — one custom box for every checkbox in the app (filters, settings,
@@ -653,6 +699,7 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .substats { display: flex; flex-wrap: wrap; gap: 20px; padding: 2px 4px; color: var(--dim); font-size: 12px; }
 .substats b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .substats .warn b { color: var(--warn); }
+.substats .mixed b { color: var(--mixed); }   /* informational, not a todo */
 
 /* Health sub-score breakdown (Overview, under the tiles) */
 .subscores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 2px 0 4px; }
@@ -924,18 +971,22 @@ table.mini tr:last-child td { border-bottom: none; }
 table.mini td.warn { color: var(--warn); }
 .mini-note { font-size: 11px; margin: 10px 0 0; }
 
-/* Cleanup accordion */
-.cleanup { display: flex; flex-direction: column; }
-.cl-bucket { border-bottom: 1px solid var(--line2); }
-.cl-bucket:last-child { border-bottom: none; }
-.cl-head { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent;
-  border: none; border-radius: 0; padding: 9px 2px; cursor: pointer; color: var(--text); }
-.cl-head:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--text); }
-.cl-caret { color: var(--dim2); font-size: 10px; width: 12px; }
-.cl-label { flex: 1; text-align: left; font-size: 13px; }
-.cl-count { font-size: 12px; color: var(--dim2); font-variant-numeric: tabular-nums; }
+/* Cleanup panels: all buckets open at once; several in one card split the
+   width evenly (Structure), a single bucket fills its own card (Naming). */
+.cleanup { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 20px; }
+@media (max-width: 900px) { .cleanup { grid-auto-flow: row; } }
+.cl-head-row { min-height: 28px; }
+/* Head styled like the preview panels' heads (wb-preview-head h3). */
+.cl-label { flex: 1; min-width: 0; text-align: left; margin: 0; font-size: 12px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+/* Far right of the bucket head row, same type as .head-count — the keep-all
+   button sits to its LEFT. */
+.cl-count { font-size: 11px; color: var(--dim2); font-variant-numeric: tabular-nums;
+  flex: none; white-space: nowrap; }
 .cl-count.warn { color: var(--warn); }
-.cl-items { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 8px 20px; max-height: 220px; overflow: auto; }
+/* No max-height/scroll: the pager caps a page at 10 rows, and the pager row
+   itself must stay visible below the list. */
+.cl-items { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 8px; }
 .cl-item { display: flex; align-items: center; gap: 4px; width: 100%;
   border-radius: 5px; padding: 1px 4px 1px 0; color: var(--text); }
 .cl-item:hover { background: var(--panel2); }
@@ -949,27 +1000,31 @@ table.mini td.warn { color: var(--warn); }
    these lists exist for (default and duplicate names), and an action that only
    appears on hover is an action nobody finds. Green like every other action
    that repairs something (`.act.go`). */
-.cl-rename { flex: none; width: 22px; height: 22px; display: inline-flex;
+.cl-rename { flex: none; width: 24px; height: 24px; display: inline-flex;
   align-items: center; justify-content: center; border-radius: 6px; cursor: pointer;
-  border: 1px solid transparent; background: transparent; color: var(--apply);
-  font-size: 11px; opacity: .8;
-  transition: background var(--t) var(--ease), border-color var(--t) var(--ease),
-    opacity var(--t) var(--ease); }
-.cl-item:hover .cl-rename { opacity: 1; }
-.cl-rename:hover { border-color: var(--apply); background: rgba(52,211,153,.14);
-  opacity: 1; }
+  border: 1px solid var(--line); background: var(--panel2); color: var(--apply);
+  font-size: 11px;
+  transition: background var(--t) var(--ease), border-color var(--t) var(--ease); }
+.cl-rename:hover { border-color: var(--apply); background: rgba(52,211,153,.14); }
 /* inline editor: input + the standard ✓/✕ mini buttons */
 .cl-edit { gap: 4px; padding: 1px 4px 1px 0; }
 .cl-edit input { flex: 1; min-width: 0; background: var(--panel2); color: var(--text);
   border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px;
   font: inherit; font-size: 12px; outline: none; height: 24px; }
-.cl-clean { color: var(--dim2); font-size: 12px; padding: 2px 0 8px 20px; }
-/* per-bucket explainer, shown while the bucket is open */
+/* per-bucket explainer */
 .cl-hint { color: var(--dim); font-size: 11.5px; line-height: 1.5;
-  margin: 0 0 6px; padding: 0 8px 0 20px; max-width: 72ch; }
+  margin: 4px 0 6px; padding: 0 8px 0 0; max-width: 72ch; }
 
 .asset-table-wrap.flat { border: none; border-radius: 0; background: transparent; }
 .asset-table-wrap.flat .asset-table thead th { background: transparent; }
+
+/* "Open on phone" card: explainer + buttons; the QR itself opens big in a
+   modal (reuses the confirm overlay/box). */
+.phone-access { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.phone-actions { display: flex; gap: 8px; }
+.qr-box { text-align: center; }
+.qr-big { width: min(320px, 70vw); height: auto; border-radius: 10px;
+  border: 1px solid var(--line); background: #fff; padding: 10px; margin: 6px auto 0; }
 
 /* ---------- Asset browser ----------
    Same shape as every other worklist tab: filters in the left sidebar
@@ -1030,7 +1085,9 @@ table.mini td.warn { color: var(--warn); }
   letter-spacing: .04em; color: var(--dim2); border: 1px solid var(--line); border-radius: 4px;
   padding: 0 5px; vertical-align: middle; }
 .cat-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-.asset-more { display: flex; justify-content: center; }
+/* The filter checkboxes ("Only geometry" / "No layer") are Tip-wrapped —
+   inline-flex would put them side by side; one per line reads better. */
+.assets .wb-side > .tip { display: block; }
 
 .asset-table th.sel, .asset-table td.sel { width: 28px; padding: 7px 4px 7px 12px; text-align: center; }
 .asset-table .sel input { margin: 0; cursor: pointer; }
@@ -1066,8 +1123,13 @@ table.mini td.warn { color: var(--warn); }
 
 .wb-preview { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   display: flex; flex-direction: column; min-height: 340px; max-height: calc(100vh - 130px); overflow: hidden; }
+/* No results -> no full-height panel: collapse to the head + a short note. */
+.wb-preview.wb-empty { min-height: 0; }
+.wb-preview.wb-empty .empty-note.mid { padding: 14px 16px; }
+/* Top padding matches .wb-side's 16px so the panel title sits on the same
+   line as the sidebar's (Filters/Settings) next to it. */
 .wb-preview-head { display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-bottom: 1px solid var(--line2); }
+  padding: 16px 16px 10px; border-bottom: 1px solid var(--line2); }
 /* Head reading order: title (left) · actions · count (far right). The title
    takes the slack instead of an auto margin — with auto margins on BOTH the
    title and the actions the count got stranded in the leftover gap. */
@@ -1078,8 +1140,11 @@ table.mini td.warn { color: var(--warn); }
    `order` puts it last in the layout while the markup keeps the reading order
    title -> count -> actions. Not to be confused with `.card-hint`, which is an
    instruction ("click a tile to select"), not a number. */
-.head-count { color: var(--dim); font-size: 12px; order: 99; margin-left: 0;
-  white-space: nowrap; }
+.head-count { color: var(--dim); font-size: 11px; order: 99; margin-left: 0;
+  white-space: nowrap; }   /* same type as .card-hint — one look for all head info */
+/* Open todos in a head count ("35 missing", "7 changes") turn warn-yellow so a
+   glance shows where work is left; informational counts stay dim. */
+.head-count.hc-todo, .head-count .hc-todo { color: var(--warn); }
 .wb-apply { padding: 5px 14px; font-size: 12px; }
 .wb-note { margin: 0; padding: 8px 16px; color: var(--apply); font-size: 12px;
   background: rgba(52,211,153,.06); border-bottom: 1px solid var(--line2); }
@@ -1205,6 +1270,65 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   .asset-table-wrap { overflow-x: auto; }
   .asset-table { min-width: 640px; }
   .cleanup-grid { grid-template-columns: 1fr; }
+}
+
+/* Burger button for the tab nav — desktop never sees it. */
+.nav-burger { display: none; }
+
+/* ---------- Phone layout (iPhone-class widths) ----------
+   Desktop styling stays untouched — everything below only applies on small
+   screens. Goals: topbar on ONE line (icon-only toggles), the tab nav folds
+   behind a burger, panel heads wrap instead of overlapping, and wide data
+   grids scroll inside their own container. */
+@media (max-width: 640px) {
+  .app { padding: 10px 12px 40px; }
+
+  /* Topbar: one line. The toggles drop their labels and become icon pairs;
+     the brand block shrinks and truncates before anything gets pushed out. */
+  .topbar { flex-wrap: nowrap; gap: 8px; }
+  .topbar-right { flex-wrap: nowrap; gap: 6px; margin-left: auto; flex: none; }
+  .scope-toggle button > span { display: none; }
+  .scope-toggle button { padding: 7px 8px; }
+  .brand { min-width: 0; flex: 1; gap: 8px; }
+  .brand-text { min-width: 0; }
+  .brand-logo { width: 26px; height: 26px; }
+  .brand-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+  .brand-version { display: none; }
+  .scene-name { max-width: 120px; }
+
+  /* Tab nav: burger + fold-out list, one tab per row. */
+  .nav-burger { display: inline-flex; align-items: center; gap: 9px; width: 100%;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 12px; color: var(--text); font-size: 13px; font-weight: 600;
+    cursor: pointer; }
+  .nav-burger-icon { color: var(--dim); font-size: 14px; line-height: 1; }
+  .tabs-row { flex-direction: column; align-items: stretch; gap: 8px; margin: 8px 0 18px; }
+  .tabs { display: none; }
+  .tabs.nav-open { display: flex; flex-direction: column; align-items: stretch; }
+  .tabs.nav-open .tab { justify-content: flex-start; padding: 9px 12px; }
+
+  /* Panel heads: wrap under the title instead of overlapping it. */
+  .wb-preview-head { flex-wrap: wrap; row-gap: 8px; }
+  .wb-preview-head h3 { flex-basis: 100%; }
+  .card-head { flex-wrap: wrap; row-gap: 6px; }
+  .cl-head-row { flex-wrap: wrap; row-gap: 6px; }
+
+  /* The preview panel may grow with the page on phones (no inner scroll cage). */
+  .wb-preview { max-height: none; }
+
+  /* Wide data grids (textures, files): keep their columns, scroll sideways
+     inside the table — the page itself never scrolls horizontally. */
+  .dg-table { overflow-x: auto; }
+  .dg-tr { min-width: 640px; }
+
+  /* Stat strips get tighter so they wrap cleanly. */
+  .substats { gap: 10px 14px; font-size: 11px; }
+
+  /* Intro row: the ring stays reasonable next to wrapped text. */
+  .section-intro-row { gap: 10px; }
+
+  /* Modals fill the phone width. */
+  .modal { width: calc(100vw - 24px); min-width: 0; }
 }
 
 /* --- Workbench inline progress (blur + bar, e.g. online translation) ----- */
@@ -1337,7 +1461,8 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   border: none; border-radius: 6px; padding: 5px 8px; cursor: pointer; text-align: left; }
 .ly-head:hover:not(:disabled) { background: var(--panel2); }
 .ly-head:disabled { cursor: default; }
-.ly-caret { width: 10px; flex: none; color: var(--dim2); font-size: 9px; transition: transform 90ms var(--ease); }
+.ly-caret { width: 14px; flex: none; color: var(--dim); font-size: 13px; line-height: 1;
+  transition: transform 90ms var(--ease); }
 .ly-caret.open { transform: rotate(90deg); }
 .ly-swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; border: 1px solid var(--line2); }
 .ly-name { flex: 1; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1369,6 +1494,16 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
   opacity: 0; transform: translateY(2px);
   transition: opacity 90ms var(--ease), transform 90ms var(--ease); }
 .gtip-show { opacity: 1; transform: translateY(0); }
+/* Structured tooltip content ("# Heading" / "- bullet" markup, see renderTip). */
+.gtip-title {
+  white-space: normal; font-weight: 600; font-size: 11.5px; color: #fff;
+  padding-bottom: 5px; margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, .12); }
+.gtip-p { white-space: normal; margin: 0; }
+.gtip-p + .gtip-p, .gtip-p + .gtip-list, .gtip-list + .gtip-p { margin-top: 6px; }
+.gtip-list { white-space: normal; margin: 0; padding-left: 14px; }
+.gtip-list li { margin: 2px 0; }
+.gtip-list li::marker { color: var(--muted, #9a9aa0); }
 /* A small pointer that flips with the placement. */
 .gtip::after {
   content: ''; position: absolute; left: var(--gtip-arrow, 50%); margin-left: -5px;

@@ -78,7 +78,7 @@ via the release workflow). Architecture, conventions and module docs:
 Scene Organizer is built at night, fueled by coffee, next to real
 production deadlines. If it saved you an hour of renaming `Cube.1`:
 
-**[♥ Buy me a coffee](https://www.buymeacoffee.com/bamerus)** — every
+**[♥ Buy me a coffee](https://www.paypal.com/paypalme/LukasGuziel)** — every
 donation keeps the updates coming.
 
 Bugs & feature requests: [GitHub Issues](https://github.com/Goodsoup-Family-Crypt/scene-organizer/issues).

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import Pager, { usePager } from '../components/Pager'
 import type { SceneNode } from '../types'
 import { CAT_ORDER, SORTS } from '../lib/constants'
 import { catColor } from '../lib/colors'
@@ -6,6 +7,11 @@ import { humanNum } from '../lib/format'
 import Tip from '../components/Tip'
 import ActionButton from '../components/ActionButton'
 import type { FocusFn } from '../components/Treemap'
+
+// Display-only type abbreviations — the long C4D label blows up the Type
+// column; the underlying type string (search, filter keys) stays untouched.
+const TYPE_ABBREV: Record<string, string> = { 'Subdivision Surface': 'SDS' }
+const typeLabel = (t: string) => TYPE_ABBREV[t] || t
 
 // Searchable, faceted, sortable asset browser with batching and
 // multi-select batch actions (assign to layer / move to group).
@@ -25,7 +31,6 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
   const [noLayer, setNoLayer] = useState(false)
   const [sortKey, setSortKey] = useState('polygons')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [limit, setLimit] = useState(40)
   const [sel, setSel] = useState<Set<number>>(() => new Set())
   const [layerTarget, setLayerTarget] = useState('')
   const [groupTarget, setGroupTarget] = useState('')
@@ -89,9 +94,6 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
     })
   }, [catFiltered, types, sortKey, sortDir])
 
-  // Reset the batch when the filter/sort changes.
-  useEffect(() => { setLimit(40) }, [q, onlyGeo, noLayer, sortKey, sortDir, cats, types])
-
   // Drop selected guids that no longer exist (scene re-analyzed after apply).
   useEffect(() => setSel((s) => {
     if (!s.size) return s
@@ -100,7 +102,10 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
     return n.size === s.size ? s : n
   }), [nodes])
 
-  const shown = filtered.slice(0, limit)
+  // Paged view of the filtered rows; any filter/sort change jumps back to page 1.
+  const pager = usePager(filtered, 25,
+    [q, onlyGeo, noLayer, sortKey, sortDir, [...cats].join(), [...types].join()].join('|'))
+  const shown = pager.rows
   const allShownSel = shown.length > 0 && shown.every((n) => sel.has(n.guid))
   const someShownSel = shown.some((n) => sel.has(n.guid))
   const headRef = useRef<HTMLInputElement>(null)
@@ -211,7 +216,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
               {typeCounts.map(([t, n]) => (
                 <button key={t} className={'facet' + (types.has(t) ? ' on' : '')} onClick={() => toggleType(t)}
                   title={t}>
-                  {t}<b>{n}</b>
+                  {typeLabel(t)}<b>{n}</b>
                 </button>
               ))}
             </div>
@@ -255,12 +260,18 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
         </div>
       )}
 
-      <div className="asset-count">
-        showing {Math.min(limit, filtered.length)} of {filtered.length}
-        {filtered.length !== nodes.length && <span className="dim"> · {nodes.length} total</span>}
-      </div>
-
-      <div className="asset-table-wrap">
+      {/* Same panel shape as the worklists (rename preview & co): head with
+          title + count at the far right, the table scrolls inside. */}
+      <div className={'wb-preview' + (!filtered.length ? ' wb-empty' : '')}>
+        <div className="wb-preview-head">
+          <h3>Objects</h3>
+          <span className="head-count">
+            {filtered.length} object{filtered.length === 1 ? '' : 's'}
+            {filtered.length !== nodes.length && ` · ${nodes.length} total`}
+          </span>
+        </div>
+        <div className="wb-scroll">
+        <div className="asset-table-wrap flat">
         <table className="asset-table">
           <thead><tr>
             <th className="sel"><input ref={headRef} type="checkbox" checked={allShownSel}
@@ -286,7 +297,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
                   {n.name}
                   {n.visible === false && <span className="hidden-tag">hidden</span>}
                 </td>
-                <td className="dim">{n.type}</td>
+                <td className="dim">{typeLabel(n.type)}</td>
                 <td className="dim">{n.layer || <span className="no-layer">—</span>}</td>
                 <td className="r">{humanNum(n.polygons)}</td>
                 <td className="r">{humanNum(n.points)}</td>
@@ -296,15 +307,11 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
           </tbody>
         </table>
         {!filtered.length && <div className="empty-note mid">No objects match.</div>}
-      </div>
-
-      {limit < filtered.length && (
-        <div className="asset-more">
-          <ActionButton onClick={() => setLimit((l) => l + 60)}>
-            Load more ({filtered.length - limit} left)
-          </ActionButton>
         </div>
-      )}
+
+        <Pager pager={pager} />
+        </div>
+      </div>
       </div>
     </div>
   )

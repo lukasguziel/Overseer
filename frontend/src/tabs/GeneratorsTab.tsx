@@ -251,7 +251,7 @@ function PerfCard() {
           ) : s.measured > 0 ? (
             <p className="hint-sm">No single bottleneck — the cost is spread across the generators below.</p>
           ) : (
-            <p className="hint-sm">Everything rebuilds instantly — no generator is holding the viewport back 🎉</p>
+            <p className="hint-sm">Everything rebuilds instantly — no generator is holding the viewport back</p>
           )}
           {rows.length > 0 && (
             <div style={{ marginTop: 12 }}>
@@ -347,7 +347,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
           <span><b>{s.total_generators}</b> generators</span>
           <span><b>{s.types_found}</b> types</span>
           <Tip text="Settings where generators of the same type have different values — e.g. different subdivision levels. They can be unified to one value on the right.">
-            <span className={s.non_uniform_params ? 'warn' : ''}>
+            <span className={s.non_uniform_params ? 'mixed' : ''}>
               <b>{s.non_uniform_params}</b> mixed setting{s.non_uniform_params === 1 ? '' : 's'}
             </span>
           </Tip>

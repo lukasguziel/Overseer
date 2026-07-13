@@ -18,8 +18,10 @@ export default function StructureTab({ org }: { org: Organizer }) {
   const pager = usePager(structure?.diff || [])
   const notKept = (n: { name: string }) => !keeps.structure.has(n.name)
   const groupBuckets: CleanupBucket[] = [
-    { key: 'empty', label: 'Empty groups', items: hyg.emptyGroups.filter(notKept).map((n) => ({ guid: n.guid, name: n.name })) },
-    { key: 'root', label: 'Root clutter', items: hyg.rootClutter.filter(notKept).map((n) => ({ guid: n.guid, name: n.name, meta: n.type })) },
+    { key: 'empty', label: 'Empty groups', items: hyg.emptyGroups.filter(notKept).map((n) => ({ guid: n.guid, name: n.name })),
+      empty: 'No group is standing around empty' },
+    { key: 'root', label: 'Root clutter', items: hyg.rootClutter.filter(notKept).map((n) => ({ guid: n.guid, name: n.name, meta: n.type })),
+      empty: 'Nothing is lying loose at the scene root' },
   ]
 
   if (!report) {
@@ -62,7 +64,7 @@ export default function StructureTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="Regroup preview" count={structure?.count ?? 0} loading={previewing}
-          empty="Everything is already in the right group 🎉"
+          empty="Everything is already in the right group"
           hint="Click a row to select & frame the object in Cinema 4D · the green ✓ moves it · the grey one keeps its place"
           applyLabel="Apply all" onApply={org.applyStructure}
           onAcceptAll={() => org.keepAll('structure')} busy={busy}

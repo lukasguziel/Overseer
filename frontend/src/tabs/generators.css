@@ -33,8 +33,8 @@
   font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--warn);
-  border: 1px solid rgba(251, 191, 36, .45);
+  color: var(--mixed);
+  border: 1px solid rgba(192, 132, 252, .45);
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -44,7 +44,7 @@
   margin-top: 10px;
   padding: 12px 14px;
   border: 1px solid var(--line, rgba(127, 127, 127, 0.18));
-  border-left: 3px solid var(--warn);
+  border-left: 3px solid var(--mixed);
   border-radius: 8px;
   background: var(--panel2, rgba(127, 127, 127, 0.06));
 }
@@ -147,7 +147,7 @@
 
 .gens-had {
   font-size: 0.85em;
-  color: var(--warn);
+  color: var(--mixed);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

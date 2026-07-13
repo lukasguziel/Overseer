@@ -267,7 +267,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
             <section className="card">
               <div className="card-head">
                 <h3>Missing files</h3>
-                <span className="head-count">{missPager.total} missing</span>
+                <span className="head-count hc-todo">{missPager.total} missing</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   <ActionButton tone="go" disabled={loading}
                     title="Pick a folder in Cinema 4D — it is searched recursively for the missing file names and every match is relinked (undoable)"
@@ -276,7 +276,12 @@ export default function FilesTab({ org }: { org: Organizer }) {
                         .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
                         .catch(() => {})
                     }}>
-                    … Relink {allMissing.length}
+                    Relink {allMissing.length}
+                  </ActionButton>
+                  <ActionButton disabled={loading}
+                    title="Accept all as missing — they stop counting as problems (restore below)"
+                    onClick={() => setAcceptConfirm(true)}>
+                    Accept {missPager.total}
                   </ActionButton>
                   <ActionButton disabled={loading || !missing.some((e) => e.guid != null)}
                     title="Select every object referencing a missing file in Cinema 4D — inspect or replace them in one go"
@@ -288,11 +293,6 @@ export default function FilesTab({ org }: { org: Organizer }) {
                       } catch (e: any) { setNote(String(e.message || e)) }
                     }}>
                     Select in C4D
-                  </ActionButton>
-                  <ActionButton disabled={loading}
-                    title="Accept all as missing — they stop counting as problems (restore below)"
-                    onClick={() => setAcceptConfirm(true)}>
-                    Accept {missPager.total}
                   </ActionButton>
                 </span>
               </div>
@@ -313,7 +313,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                   <FileTable rows={pager.rows} onFocus={onFocus} />
                   <Pager pager={pager} />
                 </>
-              : <div className="empty-note">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''} 🎉</div>}
+              : <div className="empty-note">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''}</div>}
           </section>
 
         </div>
@@ -332,7 +332,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
         <ConfirmModal
           title="Accept all as missing"
           message={`Accept all ${missPager.total} missing file${missPager.total === 1 ? '' : 's'} as missing. Nothing changes in the scene — they just stop counting as problems (restore any time below). Continue?`}
-          confirmLabel={`= Accept ${missPager.total}`}
+          confirmLabel={`✓ Accept ${missPager.total}`}
           onConfirm={() => {
             setAcceptConfirm(false)
             setFileKeeps([...accepted, ...missing.map((e) => e.path)])

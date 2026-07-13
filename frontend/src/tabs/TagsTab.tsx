@@ -153,7 +153,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
         <Workbench
           title="Polygon objects missing a Phong tag"
           count={missingPager.total} loading={loading}
-          empty="Every polygon object has a Phong tag 🎉"
+          empty="Every polygon object has a Phong tag"
           hint="Click a row to select it in Cinema 4D · ✓ adds a Phong tag"
           applyLabel="Add all Phong tags"
           onApply={() => ask(
@@ -193,7 +193,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
         <Workbench
           title="Objects with duplicate material tags"
           count={dupPager.total} loading={loading}
-          empty="No duplicate material tags 🎉"
+          empty="No duplicate material tags"
           hint="Click a row to select it in Cinema 4D · ✓ removes the redundant copies"
           applyLabel="Delete all duplicates" applyTone="danger"
           onApply={() => ask(

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { call } from '../api'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { SceneNode } from '../types'
 import { catColor, layerSwatch } from '../lib/colors'
@@ -136,6 +137,19 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setConfirmDelete(false)
     org.doDeleteEmptyLayers(Array.from(keeps.layers))
   }
+  // Rows that DO carry an ancestor suggestion — batch-assign exactly those.
+  const suggested = React.useMemo(
+    () => noLayer.filter((n) => suggestionByGuid.has(n.guid)),
+    [noLayer, suggestionByGuid])
+  const [confirmSuggest, setConfirmSuggest] = useState(false)
+  const doAssignSuggested = async () => {
+    setConfirmSuggest(false)
+    try {
+      const r = await call('apply_layer_suggestions', { guids: suggested.map((n) => n.guid) })
+      org.setStatus(`Assigned ${r.applied} object${r.applied === 1 ? '' : 's'} to their suggested layer ✓ (undoable)`)
+      org.doAnalyze()
+    } catch (e: any) { org.setStatus(`Assign ✗ ${String(e.message || e)}`) }
+  }
   const assignAll = () => {
     const v = batchLayer.trim()
     if (!v || !noLayer.length) return
@@ -161,8 +175,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             {lr && (
               <span className="head-count">
                 {lr.total_layers} layer{lr.total_layers === 1 ? '' : 's'}
-                {lr.empty_layers > 0 && ` · ${lr.empty_layers} empty`}
-                {lr.no_layer > 0 && ` · ${lr.no_layer} on no layer`}
+                {lr.empty_layers > 0 && <span className="hc-todo"> · {lr.empty_layers} empty</span>}
               </span>
             )}
             {emptyOpen > 0 && (
@@ -195,10 +208,24 @@ export default function LayersTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="No layer" count={noLayer.length} loading={previewing}
-          empty="Every object is on a layer or accepted 🎉"
+          empty="Every object is on a layer or accepted"
           onAcceptAll={() => org.keepMany('layers', noLayer.map((n) => n.name))}
+          actions={suggested.length > 0 && (
+            <ActionButton tone="go" disabled={busy}
+              title="Assign every object with a suggested (ancestor) layer to exactly that layer (one undo step)"
+              onClick={() => setConfirmSuggest(true)}>
+              Assign {suggested.length} suggested
+            </ActionButton>
+          )}
           busy={busy} progress={org.progress}
         >
+          {confirmSuggest && (
+            <ConfirmModal title="Assign suggested layers"
+              message={`You are about to assign ${suggested.length} object${suggested.length === 1 ? '' : 's'} to their suggested ancestor layer (one undo step). Objects without a suggestion stay untouched. Continue?`}
+              confirmLabel={`✓ Assign ${suggested.length}`}
+              onConfirm={doAssignSuggested}
+              onCancel={() => setConfirmSuggest(false)} />
+          )}
           <datalist id="nl-layers">
             {layerNames.map((l) => <option key={l} value={l} />)}
           </datalist>
@@ -266,7 +293,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
 
         <Workbench
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
-          empty="Every light, camera and instance is already on its layer 🎉"
+          empty="Every light, camera and instance is already on its layer"
           hint="Click a row to select & frame the object in Cinema 4D · the green ✓ tags it · the grey one keeps it layerless"
           applyLabel="Apply all" onApply={org.applyLayers}
           onAcceptAll={() => org.keepAll('layers')} busy={busy}
