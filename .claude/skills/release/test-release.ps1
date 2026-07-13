@@ -9,7 +9,11 @@
 #       -Zip  C:\path\SceneOrganizer-v1.0.0.zip `
 #       -Target "C:\Program Files\Maxon Cinema 4D 2024\plugins\SceneOrganizer"
 #
-#   -KeepData   restore the user's config.json + presets/ + plans/ after the
+# The target holds real user data (config.json with the rule set, presets/,
+# plans/). A verified full backup is ALWAYS taken first; nothing is deleted
+# unless it succeeded. The install is throwaway - ALWAYS -Restore afterwards.
+#
+#   -KeepData   keep the user's config.json + presets/ + plans/ across the
 #               wipe (tests release CODE against real data, not the first run)
 #   -Restore    undo: put the newest backup back and exit
 [CmdletBinding()]
@@ -30,21 +34,7 @@ function Step($msg) { Write-Host "  $msg" -ForegroundColor DarkGray }
 
 if (-not (Test-Path $BackupRoot)) { New-Item -ItemType Directory -Force $BackupRoot | Out-Null }
 
-# --- Restore mode: newest backup wins ------------------------------------
-if ($Restore) {
-    $bak = Get-ChildItem $BackupRoot -Directory -ErrorAction SilentlyContinue |
-           Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $bak) { Fail "No backup found under $BackupRoot" }
-    if (Get-Process -Name "Cinema 4D" -ErrorAction SilentlyContinue) { Fail "Close Cinema 4D first." }
-    Step "Restoring $($bak.FullName) -> $Target"
-    if (Test-Path $Target) { Remove-Item -Recurse -Force $Target }
-    Copy-Item -Recurse -Force $bak.FullName $Target
-    Write-Host "RESTORED: $((Get-ChildItem $Target -Recurse -File).Count) files" -ForegroundColor Green
-    exit 0
-}
-
-# --- Preflight -----------------------------------------------------------
-if (-not (Test-Path $Zip)) { Fail "Zip not found: $Zip" }
+# --- Preflight (applies to install AND restore - both write to $Target) ---
 if (Get-Process -Name "Cinema 4D" -ErrorAction SilentlyContinue) {
     Fail "Cinema 4D is running - close it (loaded files are locked, and the .pyp only reloads on start)."
 }
@@ -52,6 +42,21 @@ $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) -and $Target -like "$env:ProgramFiles*") {
     Fail "Target is under Program Files - run this in an ELEVATED shell."
 }
+
+# --- Restore mode: newest backup wins ------------------------------------
+if ($Restore) {
+    $bak = Get-ChildItem $BackupRoot -Directory -ErrorAction SilentlyContinue |
+           Where-Object { Test-Path (Join-Path $_.FullName "scene_organizer.pyp") } |
+           Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $bak) { Fail "No usable backup found under $BackupRoot" }
+    Step "Restoring $($bak.Name) -> $Target"
+    if (Test-Path $Target) { Remove-Item -Recurse -Force $Target }
+    Copy-Item -Recurse -Force $bak.FullName $Target
+    Write-Host "RESTORED: $((Get-ChildItem $Target -Recurse -File).Count) files from backup $($bak.Name)" -ForegroundColor Green
+    exit 0
+}
+
+if (-not (Test-Path $Zip)) { Fail "Zip not found: $Zip" }
 
 # --- Unpack --------------------------------------------------------------
 $work = Join-Path $BackupRoot "unpacked"
@@ -66,15 +71,20 @@ if (-not (Test-Path (Join-Path $src "scene_organizer.pyp"))) {
     Fail "No scene_organizer.pyp in the zip - wrong artifact or broken packaging."
 }
 
-# --- Backup --------------------------------------------------------------
+# --- Backup (MANDATORY - the target holds the user's real config.json, ----
+# --- presets/ and plans/; nothing is deleted before this verifies) --------
 $stamp = Get-Date -Format "yyyy-MM-dd-HHmmss"
 if (Test-Path $Target) {
     $bak = Join-Path $BackupRoot $stamp
-    Step "Backing up current install -> $bak"
+    $before = (Get-ChildItem $Target -Recurse -File).Count
+    Step "Backing up current install ($before files) -> $bak"
     Copy-Item -Recurse -Force $Target $bak
+    $saved = (Get-ChildItem $bak -Recurse -File -ErrorAction SilentlyContinue).Count
+    if ($saved -ne $before) { Fail "Backup incomplete ($saved/$before files) - target left untouched." }
+    Step "Backup verified: $saved files"
 } else {
     $bak = $null
-    Step "No existing install (already clean)."
+    Step "No existing install (nothing to back up)."
 }
 
 # --- Wipe + install ------------------------------------------------------
@@ -101,5 +111,7 @@ if (-not $KeepData) {
 }
 
 Write-Host "OK: $count files installed from $(Split-Path $Zip -Leaf)" -ForegroundColor Green
-if ($bak) { Write-Host "Backup: $bak   (undo: -Restore)" -ForegroundColor DarkGray }
+if ($bak) { Write-Host "Backup: $bak" -ForegroundColor DarkGray }
 Write-Host "Next: start Cinema 4D, Shift+C -> 'Scene Organizer'." -ForegroundColor Green
+Write-Host "Then ALWAYS restore (this install is throwaway, it has none of your data):" -ForegroundColor Yellow
+Write-Host "  test-release.ps1 -Target `"$Target`" -Restore" -ForegroundColor Yellow
