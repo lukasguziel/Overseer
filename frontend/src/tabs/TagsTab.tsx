@@ -8,7 +8,6 @@ import ConfirmModal from '../components/ConfirmModal'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
-import InfoButton from '../components/InfoButton'
 import './tags.css'
 import ActionButton from '../components/ActionButton'
 
@@ -157,7 +156,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
           </Tip>
         </div>
         {note && <p className="wb-note">{note}</p>}
-        <InfoButton doc="tags-overview" />
       </section>
 
       {/* ---- Findings: side by side ----------------------------------- */}
@@ -200,7 +198,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
           </div>
           <Pager pager={missingPager} />
         </Workbench>
-        <InfoButton doc="tags-phong" />
       </section>
 
       <section className="card">
@@ -241,7 +238,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
           </div>
           <Pager pager={dupPager} />
         </Workbench>
-        <InfoButton doc="tags-dupes" />
       </section>
       </div>
 
@@ -285,7 +281,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
               </div>
             </>
           )}
-        <InfoButton doc="tags-angles" />
       </section>
 
       {/* ---- All tag types ------------------------------------------- */}
@@ -303,7 +298,6 @@ export default function TagsTab({ org }: { org: Organizer }) {
               ))}
             </div>
           )}
-        <InfoButton doc="tags-inventory" />
       </section>
       </div>
     </div>

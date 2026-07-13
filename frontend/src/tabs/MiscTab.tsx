@@ -1,6 +1,5 @@
 import type { Organizer } from '../hooks/useOrganizer'
 import ActionButton from '../components/ActionButton'
-import InfoButton from '../components/InfoButton'
 import ChangeHistory from '../components/ChangeHistory'
 import PhoneAccess from '../components/PhoneAccess'
 import HistoryList, { type HistoryRow } from '../components/HistoryList'
@@ -108,7 +107,6 @@ export default function MiscTab({ org }: { org: Organizer }) {
             slice of this log at its foot.
           </p>
           <ChangeHistory changes={changes} onRevert={org.doRevertChange} />
-          <InfoButton doc="misc-changes" />
         </section>
 
         <section className="card">
@@ -128,7 +126,6 @@ export default function MiscTab({ org }: { org: Organizer }) {
           {history.length === 0
             ? <p className="hint-sm">No analyses recorded yet.</p>
             : <HistoryList rows={analysisRows(history)} perPage={10} />}
-          <InfoButton doc="misc-analysis" />
         </section>
       </div>
 
@@ -176,7 +173,6 @@ export default function MiscTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head"><h3>Read the scene on your phone</h3></div>
           <PhoneAccess />
-          <InfoButton doc="misc-phone" />
         </section>
       </div>
 

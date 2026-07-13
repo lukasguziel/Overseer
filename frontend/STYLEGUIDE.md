@@ -181,21 +181,25 @@ log stays on Misc. A tab's area is defined by the journal kinds it passes
 
 ## Section guide — `<InfoButton>` / `.info-dot`
 
-The little italic **i** in the bottom-left corner of a section: opens that
-section's guide (title, tagline, feature list, optional tip) in a modal. One
-component, self-contained — drop it as the LAST child of a `section.card` or
-pass `doc` to `Workbench`; both hosts are `position:relative` and anchor it.
+The little italic **i** next to an area's intro title, before the rule line:
+opens that area's guide (title, tagline, feature list — grouped per box when
+the area has several — optional tip) in a modal. It lives ONLY in a
+`SectionIntro` (via its `doc` prop; `App.tsx` passes it through `TAB_INTRO`),
+never inside the boxes — one entry point per area, the modal explains
+everything in it.
 
 ```jsx
-<section className="card">…<InfoButton doc="layers-overview" /></section>
-<Workbench doc="naming-preview" … />
+<SectionIntro title="Rename rules" doc="naming-preview" desc="…" />
+// App.tsx: TAB_INTRO.layers = { title, desc, doc: 'layers' }
 ```
 
-Content lives in `lib/sectionDocs.ts`, keyed by section — never inline prose
-in the tab. The dot is deliberately dimmer than an `<ActionButton>` (opacity
-.55, 16px): it is a reference, not an action, and must never compete with the
-section's real buttons. Unknown keys render nothing, so a typo cannot break a
-tab. The modal (`.doc-box`) reuses `.confirm-overlay` for the backdrop.
+Content lives in `lib/sectionDocs.ts`, keyed by area — never inline prose in
+the tab. The dot is deliberately dimmer than an `<ActionButton>` (opacity
+.55, 16px): it is a reference, not an action. Unknown keys render nothing, so
+a typo cannot break a tab. The modal (`.doc-box`) reuses `.confirm-overlay`
+and portals to `<body>` — rendered in place, the transform-animated tab
+containers would clip it (they become the containing block for
+`position:fixed`).
 
 ---
 

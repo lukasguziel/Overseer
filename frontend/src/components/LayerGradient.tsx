@@ -84,16 +84,10 @@ export default function LayerGradient({ stops, onChange, count, busy, onApply, o
             </>
           )
           : (
-            <>
-              <ActionButton disabled={busy} onClick={startEdit}
-                title="Edit the gradient — add, move and recolor stops; the rows preview the result live">
-                Edit gradient
-              </ActionButton>
-              <ActionButton tone="go" disabled={busy || !count} onClick={onApply}
-                title="Assign each layer its color from the bar, top to bottom (one undo step)">
-                Color {count}
-              </ActionButton>
-            </>
+            <ActionButton disabled={busy || !count} onClick={startEdit}
+              title="Edit the gradient — add, move and recolor stops; the rows preview the result live">
+              Edit gradient
+            </ActionButton>
           )}
       </div>
       {editing && (

@@ -12,7 +12,6 @@ import Tip from '../components/Tip'
 import { IconCheck, IconFolder } from '../components/icons'
 import './files.css'
 import ActionButton from '../components/ActionButton'
-import InfoButton from '../components/InfoButton'
 
 interface FileEntry {
   kind: string
@@ -301,7 +300,6 @@ export default function FilesTab({ org }: { org: Organizer }) {
               <FileTable rows={missPager.rows} onFocus={onFocus}
                 onPick={pickOne} onAccept={acceptOne} />
               <Pager pager={missPager} />
-              <InfoButton doc="files-missing" />
             </section>
           )}
 
@@ -316,7 +314,6 @@ export default function FilesTab({ org }: { org: Organizer }) {
                   <Pager pager={pager} />
                 </>
               : <div className="empty-note">No external files{kind ? ` of kind “${KIND_LABEL[kind]}”` : ''}</div>}
-            <InfoButton doc="files-all" />
           </section>
 
         </div>
