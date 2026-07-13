@@ -5,7 +5,9 @@ description: >-
   gates locally, commit, tag v* and push — the release workflow builds the
   SceneOrganizer-<version>.zip — then write curated change notes into the
   GitHub release. Use when the user says "release", "mach ein Release",
-  "neue Version bauen", "cut v1.2.0" or wants a new dist with change notes.
+  "neue Version bauen", "cut v1.2.0" or wants a new dist with change notes — then offer a clean
+  local test that installs the released zip itself into Cinema 4D as a fresh
+  user would. Also use when the user wants to test a release build locally.
 ---
 
 # Release — neue Dist mit Release + Change Notes
@@ -89,6 +91,43 @@ gh release view v<version> --json assets,url --jq '{url, assets: [.assets[].name
 `SceneOrganizer-v<version>.zip` muss als Asset dranhängen. Dem User die
 Release-URL geben.
 
+**8. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
+grün, wenn das gebaute Zip auch installiert startet — CI baut das Paket,
+prüft aber nie, ob es als Plugin lädt. Also den User fragen:
+
+> „Release lokal clean testen? (Zip frisch in C4D 2024 installieren)"
+
+- **Nein** → fertig, nichts anfassen.
+- **Ja** → `test-release.ps1` (in diesem Skill-Ordner) fahren. Es lädt NICHT
+  den Working Tree, sondern das Release-Asset:
+
+```powershell
+gh release download v<version> --dir $env:TEMP\so-release --clobber
+# Ziel = plugin_dir aus .claude/skills/deploy/deploy.config.json (User-Eintrag)
+powershell -File .claude/skills/release/test-release.ps1 `
+    -Zip "$env:TEMP\so-release\SceneOrganizer-v<version>.zip" `
+    -Target "<plugin_dir>"
+```
+
+Regeln dabei:
+- **Cinema 4D muss geschlossen sein** (geladene Dateien sind gesperrt, und
+  `.pyp`/`bridge` laden nur beim Start) — das Skript bricht sonst ab.
+- **Program Files braucht Elevation**: via
+  `Start-Process powershell -Verb RunAs -Wait -ArgumentList ...` starten, der
+  User bestätigt den UAC-Dialog. Ohne Elevation bricht das Skript ab.
+- Der Zielordner wird **gewipt** — vorher fragen, welche Variante:
+  **komplett frisch** (Default: kein `config.json`, keine `presets/`, kein
+  `dev_repo.txt` → echtes First-Run-Verhalten eines neuen Users) oder
+  `-KeepData` (Release-Code gegen die echten Daten des Users). Das Skript
+  legt in beiden Fällen ein vollständiges Backup an; `-Restore` spielt den
+  neuesten Stand zurück.
+- Danach: C4D starten, `Shift+C` → **„Scene Organizer"**, Web-UI muss
+  aufgehen. Läuft es nicht, ist das ein **Release-Bug** (Packaging), kein
+  lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `sceneorg/`,
+  `vendor/` vorhanden?), fixen, neue Version.
+- Nach dem Test: Der User arbeitet auf einem Release-Stand ohne seine Daten.
+  Fragen, ob er `-Restore` will (oder wieder normal deployen).
+
 ## Fehlerbilder
 - **Workflow rot nach Tag-Push** → Ursache fixen, dann Tag neu setzen:
   `git tag -d v<x> && git push origin :refs/tags/v<x>`, Fix committen,
@@ -103,5 +142,8 @@ Release-URL geben.
 
 ## Nicht vergessen
 - Zip ist gegen **C4D 2024** gebaut/getestet (steht so im Release-Body).
-- Nach dem Release lokal deployen ist unnötig — aber wenn der User weiter
-  entwickelt, gilt die normale Deploy-Regel wieder.
+- Der Clean-Test (Schritt 8) installiert das **Release-Asset**, nicht den
+  Working Tree — das ist der ganze Punkt. Niemals stattdessen `deploy.ps1`
+  fahren, das würde den Dev-Stand testen.
+- Danach gilt wieder die normale Deploy-Regel: wer weiterentwickelt,
+  deployt mit dem `deploy`-Skill (und überschreibt den Release-Stand).
