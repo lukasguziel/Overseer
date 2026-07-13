@@ -12,7 +12,7 @@ foreach ($root in @("C:\Program Files", "C:\Program Files (x86)")) {
     $found += [pscustomobject]@{
       name        = $_.Name
       location    = "app"
-      plugin_dir  = Join-Path $_.FullName "plugins\SceneOrganizer"
+      plugin_dir  = Join-Path $_.FullName "plugins\Overseer"
       needs_admin = $true
     }
   }
@@ -25,7 +25,7 @@ Get-ChildItem -Path $prefsRoot -Directory -Filter "*Cinema 4D*" |
   $found += [pscustomobject]@{
     name        = ($_.Name -replace "_[0-9A-F]{8}$", "") + " (user prefs)"
     location    = "prefs"
-    plugin_dir  = Join-Path $_.FullName "plugins\SceneOrganizer"
+    plugin_dir  = Join-Path $_.FullName "plugins\Overseer"
     needs_admin = $false
   }
 }

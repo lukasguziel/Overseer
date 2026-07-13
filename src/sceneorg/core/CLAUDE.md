@@ -1,6 +1,6 @@
 # sceneorg.core — pure scene-domain logic
 
-The deterministic heart of Scene Organizer: hierarchy model, analysis, and the
+The deterministic heart of Overseer: hierarchy model, analysis, and the
 planners that turn a `SceneTree` into rename / reparent / layer operations. This
 package NEVER imports `c4d`, so every module here runs and is fully tested in CI.
 

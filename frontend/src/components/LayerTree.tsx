@@ -31,7 +31,7 @@ export const orderLayers = (layers: LayerInfo[]): LayerInfo[] => [
   ...layers.filter((l) => l.empty),
 ]
 
-export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer, onKeepLayer, keptEmpty, selected, onToggleSelect }: {
+export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLayer, onKeepLayer, keptEmpty, preview }: {
   layers: LayerInfo[]
   noLayer: number
   nodes: SceneNode[]
@@ -39,8 +39,9 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
   onDeleteLayer?: (name: string) => void
   onKeepLayer?: (name: string) => void
   keptEmpty?: Set<string>
-  selected?: Set<string>
-  onToggleSelect?: (name: string) => void
+  // layer name -> the color the gradient beside the tree would assign; shown
+  // live as a second swatch on the row.
+  preview?: Map<string, [number, number, number]>
 }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set())
   const toggle = (name: string) =>
@@ -83,12 +84,6 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
         return (
           <div key={l.name} className={`ly-group${isNo ? ' orphan' : ''}${!isNo && l.empty ? ' ly-empty' : ''}`}>
             <div className="ly-row">
-              {onToggleSelect && !isNo && (
-                <input type="checkbox" className="ly-tick"
-                  checked={selected?.has(l.name) || false}
-                  onChange={() => onToggleSelect(l.name)}
-                  title="Tick to include this layer in the color gradient (none ticked = all layers)" />
-              )}
               <button className="ly-head" disabled={!expandable}
                 onClick={() => expandable && toggle(l.name)}
                 title={expandable ? 'Show objects on this layer' : undefined}>
@@ -96,6 +91,13 @@ export default function LayerTree({ layers, noLayer, nodes, onFocus, onDeleteLay
                   {expandable ? '▸' : ''}
                 </span>
                 <span className="ly-swatch" style={{ background: isNo ? 'transparent' : layerSwatch(l.color) }} />
+                {preview?.has(l.name) && (
+                  <>
+                    <span className="ly-grad-arrow">→</span>
+                    <span className="ly-swatch" title="The color this layer gets from the gradient"
+                      style={{ background: layerSwatch(preview.get(l.name)) }} />
+                  </>
+                )}
                 <span className="ly-name">{isNo ? 'No layer' : l.name}</span>
                 <Flags l={l} />
                 <span className="ly-count">{l.objects} obj</span>

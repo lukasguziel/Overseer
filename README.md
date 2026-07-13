@@ -4,19 +4,19 @@
   docs/screenshots/ are regenerated from sample data.
 -->
 
-# Scene Organizer
+# Overseer
 
 **Keep your Cinema 4D scenes organized — clean names, tidy structure, no
 dead weight.**
 
-Scene Organizer is a Cinema 4D plugin for any kind of project. It analyzes
+Overseer is a Cinema 4D plugin for any kind of project. It analyzes
 your scene and helps you keep it in shape: consistent object names,
 translated wording, layers, tags, generator settings, external files and
 materials & textures without leftovers. Every change is previewed first,
 applied per row or in bulk, undoable, and logged — so batch cleanup stops
 being scary. Your settings persist per project, presets make them portable.
 
-![Scene Organizer](docs/screenshots/overview.png)
+![Overseer](docs/screenshots/overview.png)
 
 ## What it does
 
@@ -46,11 +46,11 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 
 ## Installation
 
-1. Grab the latest **`SceneOrganizer-<version>.zip`** from
-   [Releases](https://github.com/Goodsoup-Family-Crypt/scene-organizer/releases) —
+1. Grab the latest **`Overseer-<version>.zip`** from
+   [Releases](https://github.com/lukasguziel/overseer/releases) —
    it ships fully built, nothing to compile.
 2. Unpack it into your Cinema 4D `plugins` folder.
-3. Restart Cinema 4D, then `Shift+C` → **"Scene Organizer"** — it starts the
+3. Restart Cinema 4D, then `Shift+C` → **"Overseer"** — it starts the
    local server and opens the UI at `http://127.0.0.1:8787` (keep the small
    server window open).
 
@@ -75,10 +75,10 @@ via the release workflow). Architecture, conventions and module docs:
 
 ## Support
 
-Scene Organizer is built at night, fueled by coffee, next to real
+Overseer is built at night, fueled by coffee, next to real
 production deadlines. If it saved you an hour of renaming `Cube.1`:
 
 **[♥ Buy me a coffee](https://www.paypal.com/paypalme/LukasGuziel)** — every
 donation keeps the updates coming.
 
-Bugs & feature requests: [GitHub Issues](https://github.com/Goodsoup-Family-Crypt/scene-organizer/issues).
+Bugs & feature requests: [GitHub Issues](https://github.com/lukasguziel/overseer/issues).

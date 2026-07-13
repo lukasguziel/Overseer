@@ -136,7 +136,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
         <div className="stacked">
           <section className="card credits-card">
             <div className="card-head"><h3>Credits</h3></div>
-            <p className="hint-sm">Scene Organizer — analyze, name and structure your C4D scenes.</p>
+            <p className="hint-sm">Overseer — analyze, name and structure your C4D scenes.</p>
             <p className="hint-sm">Version v{version}</p>
             <p className="hint-sm">
               <b className="credits-label">Special thanks:</b>
@@ -156,7 +156,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
             <section className="card">
               <div className="card-head"><h3>Debug</h3></div>
               <p className="hint-sm">
-                The server runs while the “Scene Organizer” window is open in
+                The server runs while the “Overseer” window is open in
                 C4D — closing that window stops it.
               </p>
               <div className="btns btns-auto">

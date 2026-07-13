@@ -1460,8 +1460,6 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .ly-group.orphan .ly-name { color: var(--warn); }
 .ly-row { display: flex; align-items: center; gap: 4px; padding-right: 4px; }
 .ly-row .ly-actions { flex: none; }
-/* Tick in a layer row: include this layer in the gradient target. */
-.ly-tick { margin-left: 6px; flex: none; }
 .ly-group.ly-empty .ly-name { color: var(--warn); }
 .ly-head { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; background: transparent;
   border: none; border-radius: 6px; padding: 5px 8px; cursor: pointer; text-align: left; }

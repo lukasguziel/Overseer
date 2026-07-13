@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { call } from '../api'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { SceneNode } from '../types'
-import { catColor, layerSwatch } from '../lib/colors'
+import { catColor, layerSwatch, multiGradientColors, type GradientStop } from '../lib/colors'
 import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
@@ -130,23 +130,22 @@ export default function LayersTab({ org }: { org: Organizer }) {
     () => (report?.nodes || []).filter((n) => !n.layer && !keeps.layers.has(n.name)),
     [report, keeps.layers])
 
-  // Gradient targets: the ticked layers in overview order — or every layer
-  // when nothing is ticked. The tick set may hold names of layers that were
-  // deleted since; filtering against the current report drops them silently.
-  const [gradSel, setGradSel] = useState<Set<string>>(() => new Set())
-  const toggleGradSel = (name: string) =>
-    setGradSel((s) => {
-      const n = new Set(s)
-      n.has(name) ? n.delete(name) : n.add(name)
-      return n
-    })
+  // The gradient colors ALL layers in overview order: top of the bar = first
+  // row, bottom = last. Stops are the editable handles on the vertical bar;
+  // every row previews its resulting color live via `gradPreview`.
+  const [gradStops, setGradStops] = useState<GradientStop[]>([
+    { t: 0, color: '#38bdf8' }, { t: 1, color: '#f472b6' },
+  ])
   const orderedLayers = React.useMemo(() => orderLayers(lr?.layers || []), [lr])
-  const gradTargets = React.useMemo(
-    () => (gradSel.size ? orderedLayers.filter((l) => gradSel.has(l.name)) : orderedLayers)
-      .map((l) => l.name),
-    [orderedLayers, gradSel])
-  const doApplyGradient = async (colors: { name: string; color: [number, number, number] }[]) => {
+  const gradColors = React.useMemo(
+    () => multiGradientColors(orderedLayers.length, gradStops),
+    [orderedLayers.length, gradStops])
+  const gradPreview = React.useMemo(
+    () => new Map(orderedLayers.map((l, i) => [l.name, gradColors[i]])),
+    [orderedLayers, gradColors])
+  const doApplyGradient = async () => {
     try {
+      const colors = orderedLayers.map((l, i) => ({ name: l.name, color: gradColors[i] }))
       const r = await call('set_layer_colors', { colors })
       org.setStatus(`Colored ${r.applied} layer${r.applied === 1 ? '' : 's'} ✓ (undoable)`)
       org.doAnalyze()
@@ -219,23 +218,26 @@ export default function LayersTab({ org }: { org: Organizer }) {
               onCancel={() => setConfirmDelete(false)} />
           )}
           {lr
-            ? (
-              <>
-                {orderedLayers.length > 1 && (
-                  <LayerGradient names={gradTargets}
-                    selectedCount={gradSel.size ? gradTargets.length : 0}
-                    busy={busy} onApply={doApplyGradient} />
-                )}
+            ? (() => {
+              const tree = (
                 <LayerTree
                   layers={lr.layers} noLayer={lr.no_layer}
                   nodes={report?.nodes || []} onFocus={org.doFocus}
                   onDeleteLayer={org.doDeleteLayer}
                   onKeepLayer={(nm) => org.keep('layers', nm)}
                   keptEmpty={keeps.layers}
-                  selected={gradSel} onToggleSelect={toggleGradSel}
+                  preview={orderedLayers.length > 1 ? gradPreview : undefined}
                 />
-              </>
-            )
+              )
+              return orderedLayers.length > 1
+                ? (
+                  <LayerGradient stops={gradStops} onChange={setGradStops}
+                    count={orderedLayers.length} busy={busy} onApply={doApplyGradient}>
+                    {tree}
+                  </LayerGradient>
+                )
+                : tree
+            })()
             : <div className="empty-note">Run an analysis to see the layer usage.</div>}
         </section>
 

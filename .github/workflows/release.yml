@@ -62,9 +62,9 @@ jobs:
       # --- Package: same layout as deploy.ps1 produces ---
       - name: Assemble plugin folder
         run: |
-          pkg=dist/SceneOrganizer
+          pkg=dist/Overseer
           mkdir -p "$pkg"
-          cp src/scene_organizer.pyp "$pkg/"
+          cp src/overseer.pyp "$pkg/"
           cp src/so_logo.png "$pkg/"
           cp src/config.example.json "$pkg/"
           # The whole package, not just its top-level modules: sceneorg/ has
@@ -79,17 +79,17 @@ jobs:
           cp -r src/web "$pkg/web"
 
       - name: Zip
-        run: cd dist && zip -r "SceneOrganizer-$VERSION.zip" SceneOrganizer
+        run: cd dist && zip -r "Overseer-$VERSION.zip" Overseer
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
-          name: Scene Organizer ${{ env.VERSION }}
-          files: dist/SceneOrganizer-${{ env.VERSION }}.zip
+          name: Overseer ${{ env.VERSION }}
+          files: dist/Overseer-${{ env.VERSION }}.zip
           generate_release_notes: true
           body: |
             Ready-to-use Cinema 4D 2024 plugin, nothing to compile. Installation: unpack
-            the zip and drop the `SceneOrganizer/` folder into a C4D plugins folder, e.g.
+            the zip and drop the `Overseer/` folder into a C4D plugins folder, e.g.
             `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (no admin needed)
             or `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.

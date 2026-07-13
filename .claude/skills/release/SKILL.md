@@ -1,9 +1,9 @@
 ---
 name: release
 description: >-
-  Cut a Scene Organizer release: bump the version everywhere, run the CI
+  Cut an Overseer release: bump the version everywhere, run the CI
   gates locally, commit, tag v* and push — the release workflow builds the
-  SceneOrganizer-<version>.zip — then write curated change notes into the
+  Overseer-<version>.zip — then write curated change notes into the
   GitHub release. Use when the user says "release", "mach ein Release",
   "neue Version bauen", "cut v1.2.0" or wants a new dist with change notes — then offer a clean
   local test that installs the released zip itself into Cinema 4D as a fresh
@@ -14,7 +14,7 @@ description: >-
 
 Der eigentliche Build passiert in CI: ein `v*`-Tag-Push startet
 `.github/workflows/release.yml`, das die Gates nochmal fährt, das Plugin
-paketiert und `SceneOrganizer-<version>.zip` an ein GitHub-Release hängt
+paketiert und `Overseer-<version>.zip` an ein GitHub-Release hängt
 (mit `generate_release_notes: true` + festem Installations-Absatz als Body).
 Dieser Skill macht alles drumherum: Version, Gates, Tag, kuratierte Notes.
 
@@ -88,10 +88,33 @@ gh release edit v<version> --notes "<kuratierte Notes>
 ```bash
 gh release view v<version> --json assets,url --jq '{url, assets: [.assets[].name]}'
 ```
-`SceneOrganizer-v<version>.zip` muss als Asset dranhängen. Dem User die
+`Overseer-v<version>.zip` muss als Asset dranhängen. Dem User die
 Release-URL geben.
 
-**8. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
+**8. Release ins öffentliche Repo spiegeln (immer, kein Opt-in).** Das
+Dev-Repo (`Goodsoup-Family-Crypt/overseer`) bleibt intern;
+**`lukasguziel/overseer`** ist die öffentliche Datenquelle — dort liegen die
+Releases und die Doku (README + `docs/FEATURES.md` + Screenshots, ohne
+Development-Abschnitt und ohne Code). Nach jedem Release:
+
+```bash
+# Asset + finalen Body vom Dev-Release holen
+gh release download v<version> --repo Goodsoup-Family-Crypt/overseer --dir "$TEMP/so-release" --clobber
+gh release view v<version> --repo Goodsoup-Family-Crypt/overseer --json body --jq .body > "$TEMP/so-release/notes.md"
+# Identisches Release im öffentlichen Repo anlegen (Tag entsteht dort auf main)
+gh release create v<version> --repo lukasguziel/overseer \
+    --title "Overseer v<version>" --notes-file "$TEMP/so-release/notes.md" \
+    "$TEMP/so-release/Overseer-v<version>.zip"
+```
+
+Danach README/Docs im öffentlichen Repo auffrischen (nur wenn sie sich seit
+dem letzten Release geändert haben): Repo shallow clonen, `README.md`
+(Development-Abschnitt zwischen `## Development` und `## Support`
+entfernen!), `docs/FEATURES.md` und `docs/screenshots/` rüberkopieren,
+committen (`docs for v<version>`), pushen. Das Repo ist ggf. noch privat —
+der Mirror funktioniert trotzdem; öffentlich schaltet es der User selbst.
+
+**9. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
 grün, wenn das gebaute Zip auch installiert startet — CI baut das Paket,
 prüft aber nie, ob es als Plugin lädt. Also den User fragen:
 
@@ -105,7 +128,7 @@ prüft aber nie, ob es als Plugin lädt. Also den User fragen:
 gh release download v<version> --dir $env:TEMP\so-release --clobber
 # Ziel = plugin_dir aus .claude/skills/deploy/deploy.config.json (User-Eintrag)
 powershell -File .claude/skills/release/test-release.ps1 `
-    -Zip "$env:TEMP\so-release\SceneOrganizer-v<version>.zip" `
+    -Zip "$env:TEMP\so-release\Overseer-v<version>.zip" `
     -Target "<plugin_dir>"
 ```
 
@@ -118,19 +141,19 @@ Regeln dabei:
 - **Backup ist Pflicht, nie überspringen.** Der Zielordner wird gewipt, und
   darin liegen die echten Nutzdaten (`config.json` mit dem Rule-Set,
   `presets/`, `plans/`). Das Skript sichert den kompletten Ordner nach
-  `%TEMP%\SceneOrganizer-release-test\<timestamp>\`, BEVOR es löscht, und
+  `%TEMP%\Overseer-release-test\<timestamp>\`, BEVOR es löscht, und
   bricht ab, wenn das Backup nicht schreibbar ist. Dem User den Backup-Pfad
   nennen.
 - Der Test läuft **komplett frisch** (Default: kein `config.json`, keine
   `presets/`, kein `dev_repo.txt` → echtes First-Run-Verhalten eines neuen
   Users). Nur wenn der User ausdrücklich den Release-Code gegen seine echten
   Daten sehen will: `-KeepData`.
-- Danach: C4D starten, `Shift+C` → **„Scene Organizer"**, Web-UI muss
+- Danach: C4D starten, `Shift+C` → **„Overseer"**, Web-UI muss
   aufgehen. Läuft es nicht, ist das ein **Release-Bug** (Packaging), kein
   lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `sceneorg/`,
   `vendor/` vorhanden?), fixen, neue Version.
 
-**9. Restore — immer, nicht fragen.** Der Clean-Test ist ein Wegwerf-Zustand:
+**10. Restore — immer, nicht fragen.** Der Clean-Test ist ein Wegwerf-Zustand:
 Der User sitzt danach auf einem Release-Stand OHNE seine Daten. Sobald er den
 Test bestätigt hat (egal ob grün oder rot), den vorherigen Stand vollständig
 zurückspielen — C4D dazu wieder schließen lassen:
@@ -157,7 +180,7 @@ ohnehin gleich weiter am Code, ist ein normaler `deploy`-Lauf die Alternative
 
 ## Nicht vergessen
 - Zip ist gegen **C4D 2024** gebaut/getestet (steht so im Release-Body).
-- Der Clean-Test (Schritt 8) installiert das **Release-Asset**, nicht den
+- Der Clean-Test (Schritt 9) installiert das **Release-Asset**, nicht den
   Working Tree — das ist der ganze Punkt. Niemals stattdessen `deploy.ps1`
   fahren, das würde den Dev-Stand testen.
 - Danach gilt wieder die normale Deploy-Regel: wer weiterentwickelt,

@@ -1,6 +1,6 @@
 # Plugin-HTTP-API (Port 8787)
 
-Voraussetzung: C4D laeuft, Command **"Scene Organizer"** wurde geklickt,
+Voraussetzung: C4D laeuft, Command **"Overseer"** wurde geklickt,
 und der **Server-Dialog ist offen** (sein Timer draint die Main-Thread-Queue —
 Dialog zu = Requests haengen). Alle Endpoints: `POST 127.0.0.1:8787/api/<op>`
 mit JSON-Body; `webapi.py` wird pro Request hot-reloaded.

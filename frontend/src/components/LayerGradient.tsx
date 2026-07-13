@@ -1,58 +1,102 @@
-import { useMemo, useState } from 'react'
+import React, { useRef } from 'react'
 import ActionButton from './ActionButton'
-import { gradientColors, layerSwatch } from '../lib/colors'
+import { gradientColorAt, rgb01ToHex, type GradientStop } from '../lib/colors'
 import './LayerGradient.css'
 
-// Spread a two-handle color gradient across the layers of the overview: the
-// first layer gets the left color, the last the right, everything between
-// sits on its evenly spaced stop. Ticking layers in the list narrows the
-// target; with nothing ticked every layer is colored. The stops ON the bar
-// are the actual per-layer colors that will be applied.
-export default function LayerGradient({ names, selectedCount, busy, onApply }: {
-  names: string[]        // target layers, in the order the overview lists them
-  selectedCount: number  // ticked layers (0 = gradient goes to all)
+// Vertical multi-stop color gradient beside the layer list: the top of the
+// bar is the first layer, the bottom the last, and every layer row next to it
+// previews its resulting color live. Click the bar to add a stop in between
+// (it appears in the color the bar already has there — dragging the picker
+// then pulls the blend towards it), click a handle to change its color, drag
+// it to move it along the bar, right-click to remove it. The two end handles
+// stay put.
+export default function LayerGradient({ stops, onChange, count, busy, onApply, children }: {
+  stops: GradientStop[]
+  onChange: (stops: GradientStop[]) => void
+  count: number          // layers the gradient will color (drives the button)
   busy: boolean
-  onApply: (colors: { name: string; color: [number, number, number] }[]) => void
+  onApply: () => void
+  children: React.ReactNode  // the layer list the bar sits next to
 }) {
-  const [from, setFrom] = useState('#38bdf8')
-  const [to, setTo] = useState('#f472b6')
-  const stops = useMemo(
-    () => gradientColors(names.length, from, to),
-    [names.length, from, to])
+  const barRef = useRef<HTMLDivElement>(null)
+  // Drag state for a middle handle. `moved` distinguishes a drag from a
+  // click: only a plain click may open the native color picker.
+  const dragRef = useRef<{ i: number; moved: boolean } | null>(null)
+
+  const addStop = (e: React.MouseEvent) => {
+    const bar = barRef.current
+    if (!bar) return
+    const r = bar.getBoundingClientRect()
+    const t = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+    const color = rgb01ToHex(gradientColorAt(stops, t))
+    onChange([...stops, { t, color }].sort((a, b) => a.t - b.t))
+  }
+  const setColor = (i: number, color: string) =>
+    onChange(stops.map((s, j) => (j === i ? { ...s, color } : s)))
+  const removeStop = (i: number) => onChange(stops.filter((_, j) => j !== i))
+
+  // Middle stops never reach exactly 0/1 — those positions ARE the ends.
+  const dragStart = (i: number) => (e: React.PointerEvent) => {
+    dragRef.current = { i, moved: false }
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  const dragMove = (e: React.PointerEvent) => {
+    const d = dragRef.current
+    const bar = barRef.current
+    if (!d || !bar) return
+    const r = bar.getBoundingClientRect()
+    const t = Math.min(0.98, Math.max(0.02, (e.clientY - r.top) / r.height))
+    if (!d.moved && Math.abs(t - stops[d.i].t) * r.height < 3) return
+    d.moved = true
+    onChange(stops.map((s, j) => (j === d.i ? { ...s, t } : s)))
+  }
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // The click after a drag must not open the color picker.
+    if (dragRef.current?.moved) e.preventDefault()
+    dragRef.current = null
+  }
+
+  const blend = [...stops].sort((a, b) => a.t - b.t)
+    .map((s) => `${s.color} ${(s.t * 100).toFixed(1)}%`).join(', ')
 
   return (
     <div className="lg-block">
-      <div className="section-head sm"><span>Color gradient</span></div>
-      <p className="hint-sm">
-        Spreads a two-color gradient across{' '}
-        {selectedCount > 0
-          ? <>the <b>{selectedCount} ticked</b> layer{selectedCount === 1 ? '' : 's'}</>
-          : <>all <b>{names.length}</b> layers</>}{' '}
-        — each dot on the bar is one layer&apos;s new color. Tick layers below
-        to color only those; untick everything to color all.
-      </p>
-      <div className="lg-row">
-        <input className="lg-handle" type="color" value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          title="Left end of the gradient — the first layer's color" />
-        <div className="lg-bar" style={{ background: `linear-gradient(90deg, ${from}, ${to})` }}>
-          {stops.map((c, i) => (
-            <span key={names[i]} className="lg-stop"
-              title={`${names[i]} → this color`}
-              style={{
-                left: `${stops.length <= 1 ? 0 : (i / (stops.length - 1)) * 100}%`,
-                background: layerSwatch(c),
-              }} />
-          ))}
-        </div>
-        <input className="lg-handle" type="color" value={to}
-          onChange={(e) => setTo(e.target.value)}
-          title="Right end of the gradient — the last layer's color" />
-        <ActionButton tone="go" disabled={busy || !names.length}
-          title="Assign each listed layer its gradient color (one undo step)"
-          onClick={() => onApply(names.map((nm, i) => ({ name: nm, color: stops[i] })))}>
-          Color {names.length}
+      <div className="section-head sm">
+        <span>Color gradient</span>
+        <ActionButton tone="go" disabled={busy || !count}
+          title="Assign each layer its color from the bar, top to bottom (one undo step)"
+          onClick={onApply}>
+          Color {count}
         </ActionButton>
+      </div>
+      <p className="hint-sm">
+        Top of the bar is the first layer, bottom the last — each row shows the
+        color it will get. Click the bar to add a color in between, click a
+        handle to change it, right-click to remove it.
+      </p>
+      <div className="lg-vwrap">
+        <div ref={barRef} className="lg-vbar" onClick={addStop}
+          title="Click to add a color stop here"
+          style={{ background: `linear-gradient(180deg, ${blend})` }}>
+          {stops.map((s, i) => {
+            const end = s.t === 0 || s.t === 1
+            return (
+              <input key={i} type="color"
+                className={'lg-vhandle' + (end ? '' : ' mid')} value={s.color}
+                style={{ top: `${s.t * 100}%` }}
+                onClick={handleClick}
+                onPointerDown={end ? undefined : dragStart(i)}
+                onPointerMove={end ? undefined : dragMove}
+                onChange={(e) => setColor(i, e.target.value)}
+                onContextMenu={(e) => { e.preventDefault(); if (!end) removeStop(i) }}
+                title={end
+                  ? (s.t === 0 ? "The first layer's color" : "The last layer's color")
+                  : 'Drag to move · click to change the color · right-click to remove'} />
+            )
+          })}
+        </div>
+        <div className="lg-content">{children}</div>
       </div>
     </div>
   )

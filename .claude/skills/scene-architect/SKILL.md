@@ -3,7 +3,7 @@ name: scene-architect
 description: >-
   Learn how the user organises Cinema 4D scenes from ONE OR MORE real projects,
   then (1) write a personal "how you work" preset, (2) give deterministic
-  insights on what to improve using the Scene Organizer rules, and (3) freeze a
+  insights on what to improve using the Overseer rules, and (3) freeze a
   logical restructuring into an executable plan the plugin runs WITHOUT any live
   AI/API calls. Use when the user says "lern wie ich arbeite", "bau ein Preset
   aus meinen Projekten", "analysiere mehrere Szenen", "schlag eine

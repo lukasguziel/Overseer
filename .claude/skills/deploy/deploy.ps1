@@ -1,4 +1,4 @@
-# Deploys the Scene Organizer plugin into one or more Cinema 4D plugin folders.
+# Deploys the Overseer plugin into one or more Cinema 4D plugin folders.
 #
 # The repo carries NO target path. Targets come from (first hit wins):
 #   1. -Target <dir>[,<dir>...]  explicit plugin directories (deploys to ALL of them)
@@ -67,7 +67,7 @@ if (-not $Target -or $Target.Count -eq 0) {
 # the target half-empty like delete-then-copy did. Exit codes 0-7 = success.
 function Mirror([string]$From, [string]$To) {
   robocopy $From $To /MIR /R:0 /W:0 /XD __pycache__ /NFL /NDL /NJH /NJS | Out-Null
-  if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE) - a changed file is locked; close the Scene Organizer dialogs in C4D and retry." }
+  if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE) - a changed file is locked; close the Overseer dialogs in C4D and retry." }
   $global:LASTEXITCODE = 0
 }
 
@@ -97,7 +97,7 @@ function Deploy-To([string]$Dir) {
   Step "dev_repo.txt" { Set-Content -Path (Join-Path $Dir "dev_repo.txt") -Value $repoRoot -Encoding utf8 }
 
   # Loader + config template (the user's config.json is NOT overwritten)
-  Step "scene_organizer.pyp" { Copy-Item (Join-Path $src "scene_organizer.pyp") $Dir -Force }
+  Step "overseer.pyp" { Copy-Item (Join-Path $src "overseer.pyp") $Dir -Force }
   Step "so_logo.png" { Copy-Item (Join-Path $src "so_logo.png") $Dir -Force }
   Step "config.example.json" { Copy-Item (Join-Path $src "config.example.json") $Dir -Force }
 
@@ -164,7 +164,7 @@ foreach ($dir in $Target) {
     Write-Output ""
     Write-Output "DEPLOY INCOMPLETE for '$dir' - $($failed.Count) step(s) failed:"
     $failed | ForEach-Object { Write-Output "  - $_" }
-    Write-Output "(Locked files? Close the Scene Organizer dialogs in C4D and retry.)"
+    Write-Output "(Locked files? Close the Overseer dialogs in C4D and retry.)"
   } else {
     Write-Output "Deployed to: $dir"
   }

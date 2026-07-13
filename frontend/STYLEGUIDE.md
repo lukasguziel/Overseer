@@ -1,4 +1,4 @@
-# Style guide — Scene Organizer web UI
+# Style guide — Overseer web UI
 
 The vocabulary of the UI: every reusable visual building block, its name, and
 the markup that produces it. **One block = one CSS class = one look.** When a

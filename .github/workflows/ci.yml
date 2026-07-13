@@ -19,12 +19,12 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      # Lints src/scene_organizer.pyp too (extend-include in pyproject.toml).
+      # Lints src/overseer.pyp too (extend-include in pyproject.toml).
       - name: Lint (ruff)
         run: ruff check src tests
 
       - name: Syntax-check the plugin entry point
-        run: python -m py_compile src/scene_organizer.pyp
+        run: python -m py_compile src/overseer.pyp
 
   plugin-test:
     needs: plugin-lint
