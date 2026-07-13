@@ -7,7 +7,6 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
 import AreaHistory from '../components/AreaHistory'
-import InfoButton from '../components/InfoButton'
 import LayerTree, { orderLayers } from '../components/LayerTree'
 import LayerGradient from '../components/LayerGradient'
 import EmptyState from '../components/EmptyState'
@@ -242,11 +241,9 @@ export default function LayersTab({ org }: { org: Organizer }) {
                 : tree
             })()
             : <div className="empty-note">Run an analysis to see the layer usage.</div>}
-          <InfoButton doc="layers-overview" />
         </section>
 
         <Workbench
-          doc="layers-nolayer"
           title="No layer" count={noLayer.length} loading={previewing}
           empty="Every object is on a layer or accepted"
           onAcceptAll={() => org.keepMany('layers', noLayer.map((n) => n.name))}
@@ -332,7 +329,6 @@ export default function LayersTab({ org }: { org: Organizer }) {
         </aside>
 
         <Workbench
-          doc="layers-assign"
           title="Layer assignment preview" count={layers?.count ?? 0} loading={previewing}
           empty="Every light, camera and instance is already on its layer"
           hint="Click a row to select & frame the object in Cinema 4D · the green ✓ tags it · the grey one keeps it layerless"
@@ -391,7 +387,6 @@ export default function LayersTab({ org }: { org: Organizer }) {
             ))}
           </div>
           <Pager pager={mmPager} />
-          <InfoButton doc="layers-mismatch" />
         </section>
       )}
 

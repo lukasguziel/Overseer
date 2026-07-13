@@ -16,7 +16,6 @@ import { useAuditData } from '../hooks/useAudit'
 import { TABS } from '../lib/constants'
 import { IconExpand } from '../components/icons'
 import ActionButton from '../components/ActionButton'
-import InfoButton from '../components/InfoButton'
 
 // ONE resolution taxonomy for the whole page: the texture map, its legend and
 // the resolution-mix table all bucket by lib/colors' RES_TIERS (ordered
@@ -292,7 +291,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             )
           })}
         </div>
-        <InfoButton doc="ov-workflow" />
       </section>}
 
       {/* Hero: the two things that eat VRAM, side by side — geometry (polys by
@@ -308,7 +306,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           </div>
           <Treemap nodes={report.nodes || []} onFocus={org.doFocus} count={40} />
           <MapLegend items={geoLegend} />
-          <InfoButton doc="ov-geomap" />
         </section>
 
         <section className="card">
@@ -323,7 +320,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           </div>
           <TreemapChart data={texMap.data} empty="No texture pixel data (files missing or none referenced)." />
           <MapLegend items={texMap.tiers} />
-          <InfoButton doc="ov-texmap" />
         </section>
       </div>
 
@@ -349,7 +345,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
               ? `Detected by the ${org.translateEngine} translate engine — same numbers as the Translate tab.`
               : '“Unknown” = names without recognizable words (codes, product names).'}
           </p>
-          <InfoButton doc="ov-naming" />
         </section>
 
         <section className="card">
@@ -365,7 +360,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             {/* Absolute vs relative is a taste question — shown, never warned. */}
             <tr><td>Absolute paths</td><td>{tex?.absolute_count ?? 0}</td></tr>
           </tbody></table>
-          <InfoButton doc="ov-materials" />
         </section>
       </div>
 
@@ -385,7 +379,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
           {hyg.outliers.length > 0 && (
             <AssetTable rows={hyg.outliers.slice(0, 5)} onFocus={org.doFocus} />
           )}
-          <InfoButton doc="ov-polys" />
         </section>
 
         <section className="card">
@@ -424,7 +417,6 @@ export default function OverviewTab({ org }: { org: Organizer }) {
               </div>
             </>
           ) : <div className="empty-note">No texture pixel data (files missing or none referenced).</div>}
-          <InfoButton doc="ov-budget" />
         </section>
       </div>
 

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { ChangeEntry, ChangeItem } from '../types'
 import ChangeHistory from './ChangeHistory'
-import InfoButton from './InfoButton'
 import SectionIntro from './SectionIntro'
 import './AcceptedSection.css'
 
@@ -36,7 +35,7 @@ export default function AreaHistory({ org, area, kinds, field }: {
   if (changes.length === 0) return null
   return (
     <>
-      <SectionIntro title="History"
+      <SectionIntro title="History" doc="area-history"
         desc={`What the tool changed in ${area}, newest first — revert a whole run or a single op right here. The full log across all areas lives on the Misc tab.`} />
       <section className="card kept-card">
         <div className="kept-head-row">
@@ -53,7 +52,6 @@ export default function AreaHistory({ org, area, kinds, field }: {
             <ChangeHistory changes={changes} onRevert={org.doRevertChange} field={field} />
           </div>
         )}
-        <InfoButton doc="area-history" />
       </section>
     </>
   )

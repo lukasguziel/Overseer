@@ -6,7 +6,6 @@ import { catColor } from '../lib/colors'
 import { humanNum } from '../lib/format'
 import Tip from '../components/Tip'
 import ActionButton from '../components/ActionButton'
-import InfoButton from '../components/InfoButton'
 import type { FocusFn } from '../components/Treemap'
 
 // Display-only type abbreviations — the long C4D label blows up the Type
@@ -311,7 +310,6 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
         </div>
 
         <Pager pager={pager} />
-        <InfoButton doc="assets" />
         </div>
       </div>
       </div>

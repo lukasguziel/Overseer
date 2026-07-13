@@ -6,7 +6,6 @@ import Workbench from '../components/Workbench'
 import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
 import AreaHistory from '../components/AreaHistory'
-import InfoButton from '../components/InfoButton'
 import Cleanup, { type CleanupBucket } from '../components/Cleanup'
 import EmptyState from '../components/EmptyState'
 import Pager, { usePager } from '../components/Pager'
@@ -101,7 +100,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
 
   return (
     <div className="stacked">
-      <SectionIntro title="Rename rules"
+      <SectionIntro title="Rename rules" doc="naming-preview"
         desc="Set the naming convention on the left; every rename is previewed on the right before you apply anything."
         aside={<AreaScore score={org.areaScore('naming')} />} />
       <div className="workbench">
@@ -175,7 +174,6 @@ export default function NamingTab({ org }: { org: Organizer }) {
         </aside>
 
         <Workbench
-          doc="naming-preview"
           title="Rename preview" count={naming?.count ?? 0} loading={previewing}
           empty={
             <>
@@ -216,7 +214,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
       {/* Name cleanup: intro, then the area itself — no card wrapping a card,
           and no second heading repeating the intro's title (same shape as
           Materials and Textures). Objects the rules cannot fix on their own. */}
-      <SectionIntro title="Name cleanup"
+      <SectionIntro title="Name cleanup" doc="naming-cleanup"
         desc="Objects the rules can't fix on their own: placeholder default names and ambiguous duplicates. Click an item to select & frame it, ✎ renames it, the grey ✓ accepts it as-is." />
       {/* Two OWN areas side by side — one card per bucket, not one shared card. */}
       <div className="ov-cols2">
@@ -225,7 +223,6 @@ export default function NamingTab({ org }: { org: Organizer }) {
             <Cleanup buckets={[b]} onFocus={org.doFocus} onRename={org.doRenameObject}
               onKeep={(nm) => org.keep('naming', nm)}
               onKeepAll={(names) => org.keepMany('naming', names)} busy={busy} />
-            <InfoButton doc="naming-cleanup" />
           </section>
         ))}
       </div>

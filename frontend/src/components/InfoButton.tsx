@@ -1,15 +1,28 @@
 import { useEffect, useState } from 'react'
-import { SECTION_DOCS, type SectionDoc } from '../lib/sectionDocs'
+import { createPortal } from 'react-dom'
+import { SECTION_DOCS, type DocFeature, type SectionDoc } from '../lib/sectionDocs'
 import './InfoButton.css'
 
-// The little "i" in the bottom-left corner of every section: opens that
-// section's guide (lib/sectionDocs.ts) in a modal. Deliberately inconspicuous —
-// it must never compete with the section's real actions, only be findable
-// when the artist wonders what the area can do.
+// The little "i" in an area's SectionIntro, between the title and the rule
+// line: opens that area's guide (lib/sectionDocs.ts) in a modal. Deliberately
+// inconspicuous — it is a reference, not an action, and must never compete
+// with the area's real controls.
 //
-// Drop it as the LAST child of a `section.card` / `.wb-preview` (both are
-// position:relative); it positions itself. Unknown doc keys render nothing,
-// so a typo can never break a tab.
+// Rendered by SectionIntro via its `doc` prop — don't place it inside boxes.
+// Unknown doc keys render nothing, so a typo can never break a tab.
+
+function Features({ features }: { features: DocFeature[] }) {
+  return (
+    <>
+      {features.map((f) => (
+        <div className="doc-feature" key={f.name}>
+          <span className="doc-feature-name">{f.name}</span>
+          <span className="doc-feature-desc">{f.desc}</span>
+        </div>
+      ))}
+    </>
+  )
+}
 
 function InfoModal({ d, onClose }: { d: SectionDoc; onClose: () => void }) {
   useEffect(() => {
@@ -29,10 +42,11 @@ function InfoModal({ d, onClose }: { d: SectionDoc; onClose: () => void }) {
         </div>
         <p className="doc-tagline">{d.tagline}</p>
         <div className="doc-list">
-          {d.features.map((f) => (
-            <div className="doc-feature" key={f.name}>
-              <span className="doc-feature-name">{f.name}</span>
-              <span className="doc-feature-desc">{f.desc}</span>
+          {d.features && <Features features={d.features} />}
+          {d.groups?.map((g) => (
+            <div className="doc-group" key={g.head}>
+              <div className="doc-group-head">{g.head}</div>
+              <Features features={g.features} />
             </div>
           ))}
         </div>
@@ -51,7 +65,13 @@ export default function InfoButton({ doc }: { doc: string }) {
       <button className="info-dot" aria-label={`What “${d.title}” can do`}
         title={`What “${d.title}” can do`}
         onClick={(e) => { e.stopPropagation(); setOpen(true) }}>i</button>
-      {open && <InfoModal d={d} onClose={() => setOpen(false)} />}
+      {/* Portal to <body>: the intros sit inside transform-animated tab
+          containers — a transformed ancestor becomes the containing block for
+          position:fixed, so rendered in place the overlay would be clipped
+          (e.g. inside the Translate preview). Same escape hatch as the
+          Overview zoom overlay. */}
+      {open && createPortal(
+        <InfoModal d={d} onClose={() => setOpen(false)} />, document.body)}
     </>
   )
 }

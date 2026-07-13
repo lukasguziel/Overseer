@@ -10,7 +10,6 @@ import BarList from '../components/BarList'
 import Tip from '../components/Tip'
 import './generators.css'
 import ActionButton from '../components/ActionButton'
-import InfoButton from '../components/InfoButton'
 
 type ParamKind = 'int' | 'bool' | 'choice'
 
@@ -266,7 +265,6 @@ function PerfCard() {
           )}
         </>
       )}
-      <InfoButton doc="gens-perf" />
     </section>
   )
 }
@@ -413,7 +411,6 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
                 </div>
               </>
             )}
-            <InfoButton doc="gens-settings" />
           </section>
         )
       })}
