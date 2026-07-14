@@ -68,10 +68,11 @@ tests/                    pytest, runs WITHOUT c4d
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
 .github/workflows/release.yml  builds Overseer-<version>.zip + creates a GitHub Release
                           (auto on v* tag push, or manually via workflow_dispatch with version input).
-                          Every release is then MIRRORED to the public repo
-                          lukasguziel/overseer (releases + README/docs only, no code —
-                          the public data source; release skill step 8). This dev repo
-                          is Goodsoup-Family-Crypt/overseer.
+.github/workflows/mirror.yml  auto-mirror to the public repo lukasguziel/overseer
+                          (the public data source, no code): releases (called by
+                          release.yml + on `release: edited`) and README/FEATURES/
+                          screenshots on every main push (needs MIRROR_TOKEN secret).
+                          This dev repo is Goodsoup-Family-Crypt/overseer.
 .claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + sceneorg/ +
                           presets/ + plans/ + web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)
