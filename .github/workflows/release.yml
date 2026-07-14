@@ -93,3 +93,14 @@ jobs:
             the zip and drop the `Overseer/` folder into a C4D plugins folder, e.g.
             `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (no admin needed)
             or `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.
+
+  # Explicit call because the release above is created with GITHUB_TOKEN,
+  # which never fires the `release` event for other workflows. Later
+  # note edits (`gh release edit`, user token) re-sync via mirror.yml's
+  # own `release: edited` trigger.
+  mirror:
+    needs: release
+    uses: ./.github/workflows/mirror.yml
+    with:
+      tag: ${{ inputs.version || github.ref_name }}
+    secrets: inherit

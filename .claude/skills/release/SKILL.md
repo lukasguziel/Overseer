@@ -91,28 +91,30 @@ gh release view v<version> --json assets,url --jq '{url, assets: [.assets[].name
 `Overseer-v<version>.zip` muss als Asset dranhängen. Dem User die
 Release-URL geben.
 
-**8. Release ins öffentliche Repo spiegeln (immer, kein Opt-in).** Das
-Dev-Repo (`Goodsoup-Family-Crypt/overseer`) bleibt intern;
-**`lukasguziel/overseer`** ist die öffentliche Datenquelle — dort liegen die
-Releases und die Doku (README + `docs/FEATURES.md` + Screenshots, ohne
-Development-Abschnitt und ohne Code). Nach jedem Release:
+**8. Mirror verifizieren (läuft automatisch).** Das Dev-Repo
+(`Goodsoup-Family-Crypt/overseer`) bleibt intern; **`lukasguziel/overseer`**
+ist die öffentliche Datenquelle — dort liegen die Releases und die Doku
+(README ohne Development-Abschnitt + `docs/FEATURES.md` + Screenshots, kein
+Code). Das Spiegeln macht `.github/workflows/mirror.yml` selbst:
+
+- Release: `release.yml` ruft nach dem Build den Mirror-Job auf (Asset +
+  Body → öffentliches Repo). Der Notes-Edit aus Schritt 6 feuert
+  `release: edited` und synct den Body automatisch nach.
+- Docs: jeder Push auf `main`, der `README.md`, `docs/FEATURES.md` oder
+  `docs/screenshots/**` anfasst, synct die Doku ins öffentliche Repo.
+
+Hier nur prüfen, dass es geklappt hat:
 
 ```bash
-# Asset + finalen Body vom Dev-Release holen
-gh release download v<version> --repo Goodsoup-Family-Crypt/overseer --dir "$TEMP/so-release" --clobber
-gh release view v<version> --repo Goodsoup-Family-Crypt/overseer --json body --jq .body > "$TEMP/so-release/notes.md"
-# Identisches Release im öffentlichen Repo anlegen (Tag entsteht dort auf main)
-gh release create v<version> --repo lukasguziel/overseer \
-    --title "Overseer v<version>" --notes-file "$TEMP/so-release/notes.md" \
-    "$TEMP/so-release/Overseer-v<version>.zip"
+gh release view v<version> --repo lukasguziel/overseer --json url,assets --jq '{url, assets: [.assets[].name]}'
 ```
 
-Danach README/Docs im öffentlichen Repo auffrischen (nur wenn sie sich seit
-dem letzten Release geändert haben): Repo shallow clonen, `README.md`
-(Development-Abschnitt zwischen `## Development` und `## Support`
-entfernen!), `docs/FEATURES.md` und `docs/screenshots/` rüberkopieren,
-committen (`docs for v<version>`), pushen. Das Repo ist ggf. noch privat —
-der Mirror funktioniert trotzdem; öffentlich schaltet es der User selbst.
+Fehlt das Release, den Mirror-Lauf ansehen (`gh run list
+--workflow=mirror.yml`) — häufigste Ursache: `MIRROR_TOKEN`-Secret abgelaufen
+oder widerrufen (es ist das `gh`-Token von lukasguziel; neu setzen mit
+`gh secret set MIRROR_TOKEN --repo Goodsoup-Family-Crypt/overseer --body "$(gh auth token)"`).
+Das öffentliche Repo ist ggf. noch privat — der Mirror funktioniert trotzdem;
+öffentlich schaltet es der User selbst.
 
 **9. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
 grün, wenn das gebaute Zip auch installiert startet — CI baut das Paket,
