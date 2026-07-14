@@ -28,13 +28,22 @@ on:
         description: "Release tag to mirror (e.g. v1.2.0)"
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to mirror (e.g. v1.2.0)"
+        required: true
+        type: string
 
 env:
   PUBLIC_REPO: lukasguziel/overseer
 
 jobs:
+  # NOTE: inside a workflow_call, github.event_name is the CALLER's event —
+  # for release.yml that is the tag `push`. Jobs must therefore key on
+  # `inputs.tag` (only set via workflow_call/dispatch), not on event names.
   mirror-release:
-    if: github.event_name != 'push'
+    if: inputs.tag != '' || github.event_name == 'release'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
@@ -54,7 +63,7 @@ jobs:
           fi
 
   sync-docs:
-    if: github.event_name == 'push'
+    if: inputs.tag == '' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
