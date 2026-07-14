@@ -88,6 +88,11 @@ moving a single object**.
 
 - ✅ **Layer overview tree** — every layer with color, object count, polygon
   count and V/R/L flags, expandable down to the objects.
+- ✅ **Color gradient** — "Edit gradient" puts a vertical multi-stop color
+  bar next to the layer list: click to add colors in between, drag stops to
+  move them, and every layer row previews its resulting color live. Cancel
+  restores everything; "Set gradient" recolors all layers in one undoable
+  step.
 - ✅ **No-layer worklist** — every layerless object in one list; assign via
   inline picker (existing layers autocomplete, new ones are created), or
   accept "fine without a layer" per row.
@@ -137,8 +142,13 @@ drift.
 - ✅ **Phong angle spread** — the distribution across the scene (84× 20°,
   981× 40°, …) and a one-click uniform angle for all phong tags.
 - ✅ **Full tag inventory** — every tag type with count, expandable to the
-  carrying objects, and "Select in C4D" per type. Internal geometry data
-  tags are filtered out.
+  carrying objects, and "Select in C4D" per type. Each object is one row —
+  several tags of a type show as chips on it, not as duplicate rows.
+- ✅ **Selection tags unified** — point, polygon and edge selections appear
+  as ONE "Selection" entry; every tag chip carries a point/poly/edge badge,
+  and select-in-C4D covers all three kinds.
+- ✅ **Only tags you can see** — data tags that never show in the Object
+  Manager (per-geometry payloads) are filtered out of the audit.
 - ✅ **Feeds the health score** — missing phong + duplicate tags count as
   defects.
 

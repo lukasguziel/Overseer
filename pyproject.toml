@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overseer"
-version = "1.0.0rc1"
+version = "1.0.0"
 description = "Cinema 4D Plugin: Szenen-Analyse, Naming-Vereinheitlichung und Struktur-Optimierung"
 requires-python = ">=3.9"
 

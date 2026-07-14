@@ -1,6 +1,6 @@
 # Roadmap to 1.0
 
-Current release: **1.0.0-rc1** (first external beta, tester: Cornelius D.).
+Current release: **1.0.0** (first stable release).
 This file turns the beta feedback into concrete, ordered features. Check items
 off as they ship; when the list is done we cut 1.0.
 

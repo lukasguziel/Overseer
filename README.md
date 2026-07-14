@@ -29,11 +29,13 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 - **Translate** — rewrites names into your target language, via Google or
   offline dictionaries, with real source-language detection.
 - **Layers** — gives every layerless object a layer, single or in one
-  batch, without moving anything.
+  batch, and recolors the whole layer stack with an editable gradient —
+  without moving anything.
 - **Materials** — finds unused materials, oversized textures and missing
   maps — relink via file dialog, copy into the project, or clear dead refs.
 - **Tags** — audits every tag: missing Phong tags, duplicate material tags,
-  phong-angle spread with one-click alignment.
+  phong-angle spread with one-click alignment, and a grouped inventory with
+  unified selection tags.
 - **Files** — inventory of external references (Alembic, caches, IES,
   audio/video) with missing-file relink and accept.
 - **Assets** — searchable, sortable object inventory with batch actions
