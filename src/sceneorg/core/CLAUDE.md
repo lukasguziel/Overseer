@@ -63,6 +63,10 @@ Dependency-free image dimension probing by format (`image_size()` plus
 `_exr_size`, `_webp_size`, `_tiff_size`, `_jpeg_size`, `_hdr_size`, `_tga_size`);
 `resolution_tag()` buckets pixel counts into labels.
 
+### materials_logic.py
+`is_internal_material()` — dunder-named plugin helpers (Octane's
+`__octanetemp__` etc.) are never listed as unused and never deleted.
+
 ### files_logic.py
 Asset/texture path logic: `file_ext`, `is_image`, `classify_kind`,
 `relocatable()` (can a path be relinked), and `summarize()`. `IMAGE_EXTS` set.
