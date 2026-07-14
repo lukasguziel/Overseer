@@ -244,6 +244,22 @@ def test_resize_decision_with_pillow():
     assert textures.resize_decision(".xyz", has_pillow=True)[0] is False
 
 
+def test_resize_decision_with_host_engine():
+    # postcondition: C4D's own engine covers the render formats, incl. the
+    # float ones — hdr/exr must be resizable without Pillow
+    for ext in (".hdr", ".exr", ".tif", ".jpg", ".bmp", ".png"):
+        ok, note = textures.resize_decision(ext, has_pillow=False, has_host=True)
+        assert ok is True and note == "", ext
+    assert textures.resize_decision(".xyz", has_pillow=False, has_host=True)[0] is False
+
+
+def test_resize_decision_float_formats_need_the_host():
+    # postcondition: Pillow alone cannot read hdr/exr — without the host
+    # engine they are refused instead of tonemapped by a wrong reader
+    assert textures.resize_decision(".hdr", has_pillow=True)[0] is False
+    assert textures.resize_decision(".exr", has_pillow=True)[0] is False
+
+
 def test_resize_target_and_dims():
     # postcondition
     assert textures.resize_target("/tex/wood.png", 50) == "/tex/wood_50.png"

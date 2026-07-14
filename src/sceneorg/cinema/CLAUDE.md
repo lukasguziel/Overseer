@@ -28,7 +28,11 @@ level. Gotchas: material identity keys use `GetGUID()` not names (scenes carry
 duplicate material names); `GetAllAssetsNew` RETURNS an int status and FILLS a
 list arg (iterating the return value is the classic "int not iterable" crash);
 path writes go to EVERY parameter holding the exact string (Octane/Redshift nodes
-repeat a path across params) and are matched slash/case-insensitively.
+repeat a path across params) and are matched slash/case-insensitively; dunder
+materials (`__octanetemp__`) are plugin-internal — skipped by the unused scan
+and never deleted (`core.materials_logic`); `_host_resize` keeps bit depth end
+to end (deep sources save with `SAVEBIT_32BITCHANNELS`, so hdr/exr stay float —
+no tonemap) and refuses alpha maps rather than dropping the mask.
 
 ### webapi.py
 The JSON API. `handle(payload)` dispatches on `op`, publishes an `_OP_LABELS`

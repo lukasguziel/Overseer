@@ -70,8 +70,10 @@ def aggregate(infos) -> dict:
 
 # Formats the HOST (Cinema 4D's own bitmap engine) can read and write back.
 # This is the normal path inside the plugin — no third-party dependency.
+# HDR/EXR stay float end to end there: no tonemapping, no depth reduction.
 HOST_RESIZE_EXTS = frozenset({
     ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".tga", ".psd", ".exr",
+    ".hdr",
 })
 
 

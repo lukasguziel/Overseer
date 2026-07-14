@@ -25,6 +25,7 @@ def _save_filters() -> dict:
         (".tga",): "FILTER_TGA",
         (".psd",): "FILTER_PSD",
         (".exr",): "FILTER_EXR",
+        (".hdr",): "FILTER_HDR",
     }
     out: dict = {}
     for exts, sym in table.items():
@@ -335,6 +336,8 @@ class SceneAdapter:
             return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
                     "deletable_count": 0, "missing": [], "missing_textures": 0}
 
+        from ..core.materials_logic import is_internal_material
+
         used_any, used_visible = self._material_usage()
         doc_path = doc.GetDocumentPath() or ""
         unused: list = []
@@ -343,6 +346,10 @@ class SceneAdapter:
         missing: list = []
         for m in mats:
             name = m.GetName()
+            # Plugin-internal helpers (Octane's __octanetemp__ etc.) are not
+            # the artist's materials — not unused, not missing, not shown.
+            if is_internal_material(name):
+                continue
             key = self._mat_key(m)
             nowhere = key not in used_any
             hidden_only = (not nowhere) and key not in used_visible
@@ -1532,8 +1539,10 @@ class SceneAdapter:
         What it does NOT do is carry an alpha channel through the scaler
         (ScaleIt only touches the colour channels), so a map WITH alpha is
         refused here and left to Pillow — silently dropping a mask would be
-        worse than not resizing at all. Bit depth is preserved (GetBt), so a
-        32-bit EXR does not come back as 8-bit.
+        worse than not resizing at all. Bit depth is preserved end to end:
+        the work bitmap keeps the source depth (GetBt) and deep sources are
+        SAVED with 32-bit channels, so an HDR/EXR stays float (no tonemap,
+        no 8-bit) and a 16-bit TIFF does not come back crushed.
         """
         import os
 
@@ -1567,8 +1576,15 @@ class SceneAdapter:
             fmt = _SAVE_FILTERS.get(os.path.splitext(dst)[1].lower())
             if fmt is None:
                 return False
+            # 8-bit layouts are 8 (grey) or 24 (RGB) bits per pixel — anything
+            # else (16-bit grey, float grey, 16-bit/float RGB) must be written
+            # with full channel depth or the writer quietly clamps to 8-bit.
+            # Writers without deep support (JPG/BMP) ignore the flag.
+            save_bits = c4d.SAVEBIT_0
+            if bmp.GetBt() not in (8, 24):
+                save_bits |= getattr(c4d, "SAVEBIT_32BITCHANNELS", 0)
             return small.Save(dst, fmt, None,
-                              c4d.SAVEBIT_0) == c4d.IMAGERESULT_OK
+                              save_bits) == c4d.IMAGERESULT_OK
         except Exception:
             return False
 
@@ -1891,11 +1907,15 @@ class SceneAdapter:
         return len(targets)
 
     def delete_unused_materials(self, include_hidden: bool = False) -> int:
+        from ..core.materials_logic import is_internal_material
         doc = self.doc
         used_any, used_visible = self._material_usage()
         protected = used_visible if include_hidden else used_any
+        # Internal plugin helpers (__octanetemp__ etc.) are never deletable —
+        # the renderer recreates or needs them.
         targets = [m for m in doc.GetMaterials()
-                   if self._mat_key(m) not in protected]
+                   if self._mat_key(m) not in protected
+                   and not is_internal_material(m.GetName())]
         if not targets:
             return 0
 

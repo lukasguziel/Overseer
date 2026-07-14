@@ -101,7 +101,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
           </div>
           <p className="hint-sm">
             Every change made through the tool <b>across all areas</b>, newest
-            first — expand to read the before → after per object. <b>Revert</b>
+            first — expand to read the before → after per object. <b>Revert</b>{' '}
             restores those values in one undo step. Material/texture actions are
             logged but not revertible here. Each work tab also shows its own
             slice of this log at its foot.
