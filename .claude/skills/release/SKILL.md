@@ -23,6 +23,10 @@ beim Refresh unangetastet (kuratierte Notes überleben); BEWUSST ohne GitHubs
 Dev-Repo in den öffentlichen Mirror leaken.
 Dieser Skill macht alles drumherum: Version, Gates, Merge, kuratierte Notes.
 
+Im Skill-Ordner liegt auch `vendor_pillow.py`: lädt das cp311/win_amd64-Wheel
+und entpackt es nach `src/vendor/` (gitignored). CI ruft es beim Release-Build
+auf; lokal einmal laufen lassen, wenn der eigene Deploy Pillow mitnehmen soll.
+
 ## Ablauf
 
 **0. Docs frisch?** Hat sich seit dem letzten Release die UI geändert (neuer
