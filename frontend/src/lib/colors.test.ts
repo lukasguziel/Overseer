@@ -1,6 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { gradientColorAt, hexToRgb01, multiGradientColors, rgb01ToHex } from './colors'
+import {
+  gradientColorAt, hexToRgb01, multiGradientColors, resBucket, RES_BUCKETS,
+  RES_TIERS, rgb01ToHex, statusDot,
+} from './colors'
 import type { GradientStop } from './colors'
+
+describe('resBucket', () => {
+  it('buckets by the longest edge into the 4 pill classes', () => {
+    expect(resBucket(8192)).toBe('res-8k')
+    expect(resBucket(6144)).toBe('res-4k')   // 6K counts as the 4K bucket
+    expect(resBucket(4096)).toBe('res-4k')
+    expect(resBucket(2048)).toBe('res-2k')
+    expect(resBucket(1024)).toBe('res-sm')
+    expect(resBucket(0)).toBe('res-sm')
+  })
+
+  it('derives its thresholds from RES_TIERS — they cannot drift', () => {
+    const min = (label: string) => RES_TIERS.find((t) => t.label === label)!.min
+    expect(RES_BUCKETS.find((b) => b.key === 'res-8k')!.min).toBe(min('8K+'))
+    expect(RES_BUCKETS.find((b) => b.key === 'res-4k')!.min).toBe(min('4K'))
+    expect(RES_BUCKETS.find((b) => b.key === 'res-2k')!.min).toBe(min('2K'))
+  })
+})
+
+describe('statusDot', () => {
+  it('only missing is a defect', () => {
+    expect(statusDot(true)).toBe('var(--err)')
+    expect(statusDot(false)).toBe('var(--apply)')
+  })
+})
 
 const ENDS: GradientStop[] = [
   { t: 0, color: '#000000' }, { t: 1, color: '#ffffff' },

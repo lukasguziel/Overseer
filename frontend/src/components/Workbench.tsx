@@ -3,6 +3,7 @@ import type { ProgressInfo } from '../types'
 import useSteadyProgress from '../hooks/useSteadyProgress'
 import ConfirmModal from './ConfirmModal'
 import ActionButton, { type ActionTone } from './ActionButton'
+import { plural } from '../lib/format'
 
 // Live preview panel — loading style 2 of 3: the inline preview loader.
 // Header carries the change count and the batch pair
@@ -40,7 +41,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
   const pct = prog?.pct ?? null
   // Batch actions always confirm first — with the exact count on the table.
   const [confirm, setConfirm] = useState<'apply' | 'accept' | null>(null)
-  const n = `${count} item${count === 1 ? '' : 's'}`
+  const n = `${plural(count, 'item')}`
   // An empty result list doesn't earn the full-height panel — collapse it.
   const isEmpty = count === 0 && (extra?.count ?? 0) === 0 && !loading
   return (
@@ -48,7 +49,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
       <div className="wb-preview-head">
         <h3>{title}</h3>
         <span className={'head-count' + (!loading && count > 0 ? ' hc-todo' : '')}>
-          {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${count} change${count === 1 ? '' : 's'}`}
+          {loading ? 'updating…' : count === 0 ? 'nothing to change' : `${plural(count, 'change')}`}
           {!loading && (extra?.count ?? 0) > 0 && ` · ${extra!.count} ${extra!.label}`}
         </span>
         {actions}
@@ -66,7 +67,7 @@ export default function Workbench({ title, count, loading, empty, applyLabel, ap
         )}
       </div>
       {confirm === 'apply' && onApply && (
-        <ConfirmModal title={applyLabel || 'Apply all'}
+        <ConfirmModal title={applyLabel || 'Apply all'} danger={applyTone === 'danger'}
           message={`You are about to process ${n} in one go (one undo step in Cinema 4D). Continue?`}
           confirmLabel={`✓ ${applyLabel || 'Apply'} ${n}`}
           onConfirm={() => { setConfirm(null); onApply() }}

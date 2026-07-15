@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Kopiere diese Datei nach 'config.json' (neben overseer.pyp). Struktur/Regeln werden normalerweise im Rules-Tab oder per Preset gepflegt; hier nur als Beispiel. Alte v1-Configs (prefixes/groups) werden automatisch migriert.",
+  "_note": "Copy this file to 'config.json' (next to overseer.pyp). Structure/rules are normally maintained in the Rules tab or via presets; this is just an example. Old v1 configs (prefixes/groups) are migrated automatically.",
 
   "schema": 3,
   "casing": "PascalCase",

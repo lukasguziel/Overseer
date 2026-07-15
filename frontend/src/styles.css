@@ -109,6 +109,11 @@ body { margin: 0; background: var(--bg); color: var(--text);
 /* Clickable object name inside a non-SuggestionRow list (e.g. no-layer). */
 .fl-clickable { cursor: pointer; }
 .fl-clickable:hover { color: var(--text); text-decoration: underline dotted; }
+/* Keyboard path for clickable non-button rows (lib/rowButton): same quiet
+   outline as button:focus-visible, inset so grids don't jump. */
+.fl-clickable:focus-visible, .dg-click:focus-visible, .asset-row:focus-visible {
+  outline: 1px solid var(--hover); outline-offset: -1px;
+}
 /* One-line usage hint under a Workbench header — same inset as wb-note. */
 .wb-hint { margin: 2px 0 8px; padding: 0 16px; }
 
@@ -425,7 +430,12 @@ button.apply:hover:not(:disabled) { border-color: var(--apply); background: rgba
 button.apply.lg { padding: 10px 20px; font-weight: 600; }
 
 .error { color: #f0857e; background: #3a2726; border: 1px solid #5a3330;
-  padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; margin-bottom: 14px; font-size: 12px; }
+  padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; margin-bottom: 14px; font-size: 12px;
+  display: flex; align-items: baseline; gap: 10px; }
+.error > span { flex: 1; min-width: 0; }
+.error-dismiss { border: 0; background: none; color: #f0857e; opacity: .7;
+  cursor: pointer; font-size: 12px; padding: 0; }
+.error-dismiss:hover { opacity: 1; }
 /* Contextual info strip (e.g. selection scope hint) */
 .info-bar { color: var(--dim); background: var(--panel2); border: 1px solid var(--line);
   padding: 7px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; }
@@ -528,6 +538,15 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .nl-batch .nl-input { flex: none; width: 30ch; padding: 3px 9px; border-radius: 6px;
   font-size: 10px; letter-spacing: .03em; }
 .nl-batch .nl-input::placeholder { text-transform: uppercase; font-weight: 700; }
+
+/* Sidebar search field — the text filter at the top of a Filters sidebar
+   (Assets, Textures, Files). One block for all of them; it narrows the list
+   AND the facet counts below it. */
+.search { width: 100%; box-sizing: border-box; background: var(--panel2);
+  color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; font: inherit; margin: 0 0 10px; }
+.search::placeholder { color: var(--dim2); }
+.search:focus { outline: none; border-color: var(--hover); box-shadow: none; }
 
 /* Layers tab: layer picker inputs (batch row + per-row inline editor) —
    dark like every other input, never the white browser default. */
@@ -697,6 +716,9 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 /* ---------- Overview: substats + chart grids ---------- */
 .ov-topbar { display: flex; justify-content: flex-end; margin-bottom: -4px; }
 .substats { display: flex; flex-wrap: wrap; gap: 20px; padding: 2px 4px; color: var(--dim); font-size: 12px; }
+/* Inside a sidebar the stats line spaces itself from the filters below —
+   was an inline style in two tabs. */
+.wb-side .substats { margin-bottom: 12px; }
 .substats b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .substats .warn b { color: var(--warn); }
 .substats .mixed b { color: var(--mixed); }   /* informational, not a todo */
@@ -1029,10 +1051,6 @@ table.mini td.warn { color: var(--warn); }
 /* ---------- Asset browser ----------
    Same shape as every other worklist tab: filters in the left sidebar
    (.wb-side), the object table on the right. */
-.assets .search { width: 100%; box-sizing: border-box; background: var(--panel2);
-  color: var(--text); border: 1px solid var(--line); border-radius: 8px;
-  padding: 8px 12px; font: inherit; margin: 0 0 10px; }
-.assets .search:focus { outline: none; border-color: var(--hover); box-shadow: none; }
 .sortsel { display: flex; align-items: center; gap: 6px; }
 .sortsel select { flex: 1; min-width: 0; margin: 0; }
 .sortsel .sortdir { width: 28px; flex: none; margin: 0; padding: 6px 0; font-size: 11px;

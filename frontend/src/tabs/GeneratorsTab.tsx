@@ -10,6 +10,7 @@ import BarList from '../components/BarList'
 import Tip from '../components/Tip'
 import './generators.css'
 import ActionButton from '../components/ActionButton'
+import { plural } from '../lib/format'
 
 type ParamKind = 'int' | 'bool' | 'choice'
 
@@ -77,7 +78,7 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
       <div className="gens-param-head">
         <span className="gens-param-label">{param.label}</span>
         <span className="gens-mixed-note">
-          most use <b>{fmt(param.dominant, param)}</b> — {offCount} object{offCount === 1 ? '' : 's'} differ{offCount === 1 ? 's' : ''}
+          most use <b>{fmt(param.dominant, param)}</b> — {plural(offCount, 'object')} differ{offCount === 1 ? 's' : ''}
         </span>
       </div>
       {/* READ row: the values as they are right now — neutral chips, purely
@@ -91,7 +92,7 @@ function MixedParam({ type, param, busy, onApply, onSelectValue }: {
             const dom = sameValue(b.value, param.dominant)
             return (
               <button key={i} className={'gens-chip' + (dom ? ' dom' : '')}
-                title={`${b.count} object${b.count === 1 ? '' : 's'} — click to select them in Cinema 4D`}
+                title={`${plural(b.count, 'object')} — click to select them in Cinema 4D`}
                 onClick={() => onSelectValue(param, b.value)}>
                 <span className="gens-chip-val">{fmt(b.value, param)}</span>
                 <span className="gens-chip-n">×{b.count}</span>
@@ -259,7 +260,7 @@ function PerfCard() {
               <p className="hint-sm" style={{ marginTop: 8 }}>
                 Median of 3 runs per object.
                 {belowNoise > 0 && ` ${belowNoise} more rebuild in under 0.5 ms — too fast to measure, not worth listing.`}
-                {shaky > 0 && ` ${shaky} value${shaky === 1 ? '' : 's'} varied more between runs than the value itself — treat ${shaky === 1 ? 'it' : 'them'} as a rough order of magnitude.`}
+                {shaky > 0 && ` ${plural(shaky, 'value')} varied more between runs than the value itself — treat ${shaky === 1 ? 'it' : 'them'} as a rough order of magnitude.`}
               </p>
             </div>
           )}
@@ -419,7 +420,7 @@ export default function GeneratorsTab({ org }: { org: Organizer }) {
       {confirm && (
         <ConfirmModal
           title={`Align ${confirm.param.label}`}
-          message={`Set ${confirm.param.label} to ${fmt(confirm.value, confirm.param)} on ${confirm.count} ${confirm.type.label} object${confirm.count === 1 ? '' : 's'}? One undo step in Cinema 4D.`}
+          message={`Set ${confirm.param.label} to ${fmt(confirm.value, confirm.param)} on ${plural(confirm.count, `${confirm.type.label} object`)}? One undo step in Cinema 4D.`}
           confirmLabel={`✓ Set on ${confirm.count}`}
           onConfirm={runApply}
           onCancel={() => setConfirm(null)} />

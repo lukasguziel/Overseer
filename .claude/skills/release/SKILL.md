@@ -11,207 +11,209 @@ description: >-
   user would. Also use when the user wants to test a release build locally.
 ---
 
-# Release — neue Dist mit Release + Change Notes
+# Release — new dist with release + change notes
 
-**Branch-Modell: `main` IST der Release-Branch.** Gearbeitet wird auf `dev`;
-JEDER Push auf `main` lässt `.github/workflows/release.yml` die Gates fahren,
-das Zip bauen und das Release der im Repo gestempelten Version ERSETZEN (der
-`v*`-Tag wandert mit, der Mirror aktualisiert das öffentliche Repo). Neue
-Version = Version bumpen + nach `main` mergen — mehr nicht. Der Body bleibt
-beim Refresh unangetastet (kuratierte Notes überleben); BEWUSST ohne GitHubs
-`generate_release_notes` — dessen „Full Changelog"-Link würde das interne
-Dev-Repo in den öffentlichen Mirror leaken.
-Dieser Skill macht alles drumherum: Version, Gates, Merge, kuratierte Notes.
+**Branch model: `main` IS the release branch.** Work happens on `dev`;
+EVERY push to `main` makes `.github/workflows/release.yml` run the gates,
+build the zip and REPLACE the release of the version stamped in the repo
+(the `v*` tag moves along, the mirror updates the public repo). New
+version = bump the version + merge to `main` — nothing more. The body stays
+untouched on refresh (curated notes survive); DELIBERATELY without GitHub's
+`generate_release_notes` — its "Full Changelog" link would leak the internal
+dev repo into the public mirror.
+This skill does everything around it: version, gates, merge, curated notes.
 
-Im Skill-Ordner liegt auch `vendor_pillow.py`: lädt das cp311/win_amd64-Wheel
-und entpackt es nach `src/vendor/` (gitignored). CI ruft es beim Release-Build
-auf; lokal einmal laufen lassen, wenn der eigene Deploy Pillow mitnehmen soll.
+The skill folder also holds `vendor_pillow.py`: downloads the cp311/win_amd64
+wheel and unpacks it into `src/vendor/` (gitignored). CI calls it during the
+release build; run it once locally if your own deploy should include Pillow.
 
-## Ablauf
+## Procedure
 
-**0. Docs frisch?** Hat sich seit dem letzten Release die UI geändert (neuer
-Tab, geänderte Texte/Screens), ZUERST das `readme`-Skill laufen lassen
-(frische Screenshots + README) — der Docs-Mirror ins öffentliche Repo hängt
-am `main`-Push und nimmt sie dann automatisch mit.
+**0. Docs fresh?** If the UI changed since the last release (new tab,
+changed texts/screens), run the `readme` skill FIRST (fresh screenshots +
+README) — the docs mirror into the public repo hangs off the `main` push and
+picks them up automatically.
 
-**1. Version bestimmen.**
-- Nennt der User eine Version (z. B. `v1.0.0`) → nehmen.
-- Sonst aus `frontend/package.json` die aktuelle lesen und einen Vorschlag
-  machen (rc → final, sonst minor-Bump); den User NUR fragen, wenn der
-  Sprung unklar ist (z. B. rc vs. final vs. major).
-- Format prüfen: Tag ist `v<semver>[-rcN|-beta[.N]]`. PEP-440-Form für
-  `pyproject.toml` ableiten: `1.0.0-rc1 → 1.0.0rc1`, `1.0.0-beta → 1.0.0b0`.
+**1. Determine the version.**
+- The user names a version (e.g. `v1.0.0`) → use it.
+- Otherwise read the current one from `frontend/package.json` and propose a
+  bump (rc → final, otherwise minor bump); ask the user ONLY if the jump is
+  unclear (e.g. rc vs. final vs. major).
+- Check the format: the tag is `v<semver>[-rcN|-beta[.N]]`. Derive the
+  PEP-440 form for `pyproject.toml`: `1.0.0-rc1 → 1.0.0rc1`,
+  `1.0.0-beta → 1.0.0b0`.
 
-**Abkürzung — Version ist schon gebumpt:** Steht die Zielversion bereits an
-allen vier Stellen (Schritt 2) und ist committet/gepusht, Schritt 2 und den
-Version-Commit in Schritt 5 überspringen — es fehlen dann nur Gates, Notes,
-Tag-Push und Release-Nacharbeit. (Typischer Fall: der Bump war Teil der
-letzten Arbeitssession.)
+**Shortcut — version already bumped:** If the target version is already in
+place at all four spots (step 2) and committed/pushed, skip step 2 and the
+version commit in step 5 — only gates, notes, tag push and release
+follow-up remain. (Typical case: the bump was part of the last work
+session.)
 
-**2. Version überall setzen** (alle vier Stellen, sonst driftet es):
-- `frontend/package.json` → `"version": "<ohne v>"`
-- `src/overseer/__init__.py` → `__version__ = "<ohne v>"`
+**2. Set the version everywhere** (all four spots, otherwise it drifts):
+- `frontend/package.json` → `"version": "<without v>"`
+- `src/overseer/__init__.py` → `__version__ = "<without v>"`
 - `pyproject.toml` → `version = "<PEP-440>"`
-- `docs/ROADMAP.md` → „Current release:"-Zeile
+- `docs/ROADMAP.md` → "Current release:" line
 
-**3. Gates lokal fahren** (dasselbe wie CI — ein roter Tag-Push erzeugt
-KEIN Release, der Workflow bricht ab):
+**3. Run the gates locally** (same as CI — a red tag push produces NO
+release, the workflow aborts):
 ```bash
 python -m pytest && python -m ruff check src tests
-cd frontend && pnpm test && pnpm run build   # Build aktualisiert src/web/
+cd frontend && pnpm test && pnpm run build   # build refreshes src/web/
 ```
-Rot → fixen oder abbrechen, NICHT taggen.
+Red → fix or abort, do NOT tag.
 
-**4. Change Notes schreiben.** Quelle: Commits seit dem letzten Tag —
+**4. Write the change notes.** Source: commits since the last tag —
 ```bash
-git tag --sort=-creatordate | head -5        # letzter Release-Tag
-git log <letzter-tag>..HEAD --oneline
+git tag --sort=-creatordate | head -5        # latest release tag
+git log <last-tag>..HEAD --oneline
 ```
-Daraus kuratierte Notes (Markdown, ENGLISCH — Release-Publikum) verfassen:
-- Abschnitte nur wenn nicht leer: `## New`, `## Improved`, `## Fixed`.
-- Nutzersprache, pro Punkt eine Zeile, Feature-Sicht statt Commit-Prosa
-  (nicht „refactor webapi cache", sondern was der Artist davon hat).
-- Interne/Doku/CI-Commits weglassen; Screenshots-Refresh o. Ä. maximal
-  als Sammelpunkt.
-- **NIE das Dev-Repo referenzieren** (`Goodsoup-Family-Crypt/…`): keine
-  Compare-/Commit-/Issue-Links, kein „Full Changelog". Die Notes landen 1:1
-  im öffentlichen Mirror — jeder Link zeigt dort ins Leere bzw. leakt den
-  internen Repo-Namen.
-- Notes dem User kurz zeigen (im Chat), bevor sie live gehen — er will
-  ggf. umformulieren.
+Write curated notes from that (markdown, ENGLISH — release audience):
+- Sections only when non-empty: `## New`, `## Improved`, `## Fixed`.
+- User language, one line per item, feature view instead of commit prose
+  (not "refactor webapi cache" but what the artist gets out of it).
+- Leave out internal/docs/CI commits; screenshot refreshes and the like at
+  most as one collective bullet.
+- **NEVER reference the dev repo** (`Goodsoup-Family-Crypt/…`): no
+  compare/commit/issue links, no "Full Changelog". The notes land 1:1 in
+  the public mirror — any such link points nowhere there or leaks the
+  internal repo name.
+- Show the notes briefly to the user (in chat) before they go live — they
+  may want to rephrase.
 
-**5. Commit auf `dev`, merge nach `main`, push.** KEIN manuelles Tag — der
-Workflow setzt/verschiebt `v<version>` selbst auf den released Commit:
+**5. Commit on `dev`, merge to `main`, push.** NO manual tag — the
+workflow sets/moves `v<version>` itself onto the released commit:
 ```bash
-git add <versionierte Dateien>   # nur Version-Bump + ggf. offene Arbeit, keine Scratch-Artefakte
+git add <versioned files>   # only the version bump + any open work, no scratch artifacts
 git commit -m "v<version>"
 git push origin dev
 git checkout main && git merge dev && git push origin main
 git checkout dev
 ```
-(Der `main`-Push triggert Release-Build + Mirror. Gleiche Version wie das
-bestehende Release → Asset wird ersetzt; neue Version → neues Release.)
+(The `main` push triggers release build + mirror. Same version as the
+existing release → the asset is replaced; new version → new release.)
 
-**6. Workflow abwarten und Notes setzen.**
+**6. Wait for the workflow and set the notes.**
 ```bash
 gh run watch --exit-status $(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
-Danach die kuratierten Notes ÜBER den bestehenden Body setzen — der
-Installations-Absatz aus dem Workflow muss erhalten bleiben:
+Then put the curated notes ABOVE the existing body — the installation
+paragraph from the workflow must be preserved:
 ```bash
-gh release view v<version> --json body --jq .body   # bestehenden Body holen
-gh release edit v<version> --notes "<kuratierte Notes>
+gh release view v<version> --json body --jq .body   # fetch the existing body
+gh release edit v<version> --notes "<curated notes>
 
-<bestehender Installations-Absatz>"
+<existing installation paragraph>"
 ```
 
-**7. Verifizieren + melden.**
+**7. Verify + report.**
 ```bash
 gh release view v<version> --json assets,url --jq '{url, assets: [.assets[].name]}'
 ```
-`Overseer-v<version>.zip` muss als Asset dranhängen. Dem User die
-Release-URL geben.
+`Overseer-v<version>.zip` must be attached as an asset. Give the user the
+release URL.
 
-**8. Mirror verifizieren (läuft automatisch).** Das Dev-Repo
-(`Goodsoup-Family-Crypt/overseer`) bleibt intern; **`lukasguziel/overseer`**
-ist die öffentliche Datenquelle — dort liegen die Releases und die Doku
-(README ohne Development-Abschnitt + `docs/FEATURES.md` + Screenshots, kein
-Code). Das Spiegeln macht `.github/workflows/mirror.yml` selbst:
+**8. Verify the mirror (runs automatically).** The dev repo
+(`Goodsoup-Family-Crypt/overseer`) stays internal; **`lukasguziel/overseer`**
+is the public data source — the releases and the docs live there (README
+without the Development section + `docs/FEATURES.md` + screenshots, no
+code). The mirroring is done by `.github/workflows/mirror.yml` itself:
 
-- Release: `release.yml` ruft nach dem Build den Mirror-Job auf (Asset +
-  Body → öffentliches Repo). Der Notes-Edit aus Schritt 6 feuert
-  `release: edited` und synct den Body automatisch nach.
-- Docs: jeder Push auf `main`, der `README.md`, `docs/FEATURES.md` oder
-  `docs/screenshots/**` anfasst, synct die Doku ins öffentliche Repo.
+- Release: `release.yml` calls the mirror job after the build (asset +
+  body → public repo). The notes edit from step 6 fires `release: edited`
+  and re-syncs the body automatically.
+- Docs: every push to `main` that touches `README.md`, `docs/FEATURES.md`
+  or `docs/screenshots/**` syncs the docs into the public repo.
 
-Hier nur prüfen, dass es geklappt hat:
+Here, only check that it worked:
 
 ```bash
 gh release view v<version> --repo lukasguziel/overseer --json url,assets --jq '{url, assets: [.assets[].name]}'
 ```
 
-Fehlt das Release, den Mirror-Lauf ansehen (`gh run list
---workflow=mirror.yml`) — häufigste Ursache: `MIRROR_TOKEN`-Secret abgelaufen
-oder widerrufen (es ist das `gh`-Token von lukasguziel; neu setzen mit
+If the release is missing, look at the mirror run (`gh run list
+--workflow=mirror.yml`) — most common cause: the `MIRROR_TOKEN` secret
+expired or was revoked (it is lukasguziel's `gh` token; reset it with
 `gh secret set MIRROR_TOKEN --repo Goodsoup-Family-Crypt/overseer --body "$(gh auth token)"`).
-Das öffentliche Repo ist ggf. noch privat — der Mirror funktioniert trotzdem;
-öffentlich schaltet es der User selbst.
+The public repo may still be private — the mirror works anyway; the user
+flips it public themselves.
 
-Danach die **öffentlichen Issues checken** — sie sind der einzige Rückkanal
-der Nutzer und tauchen im Dev-Repo nirgends auf:
+Afterwards **check the public issues** — they are the users' only feedback
+channel and never show up in the dev repo:
 ```bash
 gh issue list --repo lukasguziel/overseer --state open
 ```
-Offene Issues dem User kurz nennen (bereits Gefixtes gehört in die Notes).
+Briefly report open issues to the user (anything already fixed belongs in
+the notes).
 
-**9. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
-grün, wenn das gebaute Zip auch installiert startet — CI baut das Paket,
-prüft aber nie, ob es als Plugin lädt. Also den User fragen:
+**9. Offer a clean test (always ask).** The release is only truly green
+once the built zip also installs and starts — CI builds the package but
+never checks that it loads as a plugin. So ask the user:
 
-> „Release lokal clean testen? (Zip frisch in C4D 2024 installieren)"
+> "Test the release locally in a clean install? (fresh zip install into C4D 2024)"
 
-- **Nein** → fertig, nichts anfassen.
-- **Ja** → `test-release.ps1` (in diesem Skill-Ordner) fahren. Es lädt NICHT
-  den Working Tree, sondern das Release-Asset:
+- **No** → done, touch nothing.
+- **Yes** → run `test-release.ps1` (in this skill folder). It does NOT
+  install the working tree but the release asset:
 
 ```powershell
 gh release download v<version> --dir $env:TEMP\so-release --clobber
-# Ziel = plugin_dir aus .claude/skills/deploy/deploy.config.json (User-Eintrag)
+# Target = plugin_dir from .claude/skills/deploy/deploy.config.json (user entry)
 powershell -File .claude/skills/release/test-release.ps1 `
     -Zip "$env:TEMP\so-release\Overseer-v<version>.zip" `
     -Target "<plugin_dir>"
 ```
 
-Regeln dabei:
-- **Cinema 4D muss geschlossen sein** (geladene Dateien sind gesperrt, und
-  `.pyp`/`bridge` laden nur beim Start) — das Skript bricht sonst ab.
-- **Program Files braucht Elevation**: via
-  `Start-Process powershell -Verb RunAs -Wait -ArgumentList ...` starten, der
-  User bestätigt den UAC-Dialog. Ohne Elevation bricht das Skript ab.
-- **Backup ist Pflicht, nie überspringen.** Der Zielordner wird gewipt, und
-  darin liegen die echten Nutzdaten (`config.json` mit dem Rule-Set,
-  `presets/`, `plans/`). Das Skript sichert den kompletten Ordner nach
-  `%TEMP%\Overseer-release-test\<timestamp>\`, BEVOR es löscht, und
-  bricht ab, wenn das Backup nicht schreibbar ist. Dem User den Backup-Pfad
-  nennen.
-- Der Test läuft **komplett frisch** (Default: kein `config.json`, keine
-  `presets/`, kein `dev_repo.txt` → echtes First-Run-Verhalten eines neuen
-  Users). Nur wenn der User ausdrücklich den Release-Code gegen seine echten
-  Daten sehen will: `-KeepData`.
-- Danach: C4D starten, `Shift+C` → **„Overseer"**, Web-UI muss
-  aufgehen. Läuft es nicht, ist das ein **Release-Bug** (Packaging), kein
-  lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `overseer/`,
-  `vendor/` vorhanden?), fixen, neue Version.
+Rules for this:
+- **Cinema 4D must be closed** (loaded files are locked, and
+  `.pyp`/`bridge` only load at startup) — the script aborts otherwise.
+- **Program Files needs elevation**: start via
+  `Start-Process powershell -Verb RunAs -Wait -ArgumentList ...`; the user
+  confirms the UAC dialog. Without elevation the script aborts.
+- **The backup is mandatory, never skip it.** The target folder gets wiped,
+  and it holds the real user data (`config.json` with the rule set,
+  `presets/`, `plans/`). The script backs up the complete folder to
+  `%TEMP%\Overseer-release-test\<timestamp>\` BEFORE deleting, and aborts
+  if the backup is not writable. Tell the user the backup path.
+- The test runs **completely fresh** (default: no `config.json`, no
+  `presets/`, no `dev_repo.txt` → true first-run behavior of a new user).
+  Only if the user explicitly wants to see the release code against their
+  real data: `-KeepData`.
+- Then: start C4D, `Shift+C` → **"Overseer"**, the web UI must open. If it
+  doesn't, that is a **release bug** (packaging), not a local problem —
+  check the zip contents (`web/index.html`, `overseer/`, `vendor/`
+  present?), fix, new version.
 
-**10. Restore — immer, nicht fragen.** Der Clean-Test ist ein Wegwerf-Zustand:
-Der User sitzt danach auf einem Release-Stand OHNE seine Daten. Sobald er den
-Test bestätigt hat (egal ob grün oder rot), den vorherigen Stand vollständig
-zurückspielen — C4D dazu wieder schließen lassen:
+**10. Restore — always, don't ask.** The clean test is a throwaway state:
+afterwards the user sits on a release install WITHOUT their data. As soon
+as they have confirmed the test (green or red), fully restore the previous
+state — have C4D closed again for this:
 ```powershell
 powershell -File .claude/skills/release/test-release.ps1 `
-    -Target "<plugin_dir>" -Restore      # neuestes Backup zurück, elevated
+    -Target "<plugin_dir>" -Restore      # restore the latest backup, elevated
 ```
-Erst danach ist der Release-Job fertig. Der User bekommt gemeldet: Test-
-Ergebnis + „dein Stand (Rule-Set, Presets, Plans) ist zurück". Läuft er
-ohnehin gleich weiter am Code, ist ein normaler `deploy`-Lauf die Alternative
-— aber niemals den Release-Stand einfach stehen lassen.
+Only then is the release job finished. Report to the user: test result +
+"your state (rule set, presets, plans) is back". If they keep working on
+the code right away, a normal `deploy` run is the alternative — but never
+just leave the release install sitting there.
 
-## Fehlerbilder
-- **Workflow rot nach `main`-Push** → Ursache auf `dev` fixen, erneut nach
-  `main` mergen — kein Tag-Handling nötig, der Workflow verschiebt den Tag
-  selbst und nur bei grünen Gates. (Es entsteht kein halbes Release — der
-  Release-Step läuft zuletzt.)
-- **`gh` nicht eingeloggt** → `gh auth status`; der User muss `gh auth
-  login` selbst ausführen (interaktiv, ggf. via `! gh auth login`).
-- **Tag existiert schon** → Version war schon released; neue Version
-  wählen, niemals einen bestehenden Release-Tag verschieben.
-- **Uncommitted fremde Änderungen im Tree** → den User fragen, ob sie mit
-  ins Release sollen; nie stillschweigend mittaggen oder stashen.
+## Failure modes
+- **Workflow red after the `main` push** → fix the cause on `dev`, merge to
+  `main` again — no tag handling needed, the workflow moves the tag itself
+  and only on green gates. (No half release is created — the release step
+  runs last.)
+- **`gh` not logged in** → `gh auth status`; the user must run `gh auth
+  login` themselves (interactive, possibly via `! gh auth login`).
+- **Tag already exists** → the version was already released; pick a new
+  version, never move an existing release tag.
+- **Uncommitted unrelated changes in the tree** → ask the user whether they
+  should go into the release; never silently tag them along or stash them.
 
-## Nicht vergessen
-- Zip ist gegen **C4D 2024** gebaut/getestet (steht so im Release-Body).
-- Der Clean-Test (Schritt 9) installiert das **Release-Asset**, nicht den
-  Working Tree — das ist der ganze Punkt. Niemals stattdessen `deploy.ps1`
-  fahren, das würde den Dev-Stand testen.
-- Danach gilt wieder die normale Deploy-Regel: wer weiterentwickelt,
-  deployt mit dem `deploy`-Skill (und überschreibt den Release-Stand).
+## Don't forget
+- The zip is built/tested against **C4D 2024** (stated in the release body).
+- The clean test (step 9) installs the **release asset**, not the working
+  tree — that is the whole point. Never run `deploy.ps1` instead; that
+  would test the dev state.
+- Afterwards the normal deploy rule applies again: whoever keeps
+  developing deploys with the `deploy` skill (and overwrites the release
+  install).

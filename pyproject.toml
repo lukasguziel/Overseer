@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "overseer"
 version = "1.0.0"
-description = "Cinema 4D Plugin: Szenen-Analyse, Naming-Vereinheitlichung und Struktur-Optimierung"
+description = "Cinema 4D plugin: scene analysis, naming normalization, and structure optimization"
 requires-python = ">=3.9"
 
 [tool.pytest.ini_options]
@@ -16,7 +16,9 @@ addopts = "-q"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+# Lowest supported runtime: Cinema 4D 2023 ships Python 3.9, so pyupgrade
+# must never suggest 3.10+ syntax.
+target-version = "py39"
 src = ["src"]
 # The plugin loader is Python but carries C4D's .pyp extension.
 extend-include = ["*.pyp"]

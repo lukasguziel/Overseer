@@ -8,7 +8,8 @@ The C4D plugin entry point lives directly here (`overseer.pyp`); all pure,
 ### overseer.pyp
 Loader. Registers ONE command ("Overseer", plugin id `1069217`) whose
 `Execute` calls `overseer.bridge.open_panel()` â€” starting the HTTP server and
-opening the web UI (the only UI). Web port `8787`.
+opening the web UI (the only UI). The web port comes from config.json `port`
+(default `8787` in `overseer/core/defaults.py`), resolved inside the bridge.
 
 - `main()` wraps each registration in `_safe()` (try/except that prints a
   traceback) so a failed register never aborts plugin load.

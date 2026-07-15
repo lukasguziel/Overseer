@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEntry, ChangeItem } from '../types'
 import HistoryList, { type HistoryRow } from './HistoryList'
+import { plural } from '../lib/format'
 
 const KIND_LABEL: Record<string, string> = {
   naming: 'Rename',
@@ -68,7 +69,7 @@ function RevertAction({ e, indices, onRevert }: {
   if (!e.revertible) return null
   return confirm ? (
     <span className="mat-confirm">
-      revert {indices ? `${indices.length} op${indices.length === 1 ? '' : 's'}` : 'all'}?
+      revert {indices ? `${plural(indices.length, 'op')}` : 'all'}?
       <button className="mat-yes" onClick={() => { onRevert(e.id, indices); setConfirm(false) }}>✓</button>
       <button className="mat-no" onClick={() => setConfirm(false)}>✕</button>
     </span>

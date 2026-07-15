@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Organizer } from '../hooks/useOrganizer'
 import { computeHygiene, CASING_COMPAT } from '../lib/hygiene'
 import { catColor, resTierColor, RES_TIERS } from '../lib/colors'
-import { humanNum, humanBytes } from '../lib/format'
+import { plural, humanNum, humanBytes } from '../lib/format'
 import Tile, { type Delta } from '../components/Tile'
 import Strip from '../components/Strip'
 import Treemap, { TreemapChart, type TreemapDatum } from '../components/Treemap'
@@ -87,25 +87,29 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return { data: report?.language || {}, fromEngine: false }
   }, [org.translation, report])
 
-  // Texture budget: resolution mix + estimated UNCOMPRESSED memory (w*h*4
-  // bytes — what actually lands in RAM/VRAM, disk size lies for JPGs) and
-  // the heaviest maps.
-  const texBudget = React.useMemo(() => {
+  // Every referenced map with pixel data, deduped per physical FILE, not per
+  // reference: one map shared across materials is one map — otherwise it fills
+  // several "Heaviest maps" rows / treemap tiles and its memory is summed once
+  // per material. Shared base for the texture budget AND the texture map.
+  const dedupedTex = React.useMemo(() => {
     const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
-    // Per physical FILE, not per reference: one map shared across materials is
-    // one map — otherwise it fills several "Heaviest maps" rows and its memory
-    // is summed once per material.
     const seen = new Set<string>()
-    const withPx = entries.filter((e) => {
-      if (e.width <= 0) return false
+    return entries.filter((e) => {
+      if (e.width <= 0 || e.height <= 0) return false
       const id = e.resolved || e.path
       if (seen.has(id)) return false
       seen.add(id)
       return true
     })
+  }, [report])
+
+  // Texture budget: resolution mix + estimated UNCOMPRESSED memory (w*h*4
+  // bytes — what actually lands in RAM/VRAM, disk size lies for JPGs) and
+  // the heaviest maps.
+  const texBudget = React.useMemo(() => {
     const tiers: Record<string, number> = {}
     let clientMem = 0
-    for (const e of withPx) {
+    for (const e of dedupedTex) {
       const t = resTierOf(Math.max(e.width, e.height)).label
       tiers[t] = (tiers[t] || 0) + 1
       clientMem += Math.round(e.width * e.height * 4 * MIP_FACTOR)
@@ -113,43 +117,35 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     // Prefer the server aggregate (real channels/bit depth per file); the
     // client sum assumes 8-bit RGBA and is only the fallback before it lands.
     const mem = report?.textures?.total_vram ?? clientMem
-    const top = [...withPx].sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3)
-    return { tiers, mem, top, count: withPx.length }
-  }, [report])
+    const top = [...dedupedTex].sort((a, b) => b.width * b.height - a.width * a.height).slice(0, 3)
+    return { tiers, mem, top, count: dedupedTex.length }
+  }, [report, dedupedTex])
 
   // Texture map: area = pixel count (VRAM cost, NOT disk bytes — an 8K JPG is
   // tiny on disk but huge in memory), color = resolution tier, click -> select
-  // the material. Dedupe by resolved path so one file shared across materials
-  // is one tile.
+  // the material.
   const texMap = React.useMemo(() => {
-    const entries = report?.textures ? [...report.textures.absolute, ...report.textures.relative] : []
-    const seen = new Set<string>()
     const usedTiers = new Set<string>()
-    const out: TreemapDatum[] = []
-    for (const e of entries) {
-      if (e.width <= 0 || e.height <= 0) continue
-      const id = e.resolved || e.path
-      if (seen.has(id)) continue
-      seen.add(id)
+    const out: TreemapDatum[] = dedupedTex.map((e) => {
       const longest = Math.max(e.width, e.height)
       usedTiers.add(resTierColor(longest))
-      out.push({
-        key: id,
+      return {
+        key: e.resolved || e.path,
         value: e.width * e.height,
         label: e.file,
         detail: `${e.width}×${e.height}`,
         color: resTierColor(longest),
         title: `${e.path}\n${e.width}×${e.height} · ${humanBytes(e.width * e.height * 4)} VRAM\nClick to select material “${e.material}”`,
         onClick: () => org.doFocusMaterial(e.material),
-      })
-    }
+      }
+    })
     out.sort((a, b) => b.value - a.value)
     const tiers = RES_TIERS.filter((t) => usedTiers.has(t.color))
     return { data: out.slice(0, 40), full: out.slice(0, 150), tiers }
     // `org` itself is a fresh object every render (1 s dirty poll) — depending
     // on it would rebuild the whole treemap every tick; doFocusMaterial is a
     // stable callback.
-  }, [report, org.doFocusMaterial])
+  }, [dedupedTex, org.doFocusMaterial])
 
   // Category legend for the geometry map — only the categories present among
   // objects that carry polygons (same order as the fixed category palette).
@@ -281,7 +277,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             const count = org.planCount(s.tab)
             return (
               <button key={s.tab} className="flow-step" onClick={() => org.setTab(s.tab)}
-                title={count == null ? `Open ${s.label} to preview` : count > 0 ? `${count} open todo${count === 1 ? '' : 's'}` : 'All clean'}>
+                title={count == null ? `Open ${s.label} to preview` : count > 0 ? `${plural(count, 'open todo')}` : 'All clean'}>
                 <span className="flow-num">{i + 1}</span>
                 {s.label}
                 {count != null && (count > 0

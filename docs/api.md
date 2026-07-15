@@ -1,55 +1,55 @@
-# Plugin-HTTP-API (Port 8787)
+# Plugin HTTP API (port 8787)
 
-Voraussetzung: C4D laeuft, Command **"Overseer"** wurde geklickt,
-und der **Server-Dialog ist offen** (sein Timer draint die Main-Thread-Queue —
-Dialog zu = Requests haengen). Alle Endpoints: `POST 127.0.0.1:8787/api/<op>`
-mit JSON-Body; `webapi.py` wird pro Request hot-reloaded.
+Prerequisite: C4D is running, the **"Overseer"** command was clicked,
+and the **server dialog is open** (its timer drains the main-thread queue —
+dialog closed = requests hang). All endpoints: `POST 127.0.0.1:8787/api/<op>`
+with a JSON body; `webapi.py` is hot-reloaded per request.
 
-## Endpoints (verifiziert gegen webapi.handle)
+## Endpoints (verified against webapi.handle)
 
-| op | Body | Liefert |
+| op | Body | Returns |
 |---|---|---|
-| `analyze` | `{}` | `{report, export_path}` — schreibt auch `var/scene_report.json` ins Repo + Historie |
-| `export` / `export_csv` | `{}` | wie analyze; csv zusaetzlich `scene_structure.csv` (Semikolon, utf-8-sig) |
-| `history` | `{}` | Analyse-Historie (neueste zuerst) |
-| `detect` | `{}` | erkanntes Schema `{style, language, number_pad, confidence, …}` |
-| `rules` / `config` | `{}` bzw. `{save:true, data:{…}}` | aktives Regelwerk / config.json lesen+schreiben |
-| `presets` | `{}` | Preset-Liste + aktives Preset |
-| `apply_preset` | `{"id": "so-arbeitest-du"}` | schreibt deployte config.json (inkl. generiertem Node-Graph) |
-| `plans` | `{}` | Plan-Liste aus `plans/` im Plugin-Verzeichnis |
-| `apply_plan` | `{"plan":{…}}` ODER `{"id":"<name>"}` | `{applied:{group,rename,move,layer}, errors:[…], total}` |
-| `plan_naming` / `apply_naming` | `{settings:{casing?,language?,number_pad?,selection?}}` | Rename-Diff `{guid,old,new}` |
-| `plan_structure` / `apply_structure` | `{settings:{safe:true,tidy:true,selection?}}` | Reparent-Diff + `skipped` |
-| `plan_translate` | `{}` | nicht-englische Namen `{guid,old,new,words}` |
-| `apply_translate` | `{"guids":[…]}` | wendet NUR die akzeptierten guids an |
-| `plan_layers` / `apply_layers` | `{}` | Layer-Zuordnung + `by_layer`-Counter |
-| `assign_layer` | `{"guids":[…],"layer":"Deko"}` | gewählte Objekte auf benannten Layer (wird angelegt) |
-| `set_layer_colors` | `{"colors":[{"name":"Deko","color":[r,g,b]}]}` | Layer-Farben setzen (0..1 Floats, ein Undo-Schritt) |
-| `move_to_group` | `{"guids":[…],"group":"Furniture"}` | gewählte Objekte unter benanntes Null (wird angelegt) |
-| `focus` | `{"guid": 108}` | selektiert + framt Objekt im Viewport |
-| `delete_material` / `delete_unused_materials` | `{"name":…}` / `{}` | Material-Aufraeumen |
+| `analyze` | `{}` | `{report, export_path}` — also writes `var/scene_report.json` into the repo + history |
+| `export` / `export_csv` | `{}` | like analyze; csv additionally `scene_structure.csv` (semicolon, utf-8-sig) |
+| `history` | `{}` | analysis history (newest first) |
+| `detect` | `{}` | detected scheme `{style, language, number_pad, confidence, …}` |
+| `rules` / `config` | `{}` resp. `{save:true, data:{…}}` | active rule set / read+write config.json |
+| `presets` | `{}` | preset list + active preset |
+| `apply_preset` | `{"id": "my-preset"}` | writes the deployed config.json (incl. generated node graph) |
+| `plans` | `{}` | plan list from `plans/` in the plugin directory |
+| `apply_plan` | `{"plan":{…}}` OR `{"id":"<name>"}` | `{applied:{group,rename,move,layer}, errors:[…], total}` |
+| `plan_naming` / `apply_naming` | `{settings:{casing?,language?,number_pad?,selection?}}` | rename diff `{guid,old,new}` |
+| `plan_structure` / `apply_structure` | `{settings:{safe:true,tidy:true,selection?}}` | reparent diff + `skipped` |
+| `plan_translate` | `{}` | non-English names `{guid,old,new,words}` |
+| `apply_translate` | `{"guids":[…]}` | applies ONLY the accepted guids |
+| `plan_layers` / `apply_layers` | `{}` | layer assignment + `by_layer` counter |
+| `assign_layer` | `{"guids":[…],"layer":"Decor"}` | selected objects onto the named layer (created if missing) |
+| `set_layer_colors` | `{"colors":[{"name":"Decor","color":[r,g,b]}]}` | set layer colors (0..1 floats, one undo step) |
+| `move_to_group` | `{"guids":[…],"group":"Furniture"}` | selected objects under a named Null (created if missing) |
+| `focus` | `{"guid": 108}` | selects + frames the object in the viewport |
+| `delete_material` / `delete_unused_materials` | `{"name":…}` / `{}` | material cleanup |
 
-## Rezepte
+## Recipes
 
-Live-Report in `reports/` sichern:
+Save a live report into `reports/`:
 ```bash
 curl -s -X POST 127.0.0.1:8787/api/analyze -H "Content-Type: application/json" -d '{}' \
   | python -c "import sys,json;json.dump(json.load(sys.stdin)['report'],open('reports/A.json','w'),ensure_ascii=True,indent=1)"
 ```
 
-Plan ausfuehren (Datei direkt posten):
+Run a plan (post the file directly):
 ```bash
 curl -s -X POST 127.0.0.1:8787/api/apply_plan -H "Content-Type: application/json" \
   --data-binary @src/plans/<name>.json
 ```
-(Die Datei ist selbst das `{meta, operations}`-Objekt — webapi akzeptiert sie,
-weil `operations` vorhanden ist.)
+(The file itself is the `{meta, operations}` object — webapi accepts it
+because `operations` is present.)
 
-## Fehlerbilder
+## Failure modes
 
-- `target missing` in apply_plan-errors → Szene hat sich seit dem Export
-  geaendert → neu exportieren, Plan neu bauen.
-- Kein Response/Timeout → Server-Dialog in C4D geschlossen (Queue wird nicht
-  gedraint) oder Server nie gestartet.
-- Preset/Plan "not found" → Datei liegt nur im Repo, nicht im deployten
-  Plugin-Verzeichnis → `powershell -File .claude/skills/deploy/deploy.ps1`.
+- `target missing` in apply_plan errors → the scene changed since the export
+  → re-export, rebuild the plan.
+- No response/timeout → server dialog closed in C4D (queue is not being
+  drained) or the server was never started.
+- Preset/plan "not found" → the file only exists in the repo, not in the
+  deployed plugin directory → `powershell -File .claude/skills/deploy/deploy.ps1`.

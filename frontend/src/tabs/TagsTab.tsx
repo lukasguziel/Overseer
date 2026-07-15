@@ -10,6 +10,7 @@ import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import './tags.css'
 import ActionButton from '../components/ActionButton'
+import { plural } from '../lib/format'
 
 interface TagRef { name: string; kind?: 'point' | 'polygon' | 'edge' }
 interface TagObjectRef { guid: number; name: string; tags: TagRef[] }
@@ -53,7 +54,7 @@ function TagTypeRow({ type, org }: { type: TagType; org: Organizer }) {
         <ActionButton disabled={org.busy}
           title="Select every object carrying this tag type in Cinema 4D"
           onClick={() => call('tags_select', type.type_ids ? { type_ids: type.type_ids } : { type_id: type.type_id })
-            .then((r) => org.setStatus(`Selected ${r.selected ?? type.count} object${type.count === 1 ? '' : 's'} in Cinema 4D`))
+            .then((r) => org.setStatus(`Selected ${plural(r.selected ?? type.count, 'object')} in Cinema 4D`))
             .catch((e) => org.setStatus(`Select ✗ ${String(e.message || e)}`))}>
           Select in C4D
         </ActionButton>
@@ -128,7 +129,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
     `Set the phong angle to ${deg}° on all phong tags in the scene (one undo step). Continue?`,
     `Set ${deg}°`,
     () => call('tags_set_phong_angle', { angle_deg: deg }),
-    (r) => `Set ${r.applied} phong tag${r.applied === 1 ? '' : 's'} to ${r.angle_deg}° ✓ (undoable)`,
+    (r) => `Set ${plural(r.applied, 'phong tag')} to ${r.angle_deg}° ✓ (undoable)`,
   )
 
   return (
@@ -172,12 +173,9 @@ export default function TagsTab({ org }: { org: Organizer }) {
           empty="Every polygon object has a Phong tag"
           hint="Click a row to select it in Cinema 4D · ✓ adds a Phong tag"
           applyLabel="Add all Phong tags"
-          onApply={() => ask(
-            'Add Phong tags',
-            `Add a Phong tag to ${missingPager.total} object${missingPager.total === 1 ? '' : 's'} (one undo step). Continue?`,
-            `Add ${missingPager.total} Phong tags`,
+          onApply={() => run(
             () => call('tags_add_phong', {}),
-            (r) => `Added ${r.applied} Phong tag${r.applied === 1 ? '' : 's'} at ${r.angle_deg}° ✓ (undoable)`,
+            (r) => `Added ${plural(r.applied, 'Phong tag')} at ${r.angle_deg}° ✓ (undoable)`,
           )}
           busy={busy} note={null} progress={org.progress}
         >
@@ -212,12 +210,9 @@ export default function TagsTab({ org }: { org: Organizer }) {
           empty="No duplicate material tags"
           hint="Click a row to select it in Cinema 4D · ✓ removes the redundant copies"
           applyLabel="Delete all duplicates" applyTone="danger"
-          onApply={() => ask(
-            'Delete duplicate material tags',
-            `Remove the redundant material tags on ${dupPager.total} object${dupPager.total === 1 ? '' : 's'}, keeping the first per material (one undo step). Continue?`,
-            `Delete on ${dupPager.total} objects`,
+          onApply={() => run(
             () => call('tags_delete_duplicates', {}),
-            (r) => `Deleted ${r.deleted} duplicate material tag${r.deleted === 1 ? '' : 's'} ✓ (undoable)`,
+            (r) => `Deleted ${plural(r.deleted, 'duplicate material tag')} ✓ (undoable)`,
           )}
           busy={busy} note={null} progress={org.progress}
         >
@@ -227,7 +222,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
                 applyTitle="Apply — delete the redundant material tags on this object (undoable)"
                 onApply={() => run(
                   () => call('tags_delete_duplicates', { guids: [d.guid] }),
-                  (r) => `Deleted ${r.deleted} duplicate material tag${r.deleted === 1 ? '' : 's'} ✓ (undoable)`)}
+                  (r) => `Deleted ${plural(r.deleted, 'duplicate material tag')} ✓ (undoable)`)}
                 onFocus={() => org.doFocus(d.guid, d.name)}
               >
                 <span className="rn-old" title={d.name}>{d.name}</span>
@@ -258,7 +253,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
                 {data!.findings.phong_angles.distribution.map((b) => (
                   <div className="tags-dist-row" key={b.angle_deg}>
                     <span className={'tags-angle' + (b.angle_deg === dominant ? ' dominant' : '')}>{b.angle_deg}°</span>
-                    <span className="dim">{b.count} tag{b.count === 1 ? '' : 's'}</span>
+                    <span className="dim">{plural(b.count, 'tag')}</span>
                   </div>
                 ))}
               </div>

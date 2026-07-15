@@ -33,17 +33,33 @@ Overview **texture-budget** card (`report.textures.total_vram`).
 
 ## Resize
 
-`resize_decision(ext, has_pillow) -> (ok, note)` decides per format whether a
-resize is possible: Pillow handles the common raster formats, otherwise only
-PNG (the pure path). Anything else is skipped with a human-readable German note
-so the batch never fails as a whole.
+There are three resize engines, tried best first: the host's bitmap engine
+(Cinema 4D's own, always there inside the plugin — no third-party dependency,
+and HDR/EXR stay float end to end with no tonemapping or depth reduction),
+Pillow (only if the user installed it), and the built-in PNG writer
+(dependency-free, but PNG only). `HOST_RESIZE_EXTS` lists the formats the host
+engine reads and writes back.
 
-`resize_file(src, dst, percent, has_pillow)` writes a resized **copy** (Pillow
-`BOX` filter, or the pure PNG path). `resize_png_bytes` implements a stdlib-only
-PNG decode → box-downscale → encode for 8-bit grey/greyA/RGB/RGBA PNGs; 16-bit
-and indexed PNGs are declined (`None`) rather than mangled. `resize_target`
-appends the `_<percent>` suffix, preserving the path's relative/absolute form so
-the relink keeps the original pipeline convention.
+`resize_decision(ext, has_pillow, has_host=False) -> (ok, note)` decides per
+format whether a resize is possible against those three engines. Anything no
+engine can handle is skipped with a human-readable note so the batch never fails
+as a whole.
+
+`resize_file(src, dst, percent, has_pillow)` writes a resized **copy** via
+Pillow or the pure PNG path. The Pillow path (`_resize_pillow`) uses **LANCZOS**,
+the best-quality resampler Pillow offers, and carries over everything that makes
+a texture a texture: the pixel mode (so RGBA keeps its alpha and an `I;16` / `F`
+map keeps its bit depth), the ICC profile, and for JPEG a high quality + 4:4:4
+chroma so the copy is not visibly worse than the original beyond the intended
+downscale. Exotic modes (paletted, 1-bit) are converted first, never silently
+mangled.
+
+`resize_png_bytes` implements a stdlib-only PNG decode → box-downscale → encode
+for 8-bit grey/greyA/RGB/RGBA PNGs; 16-bit, indexed, and **interlaced** (Adam7)
+PNGs are declined (`None`) rather than mangled — Adam7 rows are laid out per
+pass, not per scanline, so unfiltering them as if sequential would scramble the
+image. `resize_target` appends the `_<percent>` suffix, preserving the path's
+relative/absolute form so the relink keeps the original pipeline convention.
 
 The adapter (`SceneAdapter.texture_resize`) copies each source once, relinks
 every shader that referenced it and journals the relink as a `texpath` change;

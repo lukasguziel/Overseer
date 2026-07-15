@@ -25,6 +25,12 @@ export function resTag(px: number): string {
   return `${r}K`
 }
 
+// "3 files" / "1 file" — the one pluralizer for every count in a sentence.
+// The word may carry qualifiers ("unused material"); the s lands at the end.
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
 
 const byteShown = (v: number, i: number): string => v.toFixed(v >= 100 || i === 0 ? 0 : 1)

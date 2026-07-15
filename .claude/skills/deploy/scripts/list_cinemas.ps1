@@ -1,12 +1,12 @@
-# Findet alle installierten Cinema-4D-Versionen und gibt sie als JSON aus.
-# Pro Installation zwei moegliche Plugin-Ziele:
-#   - prefs (User-Prefs-Ordner, KEIN Admin noetig) - bevorzugt
-#   - app   (Program Files, braucht Admin)
-# Output: JSON-Array [{name, location, plugin_dir, needs_admin}]
+# Finds all installed Cinema 4D versions and prints them as JSON.
+# Two possible plugin targets per installation:
+#   - prefs (user prefs folder, NO admin needed) - preferred
+#   - app   (Program Files, needs admin)
+# Output: JSON array [{name, location, plugin_dir, needs_admin}]
 $ErrorActionPreference = "SilentlyContinue"
 $found = @()
 
-# Program-Files-Installationen (= die eigentlichen Cinema-Versionen)
+# Program Files installations (= the actual Cinema versions)
 foreach ($root in @("C:\Program Files", "C:\Program Files (x86)")) {
   Get-ChildItem -Path $root -Directory -Filter "*Cinema 4D*" | ForEach-Object {
     $found += [pscustomobject]@{
@@ -18,7 +18,7 @@ foreach ($root in @("C:\Program Files", "C:\Program Files (x86)")) {
   }
 }
 
-# User-Prefs-Ordner (z.B. "Maxon Cinema 4D 2024_A5DBFF93")
+# User prefs folders (e.g. "Maxon Cinema 4D 2024_A5DBFF93")
 $prefsRoot = Join-Path $env:APPDATA "Maxon"
 Get-ChildItem -Path $prefsRoot -Directory -Filter "*Cinema 4D*" |
   Where-Object { $_.Name -notmatch "_p$" } | ForEach-Object {

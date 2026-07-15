@@ -296,6 +296,33 @@ do. The hover is a whisper, not an announcement.
 with exactly these tones — pass `applyTone="danger"` when the batch apply
 deletes (Materials: "Delete all", Tags: "Delete all duplicates").
 
+### Confirm dialog — `<ConfirmModal>`
+
+Every batch action confirms first, with the exact count in the message. Pass
+`danger` when the action **removes** (deletes, clears): focus then starts on
+**Cancel**, so a habitual Enter right after opening cannot destroy anything.
+Build/repair confirms keep the focus on the green confirm — one keystroke.
+`Workbench` wires this automatically from `applyTone`.
+
+---
+
+## Clickable rows — `lib/rowButton`
+
+A row that is not a `<button>` but acts like one (data-grid rows `.dg-click`,
+`.asset-row` table rows, inline names `.fl-clickable`) gets its keyboard path
+from **one helper**, never hand-rolled:
+
+```jsx
+<div className="dg-tr dg-click …" onClick={open} {...rowButton(open)}>   // div/span rows
+<tr className="asset-row" onClick={open} {...rowKeys(open)}>             // table rows
+```
+
+`rowButton` adds `role="button"` + tabIndex + Enter/Space; `rowKeys` is the
+same without the role — a `<tr>` must keep its table semantics. Key events
+bubbling from real buttons inside the row are ignored. The focus style
+(`:focus-visible`, quiet inset outline) lives in `styles.css` next to
+`.fl-clickable`.
+
 ---
 
 ## Data grid — `.dg-*`
@@ -341,6 +368,22 @@ Variants: `.unused`, `.missing`, `.fixable`, `.resized` (shared) plus per-tab
 ones on the same base (`.sim-ok`, `.sim-warn`, `.sim-dim`, `.sim-kind` in
 `tabs/sims.css`). Not to be confused with `.badge`, the amber todo count on a
 tab.
+
+---
+
+## Search field — `.search`
+
+The text filter at the top of a Filters sidebar (Assets, Textures, Files) —
+one block, full sidebar width. It narrows the list AND the facet counts below
+it, so a chip's number always says what a click would show.
+
+```jsx
+<input className="search" placeholder="Search file, material or path…"
+  value={query} onChange={(e) => setQuery(e.target.value)} />
+```
+
+The placeholder names the fields it searches ("Search name, type or layer…"),
+not just "Search…" — the artist should not have to guess what matches.
 
 ---
 

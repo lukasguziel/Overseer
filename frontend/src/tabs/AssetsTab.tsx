@@ -3,7 +3,8 @@ import Pager, { usePager } from '../components/Pager'
 import type { SceneNode } from '../types'
 import { CAT_ORDER, SORTS } from '../lib/constants'
 import { catColor } from '../lib/colors'
-import { humanNum } from '../lib/format'
+import { plural, humanNum } from '../lib/format'
+import { rowKeys } from '../lib/rowButton'
 import Tip from '../components/Tip'
 import ActionButton from '../components/ActionButton'
 import type { FocusFn } from '../components/Treemap'
@@ -266,7 +267,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
         <div className="wb-preview-head">
           <h3>Objects</h3>
           <span className="head-count">
-            {filtered.length} object{filtered.length === 1 ? '' : 's'}
+            {plural(filtered.length, 'object')}
             {filtered.length !== nodes.length && ` · ${nodes.length} total`}
           </span>
         </div>
@@ -288,6 +289,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
               <tr key={n.guid}
                 className={'asset-row' + (n.visible === false ? ' hidden-obj' : '') + (sel.has(n.guid) ? ' selected' : '')}
                 onClick={() => onFocus?.(n.guid, n.name)}
+                {...rowKeys(() => onFocus?.(n.guid, n.name))}
                 title={n.visible === false ? 'Hidden in the Object Manager · Select & frame' : 'Select & frame in viewport'}>
                 <td className="sel" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={sel.has(n.guid)} onChange={() => toggleSel(n.guid)} />

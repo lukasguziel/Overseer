@@ -32,8 +32,12 @@ resp.json
 .coverage
 
 
-# Deploy-Ziel: maschinenlokal, kommt NIE ins Repo (deploy-Skill schreibt sie)
+# Deploy target: machine-local, NEVER in the repo (written by the deploy skill)
 .claude/skills/deploy/deploy.config.json
+
+# Personal working config (the shipped template is config.example.json;
+# the plugin falls back to DEFAULT_CONFIG when no config.json exists)
+src/config.json
 
 # runtime logs written by the plugin
 change_history.json
@@ -41,3 +45,7 @@ analysis_history.json
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# Playwright e2e artifacts (frontend/playwright.config.ts)
+frontend/test-results/
+frontend/playwright-report/

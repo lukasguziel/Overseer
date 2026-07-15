@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from . import model
 
+DEFAULT_PORT = 8787
+
 RS_LIGHT_IDS = {1036751}
 RS_CAMERA_IDS = {1057516}
 

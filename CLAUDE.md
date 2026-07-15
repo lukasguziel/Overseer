@@ -30,7 +30,7 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 
 **Core principle: pure domain logic strictly separated from `c4d`.**
 `src/overseer/` never imports `c4d` → testable in CI. Only these modules import
-`c4d` (never loaded by tests): `cinema/` (adapter/webapi), `bridge.py`.
+`c4d` (never loaded by tests): `cinema/` (adapter/webapi), `bridge/`.
 
 ```
 src/
@@ -39,8 +39,10 @@ src/
   overseer/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
                           per-section "accepted as-is" keeps map)
-    bridge.py             [c4d] HTTP server (BG thread) + main-thread queue + progress
-                          state. PROCESS SINGLETON — stays at package root.
+    bridge/               [c4d] HTTP server (BG thread) + main-thread queue + progress
+                          state; one file per class (progress/mainthread/reload/
+                          server/dialog). PROCESS SINGLETON — the whole package
+                          is excluded from hot-reload.
     core/
       model.py            SceneNode / SceneTree (pure hierarchy)
       ops.py              plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
@@ -60,7 +62,9 @@ src/
                           Match vocabulary, compile_rules() -> RuleSet.plan_all())
       graph.py            node-editor graph incl. nested structure
     cinema/               [c4d] host glue
-      adapter.py          doc <-> SceneTree; rename/reparent/plan/layers with undo
+      adapter/            doc <-> SceneTree; rename/reparent/plan/layers with undo.
+                          One file per domain class (readers/scene/materials/
+                          previews/texpaths/texresize/layers/apply/journal)
       webapi.py           JSON API; hot-reloaded per request. Scene-tree +
                           preview caches live on the `overseer` package
                           (survive hot-reload; invalidated by the doc dirty
@@ -97,7 +101,8 @@ name "GFCSceneOrganizer" — the registration name never changes):
 `1069217` CommandData "Overseer" (the only command; opens the web UI) ·
 `1069220` ServerDialog ID. `1069218`/`1069219` are retired (former native
 dialog / web command) — do not reuse them for anything else.
-Web port `8787`. No MessageData — the ServerDialog timer drains the queue.
+Web port: config.json `port` (default `8787` in `core/defaults.py`).
+No MessageData — the ServerDialog timer drains the queue.
 
 ## Deployment
 
@@ -118,6 +123,7 @@ python -m ruff check src tests   # lint (must be clean — CI gate)
 cd frontend && pnpm run build    # output -> src/web/ (then deploy.ps1)
 cd frontend && pnpm run dev      # HMR dev server, proxy /api -> localhost:8787
 cd frontend && pnpm test         # vitest unit tests
+cd frontend && pnpm run test:e2e # Playwright e2e per area (frontend/e2e/, fully mocked /api — no C4D; system Chrome)
 
 powershell -File .claude/skills/deploy/deploy.ps1   # copy to the C4D plugin dir (target via deploy skill)
 ```
@@ -138,8 +144,8 @@ the only UI). Full API table: `docs/api.md`.
 - Frontend: `pnpm run build` + deploy → reload browser. For a fast dev loop use
   `cd frontend && pnpm run dev` (Vite HMR, proxies `/api → localhost:8787`) — edits are
   live with no build/deploy; the C4D web server just needs to be running once.
-- `bridge.py`, `webapi` entry signature, `.pyp`: C4D restart required (`bridge` is the
-  process singleton and is deliberately excluded from `reload_all()`).
+- `bridge/`, `webapi` entry signature, `.pyp`: C4D restart required (`bridge` is the
+  process singleton; the whole package is excluded from `reload_all()`).
 
 ## Domain concepts (short)
 

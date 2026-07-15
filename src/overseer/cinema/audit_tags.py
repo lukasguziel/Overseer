@@ -34,8 +34,6 @@ _INTERNAL_TAG_TYPES = {
     ) if tid is not None
 }
 
-# Point/polygon/edge selection tags are folded into ONE "Selection" entry;
-# the kind travels on each object's tags (merge_selection_types).
 _SELECTION_KINDS = {
     getattr(c4d, "Tpointselection", 5674): "point",
     getattr(c4d, "Tpolygonselection", 5673): "polygon",
@@ -46,11 +44,6 @@ _TAG_VISIBLE = getattr(c4d, "TAG_VISIBLE", 4)
 
 
 def _type_visible(type_id: int, cache: dict) -> bool:
-    """Whether this tag type shows up in the Object Manager. Data tags
-    (per-geometry point/weight/... payloads) are registered without
-    TAG_VISIBLE — auditing them only confuses, the artist can't see them.
-    Unknown types count as visible: showing too much beats hiding real tags.
-    """
     cached = cache.get(type_id)
     if cached is None:
         try:
@@ -129,9 +122,6 @@ def _scan(doc, adapter, tree, progress) -> dict:
                     tag_name = tag.GetName()
                 except Exception:
                     tag_name = ""
-                # One row per OBJECT per type; every tag of that type lands
-                # in the row's tag list (an object with three selection tags
-                # must not show up three times).
                 node_tags.setdefault(type_id, []).append({"name": tag_name})
 
                 if type_id == _TTEXTURE:
@@ -336,7 +326,6 @@ def _delete_duplicates(doc, adapter, tree, payload) -> dict:
 
 def _select(doc, adapter, tree, payload) -> dict:
     guids = payload.get("guids")
-    # A merged entry ("Selection") sends type_ids; single entries send type_id.
     type_ids = payload.get("type_ids") or [payload.get("type_id")]
 
     if guids is not None:

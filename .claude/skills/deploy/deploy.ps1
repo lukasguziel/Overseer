@@ -101,13 +101,9 @@ function Deploy-To([string]$Dir) {
   Step "so_logo.png" { Copy-Item (Join-Path $src "so_logo.png") $Dir -Force }
   Step "config.example.json" { Copy-Item (Join-Path $src "config.example.json") $Dir -Force }
 
-  # config.json: ONLY seed if none exists in the target (never overwrite user/preset
-  # changes in the plugin).
-  $cfgSrc = Join-Path $src "config.json"
-  $cfgDst = Join-Path $Dir "config.json"
-  if ((Test-Path $cfgSrc) -and (-not (Test-Path $cfgDst))) {
-    Step "config.json (seeded, was missing)" { Copy-Item $cfgSrc $cfgDst -Force }
-  }
+  # No config.json seeding: src/config.json is a personal working config
+  # (gitignored). A fresh target runs on DEFAULT_CONFIG like a zip install;
+  # config.example.json above is the documented template.
 
   # Mirror package recursively (subpackages: core/, naming/, structure/, cinema/).
   Step "overseer/" { Mirror (Join-Path $src "overseer") (Join-Path $Dir "overseer") }

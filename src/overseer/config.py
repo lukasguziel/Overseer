@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .core.defaults import DEFAULT_PORT
 from .core.keeps import empty_keeps, normalize_keeps
 from .naming.casing import Casing
 from .naming.convention import NamingConvention
@@ -21,7 +22,11 @@ DEFAULT_CONFIG = {
     "rules": [],
     "translations": {},
     "keeps": empty_keeps(),
+    "port": DEFAULT_PORT,
+    "listen_lan": False,
 }
+
+MACHINE_LOCAL_KEYS = ("port", "listen_lan")
 
 
 @dataclass

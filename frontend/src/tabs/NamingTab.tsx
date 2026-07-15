@@ -13,6 +13,7 @@ import Tip from '../components/Tip'
 import { DiffOld, DiffNew } from '../components/DiffText'
 import SectionIntro from '../components/SectionIntro'
 import AreaScore from '../components/AreaScore'
+import { plural } from '../lib/format'
 
 // Rule chips for a rename. One rule → shown inline. Several → collapsed behind
 // a count chip you click to reveal them all (a rename can trigger more than
@@ -180,7 +181,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
               Every name already matches your rules
               {openCleanup > 0 && (
                 <span className="wb-empty-more">
-                  Check the cleanup area below for {openCleanup} open item{openCleanup === 1 ? '' : 's'}
+                  Check the cleanup area below for {plural(openCleanup, 'open item')}
                   <span className="wb-empty-arrow">↓</span>
                 </span>
               )}

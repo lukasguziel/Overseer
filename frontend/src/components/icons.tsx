@@ -50,6 +50,13 @@ export const IconSelection = () => (
     strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none" opacity=".85" /></svg>
 )
 
+// Collect a texture into the project: a folder with an arrow dropping in —
+// the file is copied to the project's texture folder and relinked there.
+export const IconCollect = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /><path d="M12 10v5.5" /><path d="m9.5 13 2.5 2.5 2.5-2.5" /></svg>
+)
+
 // Shrink a texture: a frame with arrows pulling inward (scale down), not a
 // percentage — the size itself is chosen in the dialog the button opens.
 export const IconShrink = () => (

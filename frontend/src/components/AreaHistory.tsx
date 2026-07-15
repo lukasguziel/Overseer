@@ -4,6 +4,7 @@ import type { ChangeEntry, ChangeItem } from '../types'
 import ChangeHistory from './ChangeHistory'
 import SectionIntro from './SectionIntro'
 import './AcceptedSection.css'
+import { plural } from '../lib/format'
 
 // The change history of ONE area, at the foot of the tab where those changes
 // are made: only the runs that touched this area, revertible right here. The
@@ -43,7 +44,7 @@ export default function AreaHistory({ org, area, kinds, field }: {
             title={open ? 'Hide the change history' : 'Show the change history'}
             onClick={() => setOpen(!open)}>
             <span className="kept-caret">▸</span>
-            {open ? 'Hide' : 'Show'} {changes.length} change{changes.length === 1 ? '' : 's'}
+            {open ? 'Hide' : 'Show'} {plural(changes.length, 'change')}
             <span className="kept-areas">last {clock(changes[0].at)}</span>
           </button>
         </div>

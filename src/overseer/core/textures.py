@@ -68,9 +68,6 @@ def aggregate(infos) -> dict:
             "total_vram": total_vram, "tiers": tiers}
 
 
-# Formats the HOST (Cinema 4D's own bitmap engine) can read and write back.
-# This is the normal path inside the plugin — no third-party dependency.
-# HDR/EXR stay float end to end there: no tonemapping, no depth reduction.
 HOST_RESIZE_EXTS = frozenset({
     ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".tga", ".psd", ".exr",
     ".hdr",
@@ -79,12 +76,6 @@ HOST_RESIZE_EXTS = frozenset({
 
 def resize_decision(ext: str, has_pillow: bool,
                     has_host: bool = False) -> tuple[bool, str]:
-    """Can this file be resized, and if not, why?
-
-    Three engines, best first: the host's bitmap engine (always there inside
-    C4D), Pillow (only if the user installed it), and the built-in PNG writer
-    (dependency-free, but PNG only).
-    """
     ext = (ext or "").lower()
     if has_host and ext in HOST_RESIZE_EXTS:
         return True, ""
@@ -388,13 +379,6 @@ def resize_file(src: str, dst: str, percent: int, has_pillow: bool) -> bool:
 
 
 def _resize_pillow(src: str, dst: str, percent: int) -> bool:
-    """Downscale with LANCZOS — the best-quality resampler Pillow offers.
-
-    Everything that makes a texture a texture is carried over: the pixel mode
-    (so RGBA keeps its alpha and an "I;16"/"F" map keeps its bit depth), the
-    ICC profile, and for JPEG a high quality + 4:4:4 chroma so the copy is not
-    visibly worse than the original beyond the intended downscale.
-    """
     from ..vendor import import_pillow
     Image = import_pillow()
     if Image is None:
@@ -403,8 +387,7 @@ def _resize_pillow(src: str, dst: str, percent: int) -> bool:
         with Image.open(src) as im:
             icc = im.info.get("icc_profile")
             nw, nh = scaled_dims(im.width, im.height, percent)
-            # LANCZOS needs a float/8-bit-per-channel mode; exotic modes
-            # (paletted, 1-bit) are converted, never silently mangled.
+
             work = im
             if im.mode in ("P", "1"):
                 work = im.convert("RGBA" if "transparency" in im.info else "RGB")
@@ -477,8 +460,6 @@ def _png_decode(data: bytes):
     if bit_depth != 8 or color_type not in _PNG_COLOR_CHANNELS:
         return None
 
-    # Adam7 rows are laid out per pass, not per scanline: unfiltering them as
-    # if they were sequential yields a scrambled image, so refuse instead.
     if interlace:
         return None
     ch = _PNG_COLOR_CHANNELS[color_type]

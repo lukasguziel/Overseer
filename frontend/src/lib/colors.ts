@@ -84,3 +84,24 @@ export const RES_TIERS: ResTier[] = [
 ]
 export const resTierColor = (longestPx: number): string =>
   (RES_TIERS.find((t) => longestPx >= t.min) ?? RES_TIERS[RES_TIERS.length - 1]).color
+
+const tierMin = (label: string): number =>
+  RES_TIERS.find((t) => t.label === label)?.min ?? 0
+
+// Coarse buckets for the texture table's resolution pill and its filter chips
+// (Materials tab). Derived from RES_TIERS above so the thresholds can never
+// drift from the treemap's tiers — key doubles as the pill's CSS class.
+export interface ResBucket { key: string; label: string; min: number }
+export const RES_BUCKETS: ResBucket[] = [
+  { key: 'res-8k', label: '8K', min: tierMin('8K+') },
+  { key: 'res-4k', label: '4K', min: tierMin('4K') },
+  { key: 'res-2k', label: '2K', min: tierMin('2K') },
+  { key: 'res-sm', label: '< 2K', min: 0 },
+]
+export const resBucket = (longestPx: number): string =>
+  (RES_BUCKETS.find((b) => longestPx >= b.min) ?? RES_BUCKETS[RES_BUCKETS.length - 1]).key
+
+// Row status dot of the data grids: only a MISSING file is a defect (err).
+// Absolute vs relative is a pipeline preference — both render as healthy.
+export const statusDot = (missing: boolean): string =>
+  missing ? 'var(--err)' : 'var(--apply)'

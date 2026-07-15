@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { humanBytes, humanNum, resTag } from './format'
+import { humanBytes, humanNum, plural, resTag } from './format'
+
+describe('plural', () => {
+  it('keeps the singular at exactly one', () => {
+    expect(plural(1, 'file')).toBe('1 file')
+  })
+
+  it('adds an s everywhere else, including zero', () => {
+    expect(plural(0, 'file')).toBe('0 files')
+    expect(plural(2, 'file')).toBe('2 files')
+  })
+
+  it('the s lands after the full word group', () => {
+    expect(plural(3, 'unused material')).toBe('3 unused materials')
+    expect(plural(1, 'missing file name')).toBe('1 missing file name')
+  })
+})
 
 describe('humanNum', () => {
   it('passes small numbers through', () => {
