@@ -56,9 +56,9 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 
 ## License
 
-Overseer is free software under the [GNU GPL-3.0](LICENSE): use it for any
-kind of work, commercial included. If you pass it on or build on it, the
-license, the attribution and the source stay attached.
+Overseer is free to use for personal and commercial projects, and you may
+modify it for your own use. Selling it, bundling it into paid products, or
+redistributing it as your own work is not permitted — see [LICENSE](LICENSE).
 
 ## Development
 

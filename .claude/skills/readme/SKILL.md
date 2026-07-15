@@ -73,10 +73,11 @@ diesen Skill im Kopf:
    Program-Files-Absatz): Release-Zip laden → entpacken und `Overseer`-Ordner
    in den Cinema-4D-`plugins`-Ordner kopieren → Cinema neu starten,
    `Shift+C`, nach „Overseer" suchen.
-6. License: Ein Absatz — GPL-3.0, frei nutzbar auch kommerziell, Lizenz/
-   Attribution/Quelle bleiben bei Weitergabe dran; Link auf `LICENSE`.
-   (Steht VOR Development — der Mirror schneidet Development bis Support
-   raus, License muss die Sektion überleben.)
+6. License: Ein Absatz — custom „Overseer License": frei für private und
+   kommerzielle Projekte, Modifikation für den Eigengebrauch ok; kein
+   Verkauf, kein Bundling in Bezahlprodukte, keine Weitergabe als eigenes
+   Werk; Link auf `LICENSE`. (Steht VOR Development — der Mirror schneidet
+   Development bis Support raus, License muss die Sektion überleben.)
 7. Development: Testkommandos, Hinweis dass `main` der Release-Branch ist
    (jeder Push ersetzt das Release der gestempelten Version; gearbeitet
    wird auf `dev`), Verweis auf CLAUDE.md/docs.
