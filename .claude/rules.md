@@ -107,8 +107,8 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 ## Data & channels
 
 - `var/scene_report.json` is how Claude sees the real scene — written
-  by `/api/analyze`. Reports are 1–2 MB: never read fully, aggregate via the
-  scripts in `.claude/skills/scene-conventions/scripts/`.
+  by `/api/analyze`. Reports are 1–2 MB: never read fully, aggregate with a
+  throwaway script.
 - Report `guid`s are traversal indices, valid only for that exact export.
   `apply_all` therefore re-plans server-side; accept lists are only valid
   within the same plan/apply request cycle.
@@ -122,8 +122,7 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
   `{schema:2, meta:{id,name,description,created_at}, settings:<full config>}`
   in `src/presets/` resp. plugin `presets/`. No shipped default presets.
   `deploy.ps1` MERGES presets (never deletes user-saved ones in the plugin).
-- Restructuring plans in `src/plans/`. Formats + full API table:
-  `.claude/skills/scene-conventions/references/`.
+- Restructuring plans in `src/plans/`. Full API table: `docs/api.md`.
 - Nested structure rules fixed the old flat-model false negative, but still:
   do not auto-"repair" structure blindly on flat scenes — check the
   compliance evidence first; Translate/Layers are the safer defaults.

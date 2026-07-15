@@ -51,9 +51,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
           <div className="card-head"><h3>Presets</h3></div>
           <p className="hint-sm">
             Pick a state-of-the-art style — it configures casing, translations,
-            groups and the node graph in one go. The <code>scene-rules</code>
-            skill can also write a personal “how you work” preset from your
-            own projects.
+            groups and the node graph in one go.
           </p>
           <div className="preset-list">
             {presets.length === 0 && <p className="hint-sm">No presets found.</p>}
@@ -74,9 +72,8 @@ export default function MiscTab({ org }: { org: Organizer }) {
           <div className="card-head"><h3>Export scene hierarchy</h3></div>
           <p className="hint-sm">
             Writes a full snapshot <b>next to your project file</b> (falls back
-            to the repo folder if the scene is unsaved). The JSON is what the
-            <code>scene-rules</code> skill / Claude reads; the CSV is a flat
-            object table for Excel/Sheets.
+            to the repo folder if the scene is unsaved). The JSON is what
+            Claude reads; the CSV is a flat object table for Excel/Sheets.
           </p>
           <div className="btns">
             <button onClick={org.doExportJson} disabled={busy}>Export as JSON</button>
