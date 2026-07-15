@@ -174,7 +174,8 @@ in Materials).
 - ✅ **Accepted-as-missing list** — remembered in the config, restorable,
   and reflected in the Files health score.
 - ✅ **Make relative** — absolute paths under the project folder rewritten
-  in one undoable step.
+  to project-relative, any kind: per row with **→ rel**, or all at once
+  from the list header (one undoable step).
 
 ## Assets
 

@@ -47,9 +47,11 @@ this module deliberately skips `fl.is_image` paths.
   everywhere. One undo step.
 - `_relink(...)` — indexes a search folder by filename and relinks missing
   references by basename match. One undo step; progress every 200 files.
-- `_make_relative(...)` — converts relocatable absolute paths to relative.
-  Errors when the project is unsaved (no folder to relate to). Only Alembic
-  paths are rewritten in place; other kinds are counted as skipped.
+- `_make_relative(...)` — converts relocatable absolute paths to relative,
+  any kind, via `_rewrite_everywhere` (the same mechanism pick/relink use).
+  Optional `paths` payload narrows it to specific stored paths (per-row
+  "→ rel"). Errors when the project is unsaved (no folder to relate to);
+  a path no holder carries anymore counts as skipped.
 - `_select(...)` — selects the owners named by `guids`.
 - `handle(op, ...)` — dispatch for `files_scan` / `files_make_relative` /
   `files_select` / `files_pick_path` / `files_relink`.

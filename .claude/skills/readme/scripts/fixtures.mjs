@@ -444,10 +444,12 @@ export const filesScan = {
       resolved: 'D:/3D/PROJECTS/PENTHOUSE/caches/curtain_sim_v04.abc',
       exists: true, missing: false, absolute: false, relocatable: false,
       rel_target: '', bytes: 2.4 * GB, owner: 'Curtain_left', guid: g('Curtain_left') },
-    { kind: 'alembic', file: 'blanket_sim_v02.abc', path: 'caches/blanket_sim_v02.abc',
+    // Absolute path INSIDE the project folder — shows the "→ rel" row action
+    // and arms the "Make 1 relative" batch button in the list header.
+    { kind: 'alembic', file: 'blanket_sim_v02.abc', path: 'D:/3D/PROJECTS/PENTHOUSE/caches/blanket_sim_v02.abc',
       resolved: 'D:/3D/PROJECTS/PENTHOUSE/caches/blanket_sim_v02.abc',
-      exists: true, missing: false, absolute: false, relocatable: false,
-      rel_target: '', bytes: 1.1 * GB, owner: 'Blanket_Wool', guid: g('Blanket_Wool') },
+      exists: true, missing: false, absolute: true, relocatable: true,
+      rel_target: 'caches/blanket_sim_v02.abc', bytes: 1.1 * GB, owner: 'Blanket_Wool', guid: g('Blanket_Wool') },
     { kind: 'alembic', file: 'plant_scan_hero.abc', path: 'Q:/SCANS/plants/plant_scan_hero.abc',
       resolved: '', exists: false, missing: true, absolute: true, relocatable: false,
       rel_target: '', bytes: 0, owner: 'plant_large', guid: g('plant_large') },
@@ -461,7 +463,7 @@ export const filesScan = {
   ],
   summary: {
     total: 5, by_kind: { alembic: 3, ies: 1, cache: 1 },
-    missing_count: 2, absolute_count: 2, relocatable_count: 0,
+    missing_count: 2, absolute_count: 3, relocatable_count: 1,
     total_bytes: Math.round(3.5 * GB),
   },
 }
