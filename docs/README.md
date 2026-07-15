@@ -4,6 +4,9 @@ Source files carry no docstrings or explanatory comments (see
 [.claude/rules.md](../.claude/rules.md)). The prose lives here instead — one
 markdown file per module, mirroring `src/`.
 
+Per-package working guides for Claude (conventions, gotchas, module maps —
+formerly the CLAUDE.md files inside the source tree): [claude/](claude/).
+
 ## Entry / host glue
 - [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)
 - [overseer/bridge.md](overseer/bridge.md) — HTTP server + main-thread queue (process singleton)

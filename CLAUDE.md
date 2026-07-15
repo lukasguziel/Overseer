@@ -5,6 +5,15 @@ Context for Claude Code. Keep short and current.
 comments are written in ENGLISH** (German only in translation data, test
 fixtures, and user-facing UI copy).
 
+**Package guides live in [docs/claude/](docs/claude/)** (moved out of the
+source tree so the shipped code stays clean — nothing under `src/` but code).
+READ the matching guide BEFORE working in that package:
+[src.md](docs/claude/src.md) (plugin entry) ·
+[overseer.md](docs/claude/overseer.md) (package root, bridge, config) ·
+[cinema.md](docs/claude/cinema.md) (c4d host glue, every module + gotchas) ·
+[core.md](docs/claude/core.md) · [naming.md](docs/claude/naming.md) ·
+[structure.md](docs/claude/structure.md).
+
 ## What this is
 
 Cinema 4D 2024 plugin that **analyzes** scenes (interior/archviz), **normalizes
