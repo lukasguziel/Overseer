@@ -9,7 +9,7 @@ mit JSON-Body; `webapi.py` wird pro Request hot-reloaded.
 
 | op | Body | Liefert |
 |---|---|---|
-| `analyze` | `{}` | `{report, export_path}` — schreibt auch `scene_report.json` ins Repo + Historie |
+| `analyze` | `{}` | `{report, export_path}` — schreibt auch `var/scene_report.json` ins Repo + Historie |
 | `export` / `export_csv` | `{}` | wie analyze; csv zusaetzlich `scene_structure.csv` (Semikolon, utf-8-sig) |
 | `history` | `{}` | Analyse-Historie (neueste zuerst) |
 | `detect` | `{}` | erkanntes Schema `{style, language, number_pad, confidence, …}` |

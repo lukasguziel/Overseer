@@ -83,7 +83,10 @@ def _export_dir() -> str:
             with open(stamp, encoding="utf-8-sig") as f:
                 repo = f.read().strip()
             if repo and os.path.isdir(repo):
-                return repo
+                # Mirror into <repo>/var so exports never clutter the repo root.
+                var = os.path.join(repo, "var")
+                os.makedirs(var, exist_ok=True)
+                return var
     except OSError:
         pass
     return DATA_DIR

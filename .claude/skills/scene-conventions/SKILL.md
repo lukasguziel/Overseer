@@ -18,7 +18,7 @@ Gegenbeispielen bestätigen lassen und als Preset v2 + RuleV2-Regeln
 einfrieren. Alles KI-Denken passiert HIER, offline — das Plugin führt später
 nur deterministische Regeln aus.
 
-Kanal zur Szene: `scene_report.json` (Export des Plugins).
+Kanal zur Szene: `var/scene_report.json` (Export des Plugins).
 API-Endpoints/Rezepte: [references/api.md](references/api.md).
 Interview-Fragenkatalog: [references/interview-guide.md](references/interview-guide.md).
 Abnahme-Checkliste: [references/review-checklist.md](references/review-checklist.md).

@@ -7,7 +7,7 @@ import os
 import re
 import sys
 
-path = sys.argv[1] if len(sys.argv) > 1 else "scene_report.json"
+path = sys.argv[1] if len(sys.argv) > 1 else os.path.join("var", "scene_report.json")
 d = json.load(open(path, encoding="utf-8"))
 
 print("file", d.get("file"))

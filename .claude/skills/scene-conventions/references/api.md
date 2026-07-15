@@ -9,7 +9,7 @@ Web-Dialog in C4D muss offen sein):
 
 | Endpoint | Zweck |
 |---|---|
-| `export` | frischen `scene_report.json` schreiben |
+| `export` | frischen `var/scene_report.json` schreiben |
 | `presets` / `apply_preset` | Preset-Liste / Preset aktivieren |
 | `plan_all` | kombinierte Vorschau (Naming+Structure+Layers) |
 | `plan_naming` / `plan_layers` / `plan_structure` | Einzel-Vorschauen |

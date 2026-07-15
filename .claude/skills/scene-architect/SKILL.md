@@ -77,7 +77,7 @@ Fuer das, was Regeln nicht koennen (Raeume/Etagen semantisch zuordnen),
 schreibst DU einen Plan nach `src/plans/<name>.json` — Format, Semantik und
 Leitplanken in [references/plan-format.md](references/plan-format.md). Danach:
 ```bash
-python .claude/skills/scene-architect/scripts/validate_plan.py src/plans/<name>.json scene_report.json
+python .claude/skills/scene-architect/scripts/validate_plan.py src/plans/<name>.json var/scene_report.json
 curl -s -X POST 127.0.0.1:8787/api/apply_plan -H "Content-Type: application/json" --data-binary @src/plans/<name>.json
 ```
 Die Validator-Vorschau dem User VOR dem Apply zeigen. guids gelten nur fuer

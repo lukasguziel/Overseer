@@ -1,7 +1,7 @@
 # scene_report.json — Schema & Umgang
 
 Erzeugt von `POST /api/analyze` (bzw. Export-Button im Misc-Tab). Landet als
-`scene_report.json` im Repo-Root und in der API-Antwort unter `report`.
+`var/scene_report.json` im Repo und in der API-Antwort unter `report`.
 
 **Reports sind gross (1–2 MB, tausende Nodes) — NIE komplett in den Kontext
 lesen. Immer per Python aggregieren** (`scripts/scan_reports.py`,
