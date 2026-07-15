@@ -179,7 +179,12 @@ export default function App() {
         )}
       </div>
 
-      {error && tab !== 'rules' && <div className="error">{error}</div>}
+      {error && tab !== 'rules' && (
+        <div className="error">
+          <span>{error}</span>
+          <button className="error-dismiss" title="Dismiss this error" onClick={() => org.setError('')}>✕</button>
+        </div>
+      )}
 
       {TAB_INTRO[tab] && (
         <SectionIntro lead title={TAB_INTRO[tab]!.title} desc={TAB_INTRO[tab]!.desc}

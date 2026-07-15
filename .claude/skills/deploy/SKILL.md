@@ -13,17 +13,17 @@ description: >-
   "installier das Plugin", or after building the frontend.
 ---
 
-# Deploy — Plugin in ein oder mehrere Cinema 4D deployen
+# Deploy — plugin into one or more Cinema 4D installations
 
-Alle Deploy-Dateien leben in DIESEM Skill-Ordner (`.claude/skills/deploy/`):
-`deploy.ps1` (das Script), `deploy.config.json` (**gitignored**,
-maschinenlokal — der Zielpfad steht NIE im Repo; Vorlage
+All deploy files live in THIS skill folder (`.claude/skills/deploy/`):
+`deploy.ps1` (the script), `deploy.config.json` (**gitignored**,
+machine-local — the target path is NEVER in the repo; template
 `deploy.config.example.json`).
 
-**Config-Schema 2 — pro Windows-User:** Ziele haengen am Windows-Usernamen
-(`$env:USERNAME`), damit auf derselben Maschine jeder User sein eigenes
-Cinema waehlen kann. Pro User eine **Liste** `targets` — alle Eintraege
-werden in EINEM Lauf deployt (Multi-Cinema-Deploy):
+**Config schema 2 — per Windows user:** targets are keyed by the Windows
+username (`$env:USERNAME`) so each user on the same machine can pick their
+own Cinema. Each user holds a **list** `targets` — all entries are deployed
+in ONE run (multi-Cinema deploy):
 
 ```json
 {
@@ -31,91 +31,94 @@ werden in EINEM Lauf deployt (Multi-Cinema-Deploy):
   "users": {
     "lukas": {
       "targets": [
-        { "cinema": "<name>", "location": "prefs|app", "plugin_dir": "<voller Pfad>" }
+        { "cinema": "<name>", "location": "prefs|app", "plugin_dir": "<full path>" }
       ]
     }
   }
 }
 ```
 
-Alte flache Configs (`{cinema, location, plugin_dir}`) migriert `deploy.ps1`
-beim ersten Lauf automatisch auf Schema 2 (als Ziel des aktuellen Users).
+Legacy flat configs (`{cinema, location, plugin_dir}`) are migrated to
+schema 2 automatically by `deploy.ps1` on first run (as the current user's
+target).
 
-## Ablauf
+## Procedure
 
-**1. Ziel(e) bestimmen.**
-- Nennt der User Version/Pfad explizit → Schritt 3 (und Config aktualisieren).
-- Hat `.claude/skills/deploy/deploy.config.json` unter `users.<$env:USERNAME>.targets`
-  Eintraege → verwenden, dem User die Ziele kurz nennen. Weiter zu Schritt 4.
-- Sonst Schritt 2. (Eintraege ANDERER Windows-User nie anfassen.)
+**1. Determine the target(s).**
+- The user names a version/path explicitly → step 3 (and update the config).
+- `.claude/skills/deploy/deploy.config.json` has entries under
+  `users.<$env:USERNAME>.targets` → use them, briefly tell the user the
+  targets. Continue with step 4.
+- Otherwise step 2. (NEVER touch entries of OTHER Windows users.)
 
-**2. Installierte Cinemas finden und auswaehlen lassen.**
+**2. Find installed Cinemas and let the user choose.**
 ```bash
 powershell -File .claude/skills/deploy/scripts/list_cinemas.ps1
 ```
-Liefert JSON `[{name, location, plugin_dir, needs_admin}]` — pro Installation
-das Program-Files-Ziel (`app`, braucht Admin) und den User-Prefs-Ordner
-(`prefs`, kein Admin).
+Returns JSON `[{name, location, plugin_dir, needs_admin}]` — per installation
+the Program Files target (`app`, needs admin) and the user prefs folder
+(`prefs`, no admin).
 
-**ALLE** Eintraege auflisten, nichts kuerzen — der User will die komplette
-Liste sehen und daraus waehlen. NICHT `AskUserQuestion` benutzen (das cappt
-hart bei 4 Optionen). Stattdessen eine schlanke, nummerierte Markdown-Liste
-ausgeben, eine Zeile pro Eintrag, und den User waehlen lassen — **eine Nummer
-oder mehrere** (z. B. `1,3` oder `1 und 3`), Mehrfachauswahl = Deploy auf
-mehrere Cinemas gleichzeitig:
+List **ALL** entries, do not truncate — the user wants to see the complete
+list and choose from it. Do NOT use `AskUserQuestion` (it hard-caps at 4
+options). Instead print a lean, numbered markdown list, one line per entry,
+and let the user pick — **one number or several** (e.g. `1,3` or `1 and 3`);
+multi-select = deploy to several Cinemas at once:
 
 ```
- 1. Cinema 4D 2024 — prefs   ·  …\Maxon Cinema 4D 2024_A5DBFF93\plugins\Overseer   (kein Admin)
- 2. Cinema 4D 2024 — app     ·  C:\Program Files\Maxon Cinema 4D 2024\plugins\Overseer   (Admin)
+ 1. Cinema 4D 2024 — prefs   ·  …\Maxon Cinema 4D 2024_A5DBFF93\plugins\Overseer   (no admin)
+ 2. Cinema 4D 2024 — app     ·  C:\Program Files\Maxon Cinema 4D 2024\plugins\Overseer   (admin)
  …
 ```
-- Reihenfolge: pro Version zuerst `prefs` (kein Admin), dann `app` (Admin);
-  Versionen absteigend (neueste zuerst).
-- Aktuelle Ziele des Users aus `deploy.config.json` (falls vorhanden) mit
-  `← aktuell` markieren.
-- Kurz drueberschreiben: „Welche Nummer(n)?" — dann die getippten Zahlen
-  aufloesen. Keine Empfehlung aufdraengen, die Wahl ist offen.
+- Order: per version first `prefs` (no admin), then `app` (admin);
+  versions descending (newest first).
+- Mark the user's current targets from `deploy.config.json` (if present)
+  with `← current`.
+- Add a short line above: "Which number(s)?" — then resolve the typed
+  numbers. Don't push a recommendation; the choice is open.
 
-**3. Wahl in `.claude/skills/deploy/deploy.config.json` schreiben** (gitignored,
-Schema 2, s. oben): unter `users.<$env:USERNAME>.targets` die gewaehlten
-Eintraege setzen (ersetzt die bisherige Liste dieses Users; andere User
-unveraendert lassen).
+**3. Write the choice to `.claude/skills/deploy/deploy.config.json`**
+(gitignored, schema 2, see above): set the chosen entries under
+`users.<$env:USERNAME>.targets` (replaces this user's previous list; leave
+other users untouched).
 
-**4. Deployen.**
+**4. Deploy.**
 ```bash
 powershell -File .claude/skills/deploy/deploy.ps1
 ```
-Deployt alle `targets` des aktuellen Windows-Users nacheinander (oder explizit:
-`-Target <dir1>,<dir2>`). Enthaelt die Liste `app`-Ziele (Program Files) und
-die Shell ist nicht elevated: NUR die `app`-Ziele in einem elevated,
-versteckten Fenster deployen (Output des elevated Fensters ist unsichtbar —
-deshalb in ein Log umleiten und das danach ausgeben; `-WindowStyle Hidden`
-verhindert das kurz aufblitzende leere Fenster):
+Deploys all `targets` of the current Windows user one after another (or
+explicitly: `-Target <dir1>,<dir2>`). If the list contains `app` targets
+(Program Files) and the shell is not elevated: deploy ONLY the `app` targets
+in an elevated, hidden window (the elevated window's output is invisible —
+therefore redirect it into a log and print that afterwards;
+`-WindowStyle Hidden` prevents the briefly flashing empty window):
 ```powershell
 $log = "$env:TEMP\so_deploy.log"
 Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList "-NoProfile","-Command","& '<repo>\.claude\skills\deploy\deploy.ps1' -Target '<app plugin_dir 1>','<app plugin_dir 2>' *> '$log'"
 Get-Content $log
 ```
-(UAC-Prompt beim User ankuendigen.) `prefs`-Ziele danach normal ohne Elevation
-deployen (`-Target` mit den prefs-Pfaden). Danach Erfolg PRO ZIEL pruefen:
-`Test-Path "<plugin_dir>\overseer.pyp"` und bei Frontend-Aenderungen
-die Asset-Hashes in `<plugin_dir>\web\index.html` gegen `src/web/index.html`
-vergleichen.
+(Announce the UAC prompt to the user.) Deploy `prefs` targets afterwards
+normally without elevation (`-Target` with the prefs paths). Then verify
+success PER TARGET: `Test-Path "<plugin_dir>\overseer.pyp"` and, for
+frontend changes, compare the asset hashes in `<plugin_dir>\web\index.html`
+against `src/web/index.html`.
 
-**5. Fehlerbilder.**
-- `Cannot write` → Elevation fehlt (s.o.) oder Pfad falsch.
-- `FAIL: web/` bei laufendem C4D → Web-Dialog in C4D schliessen (lockt
-  Dateien), erneut deployen.
-- `WARN: no web/ bundle` → erst `cd frontend && npm run build`.
-- `no targets for Windows user '<name>'` → dieser Windows-User hat noch keine
-  Ziele gewaehlt → Schritt 2.
-- Ein Ziel schlaegt fehl, andere ok → Script deployt alle weiter, meldet
-  „DEPLOY INCOMPLETE" pro Ziel und exit 1 am Ende.
+**5. Failure modes.**
+- `Cannot write` → elevation missing (see above) or wrong path.
+- `FAIL: web/` while C4D is running → close the web dialog in C4D (it locks
+  files), deploy again.
+- `WARN: no web/ bundle` → run `cd frontend && npm run build` first.
+- `no targets for Windows user '<name>'` → this Windows user has not chosen
+  targets yet → step 2.
+- One target fails, others ok → the script keeps deploying the rest, reports
+  "DEPLOY INCOMPLETE" per target and exits 1 at the end.
 
-## Nicht vergessen
-- Frontend-Aenderungen brauchen VOR dem Deploy `npm run build` (Output `src/web/`).
-- `bridge.py`/`.pyp`-Aenderungen wirken erst nach C4D-Neustart; reine
-  `overseer`-Logik hot-reloadet beim naechsten Command-Klick.
-- Die deployte `config.json` wird nie ueberschrieben, nur geseedet, wenn sie fehlt.
-- Das Plugin ist gegen C4D **2024** entwickelt — Deploy in andere Versionen
-  ist ungetestet, kurz dazusagen.
+## Don't forget
+- Frontend changes need `npm run build` BEFORE the deploy (output `src/web/`).
+- `bridge/`/`.pyp` changes only take effect after a C4D restart; pure
+  `overseer` logic hot-reloads on the next command click.
+- A `config.json` in the target is never touched (no seeding anymore —
+  `src/config.json` is a personal working config and gitignored); without a
+  `config.json` the plugin runs on `DEFAULT_CONFIG` like a zip install.
+- The plugin is developed against C4D **2024** — deploying into other
+  versions is untested; mention that briefly.

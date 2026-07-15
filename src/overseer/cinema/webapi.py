@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass, field
 
 import c4d
 
@@ -44,10 +45,7 @@ def _user_data_dir() -> str:
     if not base:
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
     path = os.path.join(base, "overseer")
-    # One-time migration from the Scene Organizer days: take the old prefs dir
-    # (config, presets, history, caches) along instead of starting empty. If
-    # the rename fails (dir locked), keep using the old dir — losing the
-    # user's settings would be worse than the old folder name.
+
     legacy = os.path.join(base, "scene_organizer")
     if not os.path.isdir(path) and os.path.isdir(legacy):
         try:
@@ -57,21 +55,6 @@ def _user_data_dir() -> str:
     os.makedirs(path, exist_ok=True)
     return path
 
-
-DATA_DIR = _user_data_dir()
-CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
-SHIPPED_PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
-PRESETS_DIR = os.path.join(DATA_DIR, "presets")
-PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
-
-if DATA_DIR != PLUGIN_DIR:
-    _seed = os.path.join(PLUGIN_DIR, "config.json")
-    if os.path.isfile(_seed) and not os.path.isfile(CONFIG_PATH):
-        import shutil
-        try:
-            shutil.copy2(_seed, CONFIG_PATH)
-        except OSError:
-            pass
 
 def _export_dir() -> str:
     env = os.environ.get("OVERSEER_EXPORT_DIR")
@@ -83,7 +66,6 @@ def _export_dir() -> str:
             with open(stamp, encoding="utf-8-sig") as f:
                 repo = f.read().strip()
             if repo and os.path.isdir(repo):
-                # Mirror into <repo>/var so exports never clutter the repo root.
                 var = os.path.join(repo, "var")
                 os.makedirs(var, exist_ok=True)
                 return var
@@ -92,19 +74,34 @@ def _export_dir() -> str:
     return DATA_DIR
 
 
+DATA_DIR = _user_data_dir()
+CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
+SHIPPED_PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
+PRESETS_DIR = os.path.join(DATA_DIR, "presets")
+PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
+
 EXPORT_PATH = os.path.join(_export_dir(), "scene_report.json")
 EXPORT_CSV_PATH = os.path.join(_export_dir(), "scene_structure.csv")
-# Per-project analysis logs live in history/<project-slug>.json; the flat
-# analysis_history.json is the pre-split log, still read as a seed.
 HISTORY_DIR = os.path.join(DATA_DIR, "history")
 HISTORY_PATH = os.path.join(DATA_DIR, "analysis_history.json")
-_HISTORY_MAX = 100
-
 CHANGES_PATH = os.path.join(DATA_DIR, "change_history.json")
+GOOGLE_CACHE_PATH = os.path.join(DATA_DIR, "google_cache.json")
+
+_HISTORY_MAX = 100
 _CHANGES_MAX = 200
+_GCACHE_MAX = 20000
 
 _CSV_FIELDS = ("path", "name", "type", "category", "depth", "casing",
                "language", "children")
+
+if DATA_DIR != PLUGIN_DIR:
+    _seed = os.path.join(PLUGIN_DIR, "config.json")
+    if os.path.isfile(_seed) and not os.path.isfile(CONFIG_PATH):
+        import shutil
+        try:
+            shutil.copy2(_seed, CONFIG_PATH)
+        except OSError:
+            pass
 
 
 def _load_journal(doc) -> list:
@@ -185,8 +182,6 @@ def _write_csv(report_dict, target_dir: str | None = None) -> tuple[str, int] | 
 
 
 def _history_path(doc) -> str:
-    """Per-project log file — same project slug the UI settings use, so one
-    project's runs never crowd out another's (the log is capped per project)."""
     from ..core import ui_settings_logic as uilogic
     slug = uilogic.project_slug(doc.GetDocumentPath() or "",
                                 doc.GetDocumentName() or "") or "project"
@@ -205,8 +200,6 @@ def _read_history(doc) -> list:
                 return json.load(f) or []
     except Exception:
         pass
-    # No per-project log yet: seed it from the pre-split global log (kept as
-    # an archive) with the runs that belong to this document.
     return _legacy_history(doc.GetDocumentName() or "")
 
 
@@ -257,9 +250,12 @@ def _read_config_data() -> dict:
     return {}
 
 
+def _write_config_data(data: dict) -> None:
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
 def _lan_ip():
-    """The machine's LAN address — a connectionless UDP 'connect' just picks
-    the outbound interface, nothing is sent."""
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -273,25 +269,24 @@ def _lan_ip():
 
 
 def _netinfo(payload: dict) -> dict:
-    """LAN state for the open-on-phone QR flow. POST {"listen_lan": bool}
-    persists the opt-in; the bind itself only changes on a C4D restart."""
     from .. import bridge
-    # getattr: bridge is the never-hot-reloaded singleton — right after a
-    # deploy the RUNNING bridge may predate lan_enabled() until a C4D restart.
     lan = bool(getattr(bridge, "lan_enabled", lambda: False)())
     changed = False
     if "listen_lan" in payload:
         data = _read_config_data()
         data["listen_lan"] = bool(payload["listen_lan"])
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        _write_config_data(data)
         changed = data["listen_lan"] != lan
+    port_fn = getattr(bridge, "server_port", None)
+    port = (int(port_fn()) if port_fn
+            else int(getattr(bridge, "DEFAULT_PORT",
+                             cfgmod.DEFAULT_CONFIG["port"])))
     return {"ok": True,
             "lan": lan,
             "wanted": bool(_read_config_data().get("listen_lan", False)),
             "restart_needed": changed,
             "ip": _lan_ip(),
-            "port": getattr(bridge, "DEFAULT_PORT", 8787)}
+            "port": port}
 
 
 def _preset_settings(data: dict) -> dict:
@@ -363,6 +358,8 @@ def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
                 % slug, "exists": True, "id": slug}
     settings = cfgmod.migrate_config(_read_config_data())
     settings.pop("preset", None)
+    for key in cfgmod.MACHINE_LOCAL_KEYS:
+        settings.pop(key, None)
     preset = {
         "schema": 2,
         "meta": {
@@ -453,9 +450,14 @@ def _apply_preset(preset_id: str) -> dict:
     cfg = cfgmod.migrate_config(_preset_settings(preset))
     if not cfg.get("graph"):
         cfg["graph"] = graphmod.graph_from_structure(cfg.get("structure") or [])
+    current = _read_config_data()
+    for key in cfgmod.MACHINE_LOCAL_KEYS:
+        if key in current:
+            cfg[key] = current[key]
+        else:
+            cfg.pop(key, None)
     cfg["preset"] = preset.get("meta", {}).get("id") or preset_id
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2, ensure_ascii=False)
+    _write_config_data(cfg)
     return {"ok": True, "applied": cfg.get("preset"),
             "rules": len(cfg.get("rules") or []),
             "groups": len(cfg.get("structure") or [])}
@@ -498,10 +500,6 @@ def _rule_dict(r) -> dict:
         "aliases": sorted(r.aliases),
         "priority": r.priority,
     }
-
-
-GOOGLE_CACHE_PATH = os.path.join(DATA_DIR, "google_cache.json")
-_GCACHE_MAX = 20000
 
 
 def _load_gcache() -> dict:
@@ -551,9 +549,6 @@ def _google_plan(tree, scope, target: str, progress=None):
     def key(word: str) -> str:
         return target + "\x00" + word
 
-    # Translate WORDS, not raw names. "body_rear_wing_part_usm.1" means nothing
-    # to a translator — "body", "rear", "wing", "part" are trivial. Words also
-    # repeat across a scene, so the cache hit rate is far higher than per name.
     todo: list = []
     seen: set = set()
     for n in nodes:
@@ -616,7 +611,6 @@ def _google_plan(tree, scope, target: str, progress=None):
             if src != "unknown":
                 langs.append(src)
         new, changed = translatemod.rebuild_with(node.name, mapping)
-        # The name's source language is what most of its words came from.
         src = max(set(langs), key=langs.count) if langs else "unknown"
         if changed:
             bucket = src
@@ -740,6 +734,884 @@ def _selection_info(doc) -> tuple:
     return token, names, len(objs)
 
 
+@dataclass
+class ApiRequest:
+    op: str
+    payload: dict
+    doc: object = field(compare=False)
+    cfg: cfgmod.Config = field(compare=False)
+    data: dict = field(default_factory=dict)
+
+    @property
+    def settings(self) -> dict:
+        return self.payload.get("settings", {})
+
+
+def _op_dirty(payload: dict, doc) -> dict:
+    sel_token, sel_names, sel_count = _selection_info(doc)
+    return {"ok": True, "dirty": _scene_dirty(doc),
+            "name": doc.GetDocumentName(),
+            "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
+
+
+def _op_ui_settings_get(payload: dict, doc) -> dict:
+    from . import ui_settings as uimod
+    ui = uimod.load_ui(DATA_DIR, doc.GetDocumentPath() or "",
+                       doc.GetDocumentName() or "")
+    return {"ok": True, "found": bool(ui), "ui": ui}
+
+
+def _op_ui_settings_set(payload: dict, doc) -> dict:
+    from . import ui_settings as uimod
+    res = uimod.save_ui(DATA_DIR, doc.GetDocumentPath() or "",
+                        doc.GetDocumentName() or "", payload.get("ui") or {})
+    return {"ok": bool(res.get("ok")), "path": res.get("path"),
+            "error": res.get("error")}
+
+
+def _op_analyze(req: ApiRequest) -> dict:
+    op, doc, cfg, settings = req.op, req.doc, req.cfg, req.settings
+    invalidate_scene_cache()
+    adapter, tree = _get_scene(doc, "analyzing")
+    _progress("Analyzing structure")
+    scope = _scope(settings, adapter) if op == "analyze" else None
+    if scope is not None and not scope:
+        return {"error": "No objects selected in Cinema 4D."}
+    include_hidden = (op != "analyze"
+                      or bool(settings.get("include_hidden", False)))
+    report = SceneAnalyzer(cfg.standard).analyze(
+        tree, file_name=doc.GetDocumentName(), scope=scope,
+        include_hidden=include_hidden)
+    data_dict = report.to_dict()
+    data_dict["scoped"] = scope is not None
+    data_dict["include_hidden"] = include_hidden
+    data_dict["dirty"] = _scene_dirty(doc)
+    data_dict["doc_name"] = doc.GetDocumentName()
+    data_dict["sel"] = _selection_info(doc)[0]
+    try:
+        full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
+        data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
+    except Exception:
+        data_dict["file_size"] = 0
+    try:
+        _progress("Scanning materials")
+        data_dict["materials"] = adapter.scan_materials(
+            include_hidden=include_hidden,
+            accepted=cfg.accepted_unused)
+    except Exception:
+        data_dict["materials"] = None
+    try:
+        _progress("Scanning textures")
+        data_dict["textures"] = adapter.scan_textures(
+            include_hidden=include_hidden,
+            accepted=cfg.kept("textures"))
+    except Exception as ex:  # noqa: BLE001
+        import traceback
+        data_dict["textures"] = None
+        data_dict["textures_error"] = "%s: %s" % (
+            type(ex).__name__, ex)
+        data_dict["textures_trace"] = traceback.format_exc()[-1500:]
+    try:
+        _progress("Scanning layers")
+        data_dict["layers_report"] = _merge_layers(
+            data_dict, adapter.scan_layers(),
+            all_object_counts=adapter._layer_object_counts())
+    except Exception:
+        data_dict["layers_report"] = None
+    try:
+        _progress("Checking generators & simulations")
+        import importlib
+        gens_mod = importlib.import_module(
+            "overseer.cinema.audit_generators")
+        sims_mod = importlib.import_module("overseer.cinema.audit_sims")
+        data_dict["has_generators"] = gens_mod.has_any(adapter, tree)
+        data_dict["has_sims"] = sims_mod.has_any(adapter, tree)
+    except Exception:
+        data_dict["has_generators"] = True
+        data_dict["has_sims"] = True
+    _progress("Writing report")
+
+    import time
+    now = time.time()
+    data_dict["analyzed_ts"] = now
+    data_dict["analyzed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
+    if not data_dict.get("scoped"):
+        _record_history(doc, {
+            "file": data_dict.get("file") or "(unsaved)",
+            "ts": now,
+            "at": data_dict["analyzed_at"],
+            "objects": data_dict.get("object_count", 0),
+            "compliance": data_dict.get("structure_compliance", 0),
+            "polys": data_dict.get("total_polys", 0),
+            "size": data_dict.get("file_size", 0),
+        })
+    doc_dir = doc.GetDocumentPath() or None
+    written = None if data_dict.get("scoped") else _write_export(data_dict, doc_dir)
+    result = {"ok": True, "report": data_dict, "export_path": written}
+    if op == "export_csv":
+        csv_res = _write_csv(data_dict, doc_dir)
+        result["csv_path"] = csv_res[0] if csv_res else None
+        result["csv_rows"] = csv_res[1] if csv_res else 0
+    return result
+
+
+def _op_history(req: ApiRequest) -> dict:
+    return {"ok": True, "history": list(reversed(_read_history(req.doc)))}
+
+
+def _op_clear_history(req: ApiRequest) -> dict:
+    try:
+        with open(_history_path(req.doc), "w", encoding="utf-8") as f:
+            json.dump([], f)
+    except Exception as ex:
+        return {"error": str(ex)}
+    return {"ok": True}
+
+
+def _op_presets(req: ApiRequest) -> dict:
+    return {"ok": True, "presets": _list_presets(),
+            "active": req.data.get("preset")}
+
+
+def _op_apply_preset(req: ApiRequest) -> dict:
+    return _apply_preset(req.payload.get("id", ""))
+
+
+def _op_save_preset(req: ApiRequest) -> dict:
+    return _save_preset(req.payload.get("name", ""),
+                        req.payload.get("description", ""),
+                        overwrite=bool(req.payload.get("overwrite")))
+
+
+def _op_delete_preset(req: ApiRequest) -> dict:
+    return _delete_preset(req.payload.get("id", ""))
+
+
+def _op_plan_all(req: ApiRequest) -> dict:
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    settings, data = req.settings, req.data
+    adapter, tree = _get_scene(doc, "one-button plan")
+    conv = _convention(settings, cfg)
+    scope = _scope(settings, adapter)
+    plan = pipeline.plan_combined(
+        tree, cfg, convention=conv, scope=scope,
+        safe_only=bool(settings.get("safe", True)),
+        tidy=bool(settings.get("tidy", True)))
+    result = {
+        "ok": True,
+        "naming": [{"guid": r.guid, "old": r.old_name, "new": r.new_name}
+                   for r in plan.renames],
+        "structure": [{"guid": r.guid, "name": r.name,
+                       "from": r.from_group, "to": r.to_group}
+                      for r in plan.reparents],
+        "layers": [{"guid": o.guid, "name": o.name, "layer": o.layer}
+                   for o in plan.layers],
+        "applied_rules": plan.applied_rules,
+        "warnings": plan.warnings,
+        "total": plan.total,
+        "preset": data.get("preset"),
+    }
+    if op == "apply_all":
+        chosen = pipeline.filter_accepted(plan, payload.get("accept"))
+        applied = adapter.apply_bundle(
+            chosen.renames, chosen.reparents, chosen.layers,
+            canonical=cfg.standard.canonical_group)
+        result["applied"] = applied
+        _record_change(
+            "apply_all",
+            "%d renamed, %d moved, %d layered" % (
+                applied["renames"], applied["reparents"], applied["layers"]),
+            adapter.last_changes, doc=doc)
+    return result
+
+
+def _op_plans(req: ApiRequest) -> dict:
+    return {"ok": True, "plans": _list_plans()}
+
+
+def _op_apply_plan(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    plan = payload.get("plan")
+    if plan is None and payload.get("id"):
+        plan = _load_plan(payload["id"])
+    if not plan or "operations" not in plan:
+        return {"error": "no valid plan (need {operations:[...]})"}
+    adapter, _ = _get_scene(doc, "restructuring plan")
+    res = adapter.apply_plan(plan["operations"])
+    _record_change("plan", "restructuring plan: %d ops" % res.get("total", 0),
+                   [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_rename_object(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter, _ = _get_scene(doc, "rename")
+    new_name = str(payload.get("name") or "").strip()
+    if not new_name:
+        return {"ok": False, "error": "empty name"}
+    ok = adapter.rename_object(payload.get("guid"), new_name)
+    if ok:
+        _record_change("naming", "renamed to “%s”" % new_name,
+                       adapter.last_changes, doc=doc)
+    return {"ok": ok, "applied": 1 if ok else 0}
+
+
+def _op_focus(req: ApiRequest) -> dict:
+    adapter, _ = _get_scene(req.doc, "focus")
+    ok = adapter.focus(req.payload.get("guid"))
+    return {"ok": ok}
+
+
+def _op_type_icons(req: ApiRequest) -> dict:
+    import base64
+    import tempfile
+    cache = _cache_store().setdefault("type_icons", {})
+    tmp = os.path.join(tempfile.gettempdir(), "so_typeicon.png")
+    icons = {}
+    for tid in req.payload.get("ids") or []:
+        try:
+            tid = int(tid)
+        except (TypeError, ValueError):
+            continue
+        if tid not in cache:
+            data = ""
+            try:
+                bmp = c4d.bitmaps.InitResourceBitmap(tid)
+                if bmp is not None and bmp.GetSize()[0] > 0 \
+                        and bmp.Save(tmp, c4d.FILTER_PNG) == c4d.IMAGERESULT_OK:
+                    with open(tmp, "rb") as f:
+                        data = ("data:image/png;base64,"
+                                + base64.b64encode(f.read()).decode("ascii"))
+            except Exception:
+                data = ""
+            cache[tid] = data
+        if cache[tid]:
+            icons[str(tid)] = cache[tid]
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+    return {"ok": True, "icons": icons}
+
+
+def _op_material_previews(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    size = int(payload.get("size") or 48)
+    cache = _cache_store().setdefault("mat_previews", {})
+    doc_key = doc.GetDocumentName() or ""
+    names = payload.get("names") or []
+    previews = {}
+    missing = []
+    for name in names:
+        hit = cache.get((doc_key, name, size))
+        if hit is not None:
+            previews[name] = hit
+        else:
+            missing.append(name)
+    if missing:
+        fresh = adapter.material_previews(
+            missing, size=size,
+            progress=lambda cur, tot, nm: _progress(
+                "Rendering material previews", cur, tot, nm))
+        for name, data in fresh.items():
+            cache[(doc_key, name, size)] = data
+        previews.update(fresh)
+    return {"ok": True, "previews": previews}
+
+
+def _op_texture_previews(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    size = int(payload.get("size") or 40)
+    cache = _cache_store().setdefault("tex_previews", {})
+    paths = payload.get("paths") or []
+    previews = {}
+    missing = []
+    for p in paths:
+        try:
+            mtime = os.path.getmtime(p) if p and os.path.isfile(p) else 0
+        except OSError:
+            mtime = 0
+        key = (p, mtime, size)
+        hit = cache.get(key)
+        if hit is not None:
+            previews[p] = hit
+        else:
+            missing.append((p, key))
+    if missing:
+        fresh = adapter.texture_previews(
+            [p for p, _ in missing], size=size,
+            progress=lambda cur, tot, nm: _progress(
+                "Rendering texture thumbnails", cur, tot, nm))
+        for p, key in missing:
+            if p in fresh:
+                cache[key] = fresh[p]
+                previews[p] = fresh[p]
+    return {"ok": True, "previews": previews}
+
+
+def _op_focus_material(req: ApiRequest) -> dict:
+    adapter, _ = _get_scene(req.doc, "focus material")
+    return {"ok": True, **adapter.focus_material(req.payload.get("name", ""))}
+
+
+def _op_delete_material(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    name = payload.get("name", "")
+    deleted = adapter.delete_material(
+        name, include_hidden=bool(payload.get("include_hidden")))
+    if deleted:
+        _record_change("materials_delete", "deleted material '%s'" % name,
+                       [], revertible=False, doc=doc)
+    return {"ok": True, "deleted": deleted}
+
+
+def _op_delete_unused_materials(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    deleted = adapter.delete_unused_materials(
+        include_hidden=bool(payload.get("include_hidden")))
+    if deleted:
+        _record_change("materials_delete",
+                       "deleted %d unused material(s)" % deleted,
+                       [], revertible=False, doc=doc)
+    return {"ok": True, "deleted": deleted}
+
+
+def _op_fix_textures_relative(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.make_textures_relative(payload.get("materials"))
+    if res.get("fixed"):
+        _record_change("textures_relative",
+                       "%d texture path(s) made relative" % res["fixed"],
+                       [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_texture_owners(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    return {"ok": True,
+            **adapter.texture_owners(str(payload.get("path") or ""))}
+
+
+def _op_collect_textures(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.collect_textures(payload.get("materials"),
+                                   subdir=payload.get("subdir") or "tex",
+                                   paths=payload.get("paths"))
+    if res.get("relinked"):
+        _record_change("textures_collect",
+                       "%d texture(s) copied into the project, %d reference(s) relinked"
+                       % (res.get("copied", 0), res["relinked"]),
+                       [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_relink_textures(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.relink_textures(payload.get("folder") or "",
+                                  progress=_progress)
+    if res.get("relinked"):
+        _record_change("textures_relink",
+                       "%d missing texture(s) relinked" % res["relinked"],
+                       [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_open_file(req: ApiRequest) -> dict:
+    p = str(req.payload.get("path") or "")
+    if not p or not os.path.isfile(p):
+        return {"error": "file not found: %s" % (p or "(empty)")}
+    try:
+        os.startfile(p)  # noqa: S606 - intentional, user-invoked
+    except Exception as ex:  # noqa: BLE001
+        return {"error": "could not open: %s" % ex}
+    return {"ok": True}
+
+
+def _op_pick_texture_path(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    raw = str(payload.get("path") or "")
+    try:
+        chosen = c4d.storage.LoadDialog(
+            type=c4d.FILESELECTTYPE_IMAGES,
+            title="Pick replacement for %s" % os.path.basename(raw),
+            flags=c4d.FILESELECT_LOAD,
+            def_path=doc.GetDocumentPath() or "")
+    except Exception as ex:  # noqa: BLE001
+        return {"error": "file dialog failed: %s" % ex}
+    if not chosen:
+        return {"ok": True, "cancelled": True}
+    adapter = SceneAdapter(doc)
+    res = adapter.set_texture_path(raw, chosen,
+                                   material=payload.get("material") or None)
+    if res.get("changed"):
+        _record_change("textures_edit",
+                       "texture reference relinked to %s"
+                       % os.path.basename(chosen),
+                       [], revertible=False, doc=doc)
+    return {"ok": True, "picked": chosen, **res}
+
+
+def _op_pick_folder(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    try:
+        chosen = c4d.storage.LoadDialog(
+            type=c4d.FILESELECTTYPE_ANYTHING,
+            title=str(payload.get("title") or "Pick a folder"),
+            flags=c4d.FILESELECT_DIRECTORY,
+            def_path=doc.GetDocumentPath() or "")
+    except Exception as ex:  # noqa: BLE001
+        return {"error": "folder dialog failed: %s" % ex}
+    return {"ok": True, "path": chosen or "", "cancelled": not chosen}
+
+
+def _op_set_texture_path(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.set_texture_path(str(payload.get("path") or ""),
+                                   str(payload.get("new_path") or ""),
+                                   material=payload.get("material") or None)
+    if res.get("changed"):
+        what = "cleared" if not (payload.get("new_path") or "").strip() \
+            else "rewritten"
+        _record_change("textures_edit",
+                       "texture reference %s (%s)" % (what,
+                       os.path.basename(str(payload.get("path") or ""))),
+                       [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_texture_repath(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    mode = "absolute" if str(payload.get("mode")) == "absolute" else "relative"
+    res = adapter.texture_repath(payload.get("paths") or [], mode=mode,
+                                 material=payload.get("material") or None)
+    if res.get("changed"):
+        _record_change("textures_repath",
+                       "%d texture path(s) made %s" % (res["changed"], mode),
+                       adapter.last_changes, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_texture_resize(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.texture_resize(payload.get("paths") or [],
+                                 payload.get("percent"))
+    if res.get("error"):
+        return {"ok": False, **res}
+    if res.get("resized"):
+        _record_change("textures_resize",
+                       "%d texture(s) resized to %d%%, %d relinked"
+                       % (res["resized"], int(payload.get("percent") or 0),
+                          res.get("relinked", 0)),
+                       adapter.last_changes, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_clear_missing_textures(req: ApiRequest) -> dict:
+    doc = req.doc
+    adapter = SceneAdapter(doc)
+    res = adapter.clear_missing_textures()
+    if res.get("cleared"):
+        _record_change("textures_clear",
+                       "%d missing texture reference(s) cleared" % res["cleared"],
+                       [], revertible=False, doc=doc)
+    return {"ok": True, **res}
+
+
+def _op_changes(req: ApiRequest) -> dict:
+    return {"ok": True, "changes": list(reversed(_load_journal(req.doc)))}
+
+
+def _op_revert_change(req: ApiRequest) -> dict:
+    payload, doc, cfg = req.payload, req.doc, req.cfg
+    entry_id = str(payload.get("id", ""))
+    entries = _load_journal(doc)
+    entry = next((e for e in entries if str(e.get("id")) == entry_id), None)
+    if entry is None:
+        return {"error": "change not found: %s" % entry_id}
+    if entry.get("reverted"):
+        return {"error": "already reverted"}
+    if not entry.get("revertible"):
+        return {"error": "this change cannot be reverted"}
+
+    wanted = payload.get("items")
+    pairs = journalmod.items_to_revert(entry, wanted)
+    if not pairs:
+        return {"ok": True, "reverted": 0, "missing": 0, "results": []}
+    adapter, _ = _get_scene(doc, "revert")
+    res = adapter.revert([it for _i, it in pairs],
+                         canonical=cfg.standard.canonical_group)
+    done = [pairs[k][0] for k, r in enumerate(res.get("results") or [])
+            if r.get("status") == "reverted"]
+    journalmod.mark_reverted(entry, done)
+    journalmod.set_entry(entries, entry)
+    _save_journal(doc, entries)
+    return {"ok": True, **res}
+
+
+def _op_clear_changes(req: ApiRequest) -> dict:
+    _save_journal(req.doc, [])
+    return {"ok": True}
+
+
+def _op_set_keeps(req: ApiRequest) -> dict:
+    op, payload = req.op, req.payload
+    section = {"set_keep_names": "naming",
+               "set_accepted_unused": "materials"}.get(
+        op, str(payload.get("section", "")))
+    keys = payload.get("keys", payload.get("names"))
+    merged = cfgmod.migrate_config(_read_config_data())
+    try:
+        merged["keeps"] = keepsmod.set_section_keeps(
+            merged.get("keeps"), section, keys or [])
+    except ValueError as ex:
+        return {"error": str(ex)}
+    _write_config_data(merged)
+    return {"ok": True, "section": section,
+            "keys": merged["keeps"][section]}
+
+
+def _op_detect(req: ApiRequest) -> dict:
+    _, tree = _get_scene(req.doc, "detect convention")
+    res = detectmod.detect_convention([n.name for n in tree.walk()])
+    return {"ok": True, "detect": {
+        "style": res.style.value, "language": res.language,
+        "number_pad": res.number_pad, "confidence": res.confidence,
+        "casing_distribution": res.casing_distribution,
+        "language_distribution": res.language_distribution,
+    }}
+
+
+def _op_rules(req: ApiRequest) -> dict:
+    cfg = req.cfg
+    return {"ok": True,
+            "groups": [_rule_dict(r) for r in cfg.standard.rules],
+            "structure": cfgmod.structure_to_list(cfg.standard),
+            "rules": cfg.rules.to_list(),
+            "rule_warnings": cfg.rules.warnings,
+            "prefixes": cfg.prefixes,
+            "convention": {
+                "style": cfg.convention.style.value,
+                "language": cfg.convention.language,
+                "number_pad": cfg.convention.number_pad,
+            }}
+
+
+def _op_config(req: ApiRequest) -> dict:
+    payload, data = req.payload, req.data
+    if payload.get("save"):
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(payload.get("data", {}), f, indent=2, ensure_ascii=False)
+        return {"ok": True, "saved": True, "path": CONFIG_PATH}
+    return {"ok": True, "config": data, "defaults": cfgmod.DEFAULT_CONFIG}
+
+
+def _op_plan_naming(req: ApiRequest) -> dict:
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    settings = req.settings
+    adapter, tree = _get_scene(doc, "naming")
+    conv = _convention(settings, cfg)
+    scope = _scope(settings, adapter)
+    if not settings.get("include_hidden", True):
+        visible = {n.guid for n in tree.walk() if n.visible}
+        scope = visible if scope is None else (scope & visible)
+    dedupe = bool(settings.get("dedupe", True))
+    renames = ops.plan_renames(tree, conv, scope=scope,
+                               prefixes=cfg.prefixes, keep=cfg.keep_names,
+                               dedupe=dedupe)
+    diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name,
+             "rules": r.rules} for r in renames]
+    kept = sorted(cfg.kept("naming"))
+    if op == "apply_naming":
+        accepted = payload.get("guids")
+        chosen = ([r for r in renames if r.guid in set(accepted)]
+                  if accepted is not None else renames)
+        applied = adapter.apply_renames(chosen)
+        _record_change("naming", "%d renamed" % applied,
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "count": len(chosen),
+                "diff": diff, "kept": kept, "keep_names": kept}
+    return {"ok": True, "count": len(renames), "diff": diff,
+            "kept": kept, "keep_names": kept}
+
+
+def _op_plan_structure(req: ApiRequest) -> dict:
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    settings = req.settings
+    adapter, tree = _get_scene(doc, "structure")
+    scope = _scope(settings, adapter)
+    safe = bool(settings.get("safe", True))
+    tidy = bool(settings.get("tidy", True))
+    reparents = ops.plan_reparents(tree, cfg.standard, scope=scope,
+                                   safe_only=safe, tidy=tidy)
+    reparents, kept = keepsmod.filter_kept(
+        reparents, cfg.kept("structure"), key=lambda r: r.name)
+    report = cfg.standard.evaluate(tree)
+    in_scope = [f for f in report.misplaced if scope is None or f.guid in scope]
+    skipped = max(0, len(in_scope) - len(reparents) - len(kept))
+    diff = [{"guid": r.guid, "name": r.name, "from": r.from_group, "to": r.to_group}
+            for r in reparents]
+    if op == "apply_structure":
+        accepted = payload.get("guids")
+        chosen = (reparents if accepted is None else
+                  [r for r in reparents if r.guid in set(accepted)])
+        applied = adapter.apply_reparents(
+            chosen, canonical=cfg.standard.canonical_group)
+        _record_change("structure", "%d moved" % applied,
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "count": len(chosen),
+                "diff": diff, "skipped": skipped, "kept": kept}
+    return {"ok": True, "count": len(reparents), "diff": diff,
+            "skipped": skipped, "kept": kept}
+
+
+def _op_plan_translate(req: ApiRequest) -> dict:
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    settings = req.settings
+    adapter, tree = _get_scene(doc, "translation")
+    scope = _scope(settings, adapter)
+    target = payload.get("target") or "en"
+    engine = (payload.get("engine") or settings.get("engine")
+              or "offline").lower()
+    if engine == "google":
+        def _gprog(cur, tot):
+            _progress("Translating online (Google)", cur, tot,
+                      "%d / %d names" % (cur, tot))
+
+        try:
+            props, gerr, gdetected = _google_plan(tree, scope, target,
+                                                  progress=_gprog)
+        finally:
+            _progress(_OP_LABELS.get(op, "Translating"))
+        if gerr and not props:
+            return {"error": "Google translate failed: %s" % gerr}
+    else:
+        gdetected = None
+        props = translatemod.plan_translations(
+            tree, scope=scope, target=target)
+    props, kept = keepsmod.filter_kept(
+        props, cfg.kept("translate"), key=lambda p: p.old)
+    if op == "apply_translate":
+        accepted = payload.get("guids")
+        chosen = (props if accepted is None else
+                  [p for p in props if p.guid in set(accepted)])
+        renames = [ops.RenameOp(node=p.node, new_name=p.new) for p in chosen]
+        applied = adapter.apply_renames(renames)
+        _record_change("translate", "%d translated" % applied,
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "count": len(renames)}
+    diff = [{"guid": p.guid, "old": p.old, "new": p.new,
+             "words": p.words, "lang": p.lang} for p in props]
+    if engine == "google" and gdetected and gdetected.get("total"):
+        detected = gdetected
+    else:
+        detected = translatemod.detect_languages(tree, scope=scope).to_dict()
+    return {"ok": True, "count": len(props), "diff": diff, "kept": kept,
+            "target": target, "detected": detected, "engine": engine}
+
+
+def _op_plan_layers(req: ApiRequest) -> dict:
+    import collections
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    settings = req.settings
+    adapter, tree = _get_scene(doc, "layers")
+    scope = _scope(settings, adapter)
+    layerops = ops.plan_layers(tree, scope=scope)
+    layerops, kept = keepsmod.filter_kept(
+        layerops, cfg.kept("layers"), key=lambda o: o.name)
+    by_layer = dict(collections.Counter(o.layer for o in layerops))
+    diff = [{"guid": o.guid, "name": o.name, "layer": o.layer} for o in layerops]
+    if op == "apply_layers":
+        accepted = payload.get("guids")
+        chosen = layerops if accepted is None else [
+            o for o in layerops if o.guid in set(accepted)]
+        applied = adapter.apply_layers(chosen)
+        _record_change("layers", "%d assigned to layers" % applied,
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "count": len(chosen),
+                "diff": diff, "by_layer": by_layer, "kept": kept}
+    return {"ok": True, "count": len(layerops), "diff": diff,
+            "by_layer": by_layer, "kept": kept}
+
+
+def _op_plan_layer_suggestions(req: ApiRequest) -> dict:
+    doc, cfg, settings = req.doc, req.cfg, req.settings
+    adapter, tree = _get_scene(doc, "layer suggestions")
+    scope = _scope(settings, adapter)
+    sugg = ops.plan_layer_suggestions(
+        tree, scope=scope, keep=cfg.kept("layers"))
+    diff = [{"guid": o.guid, "name": o.name, "layer": o.layer}
+            for o in sugg]
+    return {"ok": True, "count": len(sugg), "diff": diff}
+
+
+def _op_apply_layer_suggestions(req: ApiRequest) -> dict:
+    payload, doc, cfg, settings = req.payload, req.doc, req.cfg, req.settings
+    adapter, tree = _get_scene(doc, "layer suggestions")
+    scope = _scope(settings, adapter)
+    sugg = ops.plan_layer_suggestions(
+        tree, scope=scope, keep=cfg.kept("layers"))
+    accepted = payload.get("guids")
+    if accepted is not None:
+        wanted = set(accepted)
+        sugg = [o for o in sugg if o.guid in wanted]
+    applied = adapter.apply_layers(sugg)
+    _record_change("layers", "%d assigned to suggested layers" % applied,
+                   adapter.last_changes, doc=doc)
+    return {"ok": True, "applied": applied, "count": len(sugg)}
+
+
+def _op_layer_mismatches(req: ApiRequest) -> dict:
+    _, tree = _get_scene(req.doc, "layer mismatches")
+    found = layersmod.find_layer_mismatches(tree, keep=req.cfg.kept("layers"))
+    return {"ok": True, "count": len(found),
+            "findings": [f.to_dict() for f in found]}
+
+
+def _op_delete_layers(req: ApiRequest) -> dict:
+    op, payload, doc = req.op, req.payload, req.doc
+    adapter, _ = _get_scene(doc, "delete layers")
+    if op == "delete_layer":
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            return {"error": "missing layer name"}
+        deleted = adapter.delete_layer(name)
+        if deleted:
+            _record_change("layers", "deleted layer %s" % name, [],
+                           revertible=False,
+                           doc=doc)
+    else:
+        keep = {str(n) for n in (payload.get("keep") or [])}
+        deleted = adapter.delete_empty_layers(keep)
+        if deleted:
+            _record_change("layers", "%d empty layers deleted" % deleted,
+                           [], revertible=False,
+                           doc=doc)
+    return {"ok": True, "deleted": deleted}
+
+
+def _op_set_layer_colors(req: ApiRequest) -> dict:
+    payload, doc = req.payload, req.doc
+    adapter, _ = _get_scene(doc, "layer colors")
+    colors: dict = {}
+    for e in payload.get("colors") or []:
+        name = str(e.get("name") or "").strip()
+        col = e.get("color")
+        if name and isinstance(col, (list, tuple)) and len(col) == 3:
+            colors[name] = [max(0.0, min(1.0, float(c))) for c in col]
+    if not colors:
+        return {"error": "no layer colors given"}
+    applied = adapter.set_layer_colors(colors)
+    if applied:
+        _record_change("layers", "%d layer colors set" % applied, [],
+                       revertible=False, doc=doc)
+    return {"ok": True, "applied": applied}
+
+
+def _op_batch_assign(req: ApiRequest) -> dict:
+    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    adapter, tree = _get_scene(doc, "batch action")
+    key = "layer" if op == "assign_layer" else "group"
+    target = str(payload.get(key) or "").strip()
+    if not target:
+        return {"error": "missing %s name" % key}
+    guids = payload.get("guids") or []
+    nodes = [n for n in (tree.find(g) for g in guids) if n is not None]
+    if not nodes:
+        return {"error": "no matching objects"}
+    if op == "assign_layer":
+        applied = adapter.apply_layers(
+            [ops.LayerOp(node=n, layer=target) for n in nodes])
+        _record_change("layers", "%d assigned to layer %s" % (applied, target),
+                       adapter.last_changes, doc=doc)
+        return {"ok": True, "applied": applied, "layer": target}
+    reparents = [
+        ops.ReparentOp(node=n, to_group=target,
+                       from_group=n.parent.name if n.parent else "")
+        for n in nodes]
+    applied = adapter.apply_reparents(
+        reparents, canonical=cfg.standard.canonical_group)
+    _record_change("structure", "%d moved to %s" % (applied, target),
+                   adapter.last_changes, doc=doc)
+    return {"ok": True, "applied": applied, "group": target}
+
+
+_DOC_HANDLERS = {
+    "dirty": _op_dirty,
+    "ui_settings_get": _op_ui_settings_get,
+    "ui_settings_set": _op_ui_settings_set,
+}
+
+_CFG_HANDLERS = {
+    "analyze": _op_analyze,
+    "export": _op_analyze,
+    "export_csv": _op_analyze,
+    "history": _op_history,
+    "clear_history": _op_clear_history,
+    "presets": _op_presets,
+    "apply_preset": _op_apply_preset,
+    "save_preset": _op_save_preset,
+    "delete_preset": _op_delete_preset,
+    "plan_all": _op_plan_all,
+    "apply_all": _op_plan_all,
+    "plans": _op_plans,
+    "apply_plan": _op_apply_plan,
+    "rename_object": _op_rename_object,
+    "focus": _op_focus,
+    "type_icons": _op_type_icons,
+    "material_previews": _op_material_previews,
+    "texture_previews": _op_texture_previews,
+    "focus_material": _op_focus_material,
+    "delete_material": _op_delete_material,
+    "delete_unused_materials": _op_delete_unused_materials,
+    "fix_textures_relative": _op_fix_textures_relative,
+    "texture_owners": _op_texture_owners,
+    "collect_textures": _op_collect_textures,
+    "relink_textures": _op_relink_textures,
+    "open_file": _op_open_file,
+    "pick_texture_path": _op_pick_texture_path,
+    "pick_folder": _op_pick_folder,
+    "set_texture_path": _op_set_texture_path,
+    "texture_repath": _op_texture_repath,
+    "texture_resize": _op_texture_resize,
+    "clear_missing_textures": _op_clear_missing_textures,
+    "changes": _op_changes,
+    "revert_change": _op_revert_change,
+    "clear_changes": _op_clear_changes,
+    "set_keeps": _op_set_keeps,
+    "set_keep_names": _op_set_keeps,
+    "set_accepted_unused": _op_set_keeps,
+    "detect": _op_detect,
+    "rules": _op_rules,
+    "config": _op_config,
+    "plan_naming": _op_plan_naming,
+    "apply_naming": _op_plan_naming,
+    "plan_structure": _op_plan_structure,
+    "apply_structure": _op_plan_structure,
+    "plan_translate": _op_plan_translate,
+    "apply_translate": _op_plan_translate,
+    "plan_layers": _op_plan_layers,
+    "apply_layers": _op_plan_layers,
+    "plan_layer_suggestions": _op_plan_layer_suggestions,
+    "apply_layer_suggestions": _op_apply_layer_suggestions,
+    "layer_mismatches": _op_layer_mismatches,
+    "delete_layer": _op_delete_layers,
+    "delete_empty_layers": _op_delete_layers,
+    "set_layer_colors": _op_set_layer_colors,
+    "assign_layer": _op_batch_assign,
+    "move_to_group": _op_batch_assign,
+}
+
 _OP_LABELS = {
     "analyze": "Analyzing scene",
     "export": "Exporting report",
@@ -771,6 +1643,7 @@ _OP_LABELS = {
     "material_previews": "Rendering material previews",
     "texture_previews": "Rendering texture thumbnails",
     "fix_textures_relative": "Rewriting texture paths",
+    "texture_owners": "Finding materials using the texture",
     "collect_textures": "Copying textures into the project",
     "relink_textures": "Relinking missing textures",
     "clear_missing_textures": "Clearing missing texture references",
@@ -786,7 +1659,6 @@ _OP_LABELS = {
     "perf_scan": "Measuring generator rebuild times",
 }
 
-
 _AUDIT_MODULES = {
     "tags": "audit_tags",
     "gens": "audit_generators",
@@ -794,7 +1666,6 @@ _AUDIT_MODULES = {
     "sims": "audit_sims",
     "perf": "audit_perf",
 }
-
 
 _MUTATING_OPS = {
     "apply_naming", "apply_structure", "apply_layers", "apply_translate",
@@ -829,8 +1700,7 @@ def handle(payload: dict) -> dict:
 
 
 def _handle(payload: dict) -> dict:
-    op = payload.get("op")
-    settings = payload.get("settings", {})
+    op = str(payload.get("op") or "")
 
     if op == "netinfo":
         return _netinfo(payload)
@@ -839,723 +1709,17 @@ def _handle(payload: dict) -> dict:
     if doc is None:
         return {"error": "No active document."}
 
-    if op == "dirty":
-        sel_token, sel_names, sel_count = _selection_info(doc)
-        return {"ok": True, "dirty": _scene_dirty(doc),
-                "name": doc.GetDocumentName(),
-                "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
-
-    if op == "ui_settings_get":
-        from . import ui_settings as uimod
-        ui = uimod.load_ui(DATA_DIR, doc.GetDocumentPath() or "",
-                           doc.GetDocumentName() or "")
-        return {"ok": True, "found": bool(ui), "ui": ui}
-
-    if op == "ui_settings_set":
-        from . import ui_settings as uimod
-        res = uimod.save_ui(DATA_DIR, doc.GetDocumentPath() or "",
-                            doc.GetDocumentName() or "", payload.get("ui") or {})
-        return {"ok": bool(res.get("ok")), "path": res.get("path"),
-                "error": res.get("error")}
+    doc_handler = _DOC_HANDLERS.get(op)
+    if doc_handler is not None:
+        return doc_handler(payload, doc)
 
     cfg, data = _load_cfg()
+    handler = _CFG_HANDLERS.get(op)
+    if handler is not None:
+        return handler(ApiRequest(op=op, payload=payload, doc=doc,
+                                  cfg=cfg, data=data))
 
-    if op in ("analyze", "export", "export_csv"):
-        invalidate_scene_cache()
-        adapter, tree = _get_scene(doc, "analyzing")
-        _progress("Analyzing structure")
-        scope = _scope(settings, adapter) if op == "analyze" else None
-        if scope is not None and not scope:
-            return {"error": "No objects selected in Cinema 4D."}
-        include_hidden = (op != "analyze"
-                          or bool(settings.get("include_hidden", False)))
-        report = SceneAnalyzer(cfg.standard).analyze(
-            tree, file_name=doc.GetDocumentName(), scope=scope,
-            include_hidden=include_hidden)
-        data_dict = report.to_dict()
-        data_dict["scoped"] = scope is not None
-        data_dict["include_hidden"] = include_hidden
-        data_dict["dirty"] = _scene_dirty(doc)
-        data_dict["doc_name"] = doc.GetDocumentName()
-        data_dict["sel"] = _selection_info(doc)[0]
-        try:
-            full = os.path.join(doc.GetDocumentPath() or "", doc.GetDocumentName() or "")
-            data_dict["file_size"] = os.path.getsize(full) if os.path.isfile(full) else 0
-        except Exception:
-            data_dict["file_size"] = 0
-        try:
-            _progress("Scanning materials")
-            data_dict["materials"] = adapter.scan_materials(
-                include_hidden=include_hidden,
-                accepted=cfg.accepted_unused)
-        except Exception:
-            data_dict["materials"] = None
-        try:
-            _progress("Scanning textures")
-            data_dict["textures"] = adapter.scan_textures(
-                include_hidden=include_hidden,
-                accepted=cfg.kept("textures"))
-        except Exception as ex:  # noqa: BLE001
-            import traceback
-            data_dict["textures"] = None
-            data_dict["textures_error"] = "%s: %s" % (
-                type(ex).__name__, ex)
-            data_dict["textures_trace"] = traceback.format_exc()[-1500:]
-        try:
-            _progress("Scanning layers")
-            data_dict["layers_report"] = _merge_layers(
-                data_dict, adapter.scan_layers(),
-                all_object_counts=adapter._layer_object_counts())
-        except Exception:
-            data_dict["layers_report"] = None
-        try:
-            _progress("Checking generators & simulations")
-            import importlib
-            gens_mod = importlib.import_module(
-                "overseer.cinema.audit_generators")
-            sims_mod = importlib.import_module("overseer.cinema.audit_sims")
-            data_dict["has_generators"] = gens_mod.has_any(adapter, tree)
-            data_dict["has_sims"] = sims_mod.has_any(adapter, tree)
-        except Exception:
-            data_dict["has_generators"] = True
-            data_dict["has_sims"] = True
-        _progress("Writing report")
-
-        import time
-        now = time.time()
-        data_dict["analyzed_ts"] = now
-        data_dict["analyzed_at"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
-        if not data_dict.get("scoped"):
-            _record_history(doc, {
-                "file": data_dict.get("file") or "(unsaved)",
-                "ts": now,
-                "at": data_dict["analyzed_at"],
-                "objects": data_dict.get("object_count", 0),
-                "compliance": data_dict.get("structure_compliance", 0),
-                "polys": data_dict.get("total_polys", 0),
-                "size": data_dict.get("file_size", 0),
-            })
-        doc_dir = doc.GetDocumentPath() or None
-        written = None if data_dict.get("scoped") else _write_export(data_dict, doc_dir)
-        result = {"ok": True, "report": data_dict, "export_path": written}
-        if op == "export_csv":
-            csv_res = _write_csv(data_dict, doc_dir)
-            result["csv_path"] = csv_res[0] if csv_res else None
-            result["csv_rows"] = csv_res[1] if csv_res else 0
-        return result
-
-    if op == "history":
-        return {"ok": True, "history": list(reversed(_read_history(doc)))}
-
-    if op == "clear_history":
-        # Write an empty log rather than deleting the file — an absent file
-        # would fall back to the pre-split global log and resurrect the runs.
-        try:
-            with open(_history_path(doc), "w", encoding="utf-8") as f:
-                json.dump([], f)
-        except Exception as ex:
-            return {"error": str(ex)}
-        return {"ok": True}
-
-    if op == "presets":
-        return {"ok": True, "presets": _list_presets(),
-                "active": data.get("preset")}
-
-    if op == "apply_preset":
-        return _apply_preset(payload.get("id", ""))
-
-    if op == "save_preset":
-        return _save_preset(payload.get("name", ""),
-                            payload.get("description", ""),
-                            overwrite=bool(payload.get("overwrite")))
-
-    if op == "delete_preset":
-        return _delete_preset(payload.get("id", ""))
-
-    if op in ("plan_all", "apply_all"):
-        adapter, tree = _get_scene(doc, "one-button plan")
-        conv = _convention(settings, cfg)
-        scope = _scope(settings, adapter)
-        plan = pipeline.plan_combined(
-            tree, cfg, convention=conv, scope=scope,
-            safe_only=bool(settings.get("safe", True)),
-            tidy=bool(settings.get("tidy", True)))
-        result = {
-            "ok": True,
-            "naming": [{"guid": r.guid, "old": r.old_name, "new": r.new_name}
-                       for r in plan.renames],
-            "structure": [{"guid": r.guid, "name": r.name,
-                           "from": r.from_group, "to": r.to_group}
-                          for r in plan.reparents],
-            "layers": [{"guid": o.guid, "name": o.name, "layer": o.layer}
-                       for o in plan.layers],
-            "applied_rules": plan.applied_rules,
-            "warnings": plan.warnings,
-            "total": plan.total,
-            "preset": data.get("preset"),
-        }
-        if op == "apply_all":
-            chosen = pipeline.filter_accepted(plan, payload.get("accept"))
-            applied = adapter.apply_bundle(
-                chosen.renames, chosen.reparents, chosen.layers,
-                canonical=cfg.standard.canonical_group)
-            result["applied"] = applied
-            _record_change(
-                "apply_all",
-                "%d renamed, %d moved, %d layered" % (
-                    applied["renames"], applied["reparents"], applied["layers"]),
-                adapter.last_changes, doc=doc)
-        return result
-
-    if op == "plans":
-        return {"ok": True, "plans": _list_plans()}
-
-    if op == "apply_plan":
-        plan = payload.get("plan")
-        if plan is None and payload.get("id"):
-            plan = _load_plan(payload["id"])
-        if not plan or "operations" not in plan:
-            return {"error": "no valid plan (need {operations:[...]})"}
-        adapter, _ = _get_scene(doc, "restructuring plan")
-        res = adapter.apply_plan(plan["operations"])
-        _record_change("plan", "restructuring plan: %d ops" % res.get("total", 0),
-                       [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "rename_object":
-        adapter, _ = _get_scene(doc, "rename")
-        new_name = str(payload.get("name") or "").strip()
-        if not new_name:
-            return {"ok": False, "error": "empty name"}
-        ok = adapter.rename_object(payload.get("guid"), new_name)
-        if ok:
-            _record_change("naming", "renamed to “%s”" % new_name,
-                           adapter.last_changes, doc=doc)
-        return {"ok": ok, "applied": 1 if ok else 0}
-
-    if op == "focus":
-        adapter, _ = _get_scene(doc, "focus")
-        ok = adapter.focus(payload.get("guid"))
-        return {"ok": ok}
-
-    if op == "type_icons":
-        import base64
-        import tempfile
-        cache = _cache_store().setdefault("type_icons", {})
-        tmp = os.path.join(tempfile.gettempdir(), "so_typeicon.png")
-        icons = {}
-        for tid in payload.get("ids") or []:
-            try:
-                tid = int(tid)
-            except (TypeError, ValueError):
-                continue
-            if tid not in cache:
-                data = ""
-                try:
-                    bmp = c4d.bitmaps.InitResourceBitmap(tid)
-                    if bmp is not None and bmp.GetSize()[0] > 0 \
-                            and bmp.Save(tmp, c4d.FILTER_PNG) == c4d.IMAGERESULT_OK:
-                        with open(tmp, "rb") as f:
-                            data = ("data:image/png;base64,"
-                                    + base64.b64encode(f.read()).decode("ascii"))
-                except Exception:
-                    data = ""
-                cache[tid] = data
-            if cache[tid]:
-                icons[str(tid)] = cache[tid]
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
-        return {"ok": True, "icons": icons}
-
-    if op == "material_previews":
-        adapter = SceneAdapter(doc)
-        size = int(payload.get("size") or 48)
-        cache = _cache_store().setdefault("mat_previews", {})
-        doc_key = doc.GetDocumentName() or ""
-        names = payload.get("names") or []
-        previews = {}
-        missing = []
-        for name in names:
-            hit = cache.get((doc_key, name, size))
-            if hit is not None:
-                previews[name] = hit
-            else:
-                missing.append(name)
-        if missing:
-            fresh = adapter.material_previews(
-                missing, size=size,
-                progress=lambda cur, tot, nm: _progress(
-                    "Rendering material previews", cur, tot, nm))
-            for name, data in fresh.items():
-                cache[(doc_key, name, size)] = data
-            previews.update(fresh)
-        return {"ok": True, "previews": previews}
-
-    if op == "texture_previews":
-        adapter = SceneAdapter(doc)
-        size = int(payload.get("size") or 40)
-        cache = _cache_store().setdefault("tex_previews", {})
-        paths = payload.get("paths") or []
-        previews = {}
-        missing = []
-        for p in paths:
-            try:
-                mtime = os.path.getmtime(p) if p and os.path.isfile(p) else 0
-            except OSError:
-                mtime = 0
-            key = (p, mtime, size)
-            hit = cache.get(key)
-            if hit is not None:
-                previews[p] = hit
-            else:
-                missing.append((p, key))
-        if missing:
-            fresh = adapter.texture_previews(
-                [p for p, _ in missing], size=size,
-                progress=lambda cur, tot, nm: _progress(
-                    "Rendering texture thumbnails", cur, tot, nm))
-            for p, key in missing:
-                if p in fresh:
-                    cache[key] = fresh[p]
-                    previews[p] = fresh[p]
-        return {"ok": True, "previews": previews}
-
-    if op == "focus_material":
-        adapter, _ = _get_scene(doc, "focus material")
-        return {"ok": True, **adapter.focus_material(payload.get("name", ""))}
-
-    if op == "delete_material":
-        adapter = SceneAdapter(doc)
-        name = payload.get("name", "")
-        deleted = adapter.delete_material(
-            name, include_hidden=bool(payload.get("include_hidden")))
-        if deleted:
-            _record_change("materials_delete", "deleted material '%s'" % name,
-                           [], revertible=False, doc=doc)
-        return {"ok": True, "deleted": deleted}
-
-    if op == "delete_unused_materials":
-        adapter = SceneAdapter(doc)
-        deleted = adapter.delete_unused_materials(
-            include_hidden=bool(payload.get("include_hidden")))
-        if deleted:
-            _record_change("materials_delete",
-                           "deleted %d unused material(s)" % deleted,
-                           [], revertible=False, doc=doc)
-        return {"ok": True, "deleted": deleted}
-
-    if op == "fix_textures_relative":
-        adapter = SceneAdapter(doc)
-        res = adapter.make_textures_relative(payload.get("materials"))
-        if res.get("fixed"):
-            _record_change("textures_relative",
-                           "%d texture path(s) made relative" % res["fixed"],
-                           [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "collect_textures":
-        adapter = SceneAdapter(doc)
-        res = adapter.collect_textures(payload.get("materials"),
-                                       subdir=payload.get("subdir") or "tex")
-        if res.get("relinked"):
-            _record_change("textures_collect",
-                           "%d texture(s) copied into the project, %d shader(s) relinked"
-                           % (res.get("copied", 0), res["relinked"]),
-                           [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "relink_textures":
-        adapter = SceneAdapter(doc)
-        res = adapter.relink_textures(payload.get("folder") or "",
-                                      progress=_progress)
-        if res.get("relinked"):
-            _record_change("textures_relink",
-                           "%d missing texture(s) relinked" % res["relinked"],
-                           [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "open_file":
-        p = str(payload.get("path") or "")
-        if not p or not os.path.isfile(p):
-            return {"error": "file not found: %s" % (p or "(empty)")}
-        try:
-            os.startfile(p)  # noqa: S606 - intentional, user-invoked
-        except Exception as ex:  # noqa: BLE001
-            return {"error": "could not open: %s" % ex}
-        return {"ok": True}
-
-    if op == "pick_texture_path":
-        raw = str(payload.get("path") or "")
-        try:
-            chosen = c4d.storage.LoadDialog(
-                type=c4d.FILESELECTTYPE_IMAGES,
-                title="Pick replacement for %s" % os.path.basename(raw),
-                flags=c4d.FILESELECT_LOAD,
-                def_path=doc.GetDocumentPath() or "")
-        except Exception as ex:  # noqa: BLE001
-            return {"error": "file dialog failed: %s" % ex}
-        if not chosen:
-            return {"ok": True, "cancelled": True}
-        adapter = SceneAdapter(doc)
-        res = adapter.set_texture_path(raw, chosen,
-                                       material=payload.get("material") or None)
-        if res.get("changed"):
-            _record_change("textures_edit",
-                           "texture reference relinked to %s"
-                           % os.path.basename(chosen),
-                           [], revertible=False, doc=doc)
-        return {"ok": True, "picked": chosen, **res}
-
-    if op == "pick_folder":
-        try:
-            chosen = c4d.storage.LoadDialog(
-                type=c4d.FILESELECTTYPE_ANYTHING,
-                title=str(payload.get("title") or "Pick a folder"),
-                flags=c4d.FILESELECT_DIRECTORY,
-                def_path=doc.GetDocumentPath() or "")
-        except Exception as ex:  # noqa: BLE001
-            return {"error": "folder dialog failed: %s" % ex}
-        return {"ok": True, "path": chosen or "", "cancelled": not chosen}
-
-    if op == "set_texture_path":
-        adapter = SceneAdapter(doc)
-        res = adapter.set_texture_path(str(payload.get("path") or ""),
-                                       str(payload.get("new_path") or ""),
-                                       material=payload.get("material") or None)
-        if res.get("changed"):
-            what = "cleared" if not (payload.get("new_path") or "").strip() \
-                else "rewritten"
-            _record_change("textures_edit",
-                           "texture reference %s (%s)" % (what,
-                           os.path.basename(str(payload.get("path") or ""))),
-                           [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "texture_repath":
-        adapter = SceneAdapter(doc)
-        mode = "absolute" if str(payload.get("mode")) == "absolute" else "relative"
-        res = adapter.texture_repath(payload.get("paths") or [], mode=mode,
-                                     material=payload.get("material") or None)
-        if res.get("changed"):
-            _record_change("textures_repath",
-                           "%d texture path(s) made %s" % (res["changed"], mode),
-                           adapter.last_changes, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "texture_resize":
-        adapter = SceneAdapter(doc)
-        res = adapter.texture_resize(payload.get("paths") or [],
-                                     payload.get("percent"))
-        if res.get("error"):
-            return {"ok": False, **res}
-        if res.get("resized"):
-            _record_change("textures_resize",
-                           "%d texture(s) resized to %d%%, %d relinked"
-                           % (res["resized"], int(payload.get("percent") or 0),
-                              res.get("relinked", 0)),
-                           adapter.last_changes, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "clear_missing_textures":
-        adapter = SceneAdapter(doc)
-        res = adapter.clear_missing_textures()
-        if res.get("cleared"):
-            _record_change("textures_clear",
-                           "%d missing texture reference(s) cleared" % res["cleared"],
-                           [], revertible=False, doc=doc)
-        return {"ok": True, **res}
-
-    if op == "changes":
-        return {"ok": True, "changes": list(reversed(_load_journal(doc)))}
-
-    if op == "revert_change":
-        entry_id = str(payload.get("id", ""))
-        entries = _load_journal(doc)
-        entry = next((e for e in entries if str(e.get("id")) == entry_id), None)
-        if entry is None:
-            return {"error": "change not found: %s" % entry_id}
-        if entry.get("reverted"):
-            return {"error": "already reverted"}
-        if not entry.get("revertible"):
-            return {"error": "this change cannot be reverted"}
-
-        wanted = payload.get("items")
-        pairs = journalmod.items_to_revert(entry, wanted)
-        if not pairs:
-            return {"ok": True, "reverted": 0, "missing": 0, "results": []}
-        adapter, _ = _get_scene(doc, "revert")
-        res = adapter.revert([it for _i, it in pairs],
-                             canonical=cfg.standard.canonical_group)
-        done = [pairs[k][0] for k, r in enumerate(res.get("results") or [])
-                if r.get("status") == "reverted"]
-        journalmod.mark_reverted(entry, done)
-        journalmod.set_entry(entries, entry)
-        _save_journal(doc, entries)
-        return {"ok": True, **res}
-
-    if op == "clear_changes":
-        _save_journal(doc, [])
-        return {"ok": True}
-
-    if op in ("set_keeps", "set_keep_names", "set_accepted_unused"):
-        section = {"set_keep_names": "naming",
-                   "set_accepted_unused": "materials"}.get(
-            op, str(payload.get("section", "")))
-        keys = payload.get("keys", payload.get("names"))
-        merged = cfgmod.migrate_config(_read_config_data())
-        try:
-            merged["keeps"] = keepsmod.set_section_keeps(
-                merged.get("keeps"), section, keys or [])
-        except ValueError as ex:
-            return {"error": str(ex)}
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2, ensure_ascii=False)
-        return {"ok": True, "section": section,
-                "keys": merged["keeps"][section]}
-
-    if op == "detect":
-        _, tree = _get_scene(doc, "detect convention")
-        res = detectmod.detect_convention([n.name for n in tree.walk()])
-        return {"ok": True, "detect": {
-            "style": res.style.value, "language": res.language,
-            "number_pad": res.number_pad, "confidence": res.confidence,
-            "casing_distribution": res.casing_distribution,
-            "language_distribution": res.language_distribution,
-        }}
-
-    if op == "rules":
-        return {"ok": True,
-                "groups": [_rule_dict(r) for r in cfg.standard.rules],
-                "structure": cfgmod.structure_to_list(cfg.standard),
-                "rules": cfg.rules.to_list(),
-                "rule_warnings": cfg.rules.warnings,
-                "prefixes": cfg.prefixes,
-                "convention": {
-                    "style": cfg.convention.style.value,
-                    "language": cfg.convention.language,
-                    "number_pad": cfg.convention.number_pad,
-                }}
-
-    if op == "config":
-        if payload.get("save"):
-            with open(CONFIG_PATH, "w") as f:
-                json.dump(payload.get("data", {}), f, indent=2, ensure_ascii=False)
-            return {"ok": True, "saved": True, "path": CONFIG_PATH}
-        return {"ok": True, "config": data, "defaults": cfgmod.DEFAULT_CONFIG}
-
-    if op in ("plan_naming", "apply_naming"):
-        adapter, tree = _get_scene(doc, "naming")
-        conv = _convention(settings, cfg)
-        scope = _scope(settings, adapter)
-        # The web UI's eye toggle: hidden objects leave the rename worklist
-        # (they keep their names and still block numbers/dedupe as siblings).
-        # Default True so API callers without the flag keep planning everything.
-        if not settings.get("include_hidden", True):
-            visible = {n.guid for n in tree.walk() if n.visible}
-            scope = visible if scope is None else (scope & visible)
-        dedupe = bool(settings.get("dedupe", True))
-        renames = ops.plan_renames(tree, conv, scope=scope,
-                                   prefixes=cfg.prefixes, keep=cfg.keep_names,
-                                   dedupe=dedupe)
-        diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name,
-                 "rules": r.rules} for r in renames]
-        kept = sorted(cfg.kept("naming"))
-        if op == "apply_naming":
-            accepted = payload.get("guids")
-            chosen = ([r for r in renames if r.guid in set(accepted)]
-                      if accepted is not None else renames)
-            applied = adapter.apply_renames(chosen)
-            _record_change("naming", "%d renamed" % applied,
-                           adapter.last_changes, doc=doc)
-            return {"ok": True, "applied": applied, "count": len(chosen),
-                    "diff": diff, "kept": kept, "keep_names": kept}
-        return {"ok": True, "count": len(renames), "diff": diff,
-                "kept": kept, "keep_names": kept}
-
-    if op in ("plan_structure", "apply_structure"):
-        adapter, tree = _get_scene(doc, "structure")
-        scope = _scope(settings, adapter)
-        safe = bool(settings.get("safe", True))
-        tidy = bool(settings.get("tidy", True))
-        reparents = ops.plan_reparents(tree, cfg.standard, scope=scope,
-                                       safe_only=safe, tidy=tidy)
-        reparents, kept = keepsmod.filter_kept(
-            reparents, cfg.kept("structure"), key=lambda r: r.name)
-        report = cfg.standard.evaluate(tree)
-        in_scope = [f for f in report.misplaced if scope is None or f.guid in scope]
-        skipped = max(0, len(in_scope) - len(reparents) - len(kept))
-        diff = [{"guid": r.guid, "name": r.name, "from": r.from_group, "to": r.to_group}
-                for r in reparents]
-        if op == "apply_structure":
-            accepted = payload.get("guids")
-            chosen = (reparents if accepted is None else
-                      [r for r in reparents if r.guid in set(accepted)])
-            applied = adapter.apply_reparents(
-                chosen, canonical=cfg.standard.canonical_group)
-            _record_change("structure", "%d moved" % applied,
-                           adapter.last_changes, doc=doc)
-            return {"ok": True, "applied": applied, "count": len(chosen),
-                    "diff": diff, "skipped": skipped, "kept": kept}
-        return {"ok": True, "count": len(reparents), "diff": diff,
-                "skipped": skipped, "kept": kept}
-
-    if op in ("plan_translate", "apply_translate"):
-        adapter, tree = _get_scene(doc, "translation")
-        scope = _scope(settings, adapter)
-        target = payload.get("target") or "en"
-        engine = (payload.get("engine") or settings.get("engine")
-                  or "offline").lower()
-        if engine == "google":
-            def _gprog(cur, tot):
-                _progress("Translating online (Google)", cur, tot,
-                          "%d / %d names" % (cur, tot))
-
-            try:
-                props, gerr, gdetected = _google_plan(tree, scope, target,
-                                                      progress=_gprog)
-            finally:
-                _progress(_OP_LABELS.get(op, "Translating"))
-            if gerr and not props:
-                return {"error": "Google translate failed: %s" % gerr}
-        else:
-            gdetected = None
-            props = translatemod.plan_translations(
-                tree, scope=scope, target=target)
-        props, kept = keepsmod.filter_kept(
-            props, cfg.kept("translate"), key=lambda p: p.old)
-        if op == "apply_translate":
-            accepted = payload.get("guids")
-            chosen = (props if accepted is None else
-                      [p for p in props if p.guid in set(accepted)])
-            renames = [ops.RenameOp(node=p.node, new_name=p.new) for p in chosen]
-            applied = adapter.apply_renames(renames)
-            _record_change("translate", "%d translated" % applied,
-                           adapter.last_changes, doc=doc)
-            return {"ok": True, "applied": applied, "count": len(renames)}
-        diff = [{"guid": p.guid, "old": p.old, "new": p.new,
-                 "words": p.words, "lang": p.lang} for p in props]
-        if engine == "google" and gdetected and gdetected.get("total"):
-            detected = gdetected
-        else:
-            detected = translatemod.detect_languages(tree, scope=scope).to_dict()
-        return {"ok": True, "count": len(props), "diff": diff, "kept": kept,
-                "target": target, "detected": detected, "engine": engine}
-
-    if op in ("plan_layers", "apply_layers"):
-        import collections
-        adapter, tree = _get_scene(doc, "layers")
-        scope = _scope(settings, adapter)
-        layerops = ops.plan_layers(tree, scope=scope)
-        layerops, kept = keepsmod.filter_kept(
-            layerops, cfg.kept("layers"), key=lambda o: o.name)
-        by_layer = dict(collections.Counter(o.layer for o in layerops))
-        diff = [{"guid": o.guid, "name": o.name, "layer": o.layer} for o in layerops]
-        if op == "apply_layers":
-            accepted = payload.get("guids")
-            chosen = layerops if accepted is None else [
-                o for o in layerops if o.guid in set(accepted)]
-            applied = adapter.apply_layers(chosen)
-            _record_change("layers", "%d assigned to layers" % applied,
-                           adapter.last_changes, doc=doc)
-            return {"ok": True, "applied": applied, "count": len(chosen),
-                    "diff": diff, "by_layer": by_layer, "kept": kept}
-        return {"ok": True, "count": len(layerops), "diff": diff,
-                "by_layer": by_layer, "kept": kept}
-
-    if op == "plan_layer_suggestions":
-        adapter, tree = _get_scene(doc, "layer suggestions")
-        scope = _scope(settings, adapter)
-        sugg = ops.plan_layer_suggestions(
-            tree, scope=scope, keep=cfg.kept("layers"))
-        diff = [{"guid": o.guid, "name": o.name, "layer": o.layer}
-                for o in sugg]
-        return {"ok": True, "count": len(sugg), "diff": diff}
-
-    if op == "apply_layer_suggestions":
-        adapter, tree = _get_scene(doc, "layer suggestions")
-        scope = _scope(settings, adapter)
-        sugg = ops.plan_layer_suggestions(
-            tree, scope=scope, keep=cfg.kept("layers"))
-        accepted = payload.get("guids")
-        if accepted is not None:
-            wanted = set(accepted)
-            sugg = [o for o in sugg if o.guid in wanted]
-        applied = adapter.apply_layers(sugg)
-        _record_change("layers", "%d assigned to suggested layers" % applied,
-                       adapter.last_changes, doc=doc)
-        return {"ok": True, "applied": applied, "count": len(sugg)}
-
-    if op == "layer_mismatches":
-        _, tree = _get_scene(doc, "layer mismatches")
-        found = layersmod.find_layer_mismatches(tree, keep=cfg.kept("layers"))
-        return {"ok": True, "count": len(found),
-                "findings": [f.to_dict() for f in found]}
-
-    if op in ("delete_layer", "delete_empty_layers"):
-        adapter, _ = _get_scene(doc, "delete layers")
-        if op == "delete_layer":
-            name = str(payload.get("name") or "").strip()
-            if not name:
-                return {"error": "missing layer name"}
-            deleted = adapter.delete_layer(name)
-            if deleted:
-                _record_change("layers", "deleted layer %s" % name, [],
-                               revertible=False,
-                               doc=doc)
-        else:
-            keep = {str(n) for n in (payload.get("keep") or [])}
-            deleted = adapter.delete_empty_layers(keep)
-            if deleted:
-                _record_change("layers", "%d empty layers deleted" % deleted,
-                               [], revertible=False,
-                               doc=doc)
-        return {"ok": True, "deleted": deleted}
-
-    if op == "set_layer_colors":
-        adapter, _ = _get_scene(doc, "layer colors")
-        colors: dict = {}
-        for e in payload.get("colors") or []:
-            name = str(e.get("name") or "").strip()
-            col = e.get("color")
-            if name and isinstance(col, (list, tuple)) and len(col) == 3:
-                colors[name] = [max(0.0, min(1.0, float(c))) for c in col]
-        if not colors:
-            return {"error": "no layer colors given"}
-        applied = adapter.set_layer_colors(colors)
-        if applied:
-            _record_change("layers", "%d layer colors set" % applied, [],
-                           revertible=False, doc=doc)
-        return {"ok": True, "applied": applied}
-
-    if op in ("assign_layer", "move_to_group"):
-        adapter, tree = _get_scene(doc, "batch action")
-        key = "layer" if op == "assign_layer" else "group"
-        target = str(payload.get(key) or "").strip()
-        if not target:
-            return {"error": "missing %s name" % key}
-        guids = payload.get("guids") or []
-        nodes = [n for n in (tree.find(g) for g in guids) if n is not None]
-        if not nodes:
-            return {"error": "no matching objects"}
-        if op == "assign_layer":
-            applied = adapter.apply_layers(
-                [ops.LayerOp(node=n, layer=target) for n in nodes])
-            _record_change("layers", "%d assigned to layer %s" % (applied, target),
-                           adapter.last_changes, doc=doc)
-            return {"ok": True, "applied": applied, "layer": target}
-        reparents = [
-            ops.ReparentOp(node=n, to_group=target,
-                           from_group=n.parent.name if n.parent else "")
-            for n in nodes]
-        applied = adapter.apply_reparents(
-            reparents, canonical=cfg.standard.canonical_group)
-        _record_change("structure", "%d moved to %s" % (applied, target),
-                       adapter.last_changes, doc=doc)
-        return {"ok": True, "applied": applied, "group": target}
-
-    prefix = op.split("_", 1)[0] if op else ""
+    prefix = op.split("_", 1)[0]
     if prefix in _AUDIT_MODULES:
         import importlib
         mod = importlib.import_module(

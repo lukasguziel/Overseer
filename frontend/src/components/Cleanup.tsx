@@ -4,6 +4,7 @@ import Pager, { usePager } from './Pager'
 import ConfirmModal from './ConfirmModal'
 import ActionButton from './ActionButton'
 import { IconCheck } from './icons'
+import { plural } from '../lib/format'
 
 export interface CleanupItem {
   guid: number
@@ -121,7 +122,7 @@ export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll,
               </ActionButton>
             )}
             <span className={'cl-count' + (b.items.length ? ' warn' : '')}>
-              {b.items.length ? `${b.items.length} change${b.items.length === 1 ? '' : 's'}` : 'no changes'}
+              {b.items.length ? `${plural(b.items.length, 'change')}` : 'no changes'}
             </span>
           </div>
           {b.hint && <p className="cl-hint">{b.hint}</p>}
@@ -132,7 +133,7 @@ export default function Cleanup({ buckets, onFocus, onRename, onKeep, onKeepAll,
       {confirm && onKeepAll && (
         <ConfirmModal
           title={`Keep all as-is — ${confirm.label}`}
-          message={`Accept all ${confirm.items.length} item${confirm.items.length === 1 ? '' : 's'} in “${confirm.label}” as-is. Nothing changes in the scene — they just stop counting as todos (restore any time in the Accepted section). Continue?`}
+          message={`Accept all ${plural(confirm.items.length, 'item')} in “${confirm.label}” as-is. Nothing changes in the scene — they just stop counting as todos (restore any time in the Accepted section). Continue?`}
           confirmLabel={`✓ Accept ${confirm.items.length}`}
           onConfirm={() => {
             const b = confirm

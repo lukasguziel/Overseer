@@ -5,14 +5,47 @@ freshly reloaded by `bridge.drain()` on every request (hot-reload), so it must
 stay stateless at module level and use only the pure `overseer` logic plus the
 `SceneAdapter`.
 
+## Dispatch structure
+
+Every op is a small `_op_*` handler function looked up in a registry — no
+if-ladder. Three tiers, dispatched by `_handle(payload)` in this order:
+
+1. `netinfo` — answered before any document access.
+2. `_DOC_HANDLERS` (`dirty`, `ui_settings_get/set`) — signature
+   `(payload, doc)`; cheap per-poll ops that deliberately skip the config load.
+3. `_CFG_HANDLERS` — signature `(req: ApiRequest)`; `ApiRequest` bundles
+   `op`/`payload`/`doc`/`cfg`/`data` (raw config dict) and exposes
+   `settings` as a property. Plan/apply pairs share one handler and branch on
+   `req.op` (e.g. `_op_plan_naming` serves `plan_naming` + `apply_naming`);
+   `set_keeps`/`set_keep_names`/`set_accepted_unused` alias onto `_op_set_keeps`.
+4. Fallback: ops whose prefix is in `_AUDIT_MODULES` are forwarded to the
+   matching `audit_*` module's `handle()`; anything else is an error dict.
+
+`handle(payload)` wraps `_handle` with the `_OP_LABELS` progress label and, for
+`_MUTATING_OPS`, invalidates the scene cache in a `finally`.
+
 ## Paths / constants
 
-- `PLUGIN_DIR` — the .pyp directory (one above this package). `CONFIG_PATH`,
-  `PRESETS_DIR`, `PLANS_DIR`, `HISTORY_PATH` derive from it.
-- `EXPORT_PATH` / `EXPORT_CSV_PATH` — absolute repo paths where the full report /
-  flat CSV land so Claude can read them directly.
+All module constants live in one block at the top.
+
+- `PLUGIN_DIR` — the .pyp directory (one above this package). `DATA_DIR` is the
+  plugin dir when writable, else the per-user prefs dir `overseer/` (a legacy
+  `scene_organizer/` prefs dir from the Scene Organizer days is renamed on first
+  use — one-time migration that keeps config, presets, history and caches; if
+  the rename fails because the dir is locked, the old dir keeps being used —
+  losing the user's settings would be worse than the old folder name). When
+  `DATA_DIR` is the prefs dir, a `config.json` shipped next to the .pyp seeds it
+  once. `CONFIG_PATH`, `PRESETS_DIR`, `HISTORY_DIR`, `CHANGES_PATH`,
+  `GOOGLE_CACHE_PATH` derive from `DATA_DIR`; `SHIPPED_PRESETS_DIR` and
+  `PLANS_DIR` from `PLUGIN_DIR`.
+- `EXPORT_PATH` / `EXPORT_CSV_PATH` — where the full report / flat CSV land so
+  Claude can read them directly: `OVERSEER_EXPORT_DIR` env override, else the
+  dev repo's `var/` (via the deploy-stamped `dev_repo.txt`, so exports never
+  clutter the repo root), else `DATA_DIR`.
 - `PLANS_DIR` — restructuring plans learned/written by the skill.
-- `_HISTORY_MAX` — max history entries kept.
+- `_HISTORY_MAX` / `_CHANGES_MAX` / `_GCACHE_MAX` — caps for analysis history,
+  change journal, and the Google translation cache (the gcache drops its older
+  half when the cap is exceeded).
 - `_CSV_FIELDS` — columns of the flat one-object-per-row CSV.
 
 ## Helper functions
@@ -21,10 +54,17 @@ stay stateless at module level and use only the pure `overseer` logic plus the
   the parent dir exists); returns the path or None.
 - `_write_csv(report_dict)` — writes a flat node table using `;` delimiter (German
   Excel locale) and a header row; returns (path, row count) or None.
-- `_record_history(entry)` — appends an analysis entry (file/when/objects/...).
+- `_history_path(doc)` — per-project log file `history/<slug>.json`; same
+  project slug the UI settings use, so one project's runs never crowd out
+  another's (the log is capped per project).
+- `_record_history(doc, entry)` — appends an analysis entry (file/when/objects/...).
   Debounced: the same file within 60 s updates the last entry instead of spamming
   (live preview/refresh fire repeatedly). Capped to `_HISTORY_MAX`.
-- `_read_history()` — reads the history list (best-effort).
+- `_read_history(doc)` — reads the per-project history (best-effort). With no
+  per-project log yet it seeds from `_legacy_history` — the pre-split global
+  `analysis_history.json`, kept as an archive, filtered to this document.
+  `clear_history` therefore writes an empty log instead of deleting the file —
+  an absent file would fall back to the global log and resurrect the runs.
 - `_merge_layers(report_dict, layer_meta)` — combines the document's layer table
   (color/flags, incl. empty layers) with the analyzer's per-object counts
   (scope/visibility aware). Layers present in the scene but missing from metadata
@@ -37,7 +77,9 @@ stay stateless at module level and use only the pure `overseer` logic plus the
 - `_slugify(name)` — filename-safe slug (falls back to "preset").
 - `_save_preset(name, description, overwrite=False)` — snapshots the CURRENT
   config.json as a v2 preset file; strips the `preset` key (a snapshot is not
-  derived from anything); refuses to clobber unless `overwrite`.
+  derived from anything) and the `config.MACHINE_LOCAL_KEYS` (`port`,
+  `listen_lan` — presets are portable standards, not machine setup); refuses to
+  clobber unless `overwrite`.
 - `_delete_preset(preset_id)` — removes a preset file by id/name.
 - `_load_preset(preset_id)` / `_load_plan(plan_id)` — load by id or file name
   (best-effort).
@@ -46,6 +88,9 @@ stay stateless at module level and use only the pure `overseer` logic plus the
   config.json. v2 presets carry a full snapshot incl. the node-editor graph, so
   manual graph layouts survive round trips; only a missing graph is regenerated.
   v1 preset files are migrated on the fly (and get a generated graph).
+  `MACHINE_LOCAL_KEYS` are always taken from the CURRENT config (never from the
+  preset), so applying a preset cannot change this machine's port or flip its
+  LAN exposure.
 - `_load_cfg()` — loads config and registers `extra_translations`; returns
   (cfg, raw data).
 - `_convention(settings, cfg)` — builds a `NamingConvention` from casing +
@@ -55,6 +100,20 @@ stay stateless at module level and use only the pure `overseer` logic plus the
 - `_scope(settings, adapter)` — selected guids when `settings.selection`, else
   None.
 - `_rule_dict(r)` — serializes a group rule.
+- `_lan_ip()` — the machine's LAN address: a connectionless UDP "connect" just
+  picks the outbound interface, nothing is sent.
+- `_netinfo(payload)` — LAN state for the open-on-phone QR flow. POST
+  `{"listen_lan": bool}` persists the opt-in; the bind itself only changes on a
+  C4D restart. Reports the running server's port via `bridge.server_port()`.
+  All bridge lookups go through `getattr` hedges: bridge is the
+  never-hot-reloaded singleton, so right after a deploy the RUNNING bridge may
+  predate newer attributes until a C4D restart.
+- `_google_plan(tree, scope, target)` — online translation planning. It
+  translates WORDS, not raw names: "body_rear_wing_part_usm.1" means nothing to
+  a translator, while "body", "rear", "wing", "part" are trivial — and words
+  repeat across a scene, so the `google_cache.json` hit rate is far higher than
+  per-name. Batches of 40 words per request; a name's source language is what
+  most of its words came from.
 
 ## handle(payload)
 
@@ -93,7 +152,11 @@ Single entry point dispatching on `payload["op"]` against the active document
   convention.
 - `config` — read config (+ defaults) or, with `save`, write the posted data to
   config.json.
-- `plan_naming` / `apply_naming` — plan/apply casing+numbering renames.
+- `plan_naming` / `apply_naming` — plan/apply casing+numbering renames. The web
+  UI's eye toggle maps to `settings.include_hidden`: when false, hidden objects
+  leave the rename worklist (they keep their names and still block
+  numbers/dedupe as siblings). Defaults to true so API callers without the flag
+  keep planning everything.
 - `plan_structure` / `apply_structure` — plan/apply reparents honoring scope,
   safety filter, and tidy; reports skipped count.
 - `plan_translate` / `apply_translate` — standalone translation with its own

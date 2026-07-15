@@ -3,10 +3,14 @@ import { useEffect } from 'react'
 // "Are you sure?" dialog for batch actions. One shared look everywhere:
 // title, an explicit count of what is about to happen, cancel/confirm.
 // Escape cancels, the confirm button carries the destructive weight.
-export default function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }: {
+// `danger` (deletes, clears): focus starts on CANCEL, so a habitual Enter
+// right after opening cannot destroy anything — confirming a build/repair
+// action with Enter stays one keystroke.
+export default function ConfirmModal({ title, message, confirmLabel, danger, onConfirm, onCancel }: {
   title: string
   message: string
   confirmLabel: string
+  danger?: boolean
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -21,8 +25,8 @@ export default function ConfirmModal({ title, message, confirmLabel, onConfirm, 
         <h3 className="confirm-title">{title}</h3>
         <p className="confirm-msg">{message}</p>
         <div className="confirm-actions">
-          <button className="ghost" onClick={onCancel}>Cancel</button>
-          <button className="apply" autoFocus onClick={onConfirm}>{confirmLabel}</button>
+          <button className="ghost" autoFocus={danger} onClick={onCancel}>Cancel</button>
+          <button className="apply" autoFocus={!danger} onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
     </div>

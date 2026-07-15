@@ -13,7 +13,7 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
   - Group steps inside a function with blank lines (e.g. a blank line after an
     early `return` block before the next `try:`).
 - **Prose explanation lives in `docs/`**, one markdown file per module,
-  mirroring the source tree (`src/overseer/cinema/bridge.py` ->
+  mirroring the source tree (`src/overseer/bridge/server.py` ->
   `docs/overseer/bridge.md`, `src/overseer/core/ops.py` ->
   `docs/overseer/core/ops.md`, `src/overseer.pyp` ->
   `docs/overseer.md`). Update the module's doc when you change its
@@ -35,7 +35,7 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - New pure logic → `src/overseer/` (must NOT import `c4d`) + test in `tests/`.
   `python -m pytest` and `python -m ruff check src tests` must be green (CI gate).
 - c4d-dependent code only in: `cinema/` (adapter/constants/webapi) and
-  `bridge.py`. Tests never import these.
+  `bridge/`. Tests never import these.
 - Ruff config in `pyproject.toml` (UP031 %-format and UP042 StrEnum are
   deliberately ignored — Python 3.9 support).
 - Syntax-check c4d modules without Cinema: `python -m py_compile <file>`
@@ -97,9 +97,10 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - Document access only on the main thread → web requests go through the
   bridge queue; the ServerDialog timer (`SetTimer(100)`) drains it — only
   while that dialog is open. No MessageData (startup risk).
-- Never add `overseer.bridge` to the hot-reload purge (process singleton:
-  queue + HTTP server; purging loses requests).
-- Changes to `bridge.py`, the `webapi` entry signature, or the `.pyp` need a
+- Never add `overseer.bridge` or its submodules to the hot-reload purge
+  (process singleton: queue + HTTP server; purging loses requests — and a
+  purged submodule would re-import as a SECOND, empty singleton).
+- Changes to `bridge/`, the `webapi` entry signature, or the `.pyp` need a
   full C4D restart; everything else hot-reloads (deploy → click command again).
 - All write operations go through `doc.StartUndo/AddUndo/EndUndo` (one
   Ctrl+Z step).

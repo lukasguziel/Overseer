@@ -122,11 +122,15 @@ size.
   relative / missing) and resolution tier; each row carries its status
   badge, and thumbnails open the image in your picture viewer.
 - ✅ **Missing textures are actionable** — per row: pick the replacement in
-  C4D's native file dialog or clear the dead reference; in batch: relink
-  from a search folder or clear all. Works across Octane/Redshift node
-  setups.
+  C4D's native file dialog, clear the dead reference, or accept the map as
+  missing; in batch: relink from a search folder or clear all. Works across
+  Octane/Redshift node setups.
+- ✅ **Shrink maps in place** — an oversized map gets a smaller copy at the
+  percentage you pick and the materials are relinked to it; the row notes
+  what it was resized from.
 - ✅ **Path fixes** — rewrite absolute in-project paths to relative, or copy
-  out-of-project files into `tex/` and relink in one step.
+  out-of-project files into `tex/` and relink — in batch or per map, with
+  the affected materials listed before you confirm.
 
 ## Tags
 
@@ -162,6 +166,8 @@ in Materials).
 
 - ✅ **Inventory with kind filter** — chips per kind with counts, sorted by
   size, per-row focus of the referencing object.
+- ✅ **Search** — one query narrows both lists by file name, stored path or
+  owner; the kind chips stack on top of it.
 - ✅ **Missing files are actionable** — per row: pick the replacement in
   C4D's native file dialog or accept the file as missing; in batch: relink
   from a search folder, select all owners in C4D, or accept all.

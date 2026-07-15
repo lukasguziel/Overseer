@@ -6,6 +6,7 @@ import Pager, { usePager } from './Pager'
 import SectionIntro from './SectionIntro'
 import ActionButton from './ActionButton'
 import './AcceptedSection.css'
+import { plural } from '../lib/format'
 
 // EVERYTHING the artist accepted as-is, in one panel, identical on every tab.
 //
@@ -97,7 +98,7 @@ export default function AcceptedPanel({ org }: { org: Organizer }) {
             title={open ? 'Hide the accepted items' : 'Show the accepted items'}
             onClick={() => setOpen(!open)}>
             <span className="kept-caret">▸</span>
-            {open ? 'Hide' : 'Show'} {total} accepted item{total === 1 ? '' : 's'}
+            {open ? 'Hide' : 'Show'} {plural(total, 'accepted item')}
             <span className="kept-areas">
               {groups.map((g) => `${g.label} ${g.items.length}`).join(' · ')}
             </span>

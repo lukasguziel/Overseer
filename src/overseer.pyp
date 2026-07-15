@@ -4,7 +4,6 @@ import sys
 import c4d
 
 CMD_MAIN = 1069217
-WEB_PORT = 8787
 
 
 def _ensure_path():
@@ -33,7 +32,7 @@ class OverseerCommand(c4d.plugins.CommandData):
         try:
             _ensure_path()
             import overseer.bridge as bridge
-            port = bridge.open_panel(WEB_PORT)
+            port = bridge.open_panel()
             print("[Overseer] Web UI running: http://127.0.0.1:%d/" % port)
         except Exception:
             import traceback

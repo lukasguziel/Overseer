@@ -9,6 +9,7 @@ import Tip from '../components/Tip'
 import { IconCheck } from '../components/icons'
 import './sims.css'
 import ActionButton from '../components/ActionButton'
+import { plural } from '../lib/format'
 
 interface SimHit {
   guid: number
@@ -113,7 +114,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
   const doSelect = async (kind: string) => {
     try {
       const r = await call('sims_select', { kind })
-      setNote(`Selected ${r.selected} ${kind} object${r.selected === 1 ? '' : 's'} in Cinema 4D`)
+      setNote(`Selected ${plural(r.selected, `${kind} object`)} in Cinema 4D`)
     } catch (e: any) { setNote(`Select ✗ ${String(e.message || e)}`) }
   }
 
@@ -175,7 +176,7 @@ export default function SimsTab({ org }: { org: Organizer }) {
 
       {confirmDisable && (
         <ConfirmModal title="Disable simulations"
-          message={`Disable ${confirmDisable.length} simulation${confirmDisable.length === 1 ? '' : 's'} running on hidden objects? One undo step in Cinema 4D.`}
+          message={`Disable ${plural(confirmDisable.length, 'simulation')} running on hidden objects? One undo step in Cinema 4D.`}
           confirmLabel={`✓ Disable ${confirmDisable.length}`}
           onConfirm={() => { const h = confirmDisable; setConfirmDisable(null); doDisable(h, 'Active on hidden') }}
           onCancel={() => setConfirmDisable(null)} />

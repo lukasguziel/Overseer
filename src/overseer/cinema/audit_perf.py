@@ -1,13 +1,3 @@
-"""[c4d] Rebuild-cost audit: which generator stalls the viewport.
-
-How it measures: a generator only rebuilds its cache when it is dirty, so we
-mark exactly ONE object's cache dirty and time a full scene pass. What the
-clock sees is that object's rebuild (plus the generators above it in the
-chain, which C4D has to rebuild too — that is real cost, not an artifact:
-a heavy Cloner under a Subdivision Surface genuinely drags the whole branch).
-Nothing in the document changes — DIRTYFLAGS_CACHE only invalidates the
-cache, it does not touch the object's data, so no undo step and no dirty doc.
-"""
 from __future__ import annotations
 
 import time
@@ -19,15 +9,10 @@ from ..core import perf_logic
 _BUILDFLAGS = getattr(c4d, "BUILDFLAGS_0", getattr(c4d, "BUILDFLAGS_NONE", 0))
 _DIRTY_CACHE = getattr(c4d, "DIRTYFLAGS_CACHE", getattr(c4d, "DIRTYFLAGS_DATA", 0))
 
-# How often each object is measured. The MEDIAN of the runs counts: a single
-# hiccup (background process, GC pause) then cannot invent a hotspot, and an
-# unlucky fast run cannot hide one — with 2 runs and "fastest wins", objects
-# around the noise floor flickered in and out of the list between scans.
 _REPEATS = 3
 
 
 def _exec_passes(doc) -> float:
-    """Run one scene pass and return how long it took, in seconds."""
     t0 = time.perf_counter()
     try:
         doc.ExecutePasses(None, False, True, True, _BUILDFLAGS)
@@ -47,9 +32,6 @@ def _is_candidate(obj) -> bool:
 
 
 def _type_label(obj) -> str:
-    """Readable object type. C4D knows the name of every type it ships (incl.
-    plugins and MoGraph) — ask it first; the hand-kept table is only a
-    fallback, and a raw type id must never reach the screen."""
     from .constants import KNOWN_TYPES
     try:
         name = obj.GetTypeName()
@@ -93,8 +75,6 @@ def _scan(payload, doc, adapter, tree, progress):
 
     repeats = max(1, min(5, int(payload.get("repeats") or _REPEATS)))
 
-    # Warm up (everything gets built once), then time a pass with nothing
-    # dirty — that is the fixed overhead of a pass, which we subtract below.
     _exec_passes(doc)
     baseline = perf_logic.median([_exec_passes(doc) for _ in range(repeats)])
 
@@ -121,11 +101,6 @@ def _scan(payload, doc, adapter, tree, progress):
             "polygons": getattr(node, "polygons", 0) or 0,
         })
 
-    # Calibration: rebuild EVERYTHING at once. If the per-object times were
-    # perfectly isolated, they would add up to this. They add up to more when
-    # a generator sits under another one (rebuilding the child forces the
-    # parent too, so the parent's cost is counted in several children) — the
-    # ratio tells the user how much to trust a single row.
     progress("Measuring rebuild times", total, total, "full scene")
     scene_runs = []
     for _ in range(repeats):

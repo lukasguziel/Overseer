@@ -96,8 +96,6 @@ def _entry(kind: str, raw: str, owner_name: str, guid, doc_path: str,
         "bytes": disk_bytes,
         "owner": owner_name,
         "guid": guid,
-        # What the owner IS, so the UI does not have to guess how to select it:
-        # an asset can also belong to a take or the render data, which is neither.
         "owner_kind": owner_kind,
     }
 
@@ -169,8 +167,6 @@ def _scan(doc, adapter, progress=None) -> dict:
     def _is_own(e) -> bool:
         if os.path.normcase(e.get("resolved") or "") == own:
             return True
-        # An unsaved document has no path, so its own entry never resolves and
-        # would show up as a missing file — match it by name instead.
         return (not doc_path) and bool(own_name) \
             and os.path.normcase(e.get("file") or "") == own_name
 

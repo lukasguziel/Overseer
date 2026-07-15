@@ -6,6 +6,8 @@ import type { TabId } from '../lib/constants'
 import { dominantCasing, GOOGLE_TARGETS } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import { prefetchAudit, refreshLoadedAudits, loadedAuditCount, useAuditData } from './useAudit'
+import { useTextureActions, type FireFn, type RunFn } from './useTextureActions'
+import { plural } from '../lib/format'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, LayerMismatch,
   OrganizerSettings, PlanResult,
@@ -157,7 +159,7 @@ export function useOrganizer() {
   // not clear the lock while the outer action is still running.
   const busyDepth = useRef(0)
 
-  async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
+  const run: RunFn = useCallback(async <T,>(label: string, fn: () => Promise<T>): Promise<T | undefined> => {
     busyDepth.current += 1
     if (busyDepth.current === 1) pinnedStatus.current = null
     setBusy(true); setError('')
@@ -174,7 +176,7 @@ export function useOrganizer() {
       busyDepth.current -= 1
       if (busyDepth.current <= 0) { busyDepth.current = 0; setBusy(false) }
     }
-  }
+  }, [])
 
   // Change token of the scene as of the last analysis, so the auto-refresh
   // watcher knows when the scene has moved on (survives re-renders via a ref).
@@ -235,6 +237,27 @@ export function useOrganizer() {
     else if (section === 'structure') setStructure(update)
   }, [])
 
+  // Fire-and-forget action (see FireOpts in useTextureActions): progress
+  // status while the call runs, outcome (or error) after, then the standard
+  // follow-up — the ONE shape behind every per-row/background action instead
+  // of a dozen hand-rolled then/catch chains. No global busy lock.
+  const fire: FireFn = useCallback((o) => {
+    setStatus(o.start)
+    call(o.op, o.args)
+      .then((r) => {
+        const msg = o.ok(r)
+        if (o.pin) note(msg); else setStatus(msg)
+        if (o.skipAfter?.(r)) return
+        if (o.after === 'analyze') doAnalyze()
+        else if (o.after === 'refresh') refreshSoon()
+        else if (typeof o.after === 'number') refreshSoon(o.after)
+      })
+      .catch((e) => {
+        setError(String(e.message || e)); setStatus(o.fail + ' ✗')
+        o.onFail?.()
+      })
+  }, [doAnalyze, refreshSoon, note])
+
   const doDetect = () => run('Detect', async () => {
     const r = await call('detect')
     const d: DetectInfo = r.detect
@@ -254,172 +277,16 @@ export function useOrganizer() {
     setExported(r.csv_path ? `CSV (${r.csv_rows} rows) → ${r.csv_path}` : '(not written)')
   })
 
-  const doFocus = useCallback((guid: number, name?: string) => {
-    setStatus(`Focusing ${name || ''}…`)
-    call('focus', { guid })
-      .then((r) => setStatus(r.ok ? `Focused ${name || ''} ✓` : 'Object not found'))
-      .catch((e) => { setError(String(e.message || e)); setStatus('Focus ✗') })
-  }, [])
+  const doFocus = useCallback((guid: number, name?: string) => fire({
+    start: `Focusing ${name || ''}…`,
+    op: 'focus', args: { guid },
+    ok: (r) => r.ok ? `Focused ${name || ''} ✓` : 'Object not found',
+    fail: 'Focus',
+  }), [fire])
 
-  // Select a material in the C4D material manager and frame the first object
-  // that carries it (used by the texture tables).
-  const doFocusMaterial = useCallback((name: string) => {
-    setStatus(`Focusing material “${name}”…`)
-    call('focus_material', { name })
-      .then((r) => setStatus(r.object
-        ? `Selected “${name}” · framed “${r.object}” ✓`
-        : r.ok ? `Selected “${name}” (assigned to no object)` : 'Material not found'))
-      .catch((e) => { setError(String(e.message || e)); setStatus('Focus ✗') })
-  }, [])
-
-  const doDeleteMaterial = useCallback((name: string) => {
-    setStatus(`Deleting ${name}…`)
-    call('delete_material', { name, include_hidden: includeHidden })
-      .then((r) => {
-        setStatus(r.deleted ? `Deleted material “${name}” ✓ (undoable)` : `“${name}” is in use — kept`)
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
-  }, [doAnalyze, includeHidden])
-
-  const doDeleteAllUnused = useCallback((count: number) => {
-    setStatus(`Deleting ${count} unused material${count === 1 ? '' : 's'}…`)
-    call('delete_unused_materials', { include_hidden: includeHidden })
-      .then((r) => {
-        setStatus(`Deleted ${r.deleted} unused material${r.deleted === 1 ? '' : 's'} ✓ (undoable)`)
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Delete ✗') })
-  }, [doAnalyze, includeHidden])
-
-  const doFixTexturesRelative = useCallback((materials?: string[]) => {
-    setStatus('Making texture paths relative…')
-    call('fix_textures_relative', materials ? { materials } : {})
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        setStatus(r.fixed
-          ? `Rewrote ${r.fixed} texture path${r.fixed === 1 ? '' : 's'} to relative ✓ (undoable)`
-          : 'No relocatable absolute textures to fix.')
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Fix ✗') })
-  }, [doAnalyze])
-
-  // Copy out-of-project textures into <project>/<subdir> and relink the
-  // shaders relatively. The copy itself is a file operation (not undoable),
-  // the relink is one undo step — the confirm dialog says so.
-  const doCollectTextures = useCallback((subdir: string) => {
-    setStatus(`Copying textures into “${subdir}”…`)
-    call('collect_textures', { subdir })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        note(r.relinked
-          ? `Copied ${r.copied} file${r.copied === 1 ? '' : 's'} → ${subdir}/ · relinked ${r.relinked} shader${r.relinked === 1 ? '' : 's'} ✓ (relink undoable)`
-          : 'No out-of-project textures to collect.')
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Collect ✗') })
-  }, [doAnalyze, note])
-
-  // Relink missing textures by searching a folder recursively for the file
-  // names; matches are rewritten (project-relative when possible).
-  const doRelinkTextures = useCallback((folder: string) => {
-    setStatus(`Searching “${folder}” for missing textures…`)
-    call('relink_textures', { folder })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        setStatus(`Relinked ${r.relinked} texture${r.relinked === 1 ? '' : 's'} ✓ (undoable)`
-          + (r.not_found ? ` · ${r.not_found} not found there` : '')
-          + (r.skipped ? ` · ${r.skipped} skipped` : ''))
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Relink ✗') })
-  }, [doAnalyze])
-
-  // Per-row texture reference edit: rewrite (or blank) ONE reference,
-  // identified by its current raw path + owning material.
-  const doSetTexturePath = useCallback((path: string, newPath: string, material?: string) => {
-    setStatus(newPath ? 'Rewriting texture reference…' : 'Clearing texture reference…')
-    call('set_texture_path', { path, new_path: newPath, material })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        setStatus(newPath
-          ? `Reference → “${newPath}” ✓ (undoable)`
-          : `Reference cleared ✓ (undoable)`)
-        refreshSoon(300)
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Edit ✗') })
-  }, [refreshSoon])
-
-  // Pick a replacement file for ONE reference via C4D's native file dialog
-  // (the request waits while the dialog is open inside Cinema 4D).
-  const doPickTexturePath = useCallback((path: string, material?: string) => {
-    setStatus('Pick the file in the Cinema 4D window…')
-    call('pick_texture_path', { path, material })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        if (r.cancelled) { setStatus('File picker cancelled.'); return }
-        setStatus(`Reference → “${r.picked}” ✓ (undoable)`)
-        refreshSoon(300)
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Pick ✗') })
-  }, [refreshSoon])
-
-  // Batch-resize textures to a percentage: writes resized COPIES next to the
-  // originals (suffix _25/_50/_75) and relinks the shaders (undoable, journaled).
-  const doTextureResize = useCallback((paths: string[], percent: number) => {
-    setStatus(`Resizing ${paths.length} texture${paths.length === 1 ? '' : 's'} to ${percent}%…`)
-    call('texture_resize', { paths, percent })
-      .then((r) => {
-        if (r.error) { setStatus(r.error); return }
-        // A skip is a non-event to the user unless they learn WHY — the
-        // backend gives a reason per file, so surface it instead of a count.
-        const why: string[] = [...new Set((r.results || [])
-          .filter((x: { status: string }) => x.status === 'skipped')
-          .map((x: { note: string }) => x.note)
-          .filter(Boolean) as string[])]
-        note(!r.resized
-          ? `Nothing resized${why.length ? ` — ${why.join(' · ')}` : ''}`
-          : `Resized ${r.resized} texture${r.resized === 1 ? '' : 's'} to ${percent}% ✓ (undoable)`
-            + (r.skipped ? ` · ${r.skipped} skipped: ${why.join(' · ')}` : ''))
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Resize ✗') })
-  }, [doAnalyze, note])
-
-  // Convert texture paths between relative and absolute form (undoable, journaled).
-  const doTextureRepath = useCallback((paths: string[], mode: 'relative' | 'absolute') =>
-    // Wrapped in run(): the follow-up analysis then nests (busy depth 2) and
-    // leaves the pinned outcome alone. Outside run() the analysis would reset
-    // the pin and overwrite the message with "Analyzing ✓" — which is why the
-    // result of this action was invisible.
-    run(`Making ${paths.length} path${paths.length === 1 ? '' : 's'} ${mode}`, async () => {
-      const r = await call('texture_repath', { paths, mode })
-      if (r.error) { note(String(r.error)); return }
-      // "Nothing happened" is never an acceptable answer: the server reports
-      // per path WHY it could not rewrite it (file gone, already relative,
-      // outside the project, no parameter held the path) — show that.
-      const why: string[] = (r.diag || []) as string[]
-      note(r.changed
-        ? `Rewrote ${r.changed} path${r.changed === 1 ? '' : 's'} to ${mode} ✓ (undoable)`
-        : why.length
-          ? `Nothing rewritten — ${why.join(' · ')}`
-          : `No paths to make ${mode}.`)
-      await doAnalyze()
-    }),
-  [doAnalyze, note])
-
-  // Clear dead references: blank the path on shaders whose file is missing.
-  const doClearMissingTextures = useCallback(() => {
-    setStatus('Clearing missing texture references…')
-    call('clear_missing_textures')
-      .then((r) => {
-        setStatus(`Cleared ${r.cleared} missing reference${r.cleared === 1 ? '' : 's'} ✓ (undoable)`
-          + (r.skipped ? ` · ${r.skipped} skipped (parameter not writable)` : ''))
-        doAnalyze()
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Clear ✗') })
-  }, [doAnalyze])
+  // Material & texture actions (Materials tab + texture tables) — extracted
+  // wholesale; the callbacks keep their names via the spread in the return.
+  const texActions = useTextureActions({ fire, run, note, doAnalyze, includeHidden })
 
   // Asset browser batch actions: explicit guids + explicit target, no plan.
   // Layer assignment is OPTIMISTIC: the report's nodes get the new layer
@@ -431,28 +298,25 @@ export function useOrganizer() {
     setReport((r) => r
       ? { ...r, nodes: (r.nodes || []).map((n) => gs.has(n.guid) ? { ...n, layer } : n) }
       : r)
-    setStatus(`Assigning layer “${layer}”…`)
-    call('assign_layer', { guids, layer })
-      .then((r) => {
-        setStatus(`${r.applied} object${r.applied === 1 ? '' : 's'} → layer “${layer}” ✓ (undoable)`)
-        refreshSoon()
-      })
-      .catch((e) => {
-        // Roll back by re-analyzing — the optimistic state was wrong.
-        setError(String(e.message || e)); setStatus('Assign layer ✗')
-        doAnalyze()
-      })
-  }, [refreshSoon, doAnalyze])
+    fire({
+      start: `Assigning layer “${layer}”…`,
+      op: 'assign_layer', args: { guids, layer },
+      ok: (r) => `${plural(r.applied, 'object')} → layer “${layer}” ✓ (undoable)`,
+      fail: 'Assign layer', after: 'refresh',
+      // Roll back by re-analyzing — the optimistic state was wrong.
+      onFail: () => { doAnalyze() },
+    })
+  }, [fire, doAnalyze])
 
   const doMoveToGroup = (guids: number[], group: string) => run('Move to group', async () => {
     const r = await call('move_to_group', { guids, group })
-    note(`${r.applied} object${r.applied === 1 ? '' : 's'} → group “${group}” ✓ (undoable)`)
+    note(`${plural(r.applied, 'object')} → group “${group}” ✓ (undoable)`)
     await doAnalyze()
   })
 
   const doDeleteEmptyLayers = (keep?: string[]) => run('Delete empty layers', async () => {
     const r = await call('delete_empty_layers', keep && keep.length ? { keep } : {})
-    note(`${r.deleted} empty layer${r.deleted === 1 ? '' : 's'} deleted ✓ (undoable)`)
+    note(`${plural(r.deleted, 'empty layer')} deleted ✓ (undoable)`)
     await doAnalyze()
   })
 
@@ -617,10 +481,13 @@ export function useOrganizer() {
   // and the report refresh run in the background (no global busy lock).
   const applyNamingOne = (guid: number, name?: string) => {
     dropRows('naming', (d) => d.guid === guid)
-    setStatus(`Renaming “${name || ''}”…`)
-    call('apply_naming', { settings: settings(), guids: [guid] })
-      .then((r) => { setStatus(r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed'); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗'); reloadNaming().catch(() => {}) })
+    fire({
+      start: `Renaming “${name || ''}”…`,
+      op: 'apply_naming', args: { settings: settings(), guids: [guid] },
+      ok: (r) => r.applied ? `Renamed “${name || ''}” ✓ (undoable)` : 'Nothing renamed',
+      fail: 'Rename', after: 'refresh',
+      onFail: () => { reloadNaming().catch(() => {}) },
+    })
   }
   // Batch apply for the guided mode: N rows at once, same optimistic pattern
   // as the One-variants (rows vanish instantly, background call + debounced
@@ -628,21 +495,27 @@ export function useOrganizer() {
   const applyNamingMany = useCallback((guids: number[], label: string) => {
     const gs = new Set(guids)
     dropRows('naming', (d) => gs.has(d.guid))
-    setStatus(`Renaming ${label}…`)
-    call('apply_naming', { settings: settings(), guids })
-      .then((r) => { setStatus(`${r.applied} renamed ✓ (undoable)`); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗'); reloadNaming().catch(() => {}) })
-  }, [dropRows, settings, refreshSoon, reloadNaming])
+    fire({
+      start: `Renaming ${label}…`,
+      op: 'apply_naming', args: { settings: settings(), guids },
+      ok: (r) => `${r.applied} renamed ✓ (undoable)`,
+      fail: 'Rename', after: 'refresh',
+      onFail: () => { reloadNaming().catch(() => {}) },
+    })
+  }, [dropRows, fire, settings, reloadNaming])
 
   const applyTranslateMany = useCallback((guids: number[], label: string) => {
     const gs = new Set(guids)
     dropRows('translate', (d) => gs.has(d.guid))
-    setStatus(`Translating ${label}…`)
-    call('apply_translate', {
-      settings: settings(), target: translateTarget, engine: translateEngine, guids })
-      .then((r) => { setStatus(`${r.applied} translated ✓ (undoable)`); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Translate ✗'); reloadTranslate().catch(() => {}) })
-  }, [dropRows, settings, translateTarget, translateEngine, refreshSoon, reloadTranslate])
+    fire({
+      start: `Translating ${label}…`,
+      op: 'apply_translate',
+      args: { settings: settings(), target: translateTarget, engine: translateEngine, guids },
+      ok: (r) => `${r.applied} translated ✓ (undoable)`,
+      fail: 'Translate', after: 'refresh',
+      onFail: () => { reloadTranslate().catch(() => {}) },
+    })
+  }, [dropRows, fire, settings, translateTarget, translateEngine, reloadTranslate])
 
   const applyStructure = () => run('Apply structure', async () => {
     const r = await call('apply_structure', { settings: settings() })
@@ -652,10 +525,13 @@ export function useOrganizer() {
   // Move a single object into its group immediately (per-row ✓).
   const applyStructureOne = (guid: number, name?: string) => {
     dropRows('structure', (d) => d.guid === guid)
-    setStatus(`Moving “${name || ''}”…`)
-    call('apply_structure', { settings: settings(), guids: [guid] })
-      .then((r) => { setStatus(r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved'); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Move ✗'); reloadStructure().catch(() => {}) })
+    fire({
+      start: `Moving “${name || ''}”…`,
+      op: 'apply_structure', args: { settings: settings(), guids: [guid] },
+      ok: (r) => r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved',
+      fail: 'Move', after: 'refresh',
+      onFail: () => { reloadStructure().catch(() => {}) },
+    })
   }
 
   const applyLayers = () => run('Apply layers', async () => {
@@ -668,10 +544,13 @@ export function useOrganizer() {
   // Tag a single object immediately (per-row ✓, optimistic).
   const applyLayerOne = (guid: number, name?: string) => {
     dropRows('layers', (d) => d.guid === guid)
-    setStatus(`Tagging “${name || ''}”…`)
-    call('apply_layers', { settings: settings(), guids: [guid] })
-      .then((r) => { setStatus(r.applied ? `Tagged “${name || ''}” ✓ (undoable)` : 'Nothing tagged'); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Tag ✗'); reloadLayers().catch(() => {}) })
+    fire({
+      start: `Tagging “${name || ''}”…`,
+      op: 'apply_layers', args: { settings: settings(), guids: [guid] },
+      ok: (r) => r.applied ? `Tagged “${name || ''}” ✓ (undoable)` : 'Nothing tagged',
+      fail: 'Tag', after: 'refresh',
+      onFail: () => { reloadLayers().catch(() => {}) },
+    })
   }
 
   const applyTranslate = () => run('Apply translations', async () => {
@@ -685,11 +564,14 @@ export function useOrganizer() {
   // Translate a single entry immediately (per-row button, optimistic).
   const applyTranslateOne = (guid: number, name?: string) => {
     dropRows('translate', (d) => d.guid === guid)
-    setStatus(`Translating “${name || ''}”…`)
-    call('apply_translate', {
-      settings: settings(), target: translateTarget, engine: translateEngine, guids: [guid] })
-      .then((r) => { setStatus(r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated'); refreshSoon() })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Translate ✗'); reloadTranslate().catch(() => {}) })
+    fire({
+      start: `Translating “${name || ''}”…`,
+      op: 'apply_translate',
+      args: { settings: settings(), target: translateTarget, engine: translateEngine, guids: [guid] },
+      ok: (r) => r.applied ? `Translated “${name || ''}” ✓ (undoable)` : 'Nothing translated',
+      fail: 'Translate', after: 'refresh',
+      onFail: () => { reloadTranslate().catch(() => {}) },
+    })
   }
 
   // Accept-as-is: persist the section's keep list, then re-plan so counts,
@@ -1199,7 +1081,7 @@ export function useOrganizer() {
     call('revert_change', items ? { id, items } : { id })
       .then((r) => {
         setStatus(r.reverted != null
-          ? `Reverted ${r.reverted} change${r.reverted === 1 ? '' : 's'}${r.missing ? ` · ${r.missing} skipped (object gone)` : ''} ✓ (undoable)`
+          ? `Reverted ${plural(r.reverted, 'change')}${r.missing ? ` · ${r.missing} skipped (object gone)` : ''} ✓ (undoable)`
           : 'Reverted ✓')
         loadChanges()
         doAnalyze()
@@ -1221,15 +1103,12 @@ export function useOrganizer() {
   }, [])
 
   // Direct single-object rename (Name cleanup inline edit).
-  const doRenameObject = useCallback((guid: number, name: string) => {
-    setStatus('Renaming…')
-    call('rename_object', { guid, name })
-      .then((r) => {
-        setStatus(r.ok ? `Renamed to “${name}” ✓ (undoable)` : 'Rename ✗')
-        refreshSoon(300)
-      })
-      .catch((e) => { setError(String(e.message || e)); setStatus('Rename ✗') })
-  }, [refreshSoon])
+  const doRenameObject = useCallback((guid: number, name: string) => fire({
+    start: 'Renaming…',
+    op: 'rename_object', args: { guid, name },
+    ok: (r) => r.ok ? `Renamed to “${name}” ✓ (undoable)` : 'Rename ✗',
+    fail: 'Rename', after: 300,
+  }), [fire])
 
   const compliance = report ? Math.round(report.structure_compliance * 100) : null
 
@@ -1242,18 +1121,16 @@ export function useOrganizer() {
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
     safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,
-    busy, status, setStatus, error, previewing, progress, ready, reloadProgress, reloadEverything,
+    busy, status, setStatus, error, setError, previewing, progress, ready, reloadProgress, reloadEverything,
     report, detectInfo, compliance,
     naming, structure, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
     keeps, keep, unkeep, unkeepAll, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges, doClearHistory,
     rules, exported, history, presets, activePreset,
-    doAnalyze, doDetect, doExportJson, doExportCsv, doFocus, doFocusMaterial,
+    doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
     doAssignLayer, doMoveToGroup,
-    doDeleteMaterial, doDeleteAllUnused, doFixTexturesRelative, doCollectTextures,
-    doRelinkTextures, doClearMissingTextures, doSetTexturePath, doPickTexturePath,
-    doTextureResize, doTextureRepath,
+    ...texActions,
     applyNaming, applyNamingOne, applyNamingMany,
     applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,

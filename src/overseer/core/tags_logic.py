@@ -18,15 +18,6 @@ def dominant_angle(counts: dict) -> float | None:
 
 
 def merge_selection_types(type_list: list, kind_by_type: dict) -> list:
-    """Fold the point/polygon/edge selection tag types into ONE "Selection"
-    entry: each object appears once, its tags stamped with their selection
-    kind ("point"/"polygon"/"edge"), and the entry carries every source id in
-    "type_ids" so select-in-C4D can cover all three.
-
-    Entries look like {type_id, label, count, objects:[{guid, name,
-    tags:[{name, kind?}]}]}; non-selection entries pass through untouched.
-    The result is re-sorted by (-count, label).
-    """
     selection = [e for e in type_list if e["type_id"] in kind_by_type]
     rest = [e for e in type_list if e["type_id"] not in kind_by_type]
     if not selection:

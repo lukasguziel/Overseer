@@ -32,3 +32,9 @@ Counts `de` / `en` / `unknown` / `total` and the `dominant` language; `to_dict()
 
 ## `detect_languages(tree, scope=None)`
 Aggregates detected language over all (scoped) object names into a `LanguageSummary`; dominant requires a strict majority, else `unknown`.
+
+## `translatable_words(name)`
+The words inside an object name, lowercased, in order. Object names are not sentences: `body_rear_wing_part_usm.1` is five words glued together with separators plus a code and an index. A translator fed the raw name recognizes nothing — fed the WORDS it recognizes almost all of them. Words shorter than `MIN_WORD` (2) are left alone: a lone `a` or `x` is an index or an axis, never a word worth translating.
+
+## `rebuild_with(name, mapping)`
+Puts translated words back into the name, keeping everything else. Separators, digits, codes and the casing of each word survive — only the words the `mapping` knows are swapped, so `Body_Rear_Wing.1` stays `<Word>_<Word>_<Word>.1` in the target language. Returns `(new_name, [(source, translated), ...])`.

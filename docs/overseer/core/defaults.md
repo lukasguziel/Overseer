@@ -7,6 +7,7 @@ across modules. c4d-bound tables (object-type ids) live in
 `c4d`.
 
 ## Constants
+- `DEFAULT_PORT` — built-in web server port (8787). The effective port is the `port` key in `config.json` (see [config](../config.md)); this constant is only the fallback and the single place the number is defined.
 - `RS_LIGHT_IDS`, `RS_CAMERA_IDS` — Redshift light/camera plugin type ids, used by the adapter's `classify()` so Redshift objects are categorized as light/camera.
 - `CATEGORY_LAYERS` — category → layer name (`light`→`Lights`, `camera`→`Cameras`).
 - `TYPE_LAYERS` — type name → layer name (`Instance`→`Proxies`).

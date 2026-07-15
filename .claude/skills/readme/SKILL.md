@@ -8,105 +8,104 @@ description: >-
   after shipping a feature that changes a tab's UI or adds a new tab.
 ---
 
-# README — reproduzierbar generieren
+# README — generate reproducibly
 
-**Ziel:** README.md bleibt dauerhaft im selben Stil aktualisierbar: pro Tab
-eine Sektion mit Beschreibung, Feature-Checkliste (inkl. „warum") und einem
-frischen Screenshot aus Sample-Daten. Screenshots entstehen ohne C4D — das
-gebaute Frontend läuft gegen einen Mock-Server mit einer glaubwürdigen
-Fake-Szene.
+**Goal:** README.md stays permanently updatable in the same style: one
+section per tab with a description, feature checklist (incl. the "why") and
+a fresh screenshot from sample data. Screenshots are produced without C4D —
+the built frontend runs against a mock server with a believable fake scene.
 
-## Pipeline (3 Kommandos)
+## Pipeline (3 commands)
 
 ```bash
-cd frontend && pnpm run build && cd ..                      # 1. frisches UI-Bundle
-node .claude/skills/readme/scripts/mock_server.mjs 8899 &   # 2. Mock-API + src/web (Hintergrund)
-node .claude/skills/readme/scripts/shoot.mjs 8899           # 3. Screenshots -> docs/screenshots/
+cd frontend && pnpm run build && cd ..                      # 1. fresh UI bundle
+node .claude/skills/readme/scripts/mock_server.mjs 8899 &   # 2. mock API + src/web (background)
+node .claude/skills/readme/scripts/shoot.mjs 8899           # 3. screenshots -> docs/screenshots/
 ```
 
-Danach den Mock-Server-Prozess beenden. `shoot.mjs` nutzt `playwright-core`
-(devDependency in `frontend/`) mit dem System-Chrome/Edge — kein
-Browser-Download. Screenshots: 1440×960, DPR 2, Status-Toast ausgeblendet.
+Kill the mock server process afterwards. `shoot.mjs` uses `playwright-core`
+(devDependency in `frontend/`) with the system Chrome/Edge — no browser
+download. Screenshots: 1440×960, DPR 2, status toast hidden.
 
-**Screenshots IMMER visuell prüfen** (Read auf die PNGs): leere Tabs, kaputte
-Layouts oder `undefined`-Texte heißen fast immer, dass `fixtures.mjs` nicht
-mehr zum API-Vertrag passt (siehe unten).
+**ALWAYS inspect the screenshots visually** (Read the PNGs): empty tabs,
+broken layouts or `undefined` texts almost always mean `fixtures.mjs` no
+longer matches the API contract (see below).
 
-## Sample-Daten (`scripts/fixtures.mjs`)
+## Sample data (`scripts/fixtures.mjs`)
 
-Die Fake-Szene ist Teil des Stils — bei Änderungen konsistent halten:
+The fake scene is part of the style — keep it consistent when changing it:
 
-- `penthouse_loft_final.c4d`, ~1.847 Objekte, **40M Polygone, 1,2 GB**.
-- **Englische Objektnamen** in allen Screenshots; nur der Translate-Tab
-  demonstriert Übersetzung, und zwar EN→FR (`Chair → Chaise`) — `shoot.mjs`
-  wählt dafür Engine „Google" + Ziel „French" im Tab an.
-- Absichtliche Probleme, damit jedes Feature etwas zu zeigen hat: Junk-Namen
-  (`Cube.1`), Duplikate, gemischtes Casing, ungenutzte Materialien, 8K-Texturen,
-  absolute Pfade, Objekte ohne Layer, versteckte Objekte.
-- Der Node-Baum ist eine Preorder-Liste — `depth`/`children` müssen konsistent
-  bleiben (Helper `group()`/`add()` benutzen).
+- `penthouse_loft_final.c4d`, ~1,847 objects, **40M polygons, 1.2 GB**.
+- **English object names** in all screenshots; only the Translate tab
+  demonstrates translation, specifically EN→FR (`Chair → Chaise`) —
+  `shoot.mjs` selects engine "Google" + target "French" in the tab for that.
+- Deliberate problems so every feature has something to show: junk names
+  (`Cube.1`), duplicates, mixed casing, unused materials, 8K textures,
+  absolute paths, objects without layers, hidden objects.
+- The node tree is a preorder list — `depth`/`children` must stay
+  consistent (use the `group()`/`add()` helpers).
 
-**Neues Feature = neuer API-Endpoint?** Dann in `fixtures.mjs` eine Antwort
-ergänzen und in `mock_server.mjs` unter `API` registrieren (unbekannte Ops
-antworten generisch `{ok:true}`). Der API-Vertrag steht in
-`frontend/src/types.ts` + `frontend/src/api.ts`.
+**New feature = new API endpoint?** Then add a response in `fixtures.mjs`
+and register it in `mock_server.mjs` under `API` (unknown ops answer a
+generic `{ok:true}`). The API contract lives in `frontend/src/types.ts` +
+`frontend/src/api.ts`.
 
-**Neuer Tab?** In `shoot.mjs` die `TABS`-Liste erweitern (Nav-Label →
-Dateiname); geparkte „soon"-Tabs bleiben draußen.
+**New tab?** Extend the `TABS` list in `shoot.mjs` (nav label → file name);
+parked "soon" tabs stay out.
 
-## Stilvertrag
+## Style contract
 
-Sprache: **Englisch**. Zwei Dokumente, beide mit dem Verweis-Kommentar auf
-diesen Skill im Kopf:
+Language: **English**. Two documents, both with the reference comment to
+this skill at the top:
 
-**README.md — kurz, produktorientiert, GENAU EIN Screenshot:**
-1. Titel + fetter Ein-Satz-Pitch („Keep your Cinema 4D scenes organized …").
-   Kein Versions-Nennen, keine Zielgruppen-Einengung (gilt für alle
-   Projektarten), kein Sample-Szenen-Hinweis.
-2. Intro-Absatz: was das Tool tut + der Vertrauens-Satz (preview first,
+**README.md — short, product-oriented, EXACTLY ONE screenshot:**
+1. Title + bold one-sentence pitch ("Keep your Cinema 4D scenes organized …").
+   No version mention, no audience narrowing (applies to all project
+   types), no sample-scene note.
+2. Intro paragraph: what the tool does + the trust sentence (preview first,
    per-row, undoable, logged).
-3. Overview-Screenshot (`docs/screenshots/overview.png`).
-4. „What it does": Link auf docs/FEATURES.md, dann pro Tab GENAU EIN
-   Bullet-Satz (**Tab** — was er tut). Keine „Why"-Begründungen.
-5. Installation — noob-tauglich, drei Schritte, KEINE Technik-Details
-   (keine IP/localhost/Port-Nennung, kein Server-Fenster, kein
-   Program-Files-Absatz): Release-Zip laden → entpacken und `Overseer`-Ordner
-   in den Cinema-4D-`plugins`-Ordner kopieren → Cinema neu starten,
-   `Shift+C`, nach „Overseer" suchen.
-6. License: Ein Absatz — custom „Overseer License": frei für private und
-   kommerzielle Projekte, Modifikation für den Eigengebrauch ok; kein
-   Verkauf, kein Bundling in Bezahlprodukte, keine Weitergabe als eigenes
-   Werk; Link auf `LICENSE`. (Steht VOR Development — der Mirror schneidet
-   Development bis Support raus, License muss die Sektion überleben.)
-7. Development: Testkommandos, Hinweis dass `main` der Release-Branch ist
-   (jeder Push ersetzt das Release der gestempelten Version; gearbeitet
-   wird auf `dev`), Verweis auf CLAUDE.md/docs.
-8. **Support** (Buy-me-a-coffee + Issues) — bleibt die letzte Sektion.
+3. Overview screenshot (`docs/screenshots/overview.png`).
+4. "What it does": link to docs/FEATURES.md, then EXACTLY ONE bullet
+   sentence per tab (**Tab** — what it does). No "why" justifications.
+5. Installation — noob-friendly, three steps, NO technical details
+   (no IP/localhost/port mention, no server window, no Program Files
+   paragraph): download the release zip → unzip and copy the `Overseer`
+   folder into the Cinema 4D `plugins` folder → restart Cinema, `Shift+C`,
+   search for "Overseer".
+6. License: one paragraph — custom "Overseer License": free for private
+   and commercial projects, modification for own use ok; no selling, no
+   bundling into paid products, no redistribution as your own work; link to
+   `LICENSE`. (Sits BEFORE Development — the mirror cuts Development
+   through Support out, License must survive the cut.)
+7. Development: test commands, note that `main` is the release branch
+   (every push replaces the release of the stamped version; work happens
+   on `dev`), reference to CLAUDE.md/docs.
+8. **Support** (buy-me-a-coffee + issues) — stays the last section.
 
-**docs/FEATURES.md — die Detailtour, pro Tab exakt diese Form:**
+**docs/FEATURES.md — the detail tour, per tab exactly this form:**
 
 ```markdown
 ## <Tab name>
 
 ![<Tab name>](screenshots/<tab>.png)
 
-<Ein Satz: was der Bereich ist, in Nutzersprache.>
+<One sentence: what the area is, in user language.>
 
-- ✅ **<Feature>** — <was es tut / welches Problem es löst>.
-- ✅ … (4–6 Punkte, wichtigstes zuerst)
+- ✅ **<Feature>** — <what it does / which problem it solves>.
+- ✅ … (4–6 bullets, most important first)
 ```
 
-Reihenfolge = Tab-Reihenfolge der App (Overview → Naming → Translate →
-Assets → Layers → Materials → Misc). Immer Überschrift → Screenshot →
-Features. Tonalität: konkret statt Marketing; Zahlenbeispiele aus der
-Fake-Szene wiederverwenden (`Chair → Chaise`, EN 1288 / DE 138), damit Text
-und Screenshots zusammenpassen.
+Order = tab order of the app (Overview → Naming → Translate →
+Assets → Layers → Materials → Misc). Always heading → screenshot →
+features. Tone: concrete instead of marketing; reuse number examples from
+the fake scene (`Chair → Chaise`, EN 1288 / DE 138) so text and screenshots
+match.
 
-## Fehlerbilder
+## Failure modes
 
-- `no system Chrome/Edge found` → in `shoot.mjs` einen weiteren
-  `channel` ergänzen oder `chromium.launch({executablePath})` setzen.
-- Screenshot zeigt Empty-State → Mock-Server lief nicht vom Repo-Root oder
-  `src/web/` fehlt (erst `pnpm run build`).
-- Tab fehlt im Shot → Nav-Label in `TABS` stimmt nicht mehr mit der App
-  überein (`frontend/src/lib/constants.ts`).
+- `no system Chrome/Edge found` → add another `channel` in `shoot.mjs` or
+  set `chromium.launch({executablePath})`.
+- Screenshot shows an empty state → the mock server was not started from
+  the repo root or `src/web/` is missing (run `pnpm run build` first).
+- Tab missing from the shot → the nav label in `TABS` no longer matches
+  the app (`frontend/src/lib/constants.ts`).

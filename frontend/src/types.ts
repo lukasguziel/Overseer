@@ -102,6 +102,38 @@ export interface TextureReport {
   accepted_all?: string[]    // full accepted set from config (restore source)
 }
 
+// One external (non-texture) file reference from the files scan (files_scan).
+export interface FileEntry {
+  kind: string
+  file: string
+  path: string
+  resolved: string
+  exists: boolean
+  missing: boolean
+  absolute: boolean
+  relocatable: boolean
+  rel_target: string
+  bytes: number
+  owner: string
+  owner_kind?: string   // 'object' | 'material' | '' (take, render data, …)
+  guid: number | null
+}
+
+export interface FilesScan {
+  ok: boolean
+  doc_path: string
+  entries: FileEntry[]
+  accepted?: string[]   // raw paths accepted as missing (keeps section 'files')
+  summary: {
+    total: number
+    by_kind: Record<string, number>
+    missing_count: number
+    absolute_count: number
+    relocatable_count: number
+    total_bytes: number
+  }
+}
+
 export interface SceneReport {
   file: string
   object_count: number

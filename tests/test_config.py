@@ -1,4 +1,5 @@
 from overseer import config
+from overseer.core import defaults
 from overseer.naming import translations
 from overseer.naming.casing import LANG_DE, Casing
 
@@ -48,6 +49,27 @@ def test_prefixes_loaded():
 
     # postcondition
     assert cfg.prefixes["light"] == "LGT_"
+
+
+def test_default_config_carries_server_settings():
+    # postcondition: the port default has exactly one source of truth
+    assert config.DEFAULT_CONFIG["port"] == defaults.DEFAULT_PORT
+    assert config.DEFAULT_CONFIG["listen_lan"] is False
+    assert set(config.MACHINE_LOCAL_KEYS) == {"port", "listen_lan"}
+
+
+def test_migrate_carries_machine_local_keys():
+    # setup
+    data = {"schema": 1, "prefixes": {"light": "LGT_"},
+            "port": 9000, "listen_lan": True}
+
+    # do it
+    out = config.migrate_config(data)
+
+    # postcondition: server settings survive migration untouched
+    assert out["port"] == 9000
+    assert out["listen_lan"] is True
+    assert out["schema"] == config.CONFIG_SCHEMA_VERSION
 
 
 def test_add_translations_extends_dictionary():

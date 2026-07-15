@@ -8,6 +8,7 @@ import SuggestionRow from '../components/SuggestionRow'
 import AcceptedPanel from '../components/AcceptedPanel'
 import AreaHistory from '../components/AreaHistory'
 import LayerTree, { orderLayers } from '../components/LayerTree'
+import { rowButton } from '../lib/rowButton'
 import LayerGradient from '../components/LayerGradient'
 import EmptyState from '../components/EmptyState'
 import ConfirmModal from '../components/ConfirmModal'
@@ -15,6 +16,7 @@ import Pager, { usePager } from '../components/Pager'
 import Tip from '../components/Tip'
 import ActionButton from '../components/ActionButton'
 import { IconCheck } from '../components/icons'
+import { plural } from '../lib/format'
 
 // One object without a layer: ✓ opens the inline layer picker (choose an
 // existing layer or type a new name — it is created on assign), ✕ accepts
@@ -41,7 +43,8 @@ function NoLayerRow({ n, busy, suggestion, color, onAssign, onKeep, onFocus }: {
     <div className="rename-row">
       <span className="cat-dot" style={{ background: catColor(n.category) }} />
       <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
-        onClick={() => onFocus(n.guid, n.name)}>{n.name}</span>
+        onClick={() => onFocus(n.guid, n.name)}
+        {...rowButton(() => onFocus(n.guid, n.name))}>{n.name}</span>
       <span className="rn-arrow">→</span>
       {/* The layer value IS the picker: click it and it becomes the input (with
           the layer list attached). No pencil button — an extra control to reach
@@ -148,7 +151,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
     try {
       const colors = orderedLayers.map((l, i) => ({ name: l.name, color: gradColors[i] }))
       const r = await call('set_layer_colors', { colors })
-      org.setStatus(`Colored ${r.applied} layer${r.applied === 1 ? '' : 's'} ✓ (undoable)`)
+      org.setStatus(`Colored ${plural(r.applied, 'layer')} ✓ (undoable)`)
       org.doAnalyze()
     } catch (e: any) { org.setStatus(`Color ✗ ${String(e.message || e)}`) }
   }
@@ -171,7 +174,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setConfirmSuggest(false)
     try {
       const r = await call('apply_layer_suggestions', { guids: suggested.map((n) => n.guid) })
-      org.setStatus(`Assigned ${r.applied} object${r.applied === 1 ? '' : 's'} to their suggested layer ✓ (undoable)`)
+      org.setStatus(`Assigned ${plural(r.applied, 'object')} to their suggested layer ✓ (undoable)`)
       org.doAnalyze()
     } catch (e: any) { org.setStatus(`Assign ✗ ${String(e.message || e)}`) }
   }
@@ -199,7 +202,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
             <h3>Layer overview</h3>
             {lr && (
               <span className="head-count">
-                {lr.total_layers} layer{lr.total_layers === 1 ? '' : 's'}
+                {plural(lr.total_layers, 'layer')}
                 {lr.empty_layers > 0 && <span className="hc-todo"> · {lr.empty_layers} empty</span>}
               </span>
             )}
@@ -212,8 +215,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
             )}
           </div>
           {confirmDelete && (
-            <ConfirmModal title="Delete empty layers"
-              message={`You are about to delete ${emptyOpen} empty layer${emptyOpen === 1 ? '' : 's'} that nothing references and you have not accepted as-is (one undo step). Continue?`}
+            <ConfirmModal danger title="Delete empty layers"
+              message={`You are about to delete ${plural(emptyOpen, 'empty layer')} that nothing references and you have not accepted as-is (one undo step). Continue?`}
               confirmLabel={`✕ Delete ${emptyOpen}`}
               onConfirm={doDeleteEmpty}
               onCancel={() => setConfirmDelete(false)} />
@@ -258,7 +261,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
         >
           {confirmSuggest && (
             <ConfirmModal title="Assign suggested layers"
-              message={`You are about to assign ${suggested.length} object${suggested.length === 1 ? '' : 's'} to their suggested ancestor layer (one undo step). Objects without a suggestion stay untouched. Continue?`}
+              message={`You are about to assign ${plural(suggested.length, 'object')} to their suggested ancestor layer (one undo step). Objects without a suggestion stay untouched. Continue?`}
               confirmLabel={`✓ Assign ${suggested.length}`}
               onConfirm={doAssignSuggested}
               onCancel={() => setConfirmSuggest(false)} />
@@ -278,7 +281,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
           </div>
           {confirmAssign && (
             <ConfirmModal title="Assign all"
-              message={`You are about to assign ${noLayer.length} object${noLayer.length === 1 ? '' : 's'} to the layer “${batchLayer.trim()}” (created if missing, one undo step). Continue?`}
+              message={`You are about to assign ${plural(noLayer.length, 'object')} to the layer “${batchLayer.trim()}” (created if missing, one undo step). Continue?`}
               confirmLabel={`✓ Assign ${noLayer.length}`}
               onConfirm={doAssignAll}
               onCancel={() => setConfirmAssign(false)} />
@@ -363,7 +366,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
               <h3>Mixed-layer hierarchies</h3>
             </Tip>
             <span className="head-count">
-              {layerMismatches.length} object{layerMismatches.length === 1 ? '' : 's'} on a different layer than their parent
+              {plural(layerMismatches.length, 'object')} on a different layer than their parent
             </span>
           </div>
           <p className="hint-sm">
@@ -375,7 +378,8 @@ export default function LayersTab({ org }: { org: Organizer }) {
             {mmPager.rows.map((m) => (
               <div className="rename-row" key={m.guid}>
                 <span className="rn-old fl-clickable" title="Click to select & frame it in Cinema 4D"
-                  onClick={() => org.doFocus(m.guid, m.name)}>{m.name}</span>
+                  onClick={() => org.doFocus(m.guid, m.name)}
+                  {...rowButton(() => org.doFocus(m.guid, m.name))}>{m.name}</span>
                 <span className="rn-new dim" title={m.path}>
                   layer “{m.child_layer}” · parent “{m.parent}” on “{m.parent_layer}”
                 </span>

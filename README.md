@@ -32,7 +32,8 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
   batch, and recolors the whole layer stack with an editable gradient —
   without moving anything.
 - **Materials** — finds unused materials, oversized textures and missing
-  maps — relink via file dialog, copy into the project, or clear dead refs.
+  maps — relink via file dialog, copy into the project, shrink in place, or
+  clear dead refs.
 - **Tags** — audits every tag: missing Phong tags, duplicate material tags,
   phong-angle spread with one-click alignment, and a grouped inventory with
   unified selection tags.

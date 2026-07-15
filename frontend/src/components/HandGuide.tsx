@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
 import { buildHandGuideSteps, type HandStep } from '../lib/handGuide'
 import GuideFlow, { type GuideCard } from './GuideFlow'
+import { plural } from '../lib/format'
 
 const AREA_LABEL: Record<HandStep['area'], string> = {
   naming: 'Naming', translate: 'Translate', layers: 'Layers', materials: 'Materials',
@@ -37,7 +38,7 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
   const runStep = (s: HandStep) => {
     const o = orgRef.current
     const a = s.action
-    const label = `${s.count} item${s.count === 1 ? '' : 's'}`
+    const label = `${plural(s.count, 'item')}`
     if (a.kind === 'rename') o.applyNamingMany(a.guids, label)
     else if (a.kind === 'translate') o.applyTranslateMany(a.guids, label)
     else if (a.kind === 'assign-layer') o.doAssignLayer(a.guids, a.layer)
@@ -103,7 +104,7 @@ export default function HandGuide({ org, onExit }: { org: Organizer; onExit: () 
                       return (
                         <button key={a}
                           className={'hand-area-chip' + (current === a ? ' on' : '')}
-                          title={`Jump to the ${n} ${AREA_LABEL[a]} decision${n === 1 ? '' : 's'}`}
+                          title={`Jump to the ${plural(n, `${AREA_LABEL[a]} decision`)}`}
                           onClick={() => jump(first)}>
                           {AREA_LABEL[a]} <em>{n}</em>
                         </button>
