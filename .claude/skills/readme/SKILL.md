@@ -68,8 +68,11 @@ diesen Skill im Kopf:
 3. Overview-Screenshot (`docs/screenshots/overview.png`).
 4. „What it does": Link auf docs/FEATURES.md, dann pro Tab GENAU EIN
    Bullet-Satz (**Tab** — was er tut). Keine „Why"-Begründungen.
-5. Installation: Release-Zip (fertig gebaut, „nothing to compile") →
-   plugins-Ordner → Neustart; Program-Files-Hinweis.
+5. Installation — noob-tauglich, drei Schritte, KEINE Technik-Details
+   (keine IP/localhost/Port-Nennung, kein Server-Fenster, kein
+   Program-Files-Absatz): Release-Zip laden → entpacken und `Overseer`-Ordner
+   in den Cinema-4D-`plugins`-Ordner kopieren → Cinema neu starten,
+   `Shift+C`, nach „Overseer" suchen.
 6. Development: Testkommandos, Hinweis dass Releases per `v*`-Tag aus main
    gebaut werden, Verweis auf CLAUDE.md/docs.
 7. **Support** (Buy-me-a-coffee + Issues) — bleibt die letzte Sektion.
