@@ -18,6 +18,7 @@ on:
     branches: [main]
     paths:
       - README.md
+      - LICENSE
       - docs/FEATURES.md
       - docs/screenshots/**
   release:
@@ -73,8 +74,18 @@ jobs:
           MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
           git clone --depth 1 "https://x-access-token:${MIRROR_TOKEN}@github.com/${PUBLIC_REPO}.git" mirror
-          # README without the Development section (dev-repo internals)
-          awk '/^## Development$/{skip=1} /^## Support$/{skip=0} !skip' README.md > mirror/README.md
+          # README: replace the Development section (dev-repo internals) with
+          # a short stub so the code-less public repo explains itself.
+          awk '/^## Development$/{
+                 skip=1
+                 print "## Source"
+                 print ""
+                 print "Overseer is developed in a private repository — this public repo hosts"
+                 print "the documentation and the release downloads."
+                 print ""
+               }
+               /^## Support$/{skip=0} !skip' README.md > mirror/README.md
+          cp LICENSE mirror/LICENSE
           mkdir -p mirror/docs
           cp docs/FEATURES.md mirror/docs/FEATURES.md
           rm -rf mirror/docs/screenshots

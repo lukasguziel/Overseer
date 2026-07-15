@@ -65,9 +65,12 @@ frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, componen
                           (.section-head, sidebar text ranks, buttons, colour meaning).
                           READ BEFORE touching CSS — reuse a block, never fork a near-copy.
 tests/                    pytest, runs WITHOUT c4d
-.github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build)
-.github/workflows/release.yml  builds Overseer-<version>.zip + creates a GitHub Release
-                          (auto on v* tag push, or manually via workflow_dispatch with version input).
+.github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build); runs on dev + main + PRs
+.github/workflows/release.yml  main = RELEASE BRANCH: every main push gates, builds
+                          Overseer-<version>.zip and replaces the release of the
+                          version stamped in the repo (tag moves along; version
+                          gate checks pyproject/__init__/package.json agree).
+                          Work happens on dev; merge dev -> main to publish.
 .github/workflows/mirror.yml  auto-mirror to the public repo lukasguziel/overseer
                           (the public data source, no code): releases (called by
                           release.yml + on `release: edited`) and README/FEATURES/

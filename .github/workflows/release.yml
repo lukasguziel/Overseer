@@ -1,25 +1,70 @@
 name: Release
 
+# main IS the release branch: every push to main runs the gates, rebuilds the
+# zip and REPLACES the release of the version currently stamped in the repo
+# (the tag moves to the released commit). Day-to-day work happens on dev;
+# merging dev -> main publishes. Tag push and workflow_dispatch remain as
+# manual fallbacks. Curated notes are written afterwards with
+# `gh release edit` and survive asset refreshes.
+
 on:
   push:
     tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. v0.2.0) — tag + release are created with this name"
+        description: "Release version (e.g. v1.1.0) — tag + release are created with this name"
         required: true
         type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ inputs.version || github.ref_name }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+
+      # A main push carries no tag: the version stamped in the repo IS the
+      # release being replaced (rolling release).
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            V="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            V="$GITHUB_REF_NAME"
+          else
+            V="v$(python -c "import json; print(json.load(open('frontend/package.json'))['version'])")"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "Releasing $V"
+
+      # PEP-440 prereleases (1.0.0rc1) differ from the tag form (1.0.0-rc1),
+      # so pyproject is only compared for stable versions.
+      - name: Version gate — all version stamps must agree
+        run: |
+          V="${VERSION#v}"
+          fail=0
+          grep -qF "__version__ = \"$V\"" src/sceneorg/__init__.py \
+            || { echo "::error::src/sceneorg/__init__.py is not $V"; fail=1; }
+          grep -qF "\"version\": \"$V\"" frontend/package.json \
+            || { echo "::error::frontend/package.json is not $V"; fail=1; }
+          case "$V" in
+            *-*) echo "prerelease — skipping pyproject.toml (PEP-440 form differs)" ;;
+            *) grep -qF "version = \"$V\"" pyproject.toml \
+                 || { echo "::error::pyproject.toml is not $V"; fail=1; } ;;
+          esac
+          exit $fail
 
       # --- Gate: same checks as CI ---
       - name: Set up Python 3.12
@@ -67,6 +112,7 @@ jobs:
           cp src/overseer.pyp "$pkg/"
           cp src/so_logo.png "$pkg/"
           cp src/config.example.json "$pkg/"
+          cp LICENSE "$pkg/"
           # The whole package, not just its top-level modules: sceneorg/ has
           # subpackages (core, naming, structure, cinema) and a flat *.py glob
           # silently shipped a plugin that cannot import itself.
@@ -81,21 +127,34 @@ jobs:
       - name: Zip
         run: cd dist && zip -r "Overseer-$VERSION.zip" Overseer
 
+      # On a main push the tag follows the release: same version, new content.
+      # (GITHUB_TOKEN pushes never re-trigger workflows, so no recursion.)
+      - name: Move tag to this commit
+        if: startsWith(github.ref, 'refs/heads/')
+        run: |
+          git tag -f "$VERSION"
+          git push origin "refs/tags/$VERSION" --force
+
       # No generate_release_notes: GitHub's auto notes append a "Full Changelog"
       # compare link to THIS (internal) repo, which must never leak into the
       # public mirror. Curated notes are set afterwards by the release skill.
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Overseer ${{ env.VERSION }}
-          files: dist/Overseer-${{ env.VERSION }}.zip
-          body: |
+      # On refresh only the asset is replaced — the release body survives.
+      - name: Create or refresh the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: |
             ## Installation
 
             Unzip the archive, copy the `Overseer` folder into your Cinema 4D
             `plugins` folder, restart Cinema 4D, then press `Shift+C` and search
             for **"Overseer"**.
+        run: |
+          if gh release view "$VERSION" --json name > /dev/null 2>&1; then
+            gh release upload "$VERSION" "dist/Overseer-$VERSION.zip" --clobber
+          else
+            gh release create "$VERSION" --title "Overseer $VERSION" \
+              --notes "$BODY" "dist/Overseer-$VERSION.zip"
+          fi
 
   # Explicit call because the release above is created with GITHUB_TOKEN,
   # which never fires the `release` event for other workflows. Later
@@ -105,5 +164,5 @@ jobs:
     needs: release
     uses: ./.github/workflows/mirror.yml
     with:
-      tag: ${{ inputs.version || github.ref_name }}
+      tag: ${{ needs.release.outputs.version }}
     secrets: inherit

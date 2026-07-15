@@ -73,9 +73,14 @@ diesen Skill im Kopf:
    Program-Files-Absatz): Release-Zip laden → entpacken und `Overseer`-Ordner
    in den Cinema-4D-`plugins`-Ordner kopieren → Cinema neu starten,
    `Shift+C`, nach „Overseer" suchen.
-6. Development: Testkommandos, Hinweis dass Releases per `v*`-Tag aus main
-   gebaut werden, Verweis auf CLAUDE.md/docs.
-7. **Support** (Buy-me-a-coffee + Issues) — bleibt die letzte Sektion.
+6. License: Ein Absatz — GPL-3.0, frei nutzbar auch kommerziell, Lizenz/
+   Attribution/Quelle bleiben bei Weitergabe dran; Link auf `LICENSE`.
+   (Steht VOR Development — der Mirror schneidet Development bis Support
+   raus, License muss die Sektion überleben.)
+7. Development: Testkommandos, Hinweis dass `main` der Release-Branch ist
+   (jeder Push ersetzt das Release der gestempelten Version; gearbeitet
+   wird auf `dev`), Verweis auf CLAUDE.md/docs.
+8. **Support** (Buy-me-a-coffee + Issues) — bleibt die letzte Sektion.
 
 **docs/FEATURES.md — die Detailtour, pro Tab exakt diese Form:**
 

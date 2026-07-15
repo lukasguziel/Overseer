@@ -2,8 +2,9 @@
 name: release
 description: >-
   Cut an Overseer release: bump the version everywhere, run the CI
-  gates locally, commit, tag v* and push — the release workflow builds the
-  Overseer-<version>.zip — then write curated change notes into the
+  gates locally, commit on dev and merge to main — every main push rebuilds
+  the Overseer-<version>.zip and replaces the release of the stamped version
+  (the tag moves along) — then write curated change notes into the
   GitHub release. Use when the user says "release", "mach ein Release",
   "neue Version bauen", "cut v1.2.0" or wants a new dist with change notes — then offer a clean
   local test that installs the released zip itself into Cinema 4D as a fresh
@@ -12,15 +13,22 @@ description: >-
 
 # Release — neue Dist mit Release + Change Notes
 
-Der eigentliche Build passiert in CI: ein `v*`-Tag-Push startet
-`.github/workflows/release.yml`, das die Gates nochmal fährt, das Plugin
-paketiert und `Overseer-<version>.zip` an ein GitHub-Release hängt
-(fester Installations-Absatz als Body; BEWUSST ohne GitHubs
+**Branch-Modell: `main` IST der Release-Branch.** Gearbeitet wird auf `dev`;
+JEDER Push auf `main` lässt `.github/workflows/release.yml` die Gates fahren,
+das Zip bauen und das Release der im Repo gestempelten Version ERSETZEN (der
+`v*`-Tag wandert mit, der Mirror aktualisiert das öffentliche Repo). Neue
+Version = Version bumpen + nach `main` mergen — mehr nicht. Der Body bleibt
+beim Refresh unangetastet (kuratierte Notes überleben); BEWUSST ohne GitHubs
 `generate_release_notes` — dessen „Full Changelog"-Link würde das interne
-Dev-Repo in den öffentlichen Mirror leaken).
-Dieser Skill macht alles drumherum: Version, Gates, Tag, kuratierte Notes.
+Dev-Repo in den öffentlichen Mirror leaken.
+Dieser Skill macht alles drumherum: Version, Gates, Merge, kuratierte Notes.
 
 ## Ablauf
+
+**0. Docs frisch?** Hat sich seit dem letzten Release die UI geändert (neuer
+Tab, geänderte Texte/Screens), ZUERST das `readme`-Skill laufen lassen
+(frische Screenshots + README) — der Docs-Mirror ins öffentliche Repo hängt
+am `main`-Push und nimmt sie dann automatisch mit.
 
 **1. Version bestimmen.**
 - Nennt der User eine Version (z. B. `v1.0.0`) → nehmen.
@@ -68,14 +76,17 @@ Daraus kuratierte Notes (Markdown, ENGLISCH — Release-Publikum) verfassen:
 - Notes dem User kurz zeigen (im Chat), bevor sie live gehen — er will
   ggf. umformulieren.
 
-**5. Commit, Tag, Push.**
+**5. Commit auf `dev`, merge nach `main`, push.** KEIN manuelles Tag — der
+Workflow setzt/verschiebt `v<version>` selbst auf den released Commit:
 ```bash
 git add <versionierte Dateien>   # nur Version-Bump + ggf. offene Arbeit, keine Scratch-Artefakte
 git commit -m "v<version>"
-git tag v<version>
-git push && git push origin v<version>
+git push origin dev
+git checkout main && git merge dev && git push origin main
+git checkout dev
 ```
-Auf `main` arbeiten (Releases bauen aus dem getaggten Stand).
+(Der `main`-Push triggert Release-Build + Mirror. Gleiche Version wie das
+bestehende Release → Asset wird ersetzt; neue Version → neues Release.)
 
 **6. Workflow abwarten und Notes setzen.**
 ```bash
@@ -121,6 +132,13 @@ oder widerrufen (es ist das `gh`-Token von lukasguziel; neu setzen mit
 `gh secret set MIRROR_TOKEN --repo Goodsoup-Family-Crypt/overseer --body "$(gh auth token)"`).
 Das öffentliche Repo ist ggf. noch privat — der Mirror funktioniert trotzdem;
 öffentlich schaltet es der User selbst.
+
+Danach die **öffentlichen Issues checken** — sie sind der einzige Rückkanal
+der Nutzer und tauchen im Dev-Repo nirgends auf:
+```bash
+gh issue list --repo lukasguziel/overseer --state open
+```
+Offene Issues dem User kurz nennen (bereits Gefixtes gehört in die Notes).
 
 **9. Clean-Test anbieten (immer fragen).** Das Release ist erst dann echt
 grün, wenn das gebaute Zip auch installiert startet — CI baut das Paket,
@@ -175,9 +193,9 @@ ohnehin gleich weiter am Code, ist ein normaler `deploy`-Lauf die Alternative
 — aber niemals den Release-Stand einfach stehen lassen.
 
 ## Fehlerbilder
-- **Workflow rot nach Tag-Push** → Ursache fixen, dann Tag neu setzen:
-  `git tag -d v<x> && git push origin :refs/tags/v<x>`, Fix committen,
-  neu taggen und pushen. (Es entsteht kein halbes Release — der
+- **Workflow rot nach `main`-Push** → Ursache auf `dev` fixen, erneut nach
+  `main` mergen — kein Tag-Handling nötig, der Workflow verschiebt den Tag
+  selbst und nur bei grünen Gates. (Es entsteht kein halbes Release — der
   Release-Step läuft zuletzt.)
 - **`gh` nicht eingeloggt** → `gh auth status`; der User muss `gh auth
   login` selbst ausführen (interaktiv, ggf. via `! gh auth login`).
