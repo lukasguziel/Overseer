@@ -1,6 +1,6 @@
 from conftest import make_bmp, make_png, make_tga
 
-from sceneorg.core import imagesize
+from overseer.core import imagesize
 
 
 def test_resolution_tag():

@@ -1,4 +1,4 @@
-from sceneorg.core import perf_logic
+from overseer.core import perf_logic
 
 
 def _e(name, ms, guid=0):

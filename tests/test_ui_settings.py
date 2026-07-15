@@ -1,4 +1,4 @@
-from sceneorg.core import ui_settings_logic as uisl
+from overseer.core import ui_settings_logic as uisl
 
 
 def test_slug_is_stable_and_project_specific():

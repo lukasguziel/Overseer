@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import sys
 
-# .../src/sceneorg/vendor.py -> .../src/vendor
+# .../src/overseer/vendor.py -> .../src/vendor
 VENDOR_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vendor")
 

@@ -1,7 +1,7 @@
 import pytest
 
-from sceneorg.naming.casing import LANG_DE, LANG_EN, Casing
-from sceneorg.naming.convention import NamingConvention
+from overseer.naming.casing import LANG_DE, LANG_EN, Casing
+from overseer.naming.convention import NamingConvention
 
 
 def test_pascal_english_translation():

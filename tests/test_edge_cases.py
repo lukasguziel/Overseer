@@ -1,13 +1,13 @@
 import pytest
 from conftest import node
 
-from sceneorg.core import model, ops
-from sceneorg.core.analyzer import SceneAnalyzer
-from sceneorg.naming.casing import Casing, detect_casing
-from sceneorg.naming.convention import NamingConvention
-from sceneorg.naming.detect import detect_style
-from sceneorg.naming.translate import translate_preserving
-from sceneorg.structure.standard import StructureStandard
+from overseer.core import model, ops
+from overseer.core.analyzer import SceneAnalyzer
+from overseer.naming.casing import Casing, detect_casing
+from overseer.naming.convention import NamingConvention
+from overseer.naming.detect import detect_style
+from overseer.naming.translate import translate_preserving
+from overseer.structure.standard import StructureStandard
 
 # -- model: aggregates, traversal, lookup ----------------------------------
 

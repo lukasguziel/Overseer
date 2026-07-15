@@ -1,7 +1,7 @@
 import pytest
 
-from sceneorg.naming import casing as naming
-from sceneorg.naming.casing import Casing
+from overseer.naming import casing as naming
+from overseer.naming.casing import Casing
 
 
 @pytest.mark.parametrize("name,expected", [

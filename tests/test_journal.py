@@ -1,4 +1,4 @@
-from sceneorg.core import journal
+from overseer.core import journal
 
 
 def _entry(eid, ts, items, reverted=False):

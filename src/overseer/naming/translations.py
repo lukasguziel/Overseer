@@ -47,7 +47,7 @@ BULK: dict[str, dict[str, str]] = {}
 AMBIG: dict[str, set[str]] = {}
 WORDS: dict[str, set[str]] = {}
 
-_CACHE_MODULE = "_sceneorg_data_cache"
+_CACHE_MODULE = "_overseer_data_cache"
 
 
 def _data_cache() -> dict:

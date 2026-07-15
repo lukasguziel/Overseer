@@ -2,7 +2,7 @@
 
 JSON API of the web frontend (c4d-dependent, runs on the C4D main thread). It is
 freshly reloaded by `bridge.drain()` on every request (hot-reload), so it must
-stay stateless at module level and use only the pure `sceneorg` logic plus the
+stay stateless at module level and use only the pure `overseer` logic plus the
 `SceneAdapter`.
 
 ## Paths / constants

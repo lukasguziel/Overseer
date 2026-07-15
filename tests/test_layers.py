@@ -1,4 +1,4 @@
-from sceneorg.core import layers, model, ops
+from overseer.core import layers, model, ops
 
 
 def _node(name, guid, layer=None, cat=model.CAT_MESH, children=None):

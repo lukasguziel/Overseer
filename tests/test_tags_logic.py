@@ -1,6 +1,6 @@
 import math
 
-from sceneorg.core.tags_logic import (
+from overseer.core.tags_logic import (
     deg_from_rad,
     dominant_angle,
     merge_selection_types,

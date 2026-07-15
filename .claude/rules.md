@@ -13,9 +13,9 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
   - Group steps inside a function with blank lines (e.g. a blank line after an
     early `return` block before the next `try:`).
 - **Prose explanation lives in `docs/`**, one markdown file per module,
-  mirroring the source tree (`src/sceneorg/cinema/bridge.py` ->
-  `docs/sceneorg/bridge.md`, `src/sceneorg/core/ops.py` ->
-  `docs/sceneorg/core/ops.md`, `src/overseer.pyp` ->
+  mirroring the source tree (`src/overseer/cinema/bridge.py` ->
+  `docs/overseer/bridge.md`, `src/overseer/core/ops.py` ->
+  `docs/overseer/core/ops.md`, `src/overseer.pyp` ->
   `docs/overseer.md`). Update the module's doc when you change its
   behavior. Hard-won c4d gotchas that used to sit in comments now live there.
 
@@ -26,13 +26,13 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
   docstrings, and frontend UI copy.) Python sources stay ASCII-only (encoding
   safety).
 - Exceptions (deliberate German, do NOT "fix"):
-  - `sceneorg/translations.py` — the DE→EN dictionary keys ARE German.
+  - `overseer/translations.py` — the DE→EN dictionary keys ARE German.
   - Test fixtures/asserts with German object names ("Möbel", "Küche", …) —
     they are inputs for language-detection/translation tests.
 
 ## Code conventions
 
-- New pure logic → `src/sceneorg/` (must NOT import `c4d`) + test in `tests/`.
+- New pure logic → `src/overseer/` (must NOT import `c4d`) + test in `tests/`.
   `python -m pytest` and `python -m ruff check src tests` must be green (CI gate).
 - c4d-dependent code only in: `cinema/` (adapter/constants/webapi) and
   `bridge.py`. Tests never import these.
@@ -97,7 +97,7 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - Document access only on the main thread → web requests go through the
   bridge queue; the ServerDialog timer (`SetTimer(100)`) drains it — only
   while that dialog is open. No MessageData (startup risk).
-- Never add `sceneorg.bridge` to the hot-reload purge (process singleton:
+- Never add `overseer.bridge` to the hot-reload purge (process singleton:
   queue + HTTP server; purging loses requests).
 - Changes to `bridge.py`, the `webapi` entry signature, or the `.pyp` need a
   full C4D restart; everything else hot-reloads (deploy → click command again).
@@ -115,9 +115,9 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 - Config/preset **schema 2**: config.json = `{schema:2, casing, language,
   number_pad, translations, structure (nested tree), rules (typed list),
   graph, preset}`. `config.migrate_config()` reads v1 (`prefixes`/`groups`)
-  forever; new files are written v2 only. Rule engine: `sceneorg/rules.py`
+  forever; new files are written v2 only. Rule engine: `overseer/rules.py`
   (types: prefix/renumber/condition/layer), combined planning:
-  `sceneorg/pipeline.py`.
+  `overseer/pipeline.py`.
 - Presets are **user-created snapshots** (`save_preset` op / skill-generated):
   `{schema:2, meta:{id,name,description,created_at}, settings:<full config>}`
   in `src/presets/` resp. plugin `presets/`. No shipped default presets.

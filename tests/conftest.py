@@ -3,8 +3,8 @@ import zlib
 
 import pytest
 
-from sceneorg.core import model
-from sceneorg.structure.standard import GroupRule, StructureStandard
+from overseer.core import model
+from overseer.structure.standard import GroupRule, StructureStandard
 
 
 def png_chunk(ctype, body):

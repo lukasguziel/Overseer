@@ -1,6 +1,6 @@
-from sceneorg.core import model, ops
-from sceneorg.naming.casing import LANG_EN, Casing
-from sceneorg.naming.convention import NamingConvention
+from overseer.core import model, ops
+from overseer.naming.casing import LANG_EN, Casing
+from overseer.naming.convention import NamingConvention
 
 
 def test_plan_renames_keep_list_is_left_untouched(sample_tree):

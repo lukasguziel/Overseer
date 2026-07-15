@@ -1,13 +1,13 @@
 import os
 import sys
 
-from sceneorg import vendor
+from overseer import vendor
 
 
 def test_vendor_dir_sits_next_to_the_package():
-    # .../src/vendor, i.e. a sibling of .../src/sceneorg
+    # .../src/vendor, i.e. a sibling of .../src/overseer
     parent = os.path.dirname(vendor.vendor_dir())
-    assert os.path.isdir(os.path.join(parent, "sceneorg"))
+    assert os.path.isdir(os.path.join(parent, "overseer"))
     assert os.path.basename(vendor.vendor_dir()) == "vendor"
 
 

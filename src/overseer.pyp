@@ -32,7 +32,7 @@ class OverseerCommand(c4d.plugins.CommandData):
     def Execute(self, doc, *args, **kwargs):
         try:
             _ensure_path()
-            import sceneorg.bridge as bridge
+            import overseer.bridge as bridge
             port = bridge.open_panel(WEB_PORT)
             print("[Overseer] Web UI running: http://127.0.0.1:%d/" % port)
         except Exception:

@@ -1,10 +1,10 @@
 from conftest import node
 
-from sceneorg.core import model
-from sceneorg.naming.casing import Casing
-from sceneorg.naming.convention import NamingConvention
-from sceneorg.structure.rules import RuleContext, compile_rules
-from sceneorg.structure.standard import GroupRule, StructureStandard
+from overseer.core import model
+from overseer.naming.casing import Casing
+from overseer.naming.convention import NamingConvention
+from overseer.structure.rules import RuleContext, compile_rules
+from overseer.structure.standard import GroupRule, StructureStandard
 
 
 def make_ctx(tree, rules=None, casing=Casing.LOWER_SNAKE, pad=2):

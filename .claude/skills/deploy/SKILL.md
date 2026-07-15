@@ -115,7 +115,7 @@ vergleichen.
 ## Nicht vergessen
 - Frontend-Aenderungen brauchen VOR dem Deploy `npm run build` (Output `src/web/`).
 - `bridge.py`/`.pyp`-Aenderungen wirken erst nach C4D-Neustart; reine
-  `sceneorg`-Logik hot-reloadet beim naechsten Command-Klick.
+  `overseer`-Logik hot-reloadet beim naechsten Command-Klick.
 - Die deployte `config.json` wird nie ueberschrieben, nur geseedet, wenn sie fehlt.
 - Das Plugin ist gegen C4D **2024** entwickelt — Deploy in andere Versionen
   ist ungetestet, kurz dazusagen.

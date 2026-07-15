@@ -1,5 +1,5 @@
-from sceneorg import config
-from sceneorg.core import keeps
+from overseer import config
+from overseer.core import keeps
 
 
 def test_empty_keeps_has_all_sections():

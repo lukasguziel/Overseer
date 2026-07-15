@@ -110,7 +110,14 @@ function Deploy-To([string]$Dir) {
   }
 
   # Mirror package recursively (subpackages: core/, naming/, structure/, cinema/).
-  Step "sceneorg/" { Mirror (Join-Path $src "sceneorg") (Join-Path $Dir "sceneorg") }
+  Step "overseer/" { Mirror (Join-Path $src "overseer") (Join-Path $Dir "overseer") }
+
+  # Legacy: the package was renamed sceneorg -> overseer; a stale copy in the
+  # target would shadow nothing but is dead weight - remove it once.
+  $legacy = Join-Path $Dir "sceneorg"
+  if (Test-Path $legacy) {
+    Step "sceneorg/ (legacy package, removed)" { Remove-Item -Recurse -Force $legacy }
+  }
 
   # Bundled third-party packages (Pillow, for high-quality texture resampling).
   # Optional: generate with: python tools/vendor_pillow.py

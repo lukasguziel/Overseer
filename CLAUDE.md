@@ -20,14 +20,14 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 ## Architecture
 
 **Core principle: pure domain logic strictly separated from `c4d`.**
-`src/sceneorg/` never imports `c4d` → testable in CI. Only these modules import
+`src/overseer/` never imports `c4d` → testable in CI. Only these modules import
 `c4d` (never loaded by tests): `cinema/` (adapter/webapi), `bridge.py`.
 
 ```
 src/
   overseer.pyp     Loader. Registers ONE command "Overseer" that
                           starts the server + opens the web UI (the only UI).
-  sceneorg/
+  overseer/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
                           per-section "accepted as-is" keeps map)
     bridge.py             [c4d] HTTP server (BG thread) + main-thread queue + progress
@@ -53,7 +53,7 @@ src/
     cinema/               [c4d] host glue
       adapter.py          doc <-> SceneTree; rename/reparent/plan/layers with undo
       webapi.py           JSON API; hot-reloaded per request. Scene-tree +
-                          preview caches live on the `sceneorg` package
+                          preview caches live on the `overseer` package
                           (survive hot-reload; invalidated by the doc dirty
                           counter, cleared by POST /api/reload). Every slow op
                           publishes a progress label (_OP_LABELS -> /api/progress).
@@ -76,7 +76,7 @@ tests/                    pytest, runs WITHOUT c4d
                           release.yml + on `release: edited`) and README/FEATURES/
                           screenshots on every main push (needs MIRROR_TOKEN secret).
                           This dev repo is Goodsoup-Family-Crypt/overseer.
-.claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + sceneorg/ +
+.claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + overseer/ +
                           presets/ + plans/ + web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)
 ```
@@ -121,9 +121,9 @@ the only UI). Full API table: `docs/api.md`.
 
 ## What needs a restart?
 
-- Pure `sceneorg` logic / `cinema/webapi.py`: **no restart, no
+- Pure `overseer` logic / `cinema/webapi.py`: **no restart, no
   even re-click** — `bridge.drain()` calls `reload_all()` on every API request, which
-  purges all `sceneorg.*` submodules except `bridge` so the next request re-imports the
+  purges all `overseer.*` submodules except `bridge` so the next request re-imports the
   edited source. Just deploy; the next browser action runs fresh code. `POST /api/reload`
   forces a purge on demand and returns the module count.
 - Frontend: `pnpm run build` + deploy → reload browser. For a fast dev loop use
@@ -143,7 +143,7 @@ the only UI). Full API table: `docs/api.md`.
   root or a Null (generator/deformer children untouched).
 - config.json (next to the .pyp, **schema 2**): casing/language/number_pad/
   translations + nested `structure` tree + declarative `rules` list
-  (prefix/renumber/condition/layer — see `sceneorg/structure/rules.py`). v1 configs
+  (prefix/renumber/condition/layer — see `overseer/structure/rules.py`). v1 configs
   (`prefixes`/`groups`) migrate automatically; `default_standard()` is
   Cameras+Lights only.
 - Presets = complete settings snapshots `{schema:2, meta, settings}` saved by

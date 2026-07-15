@@ -74,7 +74,7 @@ if DATA_DIR != PLUGIN_DIR:
             pass
 
 def _export_dir() -> str:
-    env = os.environ.get("SCENEORG_EXPORT_DIR")
+    env = os.environ.get("OVERSEER_EXPORT_DIR")
     if env and os.path.isdir(env):
         return env
     try:
@@ -657,10 +657,10 @@ def _clear_progress():
 
 
 def _cache_store() -> dict:
-    import sceneorg
-    if not hasattr(sceneorg, "_scene_cache"):
-        sceneorg._scene_cache = {}
-    return sceneorg._scene_cache
+    import overseer
+    if not hasattr(overseer, "_scene_cache"):
+        overseer._scene_cache = {}
+    return overseer._scene_cache
 
 
 def _refresh_selection(adapter, tree) -> None:
@@ -912,8 +912,8 @@ def _handle(payload: dict) -> dict:
             _progress("Checking generators & simulations")
             import importlib
             gens_mod = importlib.import_module(
-                "sceneorg.cinema.audit_generators")
-            sims_mod = importlib.import_module("sceneorg.cinema.audit_sims")
+                "overseer.cinema.audit_generators")
+            sims_mod = importlib.import_module("overseer.cinema.audit_sims")
             data_dict["has_generators"] = gens_mod.has_any(adapter, tree)
             data_dict["has_sims"] = sims_mod.has_any(adapter, tree)
         except Exception:
@@ -1559,7 +1559,7 @@ def _handle(payload: dict) -> dict:
     if prefix in _AUDIT_MODULES:
         import importlib
         mod = importlib.import_module(
-            "sceneorg.cinema." + _AUDIT_MODULES[prefix])
+            "overseer.cinema." + _AUDIT_MODULES[prefix])
         adapter, tree = _get_scene(doc, "%s audit" % prefix)
         return mod.handle(op, payload, doc=doc, adapter=adapter, tree=tree,
                           progress=_progress)

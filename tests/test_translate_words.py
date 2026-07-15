@@ -1,4 +1,4 @@
-from sceneorg.naming import translate
+from overseer.naming import translate
 
 
 def test_object_name_is_split_into_its_words():

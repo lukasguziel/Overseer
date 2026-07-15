@@ -46,7 +46,7 @@ letzten Arbeitssession.)
 
 **2. Version überall setzen** (alle vier Stellen, sonst driftet es):
 - `frontend/package.json` → `"version": "<ohne v>"`
-- `src/sceneorg/__init__.py` → `__version__ = "<ohne v>"`
+- `src/overseer/__init__.py` → `__version__ = "<ohne v>"`
 - `pyproject.toml` → `version = "<PEP-440>"`
 - `docs/ROADMAP.md` → „Current release:"-Zeile
 
@@ -176,7 +176,7 @@ Regeln dabei:
   Daten sehen will: `-KeepData`.
 - Danach: C4D starten, `Shift+C` → **„Overseer"**, Web-UI muss
   aufgehen. Läuft es nicht, ist das ein **Release-Bug** (Packaging), kein
-  lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `sceneorg/`,
+  lokales Problem — Zip-Inhalt prüfen (`web/index.html`, `overseer/`,
   `vendor/` vorhanden?), fixen, neue Version.
 
 **10. Restore — immer, nicht fragen.** Der Clean-Test ist ein Wegwerf-Zustand:

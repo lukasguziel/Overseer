@@ -75,7 +75,7 @@ _RELOAD_KEEP = (__name__,)
 def reload_all() -> int:
     dropped = 0
     for name in list(sys.modules):
-        if name == "sceneorg" or not name.startswith("sceneorg."):
+        if name == "overseer" or not name.startswith("overseer."):
             continue
         if name in _RELOAD_KEEP:
             continue
@@ -96,8 +96,8 @@ def drain():
             from .cinema import webapi
             if req.payload.get("op") == "reload":
                 try:
-                    import sceneorg
-                    getattr(sceneorg, "_scene_cache", {}).clear()
+                    import overseer
+                    getattr(overseer, "_scene_cache", {}).clear()
                 except Exception:
                     pass
                 req.result = {"ok": True, "reloaded": dropped}

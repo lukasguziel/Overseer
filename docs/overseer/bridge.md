@@ -3,7 +3,7 @@
 HTTP bridge for the web frontend (c4d-dependent). The HTTP server runs on a background thread and enqueues each request; document accesses MUST run on the main thread, so requests are drained on the main thread and handed to `webapi.handle`.
 
 Critical gotchas:
-- This module is a **process-wide singleton** (queue + server state) and is INTENTIONALLY NOT hot-reloaded by the loader — otherwise the pending queue would be lost. Only the API logic (`sceneorg.cinema.webapi`) is freshly reloaded on every drain.
+- This module is a **process-wide singleton** (queue + server state) and is INTENTIONALLY NOT hot-reloaded by the loader — otherwise the pending queue would be lost. Only the API logic (`overseer.cinema.webapi`) is freshly reloaded on every drain.
 - Document/scene access is only legal on the main thread. The server thread never touches the doc directly; it submits and waits.
 
 ## Progress state

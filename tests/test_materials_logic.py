@@ -1,4 +1,4 @@
-from sceneorg.core.materials_logic import is_internal_material
+from overseer.core.materials_logic import is_internal_material
 
 
 def test_octane_temp_material_is_internal():
