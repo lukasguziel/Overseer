@@ -54,6 +54,12 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
    `plugins` folder.
 3. Restart Cinema 4D, then press `Shift+C` and search for **"Overseer"**.
 
+## License
+
+Overseer is free software under the [GNU GPL-3.0](LICENSE): use it for any
+kind of work, commercial included. If you pass it on or build on it, the
+license, the attribution and the source stay attached.
+
 ## Development
 
 Pure domain logic (`src/sceneorg/`, no `c4d` import) is separated from the
@@ -66,9 +72,10 @@ cd frontend && pnpm run build    # web UI -> src/web/
 powershell -File .claude/skills/deploy/deploy.ps1      # copy into the C4D plugin dir
 ```
 
-Releases are built automatically from `main` by tagging `v*` (or manually
-via the release workflow). Architecture, conventions and module docs:
-[CLAUDE.md](CLAUDE.md) and [docs/](docs/).
+`main` is the release branch: every push to it rebuilds the zip and refreshes
+the release of the version stamped in the repo (day-to-day work happens on
+`dev`). Architecture, conventions and module docs: [CLAUDE.md](CLAUDE.md)
+and [docs/](docs/).
 
 ## Support
 

@@ -1,8 +1,10 @@
 name: CI
 
+# dev is the working branch; pushing main additionally triggers release.yml
+# (main = release branch, see release.yml).
 on:
   push:
-    branches: [main, master]
+    branches: [main, dev]
   pull_request:
 
 jobs:
