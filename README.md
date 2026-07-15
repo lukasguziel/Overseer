@@ -49,15 +49,10 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 ## Installation
 
 1. Grab the latest **`Overseer-<version>.zip`** from
-   [Releases](https://github.com/lukasguziel/overseer/releases) —
-   it ships fully built, nothing to compile.
-2. Unpack it into your Cinema 4D `plugins` folder.
-3. Restart Cinema 4D, then `Shift+C` → **"Overseer"** — it starts the
-   local server and opens the UI at `http://127.0.0.1:8787` (keep the small
-   server window open).
-
-Program-Files installs work without elevation — everything the plugin
-writes (config, histories, your presets) goes to your user prefs folder.
+   [Releases](https://github.com/lukasguziel/overseer/releases).
+2. Unzip the archive and copy the `Overseer` folder into your Cinema 4D
+   `plugins` folder.
+3. Restart Cinema 4D, then press `Shift+C` and search for **"Overseer"**.
 
 ## Development
 

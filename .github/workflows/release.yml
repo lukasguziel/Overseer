@@ -81,18 +81,21 @@ jobs:
       - name: Zip
         run: cd dist && zip -r "Overseer-$VERSION.zip" Overseer
 
+      # No generate_release_notes: GitHub's auto notes append a "Full Changelog"
+      # compare link to THIS (internal) repo, which must never leak into the
+      # public mirror. Curated notes are set afterwards by the release skill.
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
           name: Overseer ${{ env.VERSION }}
           files: dist/Overseer-${{ env.VERSION }}.zip
-          generate_release_notes: true
           body: |
-            Ready-to-use Cinema 4D 2024 plugin, nothing to compile. Installation: unpack
-            the zip and drop the `Overseer/` folder into a C4D plugins folder, e.g.
-            `%APPDATA%\Maxon\Maxon Cinema 4D 2024_XXXXXXXX\plugins\` (no admin needed)
-            or `C:\Program Files\Maxon Cinema 4D 2024\plugins\`.
+            ## Installation
+
+            Unzip the archive, copy the `Overseer` folder into your Cinema 4D
+            `plugins` folder, restart Cinema 4D, then press `Shift+C` and search
+            for **"Overseer"**.
 
   # Explicit call because the release above is created with GITHUB_TOKEN,
   # which never fires the `release` event for other workflows. Later

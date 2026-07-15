@@ -15,7 +15,9 @@ description: >-
 Der eigentliche Build passiert in CI: ein `v*`-Tag-Push startet
 `.github/workflows/release.yml`, das die Gates nochmal fährt, das Plugin
 paketiert und `Overseer-<version>.zip` an ein GitHub-Release hängt
-(mit `generate_release_notes: true` + festem Installations-Absatz als Body).
+(fester Installations-Absatz als Body; BEWUSST ohne GitHubs
+`generate_release_notes` — dessen „Full Changelog"-Link würde das interne
+Dev-Repo in den öffentlichen Mirror leaken).
 Dieser Skill macht alles drumherum: Version, Gates, Tag, kuratierte Notes.
 
 ## Ablauf
@@ -59,6 +61,10 @@ Daraus kuratierte Notes (Markdown, ENGLISCH — Release-Publikum) verfassen:
   (nicht „refactor webapi cache", sondern was der Artist davon hat).
 - Interne/Doku/CI-Commits weglassen; Screenshots-Refresh o. Ä. maximal
   als Sammelpunkt.
+- **NIE das Dev-Repo referenzieren** (`Goodsoup-Family-Crypt/…`): keine
+  Compare-/Commit-/Issue-Links, kein „Full Changelog". Die Notes landen 1:1
+  im öffentlichen Mirror — jeder Link zeigt dort ins Leere bzw. leakt den
+  internen Repo-Namen.
 - Notes dem User kurz zeigen (im Chat), bevor sie live gehen — er will
   ggf. umformulieren.
 
