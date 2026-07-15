@@ -14,8 +14,9 @@ async function openFiles(page: Page): Promise<void> {
   await expect(page.locator('.wb-side')).toBeVisible()
 }
 
-// A minimal files scan carrying one relocatable Alembic path — the only shape
-// that enables the "Make relative" action (the shared fixture has none).
+// A minimal files scan carrying one relocatable path (any kind qualifies) —
+// the shape that enables the "Make relative" actions (the shared fixture has
+// none).
 const RELOC_SCAN = {
   ok: true,
   doc_path: 'D:/3D/PROJECTS/PENTHOUSE',
@@ -65,8 +66,8 @@ test('renders the scan summary, both file lists and a disabled Make relative', a
   await expect(missingCount(page)).toHaveText('2 missing')
   await expect(referencedCard(page).locator('.head-count')).toHaveText('3 files')
 
-  // The shared fixture has no relocatable Alembic path, so the action is off.
-  const makeRel = page.getByRole('button', { name: 'Make relative (0)' })
+  // The shared fixture has no relocatable path, so the action is off.
+  const makeRel = page.getByRole('button', { name: 'Make 0 relative' })
   await expect(makeRel).toBeDisabled()
 
   // (a) API: the area's data op fired.
@@ -244,7 +245,7 @@ test('Make relative — enabled by a relocatable path, cancel + confirm', async 
   })
   await openFiles(page)
 
-  const makeRel = page.getByRole('button', { name: 'Make relative (1)' })
+  const makeRel = page.getByRole('button', { name: 'Make 1 relative' })
   await expect(makeRel).toBeEnabled()
 
   // Open then cancel: nothing is rewritten.
@@ -261,6 +262,26 @@ test('Make relative — enabled by a relocatable path, cancel + confirm', async 
 
   await expect.poll(() => api.find('files_make_relative')).toBeTruthy()
   await expect(page.locator('.example')).toContainText('Rewrote 1 path')
+})
+
+test('per-row → rel rewrites that one stored path', async ({ page }) => {
+  const api = await mockApi(page, {
+    files_scan: RELOC_SCAN,
+    files_make_relative: { ok: true, fixed: 1, skipped: 0 },
+  })
+  await openFiles(page)
+
+  // The relocatable row carries its own "→ rel" button on the right (exact:
+  // the row itself is a button whose accessible name contains the chip text).
+  await referencedCard(page).getByRole('button', { name: '→ rel', exact: true }).click()
+
+  // (a) API: files_make_relative narrowed to exactly this path.
+  await expect.poll(() => api.find('files_make_relative')).toBeTruthy()
+  expect(api.find('files_make_relative')?.body).toMatchObject({
+    paths: ['D:/3D/PROJECTS/PENTHOUSE/caches/curtain_sim.abc'],
+  })
+  // (b) UI: the note names the rewritten target.
+  await expect(page.locator('.example')).toContainText('caches/curtain_sim.abc')
 })
 
 test('the Accepted panel lists a kept file and restores it', async ({ page }) => {
@@ -289,7 +310,7 @@ test('empty scan shows the "no external files" placeholder', async ({ page }) =>
   await expect(page.locator('.substats')).toContainText('0')
   await expect(missingCard(page)).toHaveCount(0)
   await expect(referencedCard(page)).toContainText('No external files')
-  await expect(page.getByRole('button', { name: 'Make relative (0)' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Make 0 relative' })).toBeDisabled()
 })
 
 test('a failing scan shows the error state and retries', async ({ page }) => {

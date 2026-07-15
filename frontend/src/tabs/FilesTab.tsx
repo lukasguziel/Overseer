@@ -35,13 +35,14 @@ function selectable(e: FileEntry): '' | 'object' | 'material' {
   return ''
 }
 
-function FileTable({ rows, onFocus, onPick, onAccept }: {
+function FileTable({ rows, onFocus, onPick, onAccept, onRel }: {
   rows: FileEntry[]
   onFocus: (e: FileEntry) => void
   onPick?: (e: FileEntry) => void
   onAccept?: (e: FileEntry) => void
+  onRel?: (e: FileEntry) => void
 }) {
-  const hasActions = !!(onPick || onAccept)
+  const hasActions = !!(onPick || onAccept || onRel)
   const cols = 'cols-files' + (hasActions ? ' dg-actionable' : '')
   return (
     <div className="dg-table">
@@ -52,7 +53,8 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
         <Tip text="Stored path. Badge shows absolute / relative / missing."><span>Path</span></Tip>
       </div>
       {rows.map((e, i) => {
-        const actionable = e.missing && hasActions
+        const canRel = !e.missing && e.absolute && e.relocatable && !!onRel
+        const actionable = (e.missing && !!(onPick || onAccept)) || canRel
         const sel = selectable(e)
         return (
           <div className={'dg-tr ' + (sel ? 'dg-click ' : '') + cols}
@@ -72,30 +74,35 @@ function FileTable({ rows, onFocus, onPick, onAccept }: {
             <span className="num">{e.bytes > 0 ? humanBytes(e.bytes) : '—'}</span>
             {/* The badge states WHAT THE PATH IS — never what it could become
                 (same rule as the texture table: the old "→ relative" read as
-                "this is relative"). The rewrite offer lives in the sidebar's
-                "Make relative" action, and only Alembic paths qualify. */}
+                "this is relative"). The rewrite offer lives in the row's
+                "→ rel" button, where it belongs. */}
             <span className="dg-cell-path dim">
               <span className="dg-cut">{e.path}</span>
               {e.missing
                 ? <span className="pill missing">missing</span>
                 : e.absolute
-                  ? <span className={'pill' + (e.relocatable && e.kind === 'alembic' ? ' fixable' : '')}
+                  ? <span className={'pill' + (e.relocatable ? ' fixable' : '')}
                       title={e.relocatable
-                        ? (e.kind === 'alembic'
-                            ? `Absolute, but the file lives under the project folder — “Make relative” rewrites it to ${e.rel_target || 'a project-relative path'}`
-                            : 'Absolute; the file lives under the project folder, but only Alembic paths can be rewritten so far')
+                        ? `Absolute, but the file lives under the project folder — “→ rel” rewrites it to ${e.rel_target || 'a project-relative path'}`
                         : 'Absolute path to a file outside the project folder'}>absolute</span>
                   : <span className="pill" title="Relative to the project folder">relative</span>}
             </span>
             {actionable && (
               <span className="rn-actions" onClick={(ev) => ev.stopPropagation()}>
-                {onPick && (
+                {e.missing && onPick && (
                   <button className="rn-ok" title="Browse — pick the replacement file in Cinema 4D's file dialog (undoable)"
                     onClick={() => onPick(e)}><IconFolder /></button>
                 )}
-                {onAccept && (
+                {e.missing && onAccept && (
                   <button className="rn-keep" title="Accept as missing — stops counting as a problem (restore below)"
                     onClick={() => onAccept(e)}><IconCheck /></button>
+                )}
+                {canRel && (
+                  <button className="rn-keep tex-chip"
+                    title={`Rewrite this path relative to the project folder: ${e.rel_target || 'project-relative'} (undoable)`}
+                    onClick={() => onRel!(e)}>
+                    → rel
+                  </button>
                 )}
               </span>
             )}
@@ -182,9 +189,20 @@ export default function FilesTab({ org }: { org: Organizer }) {
     try {
       const r = await call('files_make_relative', {})
       setNote(`Rewrote ${plural(r.fixed, 'path')} ✓ (undoable)`
-        + (r.skipped ? ` · ${r.skipped} skipped` : ''))
+        + (r.skipped ? ` · ${r.skipped} skipped (path not found in the scene)` : ''))
       await reload()
     } catch (e: any) { fail(e) }
+  }
+  // Per-row "→ rel": same op, narrowed to that one stored path.
+  const relOne = async (e: FileEntry) => {
+    setNote('')
+    try {
+      const r = await call('files_make_relative', { paths: [e.path] })
+      setNote(r.fixed
+        ? `“${e.file}” → ${e.rel_target || 'project-relative'} ✓ (undoable)`
+        : 'Path not found in the scene — nothing rewritten.')
+      await reload()
+    } catch (err: any) { fail(err) }
   }
 
   if (!data) {
@@ -198,9 +216,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
   }
 
   const s = data.summary
-  // files_make_relative only rewrites Alembic references — every other kind is
-  // counted as skipped server-side, so the button must not promise them.
-  const reloc = entries.filter((e) => e.relocatable && e.kind === 'alembic').length
+  const reloc = entries.filter((e) => e.relocatable).length
   const canFix = reloc > 0 && !!data.doc_path
 
   return (
@@ -233,18 +249,9 @@ export default function FilesTab({ org }: { org: Organizer }) {
                 title: key ? `Show only ${label} files` : 'Show every kind',
               }))} />
 
-          <div className="section-head sm"><span>Actions</span></div>
-          <h4 className="side-action-title">Relative paths</h4>
           {!data.doc_path && (
             <p className="hint-sm">Project not saved — paths cannot be made relative yet.</p>
           )}
-          <ActionButton tone="go" disabled={loading || !canFix}
-            title={canFix
-              ? `Rewrite ${reloc} absolute path(s) under the project folder to relative (undoable)`
-              : 'No absolute paths inside the project folder'}
-            onClick={() => setConfirm(true)}>
-            Make relative ({reloc})
-          </ActionButton>
           {note && <p className="example" style={{ marginTop: 4 }}>{note}</p>}
         </aside>
 
@@ -293,10 +300,24 @@ export default function FilesTab({ org }: { org: Organizer }) {
             <div className="card-head">
               <h3>Referenced files</h3>
               <span className="head-count">{pager.total} files</span>
+              <span className="wb-head-actions">
+                <ActionButton tone="go" disabled={loading || !canFix}
+                  title={canFix
+                    ? `Rewrite ${plural(reloc, 'absolute path')} under the project folder to relative (undoable)`
+                    : data.doc_path
+                      ? 'No absolute paths inside the project folder'
+                      : 'Project not saved — paths cannot be made relative yet'}
+                  onClick={() => setConfirm(true)}>
+                  Make {reloc} relative
+                </ActionButton>
+              </span>
             </div>
+            {reloc > 0 && (
+              <p className="hint-sm">Per row: <b>→ rel</b> rewrites an absolute in-project path to project-relative (undoable).</p>
+            )}
             {pager.total
               ? <>
-                  <FileTable rows={pager.rows} onFocus={onFocus} />
+                  <FileTable rows={pager.rows} onFocus={onFocus} onRel={relOne} />
                   <Pager pager={pager} />
                 </>
               : <div className="empty-note">
@@ -333,7 +354,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
       {confirm && (
         <ConfirmModal
           title="Make paths relative"
-          message={`Rewrite ${plural(reloc, 'absolute Alembic path')} that live under the project folder to project-relative paths. Other asset kinds are left untouched. This is a single, undoable step.`}
+          message={`Rewrite ${plural(reloc, 'absolute path')} that live under the project folder to project-relative paths. Files outside the project folder are left untouched. This is a single, undoable step.`}
           confirmLabel={`Make ${reloc} relative`}
           onConfirm={doMakeRelative}
           onCancel={() => setConfirm(false)}

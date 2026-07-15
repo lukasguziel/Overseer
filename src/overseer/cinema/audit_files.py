@@ -298,33 +298,22 @@ def _make_relative(doc, adapter, payload) -> dict:
                 "error": "Project is not saved (no folder to make paths relative to)."}
     wanted = payload.get("paths")
     wanted_set = set(wanted) if wanted else None
-    pid = _alembic_path_id()
 
+    # Any kind: _rewrite_everywhere finds the path parameter wherever it
+    # lives (the same mechanism pick-replacement and relink already use),
+    # so this is not limited to the Alembic generator's known param.
     scan = _scan(doc, adapter)
-    targets: list = []
+    doc.StartUndo()
+    fixed = 0
     skipped = 0
     for e in scan["entries"]:
-        if not e["relocatable"]:
+        if not e["relocatable"] or not e["rel_target"]:
             continue
         if wanted_set is not None and e["path"] not in wanted_set:
             continue
-        obj = adapter._by_guid.get(e["guid"]) if e["guid"] is not None else None
-        if e["kind"] == "alembic" and obj is not None and pid is not None:
-            targets.append((obj, e["rel_target"]))
-        else:
-            skipped += 1
-
-    if not targets:
-        return {"ok": True, "fixed": 0, "skipped": skipped}
-
-    doc.StartUndo()
-    fixed = 0
-    for obj, rel in targets:
-        try:
-            doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-            obj[pid] = rel
+        if _rewrite_everywhere(doc, adapter, e["path"], e["rel_target"]):
             fixed += 1
-        except Exception:
+        else:
             skipped += 1
     doc.EndUndo()
     c4d.EventAdd()
