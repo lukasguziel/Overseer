@@ -21,11 +21,8 @@ src/web/
 # by the release workflow. Generated, never committed — no binaries in git.
 src/vendor/
 
-# C4D SDK reference archives (large vendor zips). Only the Python 2024 SDK
-# relevant to this Python plugin is versioned; the rest stays local
-# (C++ 2024-2026, ProjectTool exceed GitHub's 100 MB limit).
-c4d_sdk/*
-!c4d_sdk/Cinema_4D_Python_SDK_2024_5_0.zip
+# C4D SDK reference archives (large vendor zips) stay local, never in git
+var/sdk/
 
 # IDE / temp
 .idea/
