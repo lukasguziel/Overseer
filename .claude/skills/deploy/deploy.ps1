@@ -120,7 +120,7 @@ function Deploy-To([string]$Dir) {
   }
 
   # Bundled third-party packages (Pillow, for high-quality texture resampling).
-  # Optional: generate with: python tools/vendor_pillow.py
+  # Optional: generate with: python .claude/skills/release/vendor_pillow.py
   # Without it the plugin falls back to the Cinema bitmap engine.
   # ASCII only in this file: PS 5.1 reads it as ANSI and chokes on fancy dashes.
   $vendorSrc = Join-Path $src "vendor"

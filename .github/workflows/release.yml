@@ -102,7 +102,7 @@ jobs:
       # the plugin so the artist never pip-installs into Cinema's Python. The
       # wheel is fetched here rather than committed, so no binaries in git.
       - name: Vendor Pillow (cp311 / win_amd64)
-        run: python tools/vendor_pillow.py
+        run: python .claude/skills/release/vendor_pillow.py
 
       # --- Package: same layout as deploy.ps1 produces ---
       - name: Assemble plugin folder

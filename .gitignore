@@ -18,7 +18,8 @@ dist/
 # Vite build output (built from frontend/, distributed by deploy.ps1)
 src/web/
 
-# Vendored third-party wheels (Pillow), unpacked by tools/vendor_pillow.py and
+# Vendored third-party wheels (Pillow), unpacked by the release skill's
+# vendor_pillow.py and
 # by the release workflow. Generated, never committed — no binaries in git.
 src/vendor/
 
