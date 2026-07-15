@@ -92,7 +92,7 @@ function Deploy-To([string]$Dir) {
     catch { $script:failed += "$What -> $($_.Exception.Message)"; Write-Output "  FAIL: $What -> $($_.Exception.Message)" }
   }
 
-  # Stamp the repo root so the plugin knows where to mirror scene_report.json
+  # Stamp the repo root so the plugin knows where to mirror scene_report.json into <repo>/var
   # (read by webapi._export_dir; machine-local by nature, lives only in the target).
   Step "dev_repo.txt" { Set-Content -Path (Join-Path $Dir "dev_repo.txt") -Value $repoRoot -Encoding utf8 }
 

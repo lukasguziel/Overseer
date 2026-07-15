@@ -106,7 +106,7 @@ Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both curren
 
 ## Data & channels
 
-- `scene_report.json` (repo root) is how Claude sees the real scene — written
+- `var/scene_report.json` is how Claude sees the real scene — written
   by `/api/analyze`. Reports are 1–2 MB: never read fully, aggregate via the
   scripts in `.claude/skills/scene-conventions/scripts/`.
 - Report `guid`s are traversal indices, valid only for that exact export.

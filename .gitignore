@@ -4,8 +4,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Analysis output
-scene_report.json
+# Analysis output (plugin mirrors exports into var/)
+var/scene_report.json
+var/scene_structure.csv
 
 # Node / Vite
 frontend/node_modules/
@@ -36,7 +37,6 @@ resp.json
 # runtime logs written by the plugin
 change_history.json
 analysis_history.json
-scene_structure.csv
 
 # Playwright MCP session artifacts
 .playwright-mcp/

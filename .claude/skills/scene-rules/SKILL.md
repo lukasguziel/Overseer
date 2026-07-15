@@ -15,7 +15,7 @@ description: >-
 
 **Ziel:** aus der realen C4D-Szene ein `src/config.json` erzeugen (Konvention +
 DE→EN-Uebersetzungen + Gruppen-Regeln), das der User im Node-Editor feinjustiert.
-Kanal zur Szene: `scene_report.json`.
+Kanal zur Szene: `var/scene_report.json`.
 
 Schema, Leitplanken und Tool-Guide: [references/config-format.md](references/config-format.md).
 API-Endpoints/Rezepte/Fehlerbilder: [../scene-architect/references/api.md](../scene-architect/references/api.md).
@@ -27,10 +27,10 @@ Report-Aufbau: [../scene-architect/references/report-schema.md](../scene-archite
 ```bash
 curl -s -X POST 127.0.0.1:8787/api/export -H "Content-Type: application/json" -d "{}"
 ```
-Schreibt `scene_report.json` ins Repo-Root. Connection refused → User bittet
+Schreibt `var/scene_report.json` ins Repo. Connection refused → User bittet
 `Shift+C` → **"Overseer"** oeffnen, Server-Fenster offen lassen.
 
-**B) Fallback:** vorhandene `scene_report.json` nutzen — Dateidatum/`file`-Feld
+**B) Fallback:** vorhandene `var/scene_report.json` nutzen — Dateidatum/`file`-Feld
 gegenpruefen und dem User sagen, wenn veraltet.
 
 ## Schritt 2 — Report analysieren (nie komplett lesen)
