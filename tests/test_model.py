@@ -1,4 +1,4 @@
-from sceneorg.core import model
+from overseer.core import model
 
 
 def test_add_child_sets_parent_and_depth():

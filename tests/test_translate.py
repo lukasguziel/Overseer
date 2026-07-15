@@ -1,5 +1,5 @@
-from sceneorg.core import model
-from sceneorg.naming import translate, translations
+from overseer.core import model
+from overseer.naming import translate, translations
 
 # Scene vocabulary the product default may not know yet. add_translations writes
 # into process-global dicts, so the snapshot is restored for the other modules.

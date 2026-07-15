@@ -1,4 +1,4 @@
-# sceneorg.structure — group standard + rule engine v2 + graph
+# overseer.structure — group standard + rule engine v2 + graph
 
 Pure domain layer (no `c4d`) for scene structure: the group standard that maps
 objects to canonical containers, the declarative rule engine v2 that plans
@@ -44,4 +44,4 @@ Empty package marker.
   recursive `emit()`; `path_complies()` treats a node under a subgroup as
   compliant with the parent group.
 
-Per-module prose: see the mirrored files under `docs/sceneorg/structure/`.
+Per-module prose: see the mirrored files under `docs/overseer/structure/`.

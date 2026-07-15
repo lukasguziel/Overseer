@@ -55,8 +55,8 @@ jobs:
         run: |
           V="${VERSION#v}"
           fail=0
-          grep -qF "__version__ = \"$V\"" src/sceneorg/__init__.py \
-            || { echo "::error::src/sceneorg/__init__.py is not $V"; fail=1; }
+          grep -qF "__version__ = \"$V\"" src/overseer/__init__.py \
+            || { echo "::error::src/overseer/__init__.py is not $V"; fail=1; }
           grep -qF "\"version\": \"$V\"" frontend/package.json \
             || { echo "::error::frontend/package.json is not $V"; fail=1; }
           case "$V" in
@@ -113,11 +113,11 @@ jobs:
           cp src/so_logo.png "$pkg/"
           cp src/config.example.json "$pkg/"
           cp LICENSE "$pkg/"
-          # The whole package, not just its top-level modules: sceneorg/ has
+          # The whole package, not just its top-level modules: overseer/ has
           # subpackages (core, naming, structure, cinema) and a flat *.py glob
           # silently shipped a plugin that cannot import itself.
-          cp -r src/sceneorg "$pkg/sceneorg"
-          find "$pkg/sceneorg" -name __pycache__ -type d -prune -exec rm -rf {} +
+          cp -r src/overseer "$pkg/overseer"
+          find "$pkg/overseer" -name __pycache__ -type d -prune -exec rm -rf {} +
           cp -r src/vendor "$pkg/vendor"
           find "$pkg/vendor" -name __pycache__ -type d -prune -exec rm -rf {} +
           [ -d src/presets ] && cp -r src/presets "$pkg/presets"

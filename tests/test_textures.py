@@ -2,7 +2,7 @@ import struct
 
 from conftest import make_bmp, make_png, make_tga
 
-from sceneorg.core import textures
+from overseer.core import textures
 
 
 def test_vram_estimate_includes_mipmaps():

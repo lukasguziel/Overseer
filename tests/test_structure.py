@@ -1,5 +1,5 @@
-from sceneorg.core import model
-from sceneorg.structure.standard import default_standard
+from overseer.core import model
+from overseer.structure.standard import default_standard
 
 
 def test_default_standard_only_categories():

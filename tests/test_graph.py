@@ -1,4 +1,4 @@
-from sceneorg.structure.graph import graph_from_groups
+from overseer.structure.graph import graph_from_groups
 
 
 def test_graph_has_group_and_source_nodes():

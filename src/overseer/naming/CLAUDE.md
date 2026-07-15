@@ -1,4 +1,4 @@
-# sceneorg.naming — naming convention engine
+# overseer.naming — naming convention engine
 
 Pure, `c4d`-free logic that turns a raw object name into a normalized one:
 tokenize -> translate (optional) -> apply casing -> pad trailing number. Every
@@ -46,7 +46,7 @@ uniquely-single-language token).
 Dictionaries + lookups (`to_english`, `to_german`, `lookup_en`,
 `candidate_langs`, `add_translations`). Curated `DE_TO_EN` always wins over the
 bundled bulk TSVs (`data/<lang>_en.tsv`). Parsed data is cached in a synthetic
-module outside the `sceneorg` namespace so it survives per-request hot-reload,
+module outside the `overseer` namespace so it survives per-request hot-reload,
 keyed by file mtime/size. Gotcha: the German dictionary keys/values (e.g.
 "Möbel" -> "furniture") are intentional data and must stay byte-for-byte.
 
@@ -63,4 +63,4 @@ keyed by file mtime/size. Gotcha: the German dictionary keys/values (e.g.
 - translations.py German data (keys/values, umlauts included) is deliberate and
   non-ASCII by design — never "clean it up". Only code/comments stay ASCII.
 
-Per-module prose: see the mirrored files under `docs/sceneorg/naming/`.
+Per-module prose: see the mirrored files under `docs/overseer/naming/`.

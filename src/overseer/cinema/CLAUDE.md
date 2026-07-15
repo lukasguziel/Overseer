@@ -1,7 +1,7 @@
-# sceneorg.cinema — c4d host glue
+# overseer.cinema — c4d host glue
 
 The only package (besides `bridge.py`) that imports `c4d`. It bridges the live
-Cinema 4D document to the pure `sceneorg.core`/`naming`/`structure` domain logic:
+Cinema 4D document to the pure `overseer.core`/`naming`/`structure` domain logic:
 reading the scene into a `SceneTree`, and applying renames / reparents / layer
 assignments / texture and tag / generator / simulation edits back onto the doc
 with undo. Never imported by tests.
@@ -9,7 +9,7 @@ with undo. Never imported by tests.
 ## Modules
 
 ### __init__.py
-Empty package marker. `sceneorg.cinema.*` submodules are imported by string
+Empty package marker. `overseer.cinema.*` submodules are imported by string
 (`importlib`) from `webapi` and are hot-reloaded per request.
 
 ### constants.py
@@ -37,7 +37,7 @@ no tonemap) and refuses alpha maps rather than dropping the mask.
 ### webapi.py
 The JSON API. `handle(payload)` dispatches on `op`, publishes an `_OP_LABELS`
 progress string, and drops the scene cache for `_MUTATING_OPS` afterward.
-`_get_scene()` caches `(adapter, tree)` on the `sceneorg` package keyed by the
+`_get_scene()` caches `(adapter, tree)` on the `overseer` package keyed by the
 doc dirty counter; selection is re-read on every hit (dirty ignores selection).
 Owns preset/plan/config/journal file IO and the PER-PROJECT analysis log
 (`history/<project-slug>.json`, same slug as the UI settings; the flat
@@ -103,8 +103,8 @@ direct-write fallback.
   New objects/tags use `UNDOTYPE_NEWOBJ`/`UNDOTYPE_NEW(TAG)`, deletes
   `UNDOTYPE_DELETE`, edits `UNDOTYPE_CHANGE`.
 - `webapi` is re-imported on every API request (`reload_all()` purges all
-  `sceneorg.*` except `bridge`), so module-level globals do NOT persist. Cross-
-  request state must live either on the `sceneorg` package (scene/preview/icon
+  `overseer.*` except `bridge`), so module-level globals do NOT persist. Cross-
+  request state must live either on the `overseer` package (scene/preview/icon
   caches — that package name is never purged) or in a file next to `config.json`
   (Google translate cache, journal, history, presets).
 - The scene cache is keyed on `doc.GetDirty(OBJECT|DATA)`, which bumps on real
@@ -124,4 +124,4 @@ direct-write fallback.
   plugin dir stays the read-only source for shipped presets/plans and the seed
   config.
 
-Per-module prose: see the mirrored files under `docs/sceneorg/cinema/`.
+Per-module prose: see the mirrored files under `docs/overseer/cinema/`.

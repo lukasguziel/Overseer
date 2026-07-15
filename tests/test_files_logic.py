@@ -1,6 +1,6 @@
 import os
 
-from sceneorg.core import files_logic as fl
+from overseer.core import files_logic as fl
 
 
 def test_classify_kind_by_extension():

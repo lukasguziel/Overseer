@@ -1,5 +1,5 @@
-from sceneorg.core import model
-from sceneorg.core.ops import LayerOp, Operation, RenameOp, ReparentOp, Writer
+from overseer.core import model
+from overseer.core.ops import LayerOp, Operation, RenameOp, ReparentOp, Writer
 
 
 class RecordingWriter(Writer):

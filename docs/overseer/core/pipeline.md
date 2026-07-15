@@ -2,7 +2,7 @@
 
 Combined one-click planning: rules + naming + structure + layers. Pure, no `c4d`. This is the engine behind the web API's `plan_all` / `apply_all`: one tree read produces every proposed change, merged deterministically:
 
-1. Declarative rules (`sceneorg.structure.rules`) claim first, by priority.
+1. Declarative rules (`overseer.structure.rules`) claim first, by priority.
 2. Naming normalization for objects no rule renamed.
 3. Structure reparents (safety filter + tidy semantics).
 4. Layer rules first, then the default layer scheme for the rest.

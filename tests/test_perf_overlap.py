@@ -1,4 +1,4 @@
-from sceneorg.core import perf_logic
+from overseer.core import perf_logic
 
 
 def test_isolated_costs_add_up_to_the_full_rebuild():

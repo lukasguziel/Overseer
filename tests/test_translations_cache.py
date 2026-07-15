@@ -4,14 +4,14 @@ import sys
 
 def test_bulk_parse_survives_module_purge():
     # setup
-    import sceneorg.naming.translations as t1
+    import overseer.naming.translations as t1
     de_first = t1.BULK["de"]
     unique_first = t1.UNIQUE_LANG
     assert de_first, "bundled de dictionary should load"
 
     # do it
-    del sys.modules["sceneorg.naming.translations"]
-    import sceneorg.naming.translations as t2
+    del sys.modules["overseer.naming.translations"]
+    import overseer.naming.translations as t2
 
     # postcondition
     assert t2.BULK["de"] is de_first
@@ -20,7 +20,7 @@ def test_bulk_parse_survives_module_purge():
 
 def test_cache_invalidates_on_file_key_change():
     # setup
-    import sceneorg.naming.translations as t
+    import overseer.naming.translations as t
     cache = t._data_cache()
     key, payload = cache["de"]
     cache["de"] = ((key[0], key[1] + 1, key[2]), payload)
@@ -36,9 +36,9 @@ def test_cache_invalidates_on_file_key_change():
 
 def test_lookup_still_works_after_reload():
     # setup
-    import sceneorg.naming.translations as t
-    del sys.modules["sceneorg.naming.translations"]
-    import sceneorg.naming.translations as t  # noqa: F811
+    import overseer.naming.translations as t
+    del sys.modules["overseer.naming.translations"]
+    import overseer.naming.translations as t  # noqa: F811
 
     # postcondition
     assert t.to_english("stuhl") == "chair"

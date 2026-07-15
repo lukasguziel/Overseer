@@ -1,4 +1,4 @@
-# sceneorg — package root
+# overseer — package root
 
 Core principle: pure domain logic is strictly separated from `c4d`. Everything
 here except `bridge.py` is importable in CI without Cinema 4D.
@@ -13,9 +13,9 @@ would break the `c4d`-free test import.
 [c4d] The HTTP server (background thread) + main-thread request queue + progress
 state. PROCESS SINGLETON: it is deliberately excluded from `reload_all()` (via
 `_RELOAD_KEEP`) so the server, queue and progress survive hot-reloads. `drain()`
-runs on the ServerDialog timer, purges every `sceneorg.*` submodule except this
+runs on the ServerDialog timer, purges every `overseer.*` submodule except this
 one, then dispatches to `cinema.webapi.handle`. A `reload` op also clears the
-cross-request scene cache on the `sceneorg` package. Changing `bridge.py` itself
+cross-request scene cache on the `overseer` package. Changing `bridge.py` itself
 requires a full C4D restart.
 
 ### config.py
@@ -35,7 +35,7 @@ builds the `NamingConvention` + `StructureStandard`. `Config.keep_names` /
 - Only `cinema/` and `bridge.py` import `c4d`; nothing else may, so tests import
   the rest without Cinema 4D.
 - `bridge` is the process singleton — never hot-reload-purged; `reload_all()`
-  drops every other `sceneorg.*` module so the next request re-imports fresh
+  drops every other `overseer.*` module so the next request re-imports fresh
   source (no restart, no re-click for logic/webapi edits).
 
-Per-module prose: see the mirrored files under `docs/sceneorg/`.
+Per-module prose: see the mirrored files under `docs/overseer/`.

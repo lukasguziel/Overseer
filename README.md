@@ -62,7 +62,7 @@ redistributing it as your own work is not permitted — see [LICENSE](LICENSE).
 
 ## Development
 
-Pure domain logic (`src/sceneorg/`, no `c4d` import) is separated from the
+Pure domain logic (`src/overseer/`, no `c4d` import) is separated from the
 C4D layer, so the test suite runs without Cinema 4D:
 
 ```bash

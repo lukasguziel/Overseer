@@ -17,7 +17,7 @@ Quality gates green: `pytest` 110 passed, `ruff` clean, `pnpm test` 16 passed,
 ## What changed
 
 ### Pure domain logic (no c4d)
-- **New `src/sceneorg/core/layers.py`**
+- **New `src/overseer/core/layers.py`**
   - `LayerInfo` dataclass: `object_count` / `material_count` / `tag_count` /
     `poly_count`; `empty` is true only when nothing references the layer.
   - `build_layer_report(layer_meta, object_counts, poly_counts, no_layer)` —
@@ -25,17 +25,17 @@ Quality gates green: `pytest` 110 passed, `ruff` clean, `pnpm test` 16 passed,
     inline `_merge_layers` body in webapi).
   - `LayerMismatch` + `find_layer_mismatches(tree, keep)` — child-vs-parent
     layer differences, keeps-filtered, informational.
-- **`src/sceneorg/core/ops.py`** — `plan_layer_suggestions(tree, scope, keep)`
+- **`src/overseer/core/ops.py`** — `plan_layer_suggestions(tree, scope, keep)`
   returns `LayerOp`s inheriting the nearest ancestor's layer.
 
-### c4d adapter (`src/sceneorg/cinema/adapter.py`)
+### c4d adapter (`src/overseer/cinema/adapter.py`)
 - `scan_layers()` now also returns per-layer `materials` / `tags` counts via
   `c4d.ID_LAYER_LINK` (helpers `_layer_ref_counts`, `_linked_layer_name`,
   `_layer_object_counts`).
 - New `delete_empty_layers()` and `delete_layer(name)` — remove only truly-empty
   layers, one undo step; `delete_layer` refuses a non-empty layer.
 
-### JSON API (`src/sceneorg/cinema/webapi.py`)
+### JSON API (`src/overseer/cinema/webapi.py`)
 All are POST to the single JSON handler, selected by the `op` field:
 
 | op | payload | response |
@@ -62,10 +62,10 @@ existing `set_keeps` section `layers`.
 - New `tests/test_layers.py` (7 tests): emptiness classification, mat/tag
   surfacing, ancestor suggestion + scope/keep skips, mismatch finding +
   kept/unassigned filtering.
-- New `docs/sceneorg/core/layers.md`; updated `ops.md`, `cinema/adapter.md`,
+- New `docs/overseer/core/layers.md`; updated `ops.md`, `cinema/adapter.md`,
   `cinema/webapi.md`; four M1 boxes ticked in `docs/ROADMAP.md`.
 
 ## Restart note
-Only `sceneorg` logic + frontend changed (no `bridge.py` / `.pyp` signature
+Only `overseer` logic + frontend changed (no `bridge.py` / `.pyp` signature
 change) — backend hot-reloads on the next command click; reload the browser for
 the new UI. No C4D restart needed.

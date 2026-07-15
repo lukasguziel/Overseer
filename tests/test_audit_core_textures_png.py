@@ -3,7 +3,7 @@ import zlib
 
 from conftest import png_chunk
 
-from sceneorg.core import textures
+from overseer.core import textures
 
 
 def make_png_bytes(w, h, ch, interlace=0):

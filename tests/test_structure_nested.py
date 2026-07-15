@@ -1,8 +1,8 @@
 from conftest import node
 
-from sceneorg.config import load_config, migrate_config, structure_to_list
-from sceneorg.core import model
-from sceneorg.structure.standard import GroupRule, StructureStandard
+from overseer.config import load_config, migrate_config, structure_to_list
+from overseer.core import model
+from overseer.structure.standard import GroupRule, StructureStandard
 
 
 def nested_standard():

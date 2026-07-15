@@ -1,4 +1,4 @@
-from sceneorg.core import gens_logic
+from overseer.core import gens_logic
 
 
 def test_uniform_param_has_single_bucket_and_no_outliers():

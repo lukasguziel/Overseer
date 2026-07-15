@@ -1,4 +1,4 @@
-# sceneorg.core — pure scene-domain logic
+# overseer.core — pure scene-domain logic
 
 The deterministic heart of Overseer: hierarchy model, analysis, and the
 planners that turn a `SceneTree` into rename / reparent / layer operations. This
@@ -95,7 +95,7 @@ Empty package marker.
 ## Conventions & gotchas
 
 - Never import `c4d` here — this package is the CI-testable domain layer. Host
-  glue lives in `sceneorg/cinema/`.
+  glue lives in `overseer/cinema/`.
 - The model is a mutable, by-reference dataclass graph (`parent` back-refs);
   planners read it but return `Operation` objects rather than mutating the tree.
 - Planners only touch objects whose parent is root or a Null (`is_safe_to_reparent`) —
@@ -105,4 +105,4 @@ Empty package marker.
 - Texture/imagesize readers must work without Pillow — always keep the
   header-parsing fallback path valid.
 
-Per-module prose: see the mirrored files under `docs/sceneorg/core/`.
+Per-module prose: see the mirrored files under `docs/overseer/core/`.

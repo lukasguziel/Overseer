@@ -1,4 +1,4 @@
-from sceneorg.core import sims_logic as sl
+from overseer.core import sims_logic as sl
 
 
 def _hit(**kw):

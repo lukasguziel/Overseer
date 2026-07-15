@@ -6,30 +6,30 @@ markdown file per module, mirroring `src/`.
 
 ## Entry / host glue
 - [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)
-- [sceneorg/bridge.md](sceneorg/bridge.md) — HTTP server + main-thread queue (process singleton)
-- [sceneorg/config.md](sceneorg/config.md) — config.json schema 2 + migration
+- [overseer/bridge.md](overseer/bridge.md) — HTTP server + main-thread queue (process singleton)
+- [overseer/config.md](overseer/config.md) — config.json schema 2 + migration
 
 ## cinema/ — the only c4d-dependent domain code
-- [sceneorg/cinema/adapter.md](sceneorg/cinema/adapter.md) — doc ⇄ SceneTree, writes with undo
-- [sceneorg/cinema/webapi.md](sceneorg/cinema/webapi.md) — JSON API (hot-reloaded per request)
-- [sceneorg/cinema/constants.md](sceneorg/cinema/constants.md) — c4d-bound constant tables
+- [overseer/cinema/adapter.md](overseer/cinema/adapter.md) — doc ⇄ SceneTree, writes with undo
+- [overseer/cinema/webapi.md](overseer/cinema/webapi.md) — JSON API (hot-reloaded per request)
+- [overseer/cinema/constants.md](overseer/cinema/constants.md) — c4d-bound constant tables
 
 ## core/ — pure hierarchy + planning
-- [sceneorg/core/model.md](sceneorg/core/model.md) — SceneNode / SceneTree
-- [sceneorg/core/analyzer.md](sceneorg/core/analyzer.md) — SceneTree → SceneReport
-- [sceneorg/core/ops.md](sceneorg/core/ops.md) — plan renames / reparents / layers
-- [sceneorg/core/pipeline.md](sceneorg/core/pipeline.md) — combined one-pass planning
-- [sceneorg/core/imagesize.md](sceneorg/core/imagesize.md) — header-only image dimension reader
-- [sceneorg/core/defaults.md](sceneorg/core/defaults.md) — central built-in domain constants
+- [overseer/core/model.md](overseer/core/model.md) — SceneNode / SceneTree
+- [overseer/core/analyzer.md](overseer/core/analyzer.md) — SceneTree → SceneReport
+- [overseer/core/ops.md](overseer/core/ops.md) — plan renames / reparents / layers
+- [overseer/core/pipeline.md](overseer/core/pipeline.md) — combined one-pass planning
+- [overseer/core/imagesize.md](overseer/core/imagesize.md) — header-only image dimension reader
+- [overseer/core/defaults.md](overseer/core/defaults.md) — central built-in domain constants
 
 ## naming/
-- [sceneorg/naming/casing.md](sceneorg/naming/casing.md) — tokenizer, casing + language heuristics
-- [sceneorg/naming/convention.md](sceneorg/naming/convention.md) — NamingConvention
-- [sceneorg/naming/detect.md](sceneorg/naming/detect.md) — auto-detect existing scheme
-- [sceneorg/naming/translate.md](sceneorg/naming/translate.md) — language-only rename proposals
-- [sceneorg/naming/translations.md](sceneorg/naming/translations.md) — DE↔EN dictionary
+- [overseer/naming/casing.md](overseer/naming/casing.md) — tokenizer, casing + language heuristics
+- [overseer/naming/convention.md](overseer/naming/convention.md) — NamingConvention
+- [overseer/naming/detect.md](overseer/naming/detect.md) — auto-detect existing scheme
+- [overseer/naming/translate.md](overseer/naming/translate.md) — language-only rename proposals
+- [overseer/naming/translations.md](overseer/naming/translations.md) — DE↔EN dictionary
 
 ## structure/
-- [sceneorg/structure/standard.md](sceneorg/structure/standard.md) — GroupRule / StructureStandard
-- [sceneorg/structure/rules.md](sceneorg/structure/rules.md) — declarative rule engine v2
-- [sceneorg/structure/graph.md](sceneorg/structure/graph.md) — node-editor graph
+- [overseer/structure/standard.md](overseer/structure/standard.md) — GroupRule / StructureStandard
+- [overseer/structure/rules.md](overseer/structure/rules.md) — declarative rule engine v2
+- [overseer/structure/graph.md](overseer/structure/graph.md) — node-editor graph

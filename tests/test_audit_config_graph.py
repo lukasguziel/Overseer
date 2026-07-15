@@ -1,6 +1,6 @@
-from sceneorg.config import load_config
-from sceneorg.naming.casing import Casing
-from sceneorg.structure.graph import graph_from_structure
+from overseer.config import load_config
+from overseer.naming.casing import Casing
+from overseer.structure.graph import graph_from_structure
 
 
 def test_load_config_survives_malformed_values():

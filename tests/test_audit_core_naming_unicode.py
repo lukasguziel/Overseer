@@ -1,7 +1,7 @@
 import pytest
 
-from sceneorg.naming.casing import Casing
-from sceneorg.naming.convention import TARGET_STYLES, NamingConvention
+from overseer.naming.casing import Casing
+from overseer.naming.convention import TARGET_STYLES, NamingConvention
 
 ACCENTED = ["Étagère_01", "Stůl_2", "Кресло_3"]
 
