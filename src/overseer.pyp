@@ -15,7 +15,7 @@ def _ensure_path():
 def _load_icon():
     try:
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "so_logo.png")
+                            "logo.png")
         src = c4d.bitmaps.BaseBitmap()
         if src.InitWith(path)[0] != c4d.IMAGERESULT_OK:
             return None

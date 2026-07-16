@@ -141,7 +141,6 @@ export interface SceneReport {
   total_polys: number
   total_points: number
   file_size: number
-  structure_compliance: number
   analyzed_at?: string
   types: Record<string, number>
   categories: Record<string, number>
@@ -149,7 +148,6 @@ export interface SceneReport {
   language: Record<string, number>
   nodes: SceneNode[]
   largest?: SceneNode[]
-  misplaced?: unknown[]
   materials?: MaterialReport
   textures?: TextureReport
   textures_error?: string   // set when the texture scan raised (diagnostic)
@@ -188,7 +186,6 @@ export interface HistoryEntry {
   objects: number
   polys?: number
   size?: number
-  compliance?: number
   [key: string]: unknown
 }
 
@@ -207,7 +204,7 @@ export interface ChangeEntry {
   id: string
   ts: number
   at: string                // "YYYY-MM-DD HH:MM:SS"
-  kind: string              // naming | structure | layers | apply_all | translate | materials_delete | textures_relative | plan
+  kind: string              // naming | structure | layers | translate | materials_delete | textures_relative
   summary: string
   doc?: string
   items: ChangeItem[]
@@ -215,121 +212,11 @@ export interface ChangeEntry {
   reverted: boolean
 }
 
-export interface PresetMeta {
-  id: string
-  name: string
-  description?: string
-  created_at?: string
-  rules?: number          // number of RuleV2 in the snapshot
-  groups?: string[]
-}
-
-// Kept as an alias so older call sites keep compiling.
-export type Preset = PresetMeta
-
-// ---- Rule engine v2 (config schema 3) ------------------------------------
-
-// A predicate that selects which objects a rule applies to.
-export interface MatchJson {
-  categories?: Category[]
-  keywords?: string[]
-  name_regex?: string
-  under_group?: string
-  types?: string[]
-}
-
-export interface RuleBase {
-  id: string
-  enabled: boolean
-  priority: number
-}
-
-export interface PrefixRule extends RuleBase {
-  type: 'prefix'
-  prefix: string
-  match: MatchJson
-}
-
-export interface RenumberRule extends RuleBase {
-  type: 'renumber'
-  match: MatchJson
-  pad: number
-  start: number
-  per_parent: boolean
-}
-
-export interface ConditionRule extends RuleBase {
-  type: 'condition'
-  when: { duplicates_gt?: number; match?: MatchJson }
-  then: { suffix_scheme?: 'alpha' | 'numeric'; apply_prefix?: string; assign_layer?: string }
-}
-
-export interface LayerRule extends RuleBase {
-  type: 'layer'
-  layer: string
-  match: MatchJson
-}
-
-export type RuleV2 = PrefixRule | RenumberRule | ConditionRule | LayerRule
-export type RuleType = RuleV2['type']
-
-// A node of the nested structure tree (config.structure).
-export interface StructureNode {
-  name: string
-  categories?: string[]
-  keywords?: string[]
-  aliases?: string[]
-  priority?: number
-  parent?: string | null   // set by the backend on the flat groups list
-  path?: string            // e.g. "Room/Furniture"
-  children?: StructureNode[]
-}
-
-// config.json schema 3 as read/written through the `config` op.
-// (The type name is kept: it is the shape of the v2 rule engine's config.)
-export interface ConfigV2 {
-  schema?: number
-  casing?: string
-  language?: string | null
-  number_pad?: number
-  translations?: Record<string, string>
-  keeps?: Record<string, string[]>   // per-section "accepted as-is" names
-  structure?: StructureNode[]
-  rules?: RuleV2[]
-  graph?: { nodes: unknown[]; edges: unknown[] }
-  preset?: string | null
-  [key: string]: unknown
-}
-
-// Combined preview returned by plan_all / apply_all.
-export interface PlanAllNaming { guid: number; old: string; new: string }
-export interface PlanAllStructure { guid: number; name: string; from: string | null; to: string }
-export interface PlanAllLayer { guid: number; name: string; layer: string }
-
-export interface PlanAllResult {
-  ok?: boolean
-  naming: PlanAllNaming[]
-  structure: PlanAllStructure[]
-  layers: PlanAllLayer[]
-  applied_rules: string[]
-  warnings: string[]
-  total: number
-  preset?: string | null
-  applied?: { renames: number; reparents: number; layers: number }
-}
-
-// Accepted-guid lists a client sends back to apply_all (missing key = accept all).
-export interface AcceptLists {
-  naming?: number[]
-  structure?: number[]
-  layers?: number[]
-}
-
 export interface RenameDiff {
   guid: number
   old: string
   new: string
-  rules?: string[]   // every naming rule that produced it: casing | numbering | unique | prefix
+  rules?: string[]   // every naming rule that produced it: casing | numbering | unique
 }
 
 export interface TranslateDiff extends RenameDiff {
@@ -346,13 +233,6 @@ export interface LanguageSummary {
   de: number
   en: number
   unknown: number
-}
-
-export interface ReparentDiff {
-  guid: number
-  name: string
-  from: string | null
-  to: string
 }
 
 export interface LayerDiff {
@@ -374,14 +254,6 @@ export interface PlanResult<D> {
   kept?: string[]              // keys the user accepted as-is (config keeps)
 }
 
-export interface GroupRuleJson {
-  name: string
-  priority: number
-  keywords: string[]
-  categories: string[]
-  aliases: string[]
-}
-
 export interface OrganizerSettings {
   casing: string
   apply_casing: boolean
@@ -393,6 +265,4 @@ export interface OrganizerSettings {
   dedupe: boolean
   selection: boolean
   include_hidden: boolean
-  safe: boolean
-  tidy: boolean
 }

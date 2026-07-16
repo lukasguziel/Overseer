@@ -255,7 +255,7 @@ export const SECTION_DOCS: Record<string, SectionDoc> = {
         { name: 'Travels with the scene', desc: 'The journal is stored inside the .c4d document (plus a sidecar file), so it survives on other machines.' },
       ]},
       { head: 'Analysis history', features: [
-        { name: 'Snapshots per project', desc: 'Objects, polygons, file size and compliance per run (up to 100) — the data behind the Overview trends.' },
+        { name: 'Snapshots per project', desc: 'Objects, polygons and file size per run (up to 100) — the data behind the Overview trends.' },
       ]},
       { head: 'Read the scene on your phone', features: [
         { name: 'Opt-in LAN access', desc: 'A QR code opens this UI on your phone; off by default, the bind changes on a C4D restart.' },

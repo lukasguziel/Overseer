@@ -1,11 +1,13 @@
 ---
 name: readme
 description: >-
-  Regenerate the project README (English) with fresh screenshots of every web
-  UI tab, rendered from a fake 1.2 GB / 40M-polygon sample scene via a mock
-  API server + Playwright — no Cinema 4D needed. Use when the user says
-  "update die readme", "mach neue screenshots", "readme neu generieren", or
-  after shipping a feature that changes a tab's UI or adds a new tab.
+  Regenerate the project docs: the root README (English), docs/FEATURES.md
+  and fresh screenshots of every web UI tab, rendered from a fake 1.2 GB /
+  40M-polygon sample scene via a mock API server + Playwright — no Cinema 4D
+  needed — and keep the GitHub repo About (description/homepage/topics) in
+  sync with the README pitch. Use when the user says "update die readme",
+  "mach neue screenshots", "readme neu generieren", or after shipping a
+  feature that changes a tab's UI or adds a new tab.
 ---
 
 # README — generate reproducibly
@@ -62,10 +64,13 @@ this skill at the top:
 1. Title + bold one-sentence pitch ("Keep your Cinema 4D scenes organized …").
    No version mention, no audience narrowing (applies to all project
    types), no sample-scene note.
-2. Trailer embed (KEEP verbatim — GitHub cannot embed a playable YouTube
-   iframe, so it is a clickable thumbnail + link):
+2. Badge row + trailer embed (KEEP both verbatim): four shields.io badges —
+   Trailer (YouTube link), Download (releases/latest), Docs
+   (docs/FEATURES.md), Cinema 4D "2023 | 2024" (the tested versions —
+   extend the badge when a new C4D version is verified; never a bare
+   single-version pin) — followed by the clickable trailer
+   thumbnail (GitHub cannot embed a playable YouTube iframe):
    `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
-   followed by the `▶ **[Watch the trailer](…)**` line.
 3. Intro paragraph: what the tool does + the trust sentence (preview first,
    per-row, undoable, logged).
 4. Overview screenshot (`docs/screenshots/overview.png`).
@@ -82,8 +87,9 @@ this skill at the top:
    `LICENSE`.
 8. Development: test commands, note that `main` is the protected release
    branch (a PR into it replaces the release of the stamped version; work
-   happens on `dev`/feature branches), reference to CLAUDE.md/docs.
-9. **Support** (buy-me-a-coffee + issues) — stays the last section.
+   happens on `dev`/feature branches), reference to AGENTS.md/docs.
+9. **Support** — stays the last section, keep it minimal: the shields.io
+   "Support me" PayPal badge (donate link, no prose) + the GitHub Issues line.
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**
 
@@ -103,6 +109,24 @@ Assets → Layers → Materials → Misc). Always heading → screenshot →
 features. Tone: concrete instead of marketing; reuse number examples from
 the fake scene (`Chair → Chaise`, EN 1288 / DE 138) so text and screenshots
 match.
+
+## Repo About (GitHub) — keep in sync
+
+The README pitch and the repo's About box must tell the same story. After
+regenerating the README, compare and update if the pitch drifted:
+
+```bash
+gh repo view lukasguziel/overseer --json description,homepage,repositoryTopics
+gh repo edit lukasguziel/overseer --description "<current one-sentence pitch>"
+```
+
+- Description = the README pitch in one sentence, **general-purpose** (the
+  plugin analyzes any scene for insights, normalizes names/structure, keeps
+  projects clean, manages assets, materials & textures) — NEVER narrow it
+  to one niche like archviz/interior.
+- Homepage stays the trailer link (`https://www.youtube.com/watch?v=jsoKxY_QdG0`).
+- Topics: only touch when the feature story changes
+  (`--add-topic`/`--remove-topic`).
 
 ## Failure modes
 

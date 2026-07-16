@@ -32,29 +32,7 @@ def test_plan_renames_only_nonconforming(sample_tree):
     assert mapping["KAMERA MAIN"] == "CameraMain"
 
 
-def test_plan_reparents_tidy_only_collects_loose(std, sample_tree):
-    # do it: default tidy=True only collects genuinely loose objects
-    reparents = ops.plan_reparents(sample_tree, std)
-
-    # postcondition
-    moves = {r.name: (r.from_group, r.to_group) for r in reparents}
-    assert moves["KAMERA MAIN"][1] == "Cameras"        # loose at the root -> collect
-    assert "Sofa" not in moves                          # sits inside Exterior -> leave alone
-    assert "Table" not in moves
-    assert "LIGHT_KEY" not in moves
-
-
-def test_plan_reparents_aggressive_moves_from_wrong_group(std, sample_tree):
-    # do it: tidy=False also breaks up existing (wrong) groups
-    reparents = ops.plan_reparents(sample_tree, std, tidy=False)
-
-    # postcondition
-    moves = {r.name: (r.from_group, r.to_group) for r in reparents}
-    assert moves["KAMERA MAIN"][1] == "Cameras"
-    assert moves["Sofa"] == ("Exterior", "Furniture")
-
-
-def test_plan_layers_by_type_and_category(std, sample_tree):
+def test_plan_layers_by_type_and_category(sample_tree):
     # do it
     layers = ops.plan_layers(sample_tree)
 
@@ -116,31 +94,3 @@ def test_scope_limits_renames():
 
     # postcondition
     assert [r.guid for r in renames] == [1]
-
-
-def test_type_prefix_applied_and_idempotent():
-    # setup
-    conv = NamingConvention(style=Casing.PASCAL, language=LANG_EN, number_pad=0)
-    prefixes = {"light": "LGT_"}
-    tree = _null_with([model.SceneNode("key light", category=model.CAT_LIGHT, guid=1)])
-
-    # do it
-    renames = ops.plan_renames(tree, conv, prefixes=prefixes)
-
-    # postcondition
-    assert renames[0].new_name == "LGT_KeyLight"
-    tree2 = _null_with([model.SceneNode("LGT_KeyLight", category=model.CAT_LIGHT, guid=1)])
-    assert ops.plan_renames(tree2, conv, prefixes=prefixes) == []  # second run on the already prefixed name -> no change
-
-
-def test_safety_filter_blocks_generator_child(std):
-    # setup: mesh sits under a generator (category 'other'), not under a null
-    gen = model.SceneNode("Cloner", category=model.CAT_OTHER, guid=10)
-    chair = model.SceneNode("Chair_01", category=model.CAT_MESH, guid=11)
-    gen.add_child(chair)
-    tree = model.SceneTree(roots=[gen])
-
-    # postcondition
-    assert not ops.is_safe_to_reparent(chair)
-    assert ops.plan_reparents(tree, std, safe_only=True) == []
-    assert len(ops.plan_reparents(tree, std, safe_only=False)) == 1

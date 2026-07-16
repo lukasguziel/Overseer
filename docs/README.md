@@ -1,11 +1,11 @@
 # Overseer — code docs
 
 Source files carry no docstrings or explanatory comments (see
-[.claude/rules.md](../.claude/rules.md)). The prose lives here instead — one
+[ai/rules.md](ai/rules.md)). The prose lives here instead — one
 markdown file per module, mirroring `src/`.
 
-Per-package working guides for Claude (conventions, gotchas, module maps —
-formerly the CLAUDE.md files inside the source tree): [claude/](claude/).
+Per-package working guides for AI agents (conventions, gotchas, module maps —
+formerly per-package instruction files inside the source tree): [ai/](ai/).
 
 ## Entry / host glue
 - [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)
@@ -21,7 +21,6 @@ formerly the CLAUDE.md files inside the source tree): [claude/](claude/).
 - [overseer/core/model.md](overseer/core/model.md) — SceneNode / SceneTree
 - [overseer/core/analyzer.md](overseer/core/analyzer.md) — SceneTree → SceneReport
 - [overseer/core/ops.md](overseer/core/ops.md) — plan renames / reparents / layers
-- [overseer/core/pipeline.md](overseer/core/pipeline.md) — combined one-pass planning
 - [overseer/core/imagesize.md](overseer/core/imagesize.md) — header-only image dimension reader
 - [overseer/core/defaults.md](overseer/core/defaults.md) — central built-in domain constants
 

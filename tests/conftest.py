@@ -4,7 +4,6 @@ import zlib
 import pytest
 
 from overseer.core import model
-from overseer.structure.standard import GroupRule, StructureStandard
 
 
 def png_chunk(ctype, body):
@@ -56,33 +55,6 @@ def node(name, category=model.CAT_OTHER, type_name=None, guid=-1, children=None)
     for c in (children or []):
         n.add_child(c)
     return n
-
-
-def archviz_standard():
-    """Explicit rule set for the tests (no longer part of the product default)."""
-    return StructureStandard([
-        GroupRule("Cameras", match_categories={model.CAT_CAMERA},
-                  aliases={"kameras"}, priority=100),
-        GroupRule("Lights", match_categories={model.CAT_LIGHT},
-                  aliases={"lichter", "beleuchtung"}, priority=100),
-        GroupRule("Furniture", match_keywords={
-            "furniture", "chair", "table", "sofa", "couch", "bed", "cabinet",
-            "shelf", "lamp", "curtain", "mirror", "carpet", "pillow", "desk",
-        }, aliases={"moebel"}, priority=50),
-        GroupRule("Exterior", match_keywords={
-            "exterior", "facade", "roof", "garden", "yard", "tree", "plant",
-            "building", "fence", "terrain", "street",
-        }, aliases={"aussen"}, priority=40),
-        GroupRule("Interior", match_keywords={
-            "interior", "wall", "floor", "ceiling", "window", "door", "stairs",
-            "column", "room", "kitchen", "bathroom",
-        }, aliases={"innen"}, priority=30),
-    ])
-
-
-@pytest.fixture
-def std():
-    return archviz_standard()
 
 
 @pytest.fixture

@@ -13,13 +13,8 @@ with a JSON body; `webapi.py` is hot-reloaded per request.
 | `export` / `export_csv` | `{}` | like analyze; csv additionally `scene_structure.csv` (semicolon, utf-8-sig) |
 | `history` | `{}` | analysis history (newest first) |
 | `detect` | `{}` | detected scheme `{style, language, number_pad, confidence, …}` |
-| `rules` / `config` | `{}` resp. `{save:true, data:{…}}` | active rule set / read+write config.json |
-| `presets` | `{}` | preset list + active preset |
-| `apply_preset` | `{"id": "my-preset"}` | writes the deployed config.json (incl. generated node graph) |
-| `plans` | `{}` | plan list from `plans/` in the plugin directory |
-| `apply_plan` | `{"plan":{…}}` OR `{"id":"<name>"}` | `{applied:{group,rename,move,layer}, errors:[…], total}` |
+| `config` | `{}` resp. `{save:true, data:{…}}` | read+write config.json |
 | `plan_naming` / `apply_naming` | `{settings:{casing?,language?,number_pad?,selection?}}` | rename diff `{guid,old,new}` |
-| `plan_structure` / `apply_structure` | `{settings:{safe:true,tidy:true,selection?}}` | reparent diff + `skipped` |
 | `plan_translate` | `{}` | non-English names `{guid,old,new,words}` |
 | `apply_translate` | `{"guids":[…]}` | applies ONLY the accepted guids |
 | `plan_layers` / `apply_layers` | `{}` | layer assignment + `by_layer` counter |
@@ -37,19 +32,7 @@ curl -s -X POST 127.0.0.1:8787/api/analyze -H "Content-Type: application/json" -
   | python -c "import sys,json;json.dump(json.load(sys.stdin)['report'],open('reports/A.json','w'),ensure_ascii=True,indent=1)"
 ```
 
-Run a plan (post the file directly):
-```bash
-curl -s -X POST 127.0.0.1:8787/api/apply_plan -H "Content-Type: application/json" \
-  --data-binary @src/plans/<name>.json
-```
-(The file itself is the `{meta, operations}` object — webapi accepts it
-because `operations` is present.)
-
 ## Failure modes
 
-- `target missing` in apply_plan errors → the scene changed since the export
-  → re-export, rebuild the plan.
 - No response/timeout → server dialog closed in C4D (queue is not being
   drained) or the server was never started.
-- Preset/plan "not found" → the file only exists in the repo, not in the
-  deployed plugin directory → `powershell -File .claude/skills/deploy/deploy.ps1`.
