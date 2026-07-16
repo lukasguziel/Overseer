@@ -1,11 +1,11 @@
 # Overseer — code docs
 
 Source files carry no docstrings or explanatory comments (see
-[.claude/rules.md](../.claude/rules.md)). The prose lives here instead — one
+[ai/rules.md](ai/rules.md)). The prose lives here instead — one
 markdown file per module, mirroring `src/`.
 
-Per-package working guides for Claude (conventions, gotchas, module maps —
-formerly the CLAUDE.md files inside the source tree): [claude/](claude/).
+Per-package working guides for AI agents (conventions, gotchas, module maps —
+formerly per-package instruction files inside the source tree): [ai/](ai/).
 
 ## Entry / host glue
 - [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)

@@ -31,9 +31,9 @@ cd frontend && pnpm run build    # typecheck + build
   `docs/`, one file per module.
 - Commit messages are clean and imperative, without attribution trailers.
 
-The full, binding conventions live in [.claude/rules.md](.claude/rules.md);
-architecture and package guides in [CLAUDE.md](CLAUDE.md) and
-[docs/claude/](docs/claude/).
+The full, binding conventions live in [docs/ai/rules.md](docs/ai/rules.md);
+architecture and package guides in [AGENTS.md](AGENTS.md) and
+[docs/ai/](docs/ai/).
 
 ## Bugs & ideas
 

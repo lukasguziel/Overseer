@@ -85,7 +85,7 @@ this skill at the top:
    `LICENSE`.
 8. Development: test commands, note that `main` is the protected release
    branch (a PR into it replaces the release of the stamped version; work
-   happens on `dev`/feature branches), reference to CLAUDE.md/docs.
+   happens on `dev`/feature branches), reference to AGENTS.md/docs.
 9. **Support** (buy-me-a-coffee + issues) — stays the last section.
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**

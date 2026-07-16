@@ -1,6 +1,6 @@
 # Rules — Overseer
 
-Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both current.
+Binding conventions and hard-won gotchas. AGENTS.md links here; keep both current.
 
 ## Git workflow
 
