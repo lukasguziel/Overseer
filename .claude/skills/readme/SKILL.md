@@ -62,10 +62,11 @@ this skill at the top:
 1. Title + bold one-sentence pitch ("Keep your Cinema 4D scenes organized …").
    No version mention, no audience narrowing (applies to all project
    types), no sample-scene note.
-2. Trailer embed (KEEP verbatim — GitHub cannot embed a playable YouTube
-   iframe, so it is a clickable thumbnail + link):
+2. Badge row + trailer embed (KEEP both verbatim): four shields.io badges —
+   Trailer (YouTube link), Download (releases/latest), Docs
+   (docs/FEATURES.md), Cinema 4D 2024 — followed by the clickable trailer
+   thumbnail (GitHub cannot embed a playable YouTube iframe):
    `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
-   followed by the `▶ **[Watch the trailer](…)**` line.
 3. Intro paragraph: what the tool does + the trust sentence (preview first,
    per-row, undoable, logged).
 4. Overview screenshot (`docs/screenshots/overview.png`).
