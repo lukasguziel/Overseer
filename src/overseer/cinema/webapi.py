@@ -10,14 +10,13 @@ from .. import config as cfgmod
 from ..core import journal as journalmod
 from ..core import keeps as keepsmod
 from ..core import layers as layersmod
-from ..core import ops, pipeline
+from ..core import ops
 from ..core.analyzer import SceneAnalyzer
 from ..naming import detect as detectmod
 from ..naming import translate as translatemod
 from ..naming import translations
 from ..naming.casing import Casing
 from ..naming.convention import NamingConvention
-from ..structure import graph as graphmod
 from . import adapter as adaptermod
 from .adapter import SceneAdapter
 
@@ -76,9 +75,6 @@ def _export_dir() -> str:
 
 DATA_DIR = _user_data_dir()
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
-SHIPPED_PRESETS_DIR = os.path.join(PLUGIN_DIR, "presets")
-PRESETS_DIR = os.path.join(DATA_DIR, "presets")
-PLANS_DIR = os.path.join(PLUGIN_DIR, "plans")
 
 EXPORT_PATH = os.path.join(_export_dir(), "scene_report.json")
 EXPORT_CSV_PATH = os.path.join(_export_dir(), "scene_structure.csv")
@@ -289,180 +285,6 @@ def _netinfo(payload: dict) -> dict:
             "port": port}
 
 
-def _preset_settings(data: dict) -> dict:
-    if "settings" in data:
-        return data.get("settings") or {}
-    return {k: v for k, v in data.items() if k != "meta"}
-
-
-def _preset_dirs() -> list:
-    dirs = [PRESETS_DIR]
-    if SHIPPED_PRESETS_DIR != PRESETS_DIR:
-        dirs.append(SHIPPED_PRESETS_DIR)
-    return dirs
-
-
-def _list_presets() -> list:
-    out = []
-    seen: set = set()
-    for directory in _preset_dirs():
-        try:
-            if not os.path.isdir(directory):
-                continue
-            for fn in sorted(os.listdir(directory)):
-                if not fn.endswith(".json") or fn in seen:
-                    continue
-                seen.add(fn)
-                try:
-                    with open(os.path.join(directory, fn), encoding="utf-8") as f:
-                        data = json.load(f)
-                    meta = data.get("meta", {})
-                    settings = cfgmod.migrate_config(_preset_settings(data))
-                    groups = [g.get("name", "?")
-                              for g in (settings.get("structure") or [])]
-                    out.append({
-                        "id": meta.get("id") or fn[:-5],
-                        "name": meta.get("name") or fn[:-5],
-                        "description": meta.get("description", ""),
-                        "created_at": meta.get("created_at", ""),
-                        "rules": len(settings.get("rules") or []),
-                        "groups": groups,
-                    })
-                except Exception:
-                    continue
-        except Exception:
-            continue
-    return out
-
-
-def _slugify(name: str) -> str:
-    out = []
-    for ch in name.strip().lower():
-        if ch.isalnum():
-            out.append(ch)
-        elif out and out[-1] != "-":
-            out.append("-")
-    return "".join(out).strip("-") or "preset"
-
-
-def _save_preset(name: str, description: str, overwrite: bool = False) -> dict:
-    if not name.strip():
-        return {"error": "preset needs a name"}
-    import time
-    slug = _slugify(name)
-    if not os.path.isdir(PRESETS_DIR):
-        os.makedirs(PRESETS_DIR)
-    path = os.path.join(PRESETS_DIR, slug + ".json")
-    if os.path.isfile(path) and not overwrite:
-        return {"error": "preset '%s' exists (send overwrite:true to replace)"
-                % slug, "exists": True, "id": slug}
-    settings = cfgmod.migrate_config(_read_config_data())
-    settings.pop("preset", None)
-    for key in cfgmod.MACHINE_LOCAL_KEYS:
-        settings.pop(key, None)
-    preset = {
-        "schema": 2,
-        "meta": {
-            "id": slug,
-            "name": name.strip(),
-            "description": description.strip(),
-            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        },
-        "settings": settings,
-    }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(preset, f, indent=2, ensure_ascii=False)
-    return {"ok": True, "id": slug, "path": path}
-
-
-def _delete_preset(preset_id: str) -> dict:
-    fn = os.path.basename(preset_id)
-    if not fn.endswith(".json"):
-        fn += ".json"
-    for directory in _preset_dirs():
-        path = os.path.join(directory, fn)
-        if not os.path.isfile(path):
-            continue
-        try:
-            os.remove(path)
-        except OSError:
-            return {"error": "preset '%s' is shipped with the plugin and "
-                    "cannot be deleted" % preset_id}
-        return {"ok": True, "deleted": preset_id}
-    return {"error": "preset not found: %s" % preset_id}
-
-
-def _load_preset(preset_id: str) -> dict | None:
-    for directory in _preset_dirs():
-        for cand in (preset_id, preset_id + ".json"):
-            path = os.path.join(directory, os.path.basename(cand))
-            if os.path.isfile(path):
-                try:
-                    with open(path, encoding="utf-8") as f:
-                        return json.load(f)
-                except Exception:
-                    return None
-    return None
-
-
-def _list_plans() -> list:
-    out = []
-    try:
-        if not os.path.isdir(PLANS_DIR):
-            return out
-        for fn in sorted(os.listdir(PLANS_DIR)):
-            if not fn.endswith(".json"):
-                continue
-            try:
-                with open(os.path.join(PLANS_DIR, fn), encoding="utf-8") as f:
-                    data = json.load(f)
-                meta = data.get("meta", {})
-                out.append({
-                    "id": fn[:-5],
-                    "name": meta.get("name") or fn[:-5],
-                    "description": meta.get("description", ""),
-                    "scene": meta.get("scene", ""),
-                    "operations": len(data.get("operations", [])),
-                })
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return out
-
-
-def _load_plan(plan_id: str) -> dict | None:
-    for cand in (plan_id, plan_id + ".json"):
-        path = os.path.join(PLANS_DIR, os.path.basename(cand))
-        if os.path.isfile(path):
-            try:
-                with open(path, encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                return None
-    return None
-
-
-def _apply_preset(preset_id: str) -> dict:
-    preset = _load_preset(preset_id)
-    if preset is None:
-        return {"error": "preset not found: %s" % preset_id}
-    cfg = cfgmod.migrate_config(_preset_settings(preset))
-    if not cfg.get("graph"):
-        cfg["graph"] = graphmod.graph_from_structure(cfg.get("structure") or [])
-    current = _read_config_data()
-    for key in cfgmod.MACHINE_LOCAL_KEYS:
-        if key in current:
-            cfg[key] = current[key]
-        else:
-            cfg.pop(key, None)
-    cfg["preset"] = preset.get("meta", {}).get("id") or preset_id
-    _write_config_data(cfg)
-    return {"ok": True, "applied": cfg.get("preset"),
-            "rules": len(cfg.get("rules") or []),
-            "groups": len(cfg.get("structure") or [])}
-
-
 def _load_cfg():
     data = _read_config_data()
     cfg = cfgmod.load_config(data)
@@ -488,18 +310,6 @@ def _scope(settings: dict, adapter: SceneAdapter):
     if settings.get("selection"):
         return adapter.selected_guids()
     return None
-
-
-def _rule_dict(r) -> dict:
-    return {
-        "name": r.name,
-        "parent": r.parent,
-        "path": r.path,
-        "categories": sorted(r.match_categories),
-        "keywords": sorted(r.match_keywords),
-        "aliases": sorted(r.aliases),
-        "priority": r.priority,
-    }
 
 
 def _load_gcache() -> dict:
@@ -779,7 +589,7 @@ def _op_analyze(req: ApiRequest) -> dict:
         return {"error": "No objects selected in Cinema 4D."}
     include_hidden = (op != "analyze"
                       or bool(settings.get("include_hidden", False)))
-    report = SceneAnalyzer(cfg.standard).analyze(
+    report = SceneAnalyzer().analyze(
         tree, file_name=doc.GetDocumentName(), scope=scope,
         include_hidden=include_hidden)
     data_dict = report.to_dict()
@@ -841,7 +651,6 @@ def _op_analyze(req: ApiRequest) -> dict:
             "ts": now,
             "at": data_dict["analyzed_at"],
             "objects": data_dict.get("object_count", 0),
-            "compliance": data_dict.get("structure_compliance", 0),
             "polys": data_dict.get("total_polys", 0),
             "size": data_dict.get("file_size", 0),
         })
@@ -866,81 +675,6 @@ def _op_clear_history(req: ApiRequest) -> dict:
     except Exception as ex:
         return {"error": str(ex)}
     return {"ok": True}
-
-
-def _op_presets(req: ApiRequest) -> dict:
-    return {"ok": True, "presets": _list_presets(),
-            "active": req.data.get("preset")}
-
-
-def _op_apply_preset(req: ApiRequest) -> dict:
-    return _apply_preset(req.payload.get("id", ""))
-
-
-def _op_save_preset(req: ApiRequest) -> dict:
-    return _save_preset(req.payload.get("name", ""),
-                        req.payload.get("description", ""),
-                        overwrite=bool(req.payload.get("overwrite")))
-
-
-def _op_delete_preset(req: ApiRequest) -> dict:
-    return _delete_preset(req.payload.get("id", ""))
-
-
-def _op_plan_all(req: ApiRequest) -> dict:
-    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
-    settings, data = req.settings, req.data
-    adapter, tree = _get_scene(doc, "one-button plan")
-    conv = _convention(settings, cfg)
-    scope = _scope(settings, adapter)
-    plan = pipeline.plan_combined(
-        tree, cfg, convention=conv, scope=scope,
-        safe_only=bool(settings.get("safe", True)),
-        tidy=bool(settings.get("tidy", True)))
-    result = {
-        "ok": True,
-        "naming": [{"guid": r.guid, "old": r.old_name, "new": r.new_name}
-                   for r in plan.renames],
-        "structure": [{"guid": r.guid, "name": r.name,
-                       "from": r.from_group, "to": r.to_group}
-                      for r in plan.reparents],
-        "layers": [{"guid": o.guid, "name": o.name, "layer": o.layer}
-                   for o in plan.layers],
-        "applied_rules": plan.applied_rules,
-        "warnings": plan.warnings,
-        "total": plan.total,
-        "preset": data.get("preset"),
-    }
-    if op == "apply_all":
-        chosen = pipeline.filter_accepted(plan, payload.get("accept"))
-        applied = adapter.apply_bundle(
-            chosen.renames, chosen.reparents, chosen.layers,
-            canonical=cfg.standard.canonical_group)
-        result["applied"] = applied
-        _record_change(
-            "apply_all",
-            "%d renamed, %d moved, %d layered" % (
-                applied["renames"], applied["reparents"], applied["layers"]),
-            adapter.last_changes, doc=doc)
-    return result
-
-
-def _op_plans(req: ApiRequest) -> dict:
-    return {"ok": True, "plans": _list_plans()}
-
-
-def _op_apply_plan(req: ApiRequest) -> dict:
-    payload, doc = req.payload, req.doc
-    plan = payload.get("plan")
-    if plan is None and payload.get("id"):
-        plan = _load_plan(payload["id"])
-    if not plan or "operations" not in plan:
-        return {"error": "no valid plan (need {operations:[...]})"}
-    adapter, _ = _get_scene(doc, "restructuring plan")
-    res = adapter.apply_plan(plan["operations"])
-    _record_change("plan", "restructuring plan: %d ops" % res.get("total", 0),
-                   [], revertible=False, doc=doc)
-    return {"ok": True, **res}
 
 
 def _op_rename_object(req: ApiRequest) -> dict:
@@ -1233,7 +967,7 @@ def _op_changes(req: ApiRequest) -> dict:
 
 
 def _op_revert_change(req: ApiRequest) -> dict:
-    payload, doc, cfg = req.payload, req.doc, req.cfg
+    payload, doc = req.payload, req.doc
     entry_id = str(payload.get("id", ""))
     entries = _load_journal(doc)
     entry = next((e for e in entries if str(e.get("id")) == entry_id), None)
@@ -1249,8 +983,7 @@ def _op_revert_change(req: ApiRequest) -> dict:
     if not pairs:
         return {"ok": True, "reverted": 0, "missing": 0, "results": []}
     adapter, _ = _get_scene(doc, "revert")
-    res = adapter.revert([it for _i, it in pairs],
-                         canonical=cfg.standard.canonical_group)
+    res = adapter.revert([it for _i, it in pairs])
     done = [pairs[k][0] for k, r in enumerate(res.get("results") or [])
             if r.get("status") == "reverted"]
     journalmod.mark_reverted(entry, done)
@@ -1292,21 +1025,6 @@ def _op_detect(req: ApiRequest) -> dict:
     }}
 
 
-def _op_rules(req: ApiRequest) -> dict:
-    cfg = req.cfg
-    return {"ok": True,
-            "groups": [_rule_dict(r) for r in cfg.standard.rules],
-            "structure": cfgmod.structure_to_list(cfg.standard),
-            "rules": cfg.rules.to_list(),
-            "rule_warnings": cfg.rules.warnings,
-            "prefixes": cfg.prefixes,
-            "convention": {
-                "style": cfg.convention.style.value,
-                "language": cfg.convention.language,
-                "number_pad": cfg.convention.number_pad,
-            }}
-
-
 def _op_config(req: ApiRequest) -> dict:
     payload, data = req.payload, req.data
     if payload.get("save"):
@@ -1326,8 +1044,7 @@ def _op_plan_naming(req: ApiRequest) -> dict:
         visible = {n.guid for n in tree.walk() if n.visible}
         scope = visible if scope is None else (scope & visible)
     dedupe = bool(settings.get("dedupe", True))
-    renames = ops.plan_renames(tree, conv, scope=scope,
-                               prefixes=cfg.prefixes, keep=cfg.keep_names,
+    renames = ops.plan_renames(tree, conv, scope=scope, keep=cfg.keep_names,
                                dedupe=dedupe)
     diff = [{"guid": r.guid, "old": r.old_name, "new": r.new_name,
              "rules": r.rules} for r in renames]
@@ -1343,36 +1060,6 @@ def _op_plan_naming(req: ApiRequest) -> dict:
                 "diff": diff, "kept": kept, "keep_names": kept}
     return {"ok": True, "count": len(renames), "diff": diff,
             "kept": kept, "keep_names": kept}
-
-
-def _op_plan_structure(req: ApiRequest) -> dict:
-    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
-    settings = req.settings
-    adapter, tree = _get_scene(doc, "structure")
-    scope = _scope(settings, adapter)
-    safe = bool(settings.get("safe", True))
-    tidy = bool(settings.get("tidy", True))
-    reparents = ops.plan_reparents(tree, cfg.standard, scope=scope,
-                                   safe_only=safe, tidy=tidy)
-    reparents, kept = keepsmod.filter_kept(
-        reparents, cfg.kept("structure"), key=lambda r: r.name)
-    report = cfg.standard.evaluate(tree)
-    in_scope = [f for f in report.misplaced if scope is None or f.guid in scope]
-    skipped = max(0, len(in_scope) - len(reparents) - len(kept))
-    diff = [{"guid": r.guid, "name": r.name, "from": r.from_group, "to": r.to_group}
-            for r in reparents]
-    if op == "apply_structure":
-        accepted = payload.get("guids")
-        chosen = (reparents if accepted is None else
-                  [r for r in reparents if r.guid in set(accepted)])
-        applied = adapter.apply_reparents(
-            chosen, canonical=cfg.standard.canonical_group)
-        _record_change("structure", "%d moved" % applied,
-                       adapter.last_changes, doc=doc)
-        return {"ok": True, "applied": applied, "count": len(chosen),
-                "diff": diff, "skipped": skipped, "kept": kept}
-    return {"ok": True, "count": len(reparents), "diff": diff,
-            "skipped": skipped, "kept": kept}
 
 
 def _op_plan_translate(req: ApiRequest) -> dict:
@@ -1519,7 +1206,7 @@ def _op_set_layer_colors(req: ApiRequest) -> dict:
 
 
 def _op_batch_assign(req: ApiRequest) -> dict:
-    op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
+    op, payload, doc = req.op, req.payload, req.doc
     adapter, tree = _get_scene(doc, "batch action")
     key = "layer" if op == "assign_layer" else "group"
     target = str(payload.get(key) or "").strip()
@@ -1539,8 +1226,7 @@ def _op_batch_assign(req: ApiRequest) -> dict:
         ops.ReparentOp(node=n, to_group=target,
                        from_group=n.parent.name if n.parent else "")
         for n in nodes]
-    applied = adapter.apply_reparents(
-        reparents, canonical=cfg.standard.canonical_group)
+    applied = adapter.apply_reparents(reparents)
     _record_change("structure", "%d moved to %s" % (applied, target),
                    adapter.last_changes, doc=doc)
     return {"ok": True, "applied": applied, "group": target}
@@ -1558,14 +1244,6 @@ _CFG_HANDLERS = {
     "export_csv": _op_analyze,
     "history": _op_history,
     "clear_history": _op_clear_history,
-    "presets": _op_presets,
-    "apply_preset": _op_apply_preset,
-    "save_preset": _op_save_preset,
-    "delete_preset": _op_delete_preset,
-    "plan_all": _op_plan_all,
-    "apply_all": _op_plan_all,
-    "plans": _op_plans,
-    "apply_plan": _op_apply_plan,
     "rename_object": _op_rename_object,
     "focus": _op_focus,
     "type_icons": _op_type_icons,
@@ -1592,12 +1270,9 @@ _CFG_HANDLERS = {
     "set_keep_names": _op_set_keeps,
     "set_accepted_unused": _op_set_keeps,
     "detect": _op_detect,
-    "rules": _op_rules,
     "config": _op_config,
     "plan_naming": _op_plan_naming,
     "apply_naming": _op_plan_naming,
-    "plan_structure": _op_plan_structure,
-    "apply_structure": _op_plan_structure,
     "plan_translate": _op_plan_translate,
     "apply_translate": _op_plan_translate,
     "plan_layers": _op_plan_layers,
@@ -1619,8 +1294,6 @@ _OP_LABELS = {
     "detect": "Detecting naming convention",
     "plan_naming": "Building rename preview",
     "apply_naming": "Applying renames",
-    "plan_structure": "Building structure preview",
-    "apply_structure": "Applying structure",
     "plan_layers": "Building layer preview",
     "apply_layers": "Assigning layers",
     "plan_layer_suggestions": "Suggesting layers",
@@ -1631,9 +1304,6 @@ _OP_LABELS = {
     "set_layer_colors": "Coloring layers",
     "plan_translate": "Building translation preview",
     "apply_translate": "Applying translations",
-    "plan_all": "Planning all areas",
-    "apply_all": "Applying everything",
-    "apply_plan": "Applying restructuring plan",
     "revert_change": "Reverting change",
     "assign_layer": "Assigning layer",
     "move_to_group": "Moving objects to group",
@@ -1668,9 +1338,9 @@ _AUDIT_MODULES = {
 }
 
 _MUTATING_OPS = {
-    "apply_naming", "apply_structure", "apply_layers", "apply_translate",
+    "apply_naming", "apply_layers", "apply_translate",
     "apply_layer_suggestions",
-    "apply_all", "apply_plan", "rename_object", "revert_change",
+    "rename_object", "revert_change",
     "assign_layer", "move_to_group",
     "delete_layer", "delete_empty_layers", "set_layer_colors",
     "delete_material", "delete_unused_materials",

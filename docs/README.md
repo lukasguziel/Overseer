@@ -21,7 +21,6 @@ formerly per-package instruction files inside the source tree): [ai/](ai/).
 - [overseer/core/model.md](overseer/core/model.md) — SceneNode / SceneTree
 - [overseer/core/analyzer.md](overseer/core/analyzer.md) — SceneTree → SceneReport
 - [overseer/core/ops.md](overseer/core/ops.md) — plan renames / reparents / layers
-- [overseer/core/pipeline.md](overseer/core/pipeline.md) — combined one-pass planning
 - [overseer/core/imagesize.md](overseer/core/imagesize.md) — header-only image dimension reader
 - [overseer/core/defaults.md](overseer/core/defaults.md) — central built-in domain constants
 

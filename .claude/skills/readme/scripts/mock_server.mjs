@@ -24,8 +24,6 @@ const API = {
   export: () => ({ ok: true, report: fx.report, export_path: 'D:/3D/PROJECTS/PENTHOUSE/scene_report.json' }),
   history: () => fx.history,
   changes: () => fx.changes,
-  presets: () => fx.presets,
-  rules: () => fx.rules,
   detect: () => fx.detect,
   progress: () => ({ active: false, phase: '', current: 0, total: 0, detail: '' }),
   dirty: () => ({ ok: true, dirty: fx.report.dirty, name: fx.report.doc_name,
@@ -33,7 +31,6 @@ const API = {
   plan_naming: () => fx.planNaming,
   plan_translate: () => fx.planTranslate,
   plan_layers: () => fx.planLayers,
-  plan_structure: () => fx.planStructure,
   config: () => ({ ok: true, config: {}, defaults: {} }),
   // Audit areas + misc endpoints the newer tabs call.
   tags_scan: () => fx.tagsScan,

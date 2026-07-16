@@ -20,13 +20,12 @@ function analysisRows(history: HistoryEntry[]): HistoryRow[] {
     kind: 'analysis',
     kindLabel: 'Analyze',
     // The log is per project — the file name would repeat on every row.
-    summary: `${humanNum(h.objects)} obj · ${Math.round((h.compliance || 0) * 100)}%`,
+    summary: `${humanNum(h.objects)} obj`,
     details: (
       <table className="diff ch-items"><tbody>
         <tr><td className="ch-field dim">objects</td><td>{humanNum(h.objects)}</td></tr>
         {h.polys != null && <tr><td className="ch-field dim">polygons</td><td>{humanNum(h.polys)}</td></tr>}
         {h.size != null && <tr><td className="ch-field dim">size</td><td>{humanBytes(h.size)}</td></tr>}
-        {h.compliance != null && <tr><td className="ch-field dim">structure</td><td>{Math.round(h.compliance * 100)}%</td></tr>}
       </tbody></table>
     ),
   }))
@@ -36,54 +35,10 @@ function SectionHead({ title }: { title: string }) {
   return <div className="section-head"><span>{title}</span></div>
 }
 
-// Presets + scene-hierarchy export are parked for now — flip to bring the
-// "Misc" section back.
-const SHOW_MISC_SECTION = false
-
 export default function MiscTab({ org }: { org: Organizer }) {
-  const { presets, activePreset, busy, exported, history, changes } = org
+  const { history, changes } = org
   return (
     <div className="misc misc-grid">
-      {SHOW_MISC_SECTION && (<>
-      <SectionHead title="Misc" />
-      <div className="ov-cols2">
-        <section className="card">
-          <div className="card-head"><h3>Presets</h3></div>
-          <p className="hint-sm">
-            Pick a state-of-the-art style — it configures casing, translations,
-            groups and the node graph in one go.
-          </p>
-          <div className="preset-list">
-            {presets.length === 0 && <p className="hint-sm">No presets found.</p>}
-            {presets.map((p) => (
-              <div key={p.id} className={'preset' + (activePreset === p.id ? ' on' : '')}>
-                <div className="preset-main">
-                  <b>{p.name}</b>{activePreset === p.id && <span className="preset-badge">active</span>}
-                  <div className="hint-sm" style={{ margin: '2px 0 0' }}>{p.description}</div>
-                  <div className="dim" style={{ fontSize: 11, marginTop: 4 }}>{(p.groups || []).join(' · ')}</div>
-                </div>
-                <button className="sm" onClick={() => org.applyPreset(p.id)} disabled={busy}>Apply</button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-head"><h3>Export scene hierarchy</h3></div>
-          <p className="hint-sm">
-            Writes a full snapshot <b>next to your project file</b> (falls back
-            to the repo folder if the scene is unsaved). The JSON is what
-            Claude reads; the CSV is a flat object table for Excel/Sheets.
-          </p>
-          <div className="btns">
-            <button onClick={org.doExportJson} disabled={busy}>Export as JSON</button>
-            <button onClick={org.doExportCsv} disabled={busy}>Export as CSV</button>
-          </div>
-          {exported && <p className="example" style={{ marginTop: 12 }}>Written: <code>{exported}</code></p>}
-        </section>
-      </div>
-      </>)}
-
       <SectionHead title="History" />
       <div className="ov-cols2">
         <section className="card">

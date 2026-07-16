@@ -12,16 +12,13 @@ READ the matching guide BEFORE working in that package:
 [src.md](docs/ai/src.md) (plugin entry) ·
 [overseer.md](docs/ai/overseer.md) (package root, bridge, config) ·
 [cinema.md](docs/ai/cinema.md) (c4d host glue, every module + gotchas) ·
-[core.md](docs/ai/core.md) · [naming.md](docs/ai/naming.md) ·
-[structure.md](docs/ai/structure.md).
+[core.md](docs/ai/core.md) · [naming.md](docs/ai/naming.md).
 
 ## What this is
 
 Cinema 4D plugin (tested with 2023 & 2024) for any kind of project: **analyzes** the scene for
-insights, **normalizes object names**, **optimizes structure** (groups like
-Cameras/Lights), and manages assets, materials & textures. Two UIs on the same
-logic: native C4D dialog **and** a web frontend (Vite/React) with a node editor
-for the rule set.
+insights, **normalizes object names**, and manages layers, tags, assets,
+materials & textures. One UI: a web frontend (Vite/React) served by the plugin.
 
 Tested against the user's ~2.3 GB production scene.
 
@@ -47,22 +44,15 @@ src/
                           is excluded from hot-reload.
     core/
       model.py            SceneNode / SceneTree (pure hierarchy)
-      ops.py              plan_renames()/plan_reparents()/plan_layers() (scope, safety, prefixes)
+      ops.py              plan_renames()/plan_layers() + RenameOp/ReparentOp/LayerOp
       keeps.py            per-section "accepted as-is" lists (filter_kept/set_section_keeps)
       analyzer.py         SceneTree -> SceneReport (single pass)
-      pipeline.py         plan_combined(): rules + naming + structure + layers in one
-                          pass (backend of plan_all/apply_all, one-button flow)
     naming/
       casing.py           Tokenizer, casing detection, language heuristic (was naming.py)
       convention.py       NamingConvention (casing/language/numbering), disambiguate()
       translations.py     DE<->EN dictionary + add_translations()
       translate.py        Language-only rename proposals
       detect.py           Auto-detect existing scheme (style/language/pad + confidence)
-    structure/
-      standard.py         GroupRule / StructureStandard + evaluate() (was structure.py)
-      rules.py            Declarative rule engine v2 (prefix/renumber/condition/layer,
-                          Match vocabulary, compile_rules() -> RuleSet.plan_all())
-      graph.py            node-editor graph incl. nested structure
     cinema/               [c4d] host glue
       adapter/            doc <-> SceneTree; rename/reparent/plan/layers with undo.
                           One file per domain class (readers/scene/materials/
@@ -72,8 +62,6 @@ src/
                           (survive hot-reload; invalidated by the doc dirty
                           counter, cleared by POST /api/reload). Every slow op
                           publishes a progress label (_OP_LABELS -> /api/progress).
-  presets/  plans/        User-saved preset snapshots (schema 2, no shipped defaults)
-                          / frozen restructuring plans (run via /api/apply_plan)
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
 frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
   STYLEGUIDE.md           UI vocabulary: every reusable block, its class + markup
@@ -93,7 +81,7 @@ tests/                    pytest, runs WITHOUT c4d
                           main publishes. The repo is lukasguziel/overseer (public
                           home of code, issues and releases — no mirror anymore).
 .claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + overseer/ +
-                          presets/ + plans/ + web/ to the plugin dir) + machine-local
+                          web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)
 ```
 
@@ -156,25 +144,19 @@ the only UI). Full API table: `docs/api.md`.
 - Producible casings: PascalCase, camelCase, lower_snake, UPPER_SNAKE, kebab
   (detection also knows UPPER/lower/Capitalized/spaced/mixed).
 - NamingConvention: tokenize → translate (optional) → casing → padded number;
-  idempotent. GroupRules match by category OR translated keywords; `aliases`
-  map existing containers. Safety filter: only move objects whose parent is
-  root or a Null (generator/deformer children untouched).
-- config.json (next to the .pyp, **schema 2**): casing/language/number_pad/
-  translations + nested `structure` tree + declarative `rules` list
-  (prefix/renumber/condition/layer — see `overseer/structure/rules.py`). v1 configs
-  (`prefixes`/`groups`) migrate automatically; `default_standard()` is
-  Cameras+Lights only.
-- Presets = complete settings snapshots `{schema:2, meta, settings}` saved by
-  the user (`save_preset`). Apply writes the snapshot verbatim (no graph
-  regeneration). No shipped default presets.
-- One-button flow: `plan_all` (combined preview: naming+structure+layers,
-  one tree read) → `apply_all` (server-side re-plan, accept lists per
-  section, ONE undo step via `SceneAdapter.apply_bundle`).
+  idempotent.
+- config.json (next to the .pyp, **schema 3**): casing/language/number_pad/
+  translations + per-section `keeps` lists + machine-local `port`/`listen_lan`.
+  `migrate_config()` reads old files forever and silently DROPS the retired
+  rule-engine/preset era keys (`structure`, `rules`, `graph`, `preset`,
+  `prefixes`, `groups`).
 
 ## Current state / next step
 
-Plugin runs (user-confirmed), v1.0.0 released. Rule engine v2 + preset
-manager + one-button apply are in place. The former scene-architect /
-scene-conventions / scene-rules skills were removed (unused); their API
-reference survives as `docs/api.md`. Rule sets are built by hand in the web
-UI's node editor and saved as presets.
+Plugin runs (user-confirmed), v1.0.0 released. The parked structure/rules
+areas (group standard, rule engine v2, node editor, presets, one-button
+apply, restructuring plans, "take my hand" guide) were REMOVED in July 2026
+— only the Assets tab's "move to group" batch action still reparents
+objects. The former scene-architect / scene-conventions / scene-rules
+skills were removed earlier (unused); their API reference survives as
+`docs/api.md`.

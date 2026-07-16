@@ -15,7 +15,7 @@ export async function call<T = any>(op: string, body?: unknown): Promise<T> {
   }
   if (!res.ok || data.error) {
     const err = new Error(data.error || res.statusText)
-    ;(err as any).data = data     // keep extra fields (e.g. save_preset {exists,id})
+    ;(err as any).data = data     // keep extra fields beyond the message
     throw err
   }
   return data as T

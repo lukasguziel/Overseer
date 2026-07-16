@@ -22,12 +22,10 @@ export const GOOGLE_TARGETS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl',
 
 export type TabId =
   | 'overview' | 'assets' | 'naming' | 'translate'
-  | 'structure' | 'layers' | 'materials' | 'rules' | 'misc'
+  | 'layers' | 'materials' | 'misc'
   | 'tags' | 'generators' | 'files' | 'sims'
 
 // [id, label, soon?] — `soon` tabs are shown disabled with a "soon" badge.
-// Structure & Rules are parked entirely (code stays, nav entry removed) —
-// re-add them here to bring them back.
 export const TABS: [TabId, string, boolean?][] = [
   ['overview', 'Overview'],
   ['naming', 'Naming'],

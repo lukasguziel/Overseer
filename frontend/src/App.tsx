@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { useOrganizer } from './hooks/useOrganizer'
 import { version } from '../package.json'
-import HandGuide from './components/HandGuide'
-import logo from './assets/so_logo.png'
+import logo from './assets/logo.png'
 import { TABS } from './lib/constants'
 import ScopeToggle from './components/ScopeToggle'
 import VisibilityToggle from './components/VisibilityToggle'
@@ -25,10 +24,8 @@ import OverviewTab from './tabs/OverviewTab'
 import AssetsTab from './tabs/AssetsTab'
 import NamingTab from './tabs/NamingTab'
 import TranslateTab from './tabs/TranslateTab'
-import StructureTab from './tabs/StructureTab'
 import LayersTab from './tabs/LayersTab'
 import MaterialsTab from './tabs/MaterialsTab'
-import RulesTab from './tabs/RulesTab'
 import MiscTab from './tabs/MiscTab'
 import TagsTab from './tabs/TagsTab'
 import GeneratorsTab from './tabs/GeneratorsTab'
@@ -42,7 +39,6 @@ import SimsTab from './tabs/SimsTab'
 const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string; doc?: string }>> = {
   overview: { title: 'Overview', desc: 'Your scene’s dashboard — size, health per area, and where to start cleaning.', doc: 'overview' },
   translate: { title: 'Translate', desc: 'Translate object names into your target language — offline on your machine, or Google online for any language.', doc: 'translate' },
-  structure: { title: 'Structure', desc: 'Group loose objects into a clean container hierarchy. Generator children stay protected; changes apply as one undo step.' },
   layers: { title: 'Layers', desc: 'Assign objects to layers and tidy the layer table. Nothing changes until you apply a suggestion.', doc: 'layers' },
   materials: { title: 'Materials', desc: 'Audit materials and textures: unused materials, missing maps, oversized textures and absolute paths.', doc: 'materials' },
   tags: { title: 'Tags', desc: 'Audit object tags across the scene — missing phong tags and duplicate material tags.', doc: 'tags' },
@@ -53,17 +49,10 @@ const TAB_INTRO: Partial<Record<TabId, { title: string; desc: string; doc?: stri
   misc: { title: 'Misc', desc: 'Histories, phone access and credits — the plumbing that makes the rest trustworthy.', doc: 'misc' },
 }
 
-// "Take my hand" is parked for now — flip to bring the guide button back
-// (the whole feature stays wired underneath).
-const SHOW_HAND_GUIDE = false
-
 export default function App() {
   const org = useOrganizer()
   const { tab, report, error, busy, previewing } = org
   const spinning = busy || previewing
-  // "Take my hand" guided mode — reachable from every tab via the small
-  // hand button next to the area score.
-  const [hand, setHand] = useState(false)
   // Phone layout: the tab nav folds behind a burger button (CSS shows the
   // burger only below the mobile breakpoint; on desktop the nav is always
   // visible and this state is irrelevant).
@@ -86,8 +75,7 @@ export default function App() {
   return (
     <div className="app">
       {busy && org.progress?.active && <Preloader progress={org.progress} />}
-      {org.reloadProgress && !hand && <ReloadOverlay progress={org.reloadProgress} />}
-      {hand && <HandGuide org={org} onExit={() => setHand(false)} />}
+      {org.reloadProgress && <ReloadOverlay progress={org.reloadProgress} />}
       <header className="topbar">
         <div className="brand">
           <img className="brand-logo" src={logo} alt="" />
@@ -131,8 +119,7 @@ export default function App() {
         </button>
         <nav className={'tabs' + (navOpen ? ' nav-open' : '')}>
           {TABS.map(([id, label, soon]) => {
-            // `soon` tabs (Rules) are parked — visible but disabled,
-            // so the roadmap stays honest without confusing anyone.
+            // `soon` tabs are shown disabled with a badge.
             // Generators/Sims are disabled when the analyzed scene has none
             // (flags default undefined → stay clickable until a report says false).
             const emptyArea =
@@ -167,19 +154,9 @@ export default function App() {
             )
           })}
         </nav>
-        {/* The area score ring moved into the tab's intro line — only the
-            (parked) "Take my hand" entry point still docks right of the tabs. */}
-        {tab === 'overview' && SHOW_HAND_GUIDE && (
-          <div className="tabs-right">
-            <button className="hand-nav-btn" onClick={() => setHand(true)}
-              title="Take my hand — let the guide walk you through every area, one clear question at a time. Big groups become a single decision.">
-              🫱
-            </button>
-          </div>
-        )}
       </div>
 
-      {error && tab !== 'rules' && (
+      {error && (
         <div className="error">
           <span>{error}</span>
           <button className="error-dismiss" title="Dismiss this error" onClick={() => org.setError('')}>✕</button>
@@ -202,10 +179,8 @@ export default function App() {
       )}
       {tab === 'naming' && <NamingTab org={org} />}
       {tab === 'translate' && <TranslateTab org={org} />}
-      {tab === 'structure' && <StructureTab org={org} />}
       {tab === 'layers' && <LayersTab org={org} />}
       {tab === 'materials' && <MaterialsTab org={org} />}
-      {tab === 'rules' && <RulesTab />}
       {tab === 'tags' && <TagsTab org={org} />}
       {tab === 'generators' && <GeneratorsTab org={org} />}
       {tab === 'files' && <FilesTab org={org} />}

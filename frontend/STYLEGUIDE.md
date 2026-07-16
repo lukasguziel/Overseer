@@ -10,8 +10,8 @@ Rules of the road:
 
 - **Name by what it IS, not where it first appeared.** `.misc-sec` was named
   after the Misc tab and then spread to three other tabs; the name became a lie.
-- **Keep domain words out of class names.** "Rule" means the rule engine in this
-  project (`rules.py`, `GroupRule`). A divider is not a rule.
+- **Keep domain words out of class names.** "Rule" means a naming rule in this
+  project. A divider is not a rule.
 - **Variants are modifiers, not new classes**: `.section-head.sm`, not
   `.section-head-small`.
 - New block? Add it here in the same shape: what it is, markup, variants.
@@ -152,7 +152,7 @@ by area:
 Why one component and not a hand-rolled list per tab: the seven copies drifted
 apart in wording, layout and restore behaviour. `TAB_SECTIONS` maps a tab to
 the keep sections it owns (`core/keeps.py`: naming, translate, layers,
-structure, materials, textures, files) — so the artist only ever sees what they
+materials, textures, files) — so the artist only ever sees what they
 can act on right here; other areas are reviewed on their own tab. A group with
 nothing in it is not rendered, and an empty panel renders nothing at all.
 

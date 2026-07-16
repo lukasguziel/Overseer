@@ -11,21 +11,17 @@ import { plural } from '../lib/format'
 import type {
   ChangeEntry, DetectInfo, HistoryEntry, LayerDiff, LayerMismatch,
   OrganizerSettings, PlanResult,
-  Preset, ProgressInfo, RenameDiff, ReparentDiff, SceneReport, TranslateDiff,
+  ProgressInfo, RenameDiff, SceneReport, TranslateDiff,
 } from '../types'
 
-export interface RulesInfo {
-  groups?: { name: string; priority: number }[]
-}
-
-// The five suggestion areas share one "accepted as-is" mechanism: keys the
+// The suggestion areas share one "accepted as-is" mechanism: keys the
 // user accepted are persisted per section in config.json and filtered out of
 // plans server-side.
-export type KeepSection = 'naming' | 'translate' | 'layers' | 'structure' | 'materials'
+export type KeepSection = 'naming' | 'translate' | 'layers' | 'materials'
 
 const emptyKeeps = (): Record<KeepSection, Set<string>> => ({
   naming: new Set(), translate: new Set(), layers: new Set(),
-  structure: new Set(), materials: new Set(),
+  materials: new Set(),
 })
 
 // Score rounding: never below 0, and never a perfect 100 while todos remain.
@@ -58,8 +54,6 @@ export function useOrganizer() {
   const [numberPad, setNumberPad] = useState(2)
   const [applyNumbering, setApplyNumbering] = useState(true)  // rule: pad/normalize numbers
   const [dedupe, setDedupe] = useState(true)                  // rule: renumber duplicate names to be unique
-  const [safe, setSafe] = useState(true)
-  const [tidy, setTidy] = useState(true)           // only collect loose objects
   const [translateTarget, setTranslateTarget] = useState('en')  // Translate tab: target language
   // 'google' = online (default — any language, real source detection);
   // 'offline' = bundled dictionaries (10 languages, local, no network)
@@ -114,7 +108,6 @@ export function useOrganizer() {
   const [report, setReport] = useState<SceneReport | null>(null)
   const [detectInfo, setDetectInfo] = useState<DetectInfo | null>(null)
   const [naming, setNaming] = useState<PlanResult<RenameDiff> | null>(null)
-  const [structure, setStructure] = useState<PlanResult<ReparentDiff> | null>(null)
   const [layers, setLayers] = useState<PlanResult<LayerDiff> | null>(null)
   const [translation, setTranslation] = useState<PlanResult<TranslateDiff> | null>(null)
   const [layerSuggestions, setLayerSuggestions] = useState<PlanResult<LayerDiff> | null>(null)
@@ -124,12 +117,9 @@ export function useOrganizer() {
   // not roll back to the render-time snapshot it was created with).
   const keepsRef = useRef(keeps)
   keepsRef.current = keeps
-  const [rules, setRules] = useState<RulesInfo | null>(null)
   const [exported, setExported] = useState('')
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [changes, setChanges] = useState<ChangeEntry[]>([])
-  const [presets, setPresets] = useState<Preset[]>([])
-  const [activePreset, setActivePreset] = useState<string | null>(null)
 
   const settings = useCallback((): OrganizerSettings => ({
     casing,
@@ -142,9 +132,7 @@ export function useOrganizer() {
     dedupe,
     selection: scope,
     include_hidden: includeHidden,
-    safe,
-    tidy,
-  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, includeHidden, safe, tidy])
+  }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad, applyNumbering, dedupe, scope, includeHidden])
 
   // An action that has something more informative to say than "<label> ✓"
   // PINS its message: run() (and any run() nested inside it, e.g. the follow-up
@@ -184,7 +172,7 @@ export function useOrganizer() {
 
   const doAnalyze = useCallback(() => run('Analysis', async () => {
     // Selection scope + the eye toggle narrow every stat in the report
-    // (Overview, Assets, compliance, …) — the server re-aggregates the tree.
+    // (Overview, Assets, …) — the server re-aggregates the tree.
     const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
     setReport(r.report)
     // Set docName straight from the report so per-project settings hydrate
@@ -234,7 +222,6 @@ export function useOrganizer() {
     if (section === 'naming') setNaming(update)
     else if (section === 'translate') setTranslation(update)
     else if (section === 'layers') setLayers(update)
-    else if (section === 'structure') setStructure(update)
   }, [])
 
   // Fire-and-forget action (see FireOpts in useTextureActions): progress
@@ -339,12 +326,6 @@ export function useOrganizer() {
     noteKept('naming', r.kept)
   }, [settings, noteKept])
 
-  const reloadStructure = useCallback(async () => {
-    const r = await call('plan_structure', { settings: settings() })
-    setStructure(r)
-    noteKept('structure', r.kept)
-  }, [settings, noteKept])
-
   const reloadLayers = useCallback(async () => {
     const r = await call('plan_layers', { settings: settings() })
     setLayers(r)
@@ -376,14 +357,11 @@ export function useOrganizer() {
     numberPad, applyNumbering, dedupe, scope, settings, reloadNaming, sceneVersion]
   const translateDeps = [scope, settings, translateTarget, translateEngine,
     reloadTranslate, sceneVersion]
-  const structureDeps = [safe, tidy, scope, settings, rules, reloadStructure, sceneVersion]
   const layersDeps = [scope, settings, keeps.layers, reloadLayerExtras, sceneVersion]
   const namingDepsRef = useRef(namingDeps)
   namingDepsRef.current = namingDeps
   const translateDepsRef = useRef(translateDeps)
   translateDepsRef.current = translateDeps
-  const structureDepsRef = useRef(structureDeps)
-  structureDepsRef.current = structureDeps
   const layersDepsRef = useRef(layersDeps)
   layersDepsRef.current = layersDeps
 
@@ -395,14 +373,12 @@ export function useOrganizer() {
   reloadNamingRef.current = reloadNaming
   const reloadTranslateRef = useRef(reloadTranslate)
   reloadTranslateRef.current = reloadTranslate
-  const reloadStructureRef = useRef(reloadStructure)
-  reloadStructureRef.current = reloadStructure
   const reloadLayerExtrasRef = useRef(reloadLayerExtras)
   reloadLayerExtrasRef.current = reloadLayerExtras
 
   // Reload EVERY area in sequence behind a stepped progress overlay: the
   // report (Overview/Assets/Materials/Layers stats), the naming/translate/
-  // structure/layer plans, and every audit scan the user has already opened.
+  // layer plans, and every audit scan the user has already opened.
   // Used on selection changes under selection scope so all tabs AND nav badges
   // stay current without visiting each one. The analyze here is quiet (no
   // global busy lock) — the stepped overlay is the only spinner.
@@ -423,7 +399,6 @@ export function useOrganizer() {
       }],
       ['Naming', () => reloadNamingRef.current(), 'naming', () => namingDepsRef.current],
       ['Translate', () => reloadTranslateRef.current(), 'translate', () => translateDepsRef.current],
-      ['Structure', () => reloadStructureRef.current(), 'structure', () => structureDepsRef.current],
       ['Layers', () => reloadLayerExtrasRef.current(), 'layers', () => layersDepsRef.current],
     ]
     if (loadedAuditCount() > 0) {
@@ -517,23 +492,6 @@ export function useOrganizer() {
     })
   }, [dropRows, fire, settings, translateTarget, translateEngine, reloadTranslate])
 
-  const applyStructure = () => run('Apply structure', async () => {
-    const r = await call('apply_structure', { settings: settings() })
-    setStructure(r)
-    await doAnalyze()
-  })
-  // Move a single object into its group immediately (per-row ✓).
-  const applyStructureOne = (guid: number, name?: string) => {
-    dropRows('structure', (d) => d.guid === guid)
-    fire({
-      start: `Moving “${name || ''}”…`,
-      op: 'apply_structure', args: { settings: settings(), guids: [guid] },
-      ok: (r) => r.applied ? `Moved “${name || ''}” ✓ (undoable)` : 'Nothing moved',
-      fail: 'Move', after: 'refresh',
-      onFail: () => { reloadStructure().catch(() => {}) },
-    })
-  }
-
   const applyLayers = () => run('Apply layers', async () => {
     const r = await call('apply_layers', { settings: settings() })
     note(`${r.applied} objects tagged ✓ (undoable)`)
@@ -582,9 +540,8 @@ export function useOrganizer() {
     if (section === 'materials') { doAnalyze(); return }
     if (section === 'naming') await reloadNaming()
     else if (section === 'translate') await reloadTranslate()
-    else if (section === 'layers') await reloadLayers()
-    else await reloadStructure()
-  }, [doAnalyze, reloadNaming, reloadTranslate, reloadLayers, reloadStructure])
+    else await reloadLayers()
+  }, [doAnalyze, reloadNaming, reloadTranslate, reloadLayers])
 
   const unkeep = useCallback((section: KeepSection, key: string) => {
     const next = new Set(keeps[section]); next.delete(key)
@@ -636,12 +593,12 @@ export function useOrganizer() {
     } else {
       const plan = section === 'naming' ? naming
         : section === 'translate' ? translation
-          : section === 'layers' ? layers : structure
+          : layers
       keys = (plan?.diff || []).map((d: any) =>
         section === 'naming' || section === 'translate' ? d.old : d.name)
     }
     keepMany(section, keys)
-  }, [naming, translation, layers, structure, report, keepMany])
+  }, [naming, translation, layers, report, keepMany])
 
   // --- Per-project settings persistence ------------------------------------
   // Every clickable setting is stored automatically in a per-project JSON
@@ -650,10 +607,10 @@ export function useOrganizer() {
   // selection scope is a session-specific choice, not a project preference.
   const currentUi = useCallback(() => ({
     casing, applyCasing, keepSeparators, keepSpecials, language, numberPad,
-    applyNumbering, dedupe, safe, tidy, translateTarget,
+    applyNumbering, dedupe, translateTarget,
     translateEngine, includeHidden,
   }), [casing, applyCasing, keepSeparators, keepSpecials, language, numberPad,
-    applyNumbering, dedupe, safe, tidy, translateTarget, translateEngine, includeHidden])
+    applyNumbering, dedupe, translateTarget, translateEngine, includeHidden])
 
   const applyStoredUi = useCallback((ui: any) => {
     if (typeof ui.casing === 'string') setCasing(ui.casing)
@@ -664,8 +621,6 @@ export function useOrganizer() {
     if (typeof ui.numberPad === 'number') setNumberPad(ui.numberPad)
     if (typeof ui.applyNumbering === 'boolean') setApplyNumbering(ui.applyNumbering)
     if (typeof ui.dedupe === 'boolean') setDedupe(ui.dedupe)
-    if (typeof ui.safe === 'boolean') setSafe(ui.safe)
-    if (typeof ui.tidy === 'boolean') setTidy(ui.tidy)
     // Only restore a known language code — anything else keeps the English
     // default instead of silently driving the preview with a bogus target.
     if (typeof ui.translateTarget === 'string'
@@ -673,16 +628,6 @@ export function useOrganizer() {
     if (typeof ui.translateEngine === 'string') setTranslateEngine(ui.translateEngine)
     if (typeof ui.includeHidden === 'boolean') setIncludeHidden(ui.includeHidden)
   }, [])
-
-  const applyPreset = (id: string) => run('Apply preset', async () => {
-    const r = await call('apply_preset', { id })
-    setActivePreset(r.applied || id)
-    setRules(null)  // Let the Rules tab reload
-    // The preset is the global config; reflect the current UI into the
-    // project file so reopening the project keeps this choice.
-    call('ui_settings_set', { ui: currentUi() }).catch(() => {})
-    setStatus(`Preset “${r.applied || id}” applied (${r.groups} groups) — open Rules to see it.`)
-  })
 
   // Hydrate stored settings on startup and whenever the active document
   // changes. `hydrated` gates the auto-save below so mount-time defaults never
@@ -828,11 +773,10 @@ export function useOrganizer() {
     return () => { stop = true; clearInterval(t) }
   }, [autoRefresh, scope, busy, doAnalyze])
 
-  // Load analysis history + presets as soon as the Misc tab becomes active.
+  // Load the analysis history as soon as the Misc tab becomes active.
   useEffect(() => {
     if (tab !== 'misc') return
     call('history').then((r) => setHistory(r.history || [])).catch(() => {})
-    call('presets').then((r) => { setPresets(r.presets || []); setActivePreset(r.active || null) }).catch(() => {})
   }, [tab, report])
 
   // Generic live-preview effect: recompute plan_<op> debounced
@@ -875,14 +819,6 @@ export function useOrganizer() {
   usePreview('naming', 250, async () => {
     await reloadNaming()
   }, namingDeps)
-
-  usePreview('structure', 250, async () => {
-    const [, rl] = await Promise.all([
-      reloadStructure(),
-      rules ? Promise.resolve(null) : call('rules'),
-    ])
-    if (rl) setRules(rl)
-  }, structureDeps)
 
   usePreview('translate', 250, async () => {
     await reloadTranslate()
@@ -958,7 +894,6 @@ export function useOrganizer() {
             + (namingHyg?.dupes.length ?? 0)
       case 'translate': return translation?.count
       case 'layers': return noLayerOpen
-      case 'structure': return structure?.count ?? report?.misplaced?.length
       case 'materials': {
         // Badge = the same "todos" the score counts: unused (deletable)
         // materials + still-missing textures.
@@ -973,7 +908,7 @@ export function useOrganizer() {
         ? (filesScan.summary.missing_count || 0) : undefined
       default: return undefined
     }
-  }, [naming, namingHyg, translation, structure, report, noLayerOpen, filesScan])
+  }, [naming, namingHyg, translation, report, noLayerOpen, filesScan])
 
   const areaScore = useCallback((t: TabId): number | null => {
     if (!report) return null
@@ -1017,8 +952,6 @@ export function useOrganizer() {
           + (report.textures?.missing_count ?? 0)
         return capped(bad, Math.max(0, total - bad) / total)
       }
-      case 'structure':
-        return Math.max(0, Math.min(100, Math.round((report.structure_compliance || 0) * 100)))
       case 'tags': {
         // Missing phong tags and duplicate material tags are defects; a
         // scene without either scores 100. Needs the tags scan (runs when
@@ -1070,7 +1003,7 @@ export function useOrganizer() {
   // The work tabs show their own slice of the log (AreaHistory), Misc the
   // whole thing — load it for any of them, and again after each apply.
   useEffect(() => {
-    if (['naming', 'translate', 'structure', 'layers', 'materials', 'misc']
+    if (['naming', 'translate', 'layers', 'materials', 'misc']
       .includes(tab)) loadChanges()
   }, [tab, sceneVersion, loadChanges])
 
@@ -1110,8 +1043,6 @@ export function useOrganizer() {
     fail: 'Rename', after: 300,
   }), [fire])
 
-  const compliance = report ? Math.round(report.structure_compliance * 100) : null
-
   return {
     tab, setTab, scope, setScope: chooseScope, includeHidden, setIncludeHidden,
     autoRefresh, setAutoRefresh, sel, selStale,
@@ -1119,22 +1050,21 @@ export function useOrganizer() {
     applyCasing, setApplyCasing, keepSeparators, setKeepSeparators,
     keepSpecials, setKeepSpecials,
     applyNumbering, setApplyNumbering, dedupe, setDedupe,
-    safe, setSafe, tidy, setTidy, translateTarget, setTranslateTarget,
+    translateTarget, setTranslateTarget,
     translateEngine, setTranslateEngine,
     busy, status, setStatus, error, setError, previewing, progress, ready, reloadProgress, reloadEverything,
-    report, detectInfo, compliance,
-    naming, structure, layers, translation,
+    report, detectInfo,
+    naming, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
     keeps, keep, unkeep, unkeepAll, keepAll, keepMany, planCount, areaScore, doRenameObject,
     changes, doRevertChange, doClearChanges, doClearHistory,
-    rules, exported, history, presets, activePreset,
+    exported, history,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
     doAssignLayer, doMoveToGroup,
     ...texActions,
     applyNaming, applyNamingOne, applyNamingMany,
-    applyStructure, applyStructureOne,
     applyLayers, applyLayerOne,
-    applyTranslate, applyTranslateOne, applyTranslateMany, applyPreset,
+    applyTranslate, applyTranslateOne, applyTranslateMany,
   }
 }
 

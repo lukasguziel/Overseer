@@ -10,8 +10,7 @@ def test_load_defaults():
 
     # postcondition
     assert cfg.convention.style == Casing.PASCAL
-    assert cfg.standard.group_names  # default standard
-    assert cfg.prefixes == {}
+    assert cfg.keeps == {s: [] for s in ("naming", "translate", "layers", "materials", "files", "textures")}
 
 
 def test_load_convention_overrides():
@@ -32,25 +31,6 @@ def test_load_language_null_means_no_translation():
     assert cfg.convention.language is None
 
 
-def test_custom_group_rules():
-    # do it
-    cfg = config.load_config({"groups": [
-        {"name": "Props", "keywords": ["barstool"], "priority": 10},
-        {"name": "Lights", "categories": ["light"], "priority": 100},
-    ]})
-
-    # postcondition
-    assert set(cfg.standard.group_names) == {"Props", "Lights"}
-
-
-def test_prefixes_loaded():
-    # do it
-    cfg = config.load_config({"prefixes": {"light": "LGT_", "camera": "CAM_"}})
-
-    # postcondition
-    assert cfg.prefixes["light"] == "LGT_"
-
-
 def test_default_config_carries_server_settings():
     # postcondition: the port default has exactly one source of truth
     assert config.DEFAULT_CONFIG["port"] == defaults.DEFAULT_PORT
@@ -66,10 +46,25 @@ def test_migrate_carries_machine_local_keys():
     # do it
     out = config.migrate_config(data)
 
-    # postcondition: server settings survive migration untouched
+    # postcondition: server settings survive migration, retired keys are dropped
     assert out["port"] == 9000
     assert out["listen_lan"] is True
     assert out["schema"] == config.CONFIG_SCHEMA_VERSION
+    assert "prefixes" not in out
+
+
+def test_migrate_drops_retired_keys():
+    # setup: a config written by the old rule-engine/preset era
+    data = {"schema": 3, "casing": "camelCase", "structure": [{"name": "Cameras"}],
+            "rules": [{"type": "prefix"}], "graph": {"nodes": []}, "preset": "old"}
+
+    # do it
+    out = config.migrate_config(data)
+
+    # postcondition: settings survive, the retired era is gone
+    assert out["casing"] == "camelCase"
+    for key in ("structure", "rules", "graph", "preset"):
+        assert key not in out
 
 
 def test_add_translations_extends_dictionary():
