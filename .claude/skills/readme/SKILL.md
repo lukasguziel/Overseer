@@ -1,11 +1,13 @@
 ---
 name: readme
 description: >-
-  Regenerate the project README (English) with fresh screenshots of every web
-  UI tab, rendered from a fake 1.2 GB / 40M-polygon sample scene via a mock
-  API server + Playwright — no Cinema 4D needed. Use when the user says
-  "update die readme", "mach neue screenshots", "readme neu generieren", or
-  after shipping a feature that changes a tab's UI or adds a new tab.
+  Regenerate the project docs: the root README (English), docs/FEATURES.md
+  and fresh screenshots of every web UI tab, rendered from a fake 1.2 GB /
+  40M-polygon sample scene via a mock API server + Playwright — no Cinema 4D
+  needed — and keep the GitHub repo About (description/homepage/topics) in
+  sync with the README pitch. Use when the user says "update die readme",
+  "mach neue screenshots", "readme neu generieren", or after shipping a
+  feature that changes a tab's UI or adds a new tab.
 ---
 
 # README — generate reproducibly
@@ -104,6 +106,24 @@ Assets → Layers → Materials → Misc). Always heading → screenshot →
 features. Tone: concrete instead of marketing; reuse number examples from
 the fake scene (`Chair → Chaise`, EN 1288 / DE 138) so text and screenshots
 match.
+
+## Repo About (GitHub) — keep in sync
+
+The README pitch and the repo's About box must tell the same story. After
+regenerating the README, compare and update if the pitch drifted:
+
+```bash
+gh repo view lukasguziel/overseer --json description,homepage,repositoryTopics
+gh repo edit lukasguziel/overseer --description "<current one-sentence pitch>"
+```
+
+- Description = the README pitch in one sentence, **general-purpose** (the
+  plugin analyzes any scene for insights, normalizes names/structure, keeps
+  projects clean, manages assets, materials & textures) — NEVER narrow it
+  to one niche like archviz/interior.
+- Homepage stays the trailer link (`https://www.youtube.com/watch?v=jsoKxY_QdG0`).
+- Topics: only touch when the feature story changes
+  (`--add-topic`/`--remove-topic`).
 
 ## Failure modes
 

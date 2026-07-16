@@ -16,12 +16,13 @@ READ the matching guide BEFORE working in that package:
 
 ## What this is
 
-Cinema 4D 2024 plugin that **analyzes** scenes (interior/archviz), **normalizes
-object names**, and **optimizes structure** (groups like Cameras/Lights/
-Furniture/Exterior). Two UIs on the same logic: native C4D dialog **and** a web
-frontend (Vite/React) with a node editor for the rule set.
+Cinema 4D 2024 plugin for any kind of project: **analyzes** the scene for
+insights, **normalizes object names**, **optimizes structure** (groups like
+Cameras/Lights), and manages assets, materials & textures. Two UIs on the same
+logic: native C4D dialog **and** a web frontend (Vite/React) with a node editor
+for the rule set.
 
-Tested against the user's ~2.3 GB interior/archviz production scene.
+Tested against the user's ~2.3 GB production scene.
 
 **Key decision: plugin, NOT headless.** `c4dpy.exe` hangs on a license prompt →
 all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
