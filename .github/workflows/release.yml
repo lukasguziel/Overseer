@@ -2,8 +2,8 @@ name: Release
 
 # main IS the release branch: every push to main runs the gates, rebuilds the
 # zip and REPLACES the release of the version currently stamped in the repo
-# (the tag moves to the released commit). Day-to-day work happens on dev;
-# merging dev -> main publishes. Tag push and workflow_dispatch remain as
+# (the tag moves to the released commit). Work happens on feature/* branches;
+# a PR merged into main publishes. Tag push and workflow_dispatch remain as
 # manual fallbacks. Curated notes are written afterwards with
 # `gh release edit` and survive asset refreshes.
 
