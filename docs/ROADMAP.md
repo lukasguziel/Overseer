@@ -1,6 +1,6 @@
 # Roadmap to 1.0
 
-Current release: **1.0.0** (first stable release).
+Current release: **1.1.0** (leaner core: retired structure/rules era removed).
 This file turns the beta feedback into concrete, ordered features. Check items
 off as they ship; when the list is done we cut 1.0.
 
