@@ -62,25 +62,28 @@ this skill at the top:
 1. Title + bold one-sentence pitch ("Keep your Cinema 4D scenes organized …").
    No version mention, no audience narrowing (applies to all project
    types), no sample-scene note.
-2. Intro paragraph: what the tool does + the trust sentence (preview first,
+2. Trailer embed (KEEP verbatim — GitHub cannot embed a playable YouTube
+   iframe, so it is a clickable thumbnail + link):
+   `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
+   followed by the `▶ **[Watch the trailer](…)**` line.
+3. Intro paragraph: what the tool does + the trust sentence (preview first,
    per-row, undoable, logged).
-3. Overview screenshot (`docs/screenshots/overview.png`).
-4. "What it does": link to docs/FEATURES.md, then EXACTLY ONE bullet
+4. Overview screenshot (`docs/screenshots/overview.png`).
+5. "What it does": link to docs/FEATURES.md, then EXACTLY ONE bullet
    sentence per tab (**Tab** — what it does). No "why" justifications.
-5. Installation — noob-friendly, three steps, NO technical details
+6. Installation — noob-friendly, three steps, NO technical details
    (no IP/localhost/port mention, no server window, no Program Files
    paragraph): download the release zip → unzip and copy the `Overseer`
    folder into the Cinema 4D `plugins` folder → restart Cinema, `Shift+C`,
    search for "Overseer".
-6. License: one paragraph — custom "Overseer License": free for private
+7. License: one paragraph — custom "Overseer License": free for private
    and commercial projects, modification for own use ok; no selling, no
    bundling into paid products, no redistribution as your own work; link to
-   `LICENSE`. (Sits BEFORE Development — the mirror cuts Development
-   through Support out, License must survive the cut.)
-7. Development: test commands, note that `main` is the release branch
-   (every push replaces the release of the stamped version; work happens
-   on `dev`), reference to CLAUDE.md/docs.
-8. **Support** (buy-me-a-coffee + issues) — stays the last section.
+   `LICENSE`.
+8. Development: test commands, note that `main` is the protected release
+   branch (a PR into it replaces the release of the stamped version; work
+   happens on `dev`/feature branches), reference to CLAUDE.md/docs.
+9. **Support** (buy-me-a-coffee + issues) — stays the last section.
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**
 

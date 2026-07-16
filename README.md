@@ -9,6 +9,10 @@
 **Keep your Cinema 4D scenes organized — clean names, tidy structure, no
 dead weight.**
 
+[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
+
+▶ **[Watch the trailer](https://www.youtube.com/watch?v=jsoKxY_QdG0)**
+
 Overseer is a Cinema 4D plugin for any kind of project. It analyzes
 your scene and helps you keep it in shape: consistent object names,
 translated wording, layers, tags, generator settings, external files and
@@ -73,9 +77,10 @@ cd frontend && pnpm run build    # web UI -> src/web/
 powershell -File .claude/skills/deploy/deploy.ps1      # copy into the C4D plugin dir
 ```
 
-`main` is the release branch: every push to it rebuilds the zip and refreshes
-the release of the version stamped in the repo (day-to-day work happens on
-`dev`). Architecture, conventions and module docs: [CLAUDE.md](CLAUDE.md)
+`main` is the protected release branch: every merge into it rebuilds the zip
+and refreshes the release of the version stamped in the repo. Day-to-day work
+happens on `dev` and feature branches; changes land via pull request.
+Architecture, conventions and module docs: [CLAUDE.md](CLAUDE.md)
 and [docs/](docs/).
 
 ## Support

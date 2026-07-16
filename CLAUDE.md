@@ -21,7 +21,7 @@ object names**, and **optimizes structure** (groups like Cameras/Lights/
 Furniture/Exterior). Two UIs on the same logic: native C4D dialog **and** a web
 frontend (Vite/React) with a node editor for the rule set.
 
-User's production scene: `D:\3D\PROJECTS\01 - SAMPLE\sample_0070.c4d` (~2.3 GB).
+Tested against the user's ~2.3 GB interior/archviz production scene.
 
 **Key decision: plugin, NOT headless.** `c4dpy.exe` hangs on a license prompt →
 all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
@@ -83,12 +83,10 @@ tests/                    pytest, runs WITHOUT c4d
                           Overseer-<version>.zip and replaces the release of the
                           version stamped in the repo (tag moves along; version
                           gate checks pyproject/__init__/package.json agree).
-                          Work happens on dev; merge dev -> main to publish.
-.github/workflows/mirror.yml  auto-mirror to the public repo lukasguziel/overseer
-                          (the public data source, no code): releases (called by
-                          release.yml + on `release: edited`) and README/FEATURES/
-                          screenshots on every main push (needs MIRROR_TOKEN secret).
-                          This dev repo is Goodsoup-Family-Crypt/overseer.
+                          main is PROTECTED (PR + green CI required, no direct
+                          push): work happens on dev/feature branches, a PR into
+                          main publishes. The repo is lukasguziel/overseer (public
+                          home of code, issues and releases — no mirror anymore).
 .claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + overseer/ +
                           presets/ + plans/ + web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)
