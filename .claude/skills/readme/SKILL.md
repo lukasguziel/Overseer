@@ -66,7 +66,9 @@ this skill at the top:
    types), no sample-scene note.
 2. Badge row + trailer embed (KEEP both verbatim): four shields.io badges —
    Trailer (YouTube link), Download (releases/latest), Docs
-   (docs/FEATURES.md), Cinema 4D 2024 — followed by the clickable trailer
+   (docs/FEATURES.md), Cinema 4D "2023 | 2024" (the tested versions —
+   extend the badge when a new C4D version is verified; never a bare
+   single-version pin) — followed by the clickable trailer
    thumbnail (GitHub cannot embed a playable YouTube iframe):
    `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
 3. Intro paragraph: what the tool does + the trust sentence (preview first,
@@ -86,7 +88,8 @@ this skill at the top:
 8. Development: test commands, note that `main` is the protected release
    branch (a PR into it replaces the release of the stamped version; work
    happens on `dev`/feature branches), reference to AGENTS.md/docs.
-9. **Support** (buy-me-a-coffee + issues) — stays the last section.
+9. **Support** — stays the last section, keep it minimal: the shields.io
+   "Support me" PayPal badge (donate link, no prose) + the GitHub Issues line.
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**
 
