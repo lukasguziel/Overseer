@@ -81,8 +81,8 @@ powershell -File .claude/skills/deploy/deploy.ps1      # copy into the C4D plugi
 ```
 
 `main` is the protected release branch: every merge into it rebuilds the zip
-and refreshes the release of the version stamped in the repo. Day-to-day work
-happens on `dev` and feature branches; changes land via pull request.
+and refreshes the release of the version stamped in the repo. All work happens
+on `feature/<topic>` branches; changes land via pull request.
 Architecture, conventions and module docs: [AGENTS.md](AGENTS.md)
 and [docs/](docs/).
 

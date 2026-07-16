@@ -5,10 +5,11 @@ maintain.
 
 ## Branch model
 
-- **`main` is the protected release branch.** Every merge into it rebuilds
-  the release zip and ships it to users — pull requests never target `main`.
-- **Target `dev` with your PR**, from a `feature/<topic>` branch in your
-  fork. The maintainer merges `dev` into `main` when a release is cut.
+- **`main` is the protected release branch** — every merge into it rebuilds
+  the release zip and ships it to users, so PRs are merged only when they
+  are release-ready.
+- **Open your PR against `main`**, from a `feature/<topic>` branch in your
+  fork. There is no permanent dev branch.
 
 ## Before you open a PR
 
