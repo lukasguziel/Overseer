@@ -12,7 +12,7 @@ dead weight.**
 [![Trailer](https://img.shields.io/badge/%E2%96%B6%20Trailer-watch-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
 [![Download](https://img.shields.io/badge/Download-latest%20release-2ea44f?logo=github&logoColor=white)](https://github.com/lukasguziel/overseer/releases/latest)
 [![Docs](https://img.shields.io/badge/Docs-feature%20tour-0969da?logo=readthedocs&logoColor=white)](docs/FEATURES.md)
-[![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2024-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
+[![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2023%20%7C%202024-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
 
 [![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
 
@@ -88,10 +88,6 @@ and [docs/](docs/).
 
 ## Support
 
-Overseer is built at night, fueled by coffee, next to real
-production deadlines. If it saved you an hour of renaming `Cube.1`:
-
-**[♥ Buy me a coffee](https://www.paypal.com/paypalme/LukasGuziel)** — every
-donation keeps the updates coming.
+[![Support me](https://img.shields.io/badge/Support_me-PayPal-red.svg)](https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE)
 
 Bugs & feature requests: [GitHub Issues](https://github.com/lukasguziel/overseer/issues).

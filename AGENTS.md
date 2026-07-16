@@ -17,7 +17,7 @@ READ the matching guide BEFORE working in that package:
 
 ## What this is
 
-Cinema 4D 2024 plugin for any kind of project: **analyzes** the scene for
+Cinema 4D plugin (tested with 2023 & 2024) for any kind of project: **analyzes** the scene for
 insights, **normalizes object names**, **optimizes structure** (groups like
 Cameras/Lights), and manages assets, materials & textures. Two UIs on the same
 logic: native C4D dialog **and** a web frontend (Vite/React) with a node editor
@@ -80,7 +80,10 @@ frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, componen
                           (.section-head, sidebar text ranks, buttons, colour meaning).
                           READ BEFORE touching CSS — reuse a block, never fork a near-copy.
 tests/                    pytest, runs WITHOUT c4d
-.github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.12), frontend-lint (tsc), frontend-test (vitest + vite build); runs on dev + main + PRs
+.github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.11 =
+                          C4D 2024 runtime; ruff enforces 3.9 syntax = C4D 2023),
+                          frontend-lint (tsc), frontend-test (vitest + vite build);
+                          runs on dev + main + PRs
 .github/workflows/release.yml  main = RELEASE BRANCH: every main push gates, builds
                           Overseer-<version>.zip and replaces the release of the
                           version stamped in the repo (tag moves along; version
