@@ -26,20 +26,20 @@ cross-request scene cache on the `overseer` package. The server port and
 `core/defaults.py`). Changing `bridge/` itself requires a full C4D restart.
 
 ### config.py
-Pure. `config.json` schema 3; `migrate_config()` reads v1/v2/v3 forever (v1
-`prefixes`/`groups` -> rules/structure; v2 flat keep lists -> per-section `keeps`
-map). `load_config()` merges over `DEFAULT_CONFIG`, compiles the rule set, and
-builds the `NamingConvention` + `StructureStandard`. `Config.keep_names` /
-`accepted_unused` are aliases for pre-schema-3 call sites. `DEFAULT_CONFIG` also
-carries the server settings `port` (from `core/defaults.DEFAULT_PORT`) and
-`listen_lan`; `MACHINE_LOCAL_KEYS` names them so webapi keeps them out of
-presets and preserves them when applying one.
+Pure. `config.json` schema 3; `migrate_config()` reads old files forever:
+it folds v2 flat keep lists (`keep_names`/`accepted_unused`) into the
+per-section `keeps` map and silently DROPS the retired rule-engine/preset era
+keys (`structure`, `rules`, `graph`, `preset`, `prefixes`, `groups`).
+`load_config()` merges over `DEFAULT_CONFIG` and builds the
+`NamingConvention`. `Config.keep_names` / `accepted_unused` are aliases for
+pre-schema-3 call sites. `DEFAULT_CONFIG` also carries the server settings
+`port` (from `core/defaults.DEFAULT_PORT`) and `listen_lan`;
+`MACHINE_LOCAL_KEYS` names them as machine-local.
 
 ## Subpackages
 - core/ â€” pure domain logic (see [core.md](core.md))
 - cinema/ â€” c4d host glue (see [cinema.md](cinema.md))
 - naming/ â€” naming convention pipeline (see [naming.md](naming.md))
-- structure/ â€” group standard + rule engine (see [structure.md](structure.md))
 
 ## Conventions & gotchas
 - Only `cinema/` and `bridge/` import `c4d`; nothing else may, so tests import

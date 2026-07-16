@@ -58,7 +58,7 @@
 
 /* Modern-techy: panels/cards snap in hard and short on a switch. */
 @keyframes techIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.overview, .workbench, .assets, .misc, .rf-canvas { animation: techIn 110ms var(--ease) both; }
+.overview, .workbench, .assets, .misc { animation: techIn 110ms var(--ease) both; }
 .card, .tile, .wb-preview, .asset-table-wrap { animation: techIn 90ms var(--ease) both; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 body { margin: 0; background: var(--bg); color: var(--text);
@@ -1226,13 +1226,6 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 /* …unless the buttons should just sit next to each other at their own width. */
 .btns.btns-auto { flex-wrap: wrap; }
 .btns.btns-auto button { flex: none; }
-.preset-list { display: flex; flex-direction: column; gap: 8px; }
-.preset { display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
-.preset.on { border-color: var(--accent); }
-.preset-main { flex: 1; min-width: 0; }
-.preset-badge { margin-left: 8px; font-size: 10px; font-weight: 700; color: #06121a;
-  background: var(--accent); border-radius: 10px; padding: 1px 7px; vertical-align: middle; }
 
 /* ---------- Crash / Error boundary ---------- */
 .crash { max-width: 760px; margin: 40px auto; padding: 20px 24px; background: #3a2726;
@@ -1248,27 +1241,6 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .empty-state { text-align: center; color: var(--dim); padding: 80px 20px; }
 .empty-state p { margin-bottom: 16px; }
 .empty-state button { width: auto; }
-
-/* ---------- Node-Editor ---------- */
-.rf-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.rf-toolbar button { width: auto; }
-.rf-toolbar .status { margin-left: auto; }
-.rf-canvas { height: 66vh; border: 1px solid var(--line); border-radius: var(--radius);
-  overflow: hidden; background: var(--sunken); }
-.rf-hint { color: var(--dim); margin-top: 12px; font-size: 12px; }
-.rf-node { background: var(--panel2); border: 1px solid; border-radius: 8px;
-  min-width: 170px; font-size: 12px; overflow: hidden; }
-.rf-head { display: flex; justify-content: space-between; align-items: center;
-  padding: 4px 8px; color: #10141a; font-weight: 600; }
-.rf-x { background: transparent; border: none; color: #10141a; cursor: pointer;
-  font-size: 15px; line-height: 1; padding: 0 2px; box-shadow: none; }
-.rf-x:hover { box-shadow: none; opacity: .6; }
-.rf-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.rf-body label { display: flex; flex-direction: column; gap: 2px; margin: 0; color: var(--dim); }
-.rf-body input, .rf-body select, .rf-body textarea {
-  background: var(--bg); color: var(--text); border: 1px solid var(--line);
-  border-radius: 5px; padding: 4px; font: inherit; width: 100%; margin: 0; }
-.react-flow__handle { width: 10px; height: 10px; background: var(--accent); border: none; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
@@ -1534,24 +1506,6 @@ table.diff .arrow { color: var(--accent); width: 1px; padding: 4px 4px; }
 .gtip-top::after { bottom: -6px; border-top: none; border-left: none; }
 .gtip-bottom::after { top: -6px; border-bottom: none; border-right: none; }
 
-/* ---------- Guided mode (card flow) ---------- */
-.guide-toggle-bar { display: flex; justify-content: flex-end; }
-.guide { display: flex; flex-direction: column; gap: 14px;
-  padding: 18px 20px; border-radius: 12px;
-  background: var(--panel, #242427); border: 1px solid var(--line, #3a3a3e); }
-.guide-progress { display: flex; align-items: center; gap: 10px;
-  font-size: 11px; color: var(--dim, #9a9aa2); font-variant-numeric: tabular-nums; }
-.guide-bar { flex: 1; height: 4px; border-radius: 3px; background: var(--panel2, #2e2e30); overflow: hidden; }
-.guide-bar-fill { display: block; height: 100%; background: var(--accent); transition: width 140ms var(--ease); }
-.guide-exit { background: transparent; border: none; color: var(--dim2, #6f6f76); cursor: pointer; font-size: 13px; }
-.guide-exit:hover { color: var(--text, #e8e8ea); }
-.guide-headline { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
-.guide-body { font-size: 13px; line-height: 1.55; color: var(--dim, #9a9aa2); }
-.guide-actions { display: flex; gap: 8px; }
-.guide-skip { margin-left: auto; }
-.guide-done { font-size: 14px; padding: 8px 0; }
-.guide-foot { display: flex; justify-content: flex-end; }
-
 /* ---------- Translate tab: detected-language rows ---------- */
 .grouplist li.lang-dom b { color: var(--accent); }
 .grouplist li span { font-variant-numeric: tabular-nums; }
@@ -1591,37 +1545,3 @@ table.diff td:last-child { text-align: right; }
 .zoom-head h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
   color: var(--dim); margin: 0; }
 
-/* ---- "Take my hand" guided mode -------------------------------------- */
-.tabs-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.tabs-right .area-score { margin-left: 0; }
-.hand-nav-btn { width: 30px; height: 30px; padding: 0; display: inline-flex;
-  align-items: center; justify-content: center; font-size: 16px; line-height: 1;
-  background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
-  cursor: pointer; }
-.hand-nav-btn:hover { border-color: var(--accent); transform: none; }
-
-.hand-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .55);
-  display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-.hand-box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-  width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 60px); overflow: auto;
-  padding: 20px 22px; box-shadow: 0 16px 50px rgba(0, 0, 0, .5); }
-.hand-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.hand-head h2 { margin: 0; font-size: 16px; }
-.hand-icon { font-size: 22px; line-height: 1; }
-.hand-loading { color: var(--dim); font-size: 13px; padding: 18px 0; }
-
-.hand-area { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 999px;
-  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
-  background: var(--panel2); border: 1px solid var(--line); color: var(--dim);
-  vertical-align: 2px; }
-.hand-examples { display: flex; flex-direction: column; gap: 4px; }
-.hand-ex { display: flex; gap: 8px; align-items: baseline; font-size: 12px; min-width: 0; }
-.hand-ex .rn-old, .hand-ex .rn-new { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hand-more { color: var(--dim2); font-size: 11px; margin-top: 4px; }
-.hand-areas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
-.hand-area-chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
-  color: var(--dim); font: inherit; font-size: 11px; padding: 3px 11px; cursor: pointer; }
-.hand-area-chip em { font-style: normal; color: var(--dim2); font-size: 10px; }
-.hand-area-chip:hover:not(.on) { color: var(--text); border-color: var(--dim); }
-.hand-area-chip.on { background: var(--accent); border-color: transparent; color: #06121a; }
-.hand-area-chip.on em { color: #06121a; opacity: .7; }

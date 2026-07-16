@@ -33,16 +33,13 @@ def test_analyze_casing_and_language(sample_tree):
     assert sum(report.language.values()) == report.object_count
 
 
-def test_analyze_groups_and_structure(std, sample_tree):
+def test_analyze_groups(sample_tree):
     # do it
-    report = SceneAnalyzer(std).analyze(sample_tree)
+    report = SceneAnalyzer().analyze(sample_tree)
 
     # postcondition
     assert report.lights_by_group.get("Lights") == 2
     assert report.cameras_by_group.get("KAMERA MAIN") == 1  # loose camera is its own top group
-    assert 0.0 <= report.structure_compliance <= 1.0
-    misplaced_names = {m["name"] for m in report.misplaced}
-    assert "Sofa" in misplaced_names
 
 
 def test_analyze_layers():
@@ -89,4 +86,4 @@ def test_to_dict_serializable(sample_tree):
     s = json.dumps(report.to_dict())
 
     # postcondition
-    assert "structure_compliance" in s
+    assert "layers_by_name" in s

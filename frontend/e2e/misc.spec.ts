@@ -114,7 +114,7 @@ test('an analysis-history row expands to its snapshot metrics', async ({ page })
   await expect(firstRow.locator('table.ch-items')).toBeVisible()
   await expect(firstRow).toContainText('objects')
   await expect(firstRow).toContainText('polygons')
-  await expect(firstRow).toContainText('structure')
+  await expect(firstRow).toContainText('size')
 })
 
 test('clearing the analysis log empties it and reports a status', async ({ page }) => {

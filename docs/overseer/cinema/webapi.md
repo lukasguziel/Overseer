@@ -70,27 +70,6 @@ All module constants live in one block at the top.
   (scope/visibility aware). Layers present in the scene but missing from metadata
   are appended so no assignment is lost.
 - `_read_config_data()` — loads `config.json` as a raw dict (best-effort).
-- `_preset_settings(data)` — extracts the settings payload from a preset: v2
-  (`settings` key) or v1 (top-level minus `meta`).
-- `_list_presets()` — all `presets/*.json` with meta + rule/group summary
-  (migrated on the fly).
-- `_slugify(name)` — filename-safe slug (falls back to "preset").
-- `_save_preset(name, description, overwrite=False)` — snapshots the CURRENT
-  config.json as a v2 preset file; strips the `preset` key (a snapshot is not
-  derived from anything) and the `config.MACHINE_LOCAL_KEYS` (`port`,
-  `listen_lan` — presets are portable standards, not machine setup); refuses to
-  clobber unless `overwrite`.
-- `_delete_preset(preset_id)` — removes a preset file by id/name.
-- `_load_preset(preset_id)` / `_load_plan(plan_id)` — load by id or file name
-  (best-effort).
-- `_list_plans()` — restructuring plans (`plans/*.json`) with short info.
-- `_apply_preset(preset_id)` — writes the preset's settings snapshot VERBATIM to
-  config.json. v2 presets carry a full snapshot incl. the node-editor graph, so
-  manual graph layouts survive round trips; only a missing graph is regenerated.
-  v1 preset files are migrated on the fly (and get a generated graph).
-  `MACHINE_LOCAL_KEYS` are always taken from the CURRENT config (never from the
-  preset), so applying a preset cannot change this machine's port or flip its
-  LAN exposure.
 - `_load_cfg()` — loads config and registers `extra_translations`; returns
   (cfg, raw data).
 - `_convention(settings, cfg)` — builds a `NamingConvention` from casing +
@@ -134,22 +113,13 @@ Single entry point dispatching on `payload["op"]` against the active document
   blob for it. Backed by `cinema/ui_settings.py`, one JSON per project under
   `DATA_DIR/configs/<slug>.json` (slug = `core/ui_settings_logic.project_slug`
   of the doc path + name; unsaved docs with neither are skipped). Only the
-  known, well-typed keys survive (`sanitize_ui`). Separate from presets: presets
-  are named GLOBAL snapshots, these files are the silent per-project memory.
+  known, well-typed keys survive (`sanitize_ui`) — the silent per-project
+  memory.
 - `history` — reversed history list.
-- `presets` / `apply_preset` / `save_preset` / `delete_preset` — preset CRUD.
-- `plan_all` / `apply_all` — one-button combined plan (naming+structure+layers,
-  one tree read). `apply_all` re-plans server-side on a fresh tree; guids sent by
-  the client are trusted only as accept filters within the request, then applied
-  via `apply_bundle` (one undo).
-- `plans` / `apply_plan` — list plans; apply a deterministic plan (inline or by
-  id) via `adapter.apply_plan`.
 - `focus` — select + frame an object by guid.
 - `delete_material` / `delete_unused_materials` / `fix_textures_relative` —
   material and texture-path maintenance.
 - `detect` — detect the naming scheme from scene names.
-- `rules` — active group rules, structure, declarative rules, prefixes,
-  convention.
 - `config` — read config (+ defaults) or, with `save`, write the posted data to
   config.json.
 - `plan_naming` / `apply_naming` — plan/apply casing+numbering renames. The web
@@ -157,8 +127,6 @@ Single entry point dispatching on `payload["op"]` against the active document
   leave the rename worklist (they keep their names and still block
   numbers/dedupe as siblings). Defaults to true so API callers without the flag
   keep planning everything.
-- `plan_structure` / `apply_structure` — plan/apply reparents honoring scope,
-  safety filter, and tidy; reports skipped count.
 - `plan_translate` / `apply_translate` — standalone translation with its own
   target language (independent of the naming convention). Apply only renames the
   user-accepted guids.

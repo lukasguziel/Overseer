@@ -7,7 +7,6 @@ from overseer.naming.casing import Casing, detect_casing
 from overseer.naming.convention import NamingConvention
 from overseer.naming.detect import detect_style
 from overseer.naming.translate import translate_preserving
-from overseer.structure.standard import StructureStandard
 
 # -- model: aggregates, traversal, lookup ----------------------------------
 
@@ -50,12 +49,12 @@ def test_tree_find_hit_and_miss():
 
 # -- analyzer: polygon stats / largest assets ------------------------------
 
-def test_analyzer_counts_polygons(std):
+def test_analyzer_counts_polygons():
     # setup
     tree, _, _ = _geo_tree()
 
     # do it
-    report = SceneAnalyzer(std).analyze(tree, file_name="geo.c4d")
+    report = SceneAnalyzer().analyze(tree, file_name="geo.c4d")
 
     # postcondition
     assert report.total_polys == 3
@@ -64,10 +63,10 @@ def test_analyzer_counts_polygons(std):
     assert report.largest and report.largest[0]["name"] in ("Leaf", "Group")
 
 
-def test_analyzer_scope_narrows_all_stats(std, sample_tree):
+def test_analyzer_scope_narrows_all_stats(sample_tree):
     # do it: scope = the "Lights" container subtree (guids 0..2 in the fixture)
-    full = SceneAnalyzer(std).analyze(sample_tree)
-    scoped = SceneAnalyzer(std).analyze(sample_tree, scope={0, 1, 2})
+    full = SceneAnalyzer().analyze(sample_tree)
+    scoped = SceneAnalyzer().analyze(sample_tree, scope={0, 1, 2})
 
     # postcondition
     assert scoped.object_count == 3 < full.object_count
@@ -75,16 +74,6 @@ def test_analyzer_scope_narrows_all_stats(std, sample_tree):
     assert "camera" not in scoped.categories
     assert len(scoped.nodes) == 3
     assert [t["name"] for t in scoped.top_level] == ["Lights"]  # topmost scoped node replaces tree.roots in top_level
-    assert all(m["name"] != "KAMERA MAIN" for m in scoped.misplaced)  # misplaced findings outside the scope disappear
-    assert 0.0 <= scoped.structure_compliance <= 1.0  # compliance is scoped
-
-
-def test_analyzer_scope_compliance_of_clean_subset(std, sample_tree):
-    # do it
-    scoped = SceneAnalyzer(std).analyze(sample_tree, scope={1, 2})
-
-    # postcondition: only the correctly grouped lights -> full compliance within the scope
-    assert scoped.structure_compliance == 1.0
 
 
 # -- naming/detect: mixed & empty names ------------------------------------
@@ -137,43 +126,17 @@ def test_plan_layers_respects_scope():
     assert [o.guid for o in planned] == [2]
 
 
-def test_plan_reparents_respects_scope(std, sample_tree):
-    # do it
-    all_ops = ops.plan_reparents(sample_tree, std, safe_only=False, tidy=False)
-    scoped = ops.plan_reparents(sample_tree, std, scope=set(),
-                                safe_only=False, tidy=False)
-
-    # postcondition
-    assert all_ops  # sample tree contains misplaced objects
-    assert scoped == []
-
-
-def test_plan_renames_skips_prefix_only_name():
+def test_plan_renames_skips_unnormalizable_name():
     # setup
     conv = NamingConvention(style=Casing.UPPER_SNAKE, language=None, number_pad=2)
-    bare = node("L_", model.CAT_LIGHT, guid=1)  # strips to empty base
+    bare = node("_", model.CAT_LIGHT, guid=1)  # normalizes to an empty base
     tree = model.SceneTree(roots=[bare])
 
     # do it
-    planned = ops.plan_renames(tree, conv, prefixes={model.CAT_LIGHT: "L_"})
+    planned = ops.plan_renames(tree, conv)
 
     # postcondition
     assert planned == []
-
-
-# -- structure: empty scene, canonical group of None -----------------------
-
-def test_compliance_is_full_on_empty_scene(std):
-    # do it
-    report = std.evaluate(model.SceneTree(roots=[]))
-
-    # postcondition
-    assert report.compliance == 1.0
-
-
-def test_canonical_group_none_passthrough():
-    # postcondition
-    assert StructureStandard([]).canonical_group(None) is None
 
 
 # -- translate: casing transfer branches -----------------------------------

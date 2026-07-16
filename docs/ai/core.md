@@ -27,11 +27,6 @@ nearest ancestor's layer. `is_safe_to_reparent()`: only root/Null children move.
 (counts, categories, poly/point stats, multi-language name detection across all
 bundled dictionary packs).
 
-### pipeline.py
-`plan_combined()` runs naming + structure + layers in a single tree read and
-returns a `CombinedPlan`; `filter_accepted()` narrows it to accepted rows.
-Backend of the one-button plan_all/apply_all flow.
-
 ### keeps.py
 Per-section "accepted as-is" lists. `empty_keeps`/`normalize_keeps`/
 `set_section_keeps` normalise a config `keeps` value into a sorted, deduped map;

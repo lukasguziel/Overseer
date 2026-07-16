@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Organizer } from '../hooks/useOrganizer'
-import type { ChangeEntry, ChangeItem } from '../types'
+import type { ChangeEntry } from '../types'
 import ChangeHistory from './ChangeHistory'
 import SectionIntro from './SectionIntro'
 import './AcceptedSection.css'
@@ -9,30 +9,21 @@ import { plural } from '../lib/format'
 // The change history of ONE area, at the foot of the tab where those changes
 // are made: only the runs that touched this area, revertible right here. The
 // complete cross-area log stays on the Misc tab.
-//
-// A one-click run (apply_all) mixes areas inside a single entry — `field`
-// names the op field that belongs here ('name' | 'parent' | 'layer'), and the
-// entry is shown (and run-reverted) reduced to exactly those ops.
 
-export function areaChanges(changes: ChangeEntry[], kinds: string[],
-  field?: ChangeItem['field']): ChangeEntry[] {
-  return changes.filter((e) =>
-    kinds.includes(e.kind)
-    || (field != null && e.kind === 'apply_all'
-      && e.items.some((it) => it.field === field)))
+export function areaChanges(changes: ChangeEntry[], kinds: string[]): ChangeEntry[] {
+  return changes.filter((e) => kinds.includes(e.kind))
 }
 
 // "10:42:07" from a "YYYY-MM-DD HH:MM:SS" timestamp.
 const clock = (at: string) => (at.length >= 19 ? at.slice(11, 19) : at)
 
-export default function AreaHistory({ org, area, kinds, field }: {
+export default function AreaHistory({ org, area, kinds }: {
   org: Organizer
   area: string                  // area name for the intro copy ("naming", …)
   kinds: string[]               // journal kinds that belong to this area
-  field?: ChangeItem['field']   // this area's ops inside a mixed one-click run
 }) {
   const [open, setOpen] = useState(false)
-  const changes = areaChanges(org.changes, kinds, field)
+  const changes = areaChanges(org.changes, kinds)
   if (changes.length === 0) return null
   return (
     <>
@@ -50,7 +41,7 @@ export default function AreaHistory({ org, area, kinds, field }: {
         </div>
         {open && (
           <div className="kept-groups">
-            <ChangeHistory changes={changes} onRevert={org.doRevertChange} field={field} />
+            <ChangeHistory changes={changes} onRevert={org.doRevertChange} />
           </div>
         )}
       </section>

@@ -18,9 +18,8 @@ const PORT = Number(process.argv[2] || 8899)
 const OUT = join(fileURLToPath(new URL('.', import.meta.url)),
   '..', '..', '..', '..', 'docs', 'screenshots')
 
-// [tab nav label, output file, prepare?]; Structure/Rules are parked
-// ("soon") -> skipped. `prepare` runs after the tab is opened, before the
-// shot — e.g. the Translate tab demonstrates English -> French, which needs
+// [tab nav label, output file, prepare?]. `prepare` runs after the tab is
+// opened, before the shot — e.g. the Translate tab demonstrates English -> French, which needs
 // the Google engine selected (offline only offers EN/DE targets).
 const TABS = [
   ['Overview', 'overview.png'],

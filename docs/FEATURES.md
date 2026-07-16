@@ -10,8 +10,7 @@ Every area of the Overseer web UI in detail. All changes across the
 tool follow the same workflow: **preview first**, accept or skip per row,
 batch actions always confirm with the exact count, apply as one undo step,
 and everything is logged in the change history. Every clickable setting is
-saved per project and restored when you reopen it; presets carry your
-convention across projects.
+saved per project and restored when you reopen it.
 
 ## Overview
 
