@@ -20,13 +20,12 @@ import { plural } from '../lib/format'
 // textures come back with the analysis, files with the files scan.
 type Group = { section: string; label: string; items: string[] }
 
-const KEEP_SECTIONS: KeepSection[] = ['naming', 'translate', 'layers', 'structure']
+const KEEP_SECTIONS: KeepSection[] = ['naming', 'translate', 'layers']
 
 const LABELS: Record<string, string> = {
   naming: 'Naming',
   translate: 'Translate',
   layers: 'Layers',
-  structure: 'Structure',
   materials: 'Materials',
   textures: 'Textures',
   files: 'External files',
@@ -40,7 +39,6 @@ const TAB_SECTIONS: Record<string, string[]> = {
   naming: ['naming'],
   translate: ['translate'],
   layers: ['layers'],
-  structure: ['structure'],
   materials: ['materials', 'textures'],
   files: ['files'],
 }

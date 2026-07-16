@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 
 from ..naming import casing as naming
 from ..naming import translate as translatemod
-from ..structure.standard import StructureStandard, default_standard
 from . import model
 
 
@@ -26,8 +25,6 @@ class SceneReport:
     largest: list[dict] = field(default_factory=list)
     lights_by_group: dict[str, int] = field(default_factory=dict)
     cameras_by_group: dict[str, int] = field(default_factory=dict)
-    structure_compliance: float = 1.0
-    misplaced: list[dict] = field(default_factory=list)
     nodes: list[dict] = field(default_factory=list)
     hidden_count: int = 0
     layers_by_name: dict[str, int] = field(default_factory=dict)
@@ -51,8 +48,6 @@ class SceneReport:
             "largest": self.largest,
             "lights_by_group": self.lights_by_group,
             "cameras_by_group": self.cameras_by_group,
-            "structure_compliance": round(self.structure_compliance, 3),
-            "misplaced": self.misplaced,
             "nodes": self.nodes,
             "hidden_count": self.hidden_count,
             "layers_by_name": self.layers_by_name,
@@ -62,9 +57,6 @@ class SceneReport:
 
 
 class SceneAnalyzer:
-    def __init__(self, standard: StructureStandard = None) -> None:
-        self.standard = standard or default_standard()
-
     def analyze(self, tree: model.SceneTree, file_name: str = "",
                 scope: set | None = None,
                 include_hidden: bool = True) -> SceneReport:
@@ -170,20 +162,4 @@ class SceneAnalyzer:
             for r in (top_nodes if filtering else tree.roots)
         ]
         report.nodes = node_dicts
-
-        struct = self.standard.evaluate(tree)
-        misplaced = struct.misplaced
-        if not filtering:
-            report.structure_compliance = struct.compliance
-        else:
-            misplaced = [f for f in misplaced if f.guid in active_guids]
-            correct = [f for f in struct.correct if f.guid in active_guids]
-            total = len(misplaced) + len(correct)
-            report.structure_compliance = (
-                len(correct) / float(total) if total else 1.0)
-        report.misplaced = [
-            {"name": f.name, "category": f.category,
-             "current": f.current_group, "expected": f.expected_group}
-            for f in misplaced
-        ]
         return report

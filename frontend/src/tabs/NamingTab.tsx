@@ -229,7 +229,7 @@ export default function NamingTab({ org }: { org: Organizer }) {
       </div>
 
     <AcceptedPanel org={org} />
-    <AreaHistory org={org} area="naming" kinds={['naming']} field="name" />
+    <AreaHistory org={org} area="naming" kinds={['naming']} />
     </div>
   )
 }

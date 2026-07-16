@@ -98,7 +98,7 @@ function Deploy-To([string]$Dir) {
 
   # Loader + config template (the user's config.json is NOT overwritten)
   Step "overseer.pyp" { Copy-Item (Join-Path $src "overseer.pyp") $Dir -Force }
-  Step "so_logo.png" { Copy-Item (Join-Path $src "so_logo.png") $Dir -Force }
+  Step "logo.png" { Copy-Item (Join-Path $src "logo.png") $Dir -Force }
   Step "config.example.json" { Copy-Item (Join-Path $src "config.example.json") $Dir -Force }
 
   # No config.json seeding: src/config.json is a personal working config
@@ -124,28 +124,6 @@ function Deploy-To([string]$Dir) {
     Step "vendor/ (Pillow)" { Mirror $vendorSrc (Join-Path $Dir "vendor") }
   } else {
     Write-Host "  WARN: no vendor/ - texture resize falls back to the Cinema scaler" -ForegroundColor Yellow
-  }
-
-  # Merge presets: repo presets are copied in, but presets the user saved in
-  # the plugin ("Save current settings as preset") are NEVER deleted.
-  Step "presets/" {
-    $presetSrc = Join-Path $src "presets"
-    $presetDst = Join-Path $Dir "presets"
-    if (-not (Test-Path $presetDst)) { New-Item -ItemType Directory -Force -Path $presetDst | Out-Null }
-    if (Test-Path $presetSrc) {
-      Get-ChildItem $presetSrc -Filter *.json | Copy-Item -Destination $presetDst -Force
-    }
-  }
-
-  # Bring along restructuring plans (written by the skill), if present.
-  # The plans/ folder in the plugin is NOT deleted (user/skill artifacts).
-  $planSrc = Join-Path $src "plans"
-  if (Test-Path $planSrc) {
-    Step "plans/" {
-      $planDst = Join-Path $Dir "plans"
-      if (-not (Test-Path $planDst)) { New-Item -ItemType Directory -Force -Path $planDst | Out-Null }
-      Get-ChildItem $planSrc -Filter *.json | Copy-Item -Destination $planDst -Force
-    }
   }
 
   # Mirror web bundle (Vite build output)

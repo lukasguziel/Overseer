@@ -9,9 +9,12 @@
 **Keep your Cinema 4D scenes organized — clean names, tidy structure, no
 dead weight.**
 
-[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
+[![Trailer](https://img.shields.io/badge/%E2%96%B6%20Trailer-watch-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
+[![Download](https://img.shields.io/badge/Download-latest%20release-2ea44f?logo=github&logoColor=white)](https://github.com/lukasguziel/overseer/releases/latest)
+[![Docs](https://img.shields.io/badge/Docs-feature%20tour-0969da?logo=readthedocs&logoColor=white)](docs/FEATURES.md)
+[![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2023%20%7C%202024-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
 
-▶ **[Watch the trailer](https://www.youtube.com/watch?v=jsoKxY_QdG0)**
+[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
 
 Overseer is a Cinema 4D plugin for any kind of project. It analyzes
 your scene and helps you keep it in shape: consistent object names,
@@ -80,15 +83,11 @@ powershell -File .claude/skills/deploy/deploy.ps1      # copy into the C4D plugi
 `main` is the protected release branch: every merge into it rebuilds the zip
 and refreshes the release of the version stamped in the repo. Day-to-day work
 happens on `dev` and feature branches; changes land via pull request.
-Architecture, conventions and module docs: [CLAUDE.md](CLAUDE.md)
+Architecture, conventions and module docs: [AGENTS.md](AGENTS.md)
 and [docs/](docs/).
 
 ## Support
 
-Overseer is built at night, fueled by coffee, next to real
-production deadlines. If it saved you an hour of renaming `Cube.1`:
-
-**[♥ Buy me a coffee](https://www.paypal.com/paypalme/LukasGuziel)** — every
-donation keeps the updates coming.
+[![Support me](https://img.shields.io/badge/Support_me-PayPal-red.svg)](https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE)
 
 Bugs & feature requests: [GitHub Issues](https://github.com/lukasguziel/overseer/issues).

@@ -110,7 +110,7 @@ jobs:
           pkg=dist/Overseer
           mkdir -p "$pkg"
           cp src/overseer.pyp "$pkg/"
-          cp src/so_logo.png "$pkg/"
+          cp src/logo.png "$pkg/"
           cp src/config.example.json "$pkg/"
           cp LICENSE "$pkg/"
           # The whole package, not just its top-level modules: overseer/ has
@@ -120,8 +120,6 @@ jobs:
           find "$pkg/overseer" -name __pycache__ -type d -prune -exec rm -rf {} +
           cp -r src/vendor "$pkg/vendor"
           find "$pkg/vendor" -name __pycache__ -type d -prune -exec rm -rf {} +
-          [ -d src/presets ] && cp -r src/presets "$pkg/presets"
-          if [ -d src/plans ]; then mkdir -p "$pkg/plans"; cp src/plans/*.json "$pkg/plans/" 2>/dev/null || true; fi
           cp -r src/web "$pkg/web"
 
       - name: Zip

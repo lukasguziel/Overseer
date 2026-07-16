@@ -73,7 +73,7 @@ def test_migrate_v1_to_v3_chains():
 
     # postcondition
     assert out["schema"] == config.CONFIG_SCHEMA_VERSION
-    assert out["rules"][0]["type"] == "prefix"
+    assert "prefixes" not in out
     assert out["keeps"]["naming"] == ["Kamera"]
 
 
@@ -89,11 +89,10 @@ def test_migrate_is_idempotent():
 def test_config_aliases_read_from_keeps():
     # do it
     cfg = config.load_config({"schema": 3, "keeps": {
-        "naming": ["Sofa"], "materials": ["Mat"], "structure": ["Wand"],
+        "naming": ["Sofa"], "materials": ["Mat"],
     }})
 
     # postcondition
     assert cfg.keep_names == {"Sofa"}
     assert cfg.accepted_unused == {"Mat"}
-    assert cfg.kept("structure") == {"Wand"}
     assert cfg.kept("translate") == set()

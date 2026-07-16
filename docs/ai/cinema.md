@@ -1,7 +1,7 @@
 # overseer.cinema — c4d host glue
 
 The only package (besides `bridge/`) that imports `c4d`. It bridges the live
-Cinema 4D document to the pure `overseer.core`/`naming`/`structure` domain logic:
+Cinema 4D document to the pure `overseer.core`/`naming` domain logic:
 reading the scene into a `SceneTree`, and applying renames / reparents / layer
 assignments / texture and tag / generator / simulation edits back onto the doc
 with undo. Never imported by tests.
@@ -47,7 +47,7 @@ The JSON API. Every op is a small `_op_*` handler in a registry: `_DOC_HANDLERS`
 cache for `_MUTATING_OPS` afterward; `netinfo` is answered before any doc access.
 `_get_scene()` caches `(adapter, tree)` on the `overseer` package keyed by the
 doc dirty counter; selection is re-read on every hit (dirty ignores selection).
-Owns preset/plan/config/journal file IO and the PER-PROJECT analysis log
+Owns config/journal file IO and the PER-PROJECT analysis log
 (`history/<project-slug>.json`, same slug as the UI settings; the flat
 `analysis_history.json` is the pre-split log and is still read as a seed), Google-translate online engine
 (stdlib urllib, persistent file cache — module globals do not survive hot-reload),
@@ -114,7 +114,7 @@ direct-write fallback.
   `overseer.*` except `bridge`), so module-level globals do NOT persist. Cross-
   request state must live either on the `overseer` package (scene/preview/icon
   caches — that package name is never purged) or in a file next to `config.json`
-  (Google translate cache, journal, history, presets).
+  (Google translate cache, journal, history).
 - The scene cache is keyed on `doc.GetDirty(OBJECT|DATA)`, which bumps on real
   edits but NOT on selection/camera moves and NOT on plain renames — so mutating
   ops explicitly `invalidate_scene_cache()` and selection is recomputed on every
@@ -129,7 +129,6 @@ direct-write fallback.
   holds the exact string.
 - Writable-dir probing: a Program Files install is read-only for the unelevated
   C4D process, so all writes go to the per-user prefs dir (`DATA_DIR`), while the
-  plugin dir stays the read-only source for shipped presets/plans and the seed
-  config.
+  plugin dir stays the read-only source for the seed config.
 
 Per-module prose: see the mirrored files under `docs/overseer/cinema/`.

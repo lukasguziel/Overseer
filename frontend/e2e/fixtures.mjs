@@ -118,7 +118,6 @@ export const report = {
   total_polys: 40312774,
   total_points: 20481930,
   file_size: Math.round(1.2 * GB),
-  structure_compliance: 0.62,
   analyzed_at: '2026-07-08 19:42:00',
   types: {
     Polygon: 1204, Null: 216, 'Area Light': 31, 'Spot Light': 7, Camera: 6,
@@ -128,7 +127,6 @@ export const report = {
   casing: { PascalCase: 812, Capitalized: 393, lower: 388, mixed: 254 },
   language: { en: 1288, unknown: 421, de: 138 },
   nodes,
-  misplaced: Array.from({ length: 37 }, (_, i) => ({ guid: 900 + i })),
   hidden_count: 23,
   include_hidden: false,
   dirty: 4211,
@@ -266,54 +264,15 @@ export const planLayers = {
   ],
 }
 
-export const planStructure = {
-  ok: true,
-  count: 5,
-  skipped: 2,
-  kept: ['OldSet_backup'],
-  diff: [
-    { guid: g('plant_large'), name: 'plant_large', from: null, to: 'Deco' },
-    { guid: g('deco_vase'), name: 'deco_vase', from: null, to: 'Deco' },
-    { guid: g('PictureFrame_Set'), name: 'PictureFrame_Set', from: null, to: 'Deco' },
-    { guid: g('Cam_Wide'), name: 'Cam_Wide', from: 'Cameras', to: 'Cameras' },
-    { guid: g('cable_duct'), name: 'cable_duct', from: null, to: 'Utility' },
-  ],
-}
-
-export const rules = {
-  ok: true,
-  groups: [
-    { name: 'Cameras', priority: 90 },
-    { name: 'Lights', priority: 85 },
-    { name: 'Deco', priority: 50 },
-    { name: 'Utility', priority: 40 },
-  ],
-}
-
-export const presets = {
-  ok: true,
-  active: 'my-interior',
-  presets: [
-    { id: 'my-interior', name: 'My Interior Style', rules: 4,
-      description: 'Personal convention learned from 3 archviz projects: PascalCase, 2-digit numbering.',
-      created_at: '2026-06-30 14:12:00',
-      groups: ['Cameras', 'Lights', 'Deco', 'Utility'] },
-    { id: 'studio-strict', name: 'Studio Strict', rules: 7,
-      description: 'Strict delivery preset: English names, LGT_/CAM_ prefixes, layers per type.',
-      created_at: '2026-05-18 09:30:00',
-      groups: ['Cameras', 'Lights', 'Furniture', 'Architecture'] },
-  ],
-}
-
 export const history = {
   ok: true,
   history: [
     { file: 'penthouse_loft_final.c4d', at: '2026-07-06 11:02:11', ts: 1783418531,
-      objects: 1795, polys: 38102331, size: Math.round(1.14 * GB), compliance: 0.55 },
+      objects: 1795, polys: 38102331, size: Math.round(1.14 * GB) },
     { file: 'penthouse_loft_final.c4d', at: '2026-07-07 16:44:03', ts: 1783525443,
-      objects: 1831, polys: 39558214, size: Math.round(1.18 * GB), compliance: 0.58 },
+      objects: 1831, polys: 39558214, size: Math.round(1.18 * GB) },
     { file: 'penthouse_loft_final.c4d', at: '2026-07-08 19:42:00', ts: 1783622520,
-      objects: 1847, polys: 40312774, size: Math.round(1.2 * GB), compliance: 0.62 },
+      objects: 1847, polys: 40312774, size: Math.round(1.2 * GB) },
   ],
 }
 

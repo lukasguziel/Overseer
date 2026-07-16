@@ -145,12 +145,11 @@ Bidirectional bridge document <-> SceneTree.
   same-named material is in use.
 - `delete_unused_materials()` — deletes ALL currently unused materials in ONE
   undo step. Same name-based safety.
-- `ensure_group_path(path, created, canonical=None)` — find or create the null
+- `ensure_group_path(path, created)` — find or create the null
   chain for a group path like "Room/Furniture". Each segment is matched among
   the previous one's children (top level: document roots), reusing existing
-  containers, alias-aware via `canonical`. Missing segments are created
-  (undoable). `_match_group` matches a null by case-insensitive name or via the
-  canonical resolver, so an existing "Lichter" is reused for "Lights".
+  containers (case-insensitive name match). Missing segments are created
+  (undoable).
 - `_find_or_create_group(name, created)` — thin wrapper over `ensure_group_path`.
 - `apply_renames(renames)` — renames objects by guid in one undo step; skips
   guids no longer in the map.
@@ -159,22 +158,11 @@ Bidirectional bridge document <-> SceneTree.
 - `apply_layers(layerops)` — assigns type-axis layers without touching the
   hierarchy. Layers created on demand (colored). Only the layer assignment
   changes; the spatial null structure stays untouched.
-- `_do_reparents(reparents, created, canonical)` — reparent ops WITHOUT their own
-  undo bracket (shared by `apply_bundle`). Preserves world position by re-setting
+- `_do_reparents(reparents, created)` — reparent ops WITHOUT their own
+  undo bracket. Preserves world position by re-setting
   the global matrix after `InsertUnderLast`. Skips moving an object into itself.
-- `apply_reparents(reparents, canonical=None)` — `_do_reparents` wrapped in one
-  undo step.
-- `apply_bundle(renames, reparents, layerops, canonical=None)` — applies naming +
-  structure + layers in ONE undo step (single Ctrl+Z). Order: renames first (by
-  guid, order-independent), then reparents (may create group chains), then
-  layers. Backend of the one-button `apply_all` flow.
-- `apply_plan(operations)` — executes a deterministic restructuring plan (1 undo
-  step) written by the skill. Ops (order matters): `group`/`rename`/`move`/
-  `layer`. `target`/`under`/`into` reference either an existing export `guid`
-  (int) or a plan-local `$id` (str) of a group created earlier in the plan.
-  Collects per-op errors instead of aborting (the `# noqa: BLE001` broad-except
-  is intentional). After this call the guids are stale, so `build_tree()` must
-  run again.
+- `apply_reparents(reparents)` — `_do_reparents` wrapped in one
+  undo step (backend of the Assets tab's "move to group" batch action).
 
 ## Change log & revert
 - Every write method resets and fills `self.last_changes` — a list of
@@ -182,7 +170,7 @@ Bidirectional bridge document <-> SceneTree.
   `sid` is the C4D-stable object id (`stable_id(op)` = `op.GetGUID()`), captured
   so a change can be reverted later; `webapi` persists these as one history
   entry per apply. `build_tree()` also indexes objects by `sid` in `_by_sid`.
-- `revert(items, canonical)` — restores each item's `before` value in ONE undo
+- `revert(items)` — restores each item's `before` value in ONE undo
   step (name/layer/parent). Objects are resolved by `sid`, with a fallback to
   matching the current object name (`_resolve_change`), so an in-session revert
   is reliable; after reload the id map is rebuilt from the live scene. Returns

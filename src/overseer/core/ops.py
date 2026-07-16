@@ -5,7 +5,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from ..naming.convention import NamingConvention
-from ..structure.standard import StructureStandard
 from . import model
 from .defaults import DEFAULT_LAYER_SCHEME
 
@@ -91,11 +90,7 @@ def layer_for(node: model.SceneNode, scheme: dict | None = None) -> str | None:
     return scheme.get("categories", {}).get(node.category)
 
 
-def is_safe_to_reparent(node: model.SceneNode) -> bool:
-    return node.parent is None or node.parent.category == model.CAT_NULL
-
-
-def _rename_rules(convention: NamingConvention, raw: str, prefix: str,
+def _rename_rules(convention: NamingConvention, raw: str,
                   orig: str, base: str, final: str) -> list[str]:
     prev = convention.apply_numbering
     convention.apply_numbering = False
@@ -103,16 +98,12 @@ def _rename_rules(convention: NamingConvention, raw: str, prefix: str,
         casing_only = convention.normalize(raw)
     finally:
         convention.apply_numbering = prev
-    if prefix:
-        casing_only = prefix + casing_only
 
     rules: list[str] = []
     if casing_only != orig:
         rules.append("casing")
     if convention.apply_numbering and base != casing_only:
         rules.append("numbering")
-    if prefix and not orig.startswith(prefix):
-        rules.append("prefix")
     if final != base:
         rules.append("unique")
     return rules or ["casing"]
@@ -122,11 +113,9 @@ def plan_renames(
     tree: model.SceneTree,
     convention: NamingConvention,
     scope: set | None = None,
-    prefixes: dict | None = None,
     keep: set | None = None,
     dedupe: bool = True,
 ) -> list[RenameOp]:
-    prefixes = prefixes or {}
     keep = keep or set()
     buckets: dict = defaultdict(list)
     for n in tree.walk():
@@ -146,16 +135,11 @@ def plan_renames(
                 used.add(c.name)
 
         for c in renaming:
-            prefix = prefixes.get(c.category, "")
             raw = c.name
-            if prefix and raw.startswith(prefix):
-                raw = raw[len(prefix):]
             base = convention.normalize(raw)
             if not base:
                 used.add(c.name)
                 continue
-            if prefix:
-                base = prefix + base
 
             final = base
             if dedupe:
@@ -165,34 +149,8 @@ def plan_renames(
                     i += 1
             used.add(final)
             if final != c.name:
-                rules = _rename_rules(convention, raw, prefix, c.name, base, final)
+                rules = _rename_rules(convention, raw, c.name, base, final)
                 ops.append(RenameOp(node=c, new_name=final, rules=rules))
-    return ops
-
-
-def plan_reparents(
-    tree: model.SceneTree,
-    standard: StructureStandard,
-    scope: set | None = None,
-    safe_only: bool = True,
-    tidy: bool = True,
-) -> list[ReparentOp]:
-    report = standard.evaluate(tree)
-
-    ops: list[ReparentOp] = []
-    for f in report.misplaced:
-        if scope is not None and f.guid not in scope:
-            continue
-        node = f.node
-        if safe_only and not is_safe_to_reparent(node):
-            continue
-        if tidy and standard.enclosing_group(node) is not None:
-            continue
-        ops.append(ReparentOp(
-            node=node,
-            to_group=f.expected_group,
-            from_group=f.current_group or "(root)",
-        ))
     return ops
 
 

@@ -48,13 +48,12 @@ const SHOW_WORKFLOW = false
 const FLOW = ([
   { tab: 'naming', label: 'Normalize names' },
   { tab: 'translate', label: 'Translate names' },
-  { tab: 'structure', label: 'Group objects' },
   { tab: 'layers', label: 'Tag layers' },
   { tab: 'materials', label: 'Clean materials' },
 ] as const).filter((s) => !PARKED.has(s.tab))
 
 export default function OverviewTab({ org }: { org: Organizer }) {
-  const { report, compliance, busy, history } = org
+  const { report, busy, history } = org
   // Which hero map is expanded to the full-screen overlay (null = none).
   const [zoom, setZoom] = React.useState<null | 'geo' | 'tex'>(null)
   // Health-ring glow at 100 is on by default; clicking the ring toggles it and
@@ -172,7 +171,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     return out
   }, [report, org.casing])
 
-  if (!report || compliance == null) {
+  if (!report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
   }
 

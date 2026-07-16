@@ -124,7 +124,7 @@ the notes).
 once the built zip also installs and starts — CI builds the package but
 never checks that it loads as a plugin. So ask the user:
 
-> "Test the release locally in a clean install? (fresh zip install into C4D 2024)"
+> "Test the release locally in a clean install? (fresh zip install into your Cinema 4D)"
 
 - **No** → done, touch nothing.
 - **Yes** → run `test-release.ps1` (in this skill folder). It does NOT
@@ -184,7 +184,8 @@ just leave the release install sitting there.
   should go into the release; never silently tag them along or stash them.
 
 ## Don't forget
-- The zip is built/tested against **C4D 2024** (stated in the release body).
+- The release body states the supported hosts as **"tested with Cinema 4D
+  2023 & 2024"** — never pin a single version.
 - The clean test (step 9) installs the **release asset**, not the working
   tree — that is the whole point. Never run `deploy.ps1` instead; that
   would test the dev state.

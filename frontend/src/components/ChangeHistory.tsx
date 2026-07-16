@@ -8,7 +8,6 @@ const KIND_LABEL: Record<string, string> = {
   translate: 'Translate',
   structure: 'Restructure',
   layers: 'Layers',
-  apply_all: 'One-click',
   materials_delete: 'Materials',
   textures_relative: 'Textures',
   textures_collect: 'Textures',
@@ -17,7 +16,6 @@ const KIND_LABEL: Record<string, string> = {
   textures_repath: 'Textures',
   textures_resize: 'Textures',
   textures_clear: 'Textures',
-  plan: 'Plan',
 }
 
 // "10:42:07" from a "YYYY-MM-DD HH:MM:SS" timestamp.
@@ -55,8 +53,7 @@ function ItemRow({ it, canRevert, onRevert }: {
   )
 }
 
-// Run-level revert with inline confirm. Reverts the whole run — or, in an
-// area view of a mixed one-click run, only this area's ops (`indices`).
+// Run-level revert with inline confirm.
 function RevertAction({ e, indices, onRevert }: {
   e: ChangeEntry
   indices?: number[]
@@ -82,28 +79,21 @@ function RevertAction({ e, indices, onRevert }: {
   )
 }
 
-export default function ChangeHistory({ changes, onRevert, field }: {
+export default function ChangeHistory({ changes, onRevert }: {
   changes: ChangeEntry[]
   onRevert: (id: string, items?: number[]) => void
-  field?: ChangeItem['field']  // area view: reduce mixed one-click runs to this op field
 }) {
   if (changes.length === 0) return <div className="empty-note">No tool changes recorded yet.</div>
   const rows: HistoryRow[] = changes.map((e) => {
-    // An area view shows a mixed one-click run reduced to its own ops — kept
-    // with their ORIGINAL indices, so a per-op revert hits the right item.
-    const mixed = field != null && e.kind === 'apply_all'
-    const items = e.items
-      .map((it, i) => ({ it, i }))
-      .filter(({ it }) => !mixed || it.field === field)
+    const items = e.items.map((it, i) => ({ it, i }))
     return {
       id: e.id,
       time: clock(e.at),
       kind: e.kind,
       kindLabel: KIND_LABEL[e.kind] || e.kind,
-      summary: mixed ? `${e.summary} · ${items.length} here` : e.summary,
-      dimmed: e.reverted || (mixed && items.every(({ it }) => it.reverted)),
-      action: <RevertAction e={e} onRevert={onRevert}
-        indices={mixed ? items.map(({ i }) => i) : undefined} />,
+      summary: e.summary,
+      dimmed: e.reverted,
+      action: <RevertAction e={e} onRevert={onRevert} />,
       details: items.length > 0 ? (
         <table className="diff ch-items"><tbody>
           {items.slice(0, 500).map(({ it, i }) => (

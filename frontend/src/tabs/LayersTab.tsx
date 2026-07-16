@@ -395,7 +395,7 @@ export default function LayersTab({ org }: { org: Organizer }) {
       )}
 
     <AcceptedPanel org={org} />
-    <AreaHistory org={org} area="layers" kinds={['layers']} field="layer" />
+    <AreaHistory org={org} area="layers" kinds={['layers']} />
     </div>
   )
 }
