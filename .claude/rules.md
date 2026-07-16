@@ -2,6 +2,25 @@
 
 Binding conventions and hard-won gotchas. CLAUDE.md links here; keep both current.
 
+## Git workflow
+
+- **`main` is the protected release branch — never commit to or push it
+  directly.** Every merge into `main` triggers `release.yml`: gates, zip
+  build, and REPLACEMENT of the release of the stamped version. `main` only
+  moves when publishing (use the `release` skill).
+- Day-to-day work happens on **`dev`**. Bigger or parallel topics get a
+  **`feature/<topic>`** branch cut from `dev` and merge back into `dev`
+  (PR or local merge). Delete feature branches after the merge — no stale
+  branches.
+- Publishing = PR `dev` → `main`; the four CI checks (`plugin-lint`,
+  `plugin-test`, `frontend-lint`, `frontend-test`) are required and must be
+  green.
+- **Commit messages: English, imperative, and CLEAN — no AI attribution
+  trailers** (no `Co-Authored-By: Claude`, no "Generated with …" lines).
+  First line = what the change does; body only when the why needs it.
+- External contributions: fork → PR against `dev` (see CONTRIBUTING.md).
+  There are no collaborators; the repo owner merges.
+
 ## Comments & docs
 
 - **Source files carry NO module docstrings, NO function/class docstrings, and
