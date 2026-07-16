@@ -71,15 +71,16 @@ tests/                    pytest, runs WITHOUT c4d
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.11 =
                           C4D 2024 runtime; ruff enforces 3.9 syntax = C4D 2023),
                           frontend-lint (tsc), frontend-test (vitest + vite build);
-                          runs on dev + main + PRs
+                          runs on main + PRs
 .github/workflows/release.yml  main = RELEASE BRANCH: every main push gates, builds
                           Overseer-<version>.zip and replaces the release of the
                           version stamped in the repo (tag moves along; version
                           gate checks pyproject/__init__/package.json agree).
                           main is PROTECTED (PR + green CI required, no direct
-                          push): work happens on dev/feature branches, a PR into
-                          main publishes. The repo is lukasguziel/overseer (public
-                          home of code, issues and releases — no mirror anymore).
+                          push): ALL work happens on feature/<topic> branches
+                          (no permanent dev branch), a PR into main publishes.
+                          The repo is lukasguziel/overseer (public home of
+                          code, issues and releases — no mirror anymore).
 .claude/skills/deploy/    deploy skill incl. deploy.ps1 (copies .pyp + overseer/ +
                           web/ to the plugin dir) + machine-local
                           deploy.config.json (gitignored)

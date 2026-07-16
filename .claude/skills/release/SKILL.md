@@ -2,7 +2,7 @@
 name: release
 description: >-
   Cut an Overseer release: bump the version everywhere, run the CI
-  gates locally, commit on dev and merge to main — every main push rebuilds
+  gates locally, PR the feature branch into main — every main merge rebuilds
   the Overseer-<version>.zip and replaces the release of the stamped version
   (the tag moves along) — then write curated change notes into the
   GitHub release. Use when the user says "release", "mach ein Release",
@@ -13,9 +13,10 @@ description: >-
 
 # Release — new dist with release + change notes
 
-**Branch model: `main` IS the release branch and is PROTECTED.** Work
-happens on `dev` (or feature branches); `main` only takes PRs with green CI —
-no direct pushes. EVERY merge into `main` makes `.github/workflows/release.yml`
+**Branch model: `main` IS the release branch and is PROTECTED.** ALL work
+happens on `feature/<topic>` branches (no permanent dev branch); `main` only
+takes PRs with green CI — no direct pushes. EVERY merge into `main` makes
+`.github/workflows/release.yml`
 run the gates, build the zip and REPLACE the release of the version stamped
 in the repo (the `v*` tag moves along). New version = bump the version +
 PR into `main` — nothing more. The body stays untouched on refresh (curated
@@ -78,19 +79,21 @@ Write curated notes from that (markdown, ENGLISH — release audience):
 - Show the notes briefly to the user (in chat) before they go live — they
   may want to rephrase.
 
-**5. Commit on `dev`, PR into `main`, merge.** `main` is protected —
-direct pushes are rejected; the PR needs green CI. NO manual tag — the
-workflow sets/moves `v<version>` itself onto the released commit:
+**5. Commit on the feature branch, PR into `main`, merge.** `main` is
+protected — direct pushes are rejected; the PR needs green CI. NO manual
+tag — the workflow sets/moves `v<version>` itself onto the released commit:
 ```bash
 git add <versioned files>   # only the version bump + any open work, no scratch artifacts
 git commit -m "v<version>"
-git push origin dev
-gh pr create --base main --head dev --title "Release v<version>" --body "<one-line summary>"
-gh pr checks dev --watch         # required checks must be green before the merge
-gh pr merge dev --merge
+git push -u origin <feature-branch>
+gh pr create --base main --head <feature-branch> --title "Release v<version>" --body "<one-line summary>"
+gh pr checks <feature-branch> --watch   # required checks must be green before the merge
+gh pr merge <feature-branch> --merge --delete-branch
 ```
 (The merge into `main` triggers the release build. Same version as the
-existing release → the asset is replaced; new version → new release.)
+existing release → the asset is replaced; new version → new release.
+`--delete-branch` keeps the branch list clean — feature branches never
+outlive their merge.)
 
 **6. Wait for the workflow and set the notes.**
 ```bash
@@ -172,10 +175,10 @@ the code right away, a normal `deploy` run is the alternative — but never
 just leave the release install sitting there.
 
 ## Failure modes
-- **Workflow red after the `main` push** → fix the cause on `dev`, merge to
-  `main` again — no tag handling needed, the workflow moves the tag itself
-  and only on green gates. (No half release is created — the release step
-  runs last.)
+- **Workflow red after the `main` merge** → fix the cause on a new feature
+  branch, PR to `main` again — no tag handling needed, the workflow moves
+  the tag itself and only on green gates. (No half release is created — the
+  release step runs last.)
 - **`gh` not logged in** → `gh auth status`; the user must run `gh auth
   login` themselves (interactive, possibly via `! gh auth login`).
 - **Tag already exists** → the version was already released; pick a new
