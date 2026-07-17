@@ -66,11 +66,11 @@ this skill at the top:
    types), no sample-scene note.
 2. Badge row + trailer embed (KEEP both verbatim): six shields.io badges —
    Trailer (YouTube link), Download (releases/latest), Docs
-   (docs/FEATURES.md), Cinema 4D "2023 | 2024" (the tested versions —
-   extend the badge when a new C4D version is verified; never a bare
-   single-version pin), Support me (PayPal donate link, same target as the
-   Support section), Feedback (mailto:bamerus@proton.me, same channels as
-   the Feedback section) — followed by the clickable trailer
+   (docs/FEATURES.md), Cinema 4D "2023+" (tested on 2023 & 2024; the `+`
+   signals newer versions are expected to work — keep the open-ended form,
+   never a bare single-version pin), Support me (PayPal donate link),
+   Feedback (mailto:bamerus@proton.me, same channels as the Feedback
+   section) — followed by the clickable trailer
    thumbnail (GitHub cannot embed a playable YouTube iframe):
    `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
 3. Intro paragraph: what the tool does + the trust sentence (preview first,
@@ -90,12 +90,12 @@ this skill at the top:
 8. Development: test commands, note that `main` is the protected release
    branch (a PR into it replaces the release of the stamped version; work
    happens on `dev`/feature branches), reference to AGENTS.md/docs.
-9. **Feedback** — the GitHub Issues line (bugs & feature requests) plus one
-   line of personal channels, exactly these: X DM (@LukasGuziel), Discord
-   (`bamerus`), mail (bamerus@proton.me). Never add other socials from the
-   GitHub profile (music links stay out).
-10. **Support** — stays the last section, keep it minimal: the shields.io
-    "Support me" PayPal badge (donate link, no prose).
+9. **Feedback** — the LAST section. One intro line saying anything (bugs,
+   feature requests, questions, ideas, what you built with it) goes to any
+   channel, then a bullet list of exactly these channels: GitHub Issues, X
+   DM (@LukasGuziel), mail (bamerus@proton.me). Never add other socials from
+   the GitHub profile (music links stay out). No separate Support section —
+   the top "Support me" PayPal badge covers donations.
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**
 
