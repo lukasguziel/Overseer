@@ -49,11 +49,10 @@ version commit in step 5 — only gates, notes, tag push and release
 follow-up remain. (Typical case: the bump was part of the last work
 session.)
 
-**2. Set the version everywhere** (all four spots, otherwise it drifts):
+**2. Set the version everywhere** (all three spots, otherwise it drifts):
 - `frontend/package.json` → `"version": "<without v>"`
 - `src/overseer/__init__.py` → `__version__ = "<without v>"`
 - `pyproject.toml` → `version = "<PEP-440>"`
-- `docs/ROADMAP.md` → "Current release:" line
 
 **3. Run the gates locally** (same as CI — a red tag push produces NO
 release, the workflow aborts):
