@@ -12,7 +12,7 @@ dead weight.**
 [![Trailer](https://img.shields.io/badge/%E2%96%B6%20Trailer-watch-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=jsoKxY_QdG0)
 [![Download](https://img.shields.io/badge/Download-latest%20release-2ea44f?logo=github&logoColor=white)](https://github.com/lukasguziel/overseer/releases/latest)
 [![Docs](https://img.shields.io/badge/Docs-feature%20tour-0969da?logo=readthedocs&logoColor=white)](docs/FEATURES.md)
-[![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2023%20%7C%202024-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
+[![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2023%2B-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
 [![Support me](https://img.shields.io/badge/Support%20me-PayPal-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE)
 [![Feedback](https://img.shields.io/badge/Feedback-bamerus%40proton.me-6D4AFF?logo=proton&logoColor=white)](mailto:bamerus@proton.me)
 
@@ -90,11 +90,9 @@ and [docs/](docs/).
 
 ## Feedback
 
-Bugs & feature requests: [GitHub Issues](https://github.com/lukasguziel/overseer/issues).
-Everything else — questions, ideas, or what you built with it:
-[X DM @LukasGuziel](https://x.com/LukasGuziel) · Discord `bamerus` ·
-[bamerus@proton.me](mailto:bamerus@proton.me)
+Bugs, feature requests, questions, ideas, or just what you built with it —
+anything goes to any of these:
 
-## Support
-
-[![Support me](https://img.shields.io/badge/Support_me-PayPal-red.svg)](https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE)
+- [GitHub Issues](https://github.com/lukasguziel/overseer/issues)
+- [X DM @LukasGuziel](https://x.com/LukasGuziel)
+- [bamerus@proton.me](mailto:bamerus@proton.me)
