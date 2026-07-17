@@ -132,7 +132,7 @@ export default function MiscTab({ org }: { org: Organizer }) {
           out of the button itself — decorative, hence aria-hidden and no pointer
           events (see styles.css). */}
       <span className="donate-wrap">
-        <a className="credits-link donate" href="https://www.paypal.com/paypalme/LukasGuziel"
+        <a className="credits-link donate" href="https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE"
           target="_blank" rel="noreferrer">♥ Support me</a>
         <span className="donate-hearts" aria-hidden="true">
           <i>♥</i><i>♥</i><i>♥</i><i>♥</i>

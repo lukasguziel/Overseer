@@ -11,7 +11,7 @@ export default function SupportHeart() {
   }, [])
   return (
     <a className={'support-heart' + (burst ? ' burst' : '')}
-      href="https://www.paypal.com/paypalme/LukasGuziel" target="_blank" rel="noreferrer"
+      href="https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE" target="_blank" rel="noreferrer"
       title="Support me if you like this plugin — Overseer is free; a coffee keeps it going ♥">
       ♥
       {burst && [0, 1, 2, 3, 4].map((i) => (
