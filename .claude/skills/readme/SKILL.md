@@ -64,12 +64,13 @@ this skill at the top:
 1. Title + bold one-sentence pitch ("Keep your Cinema 4D scenes organized …").
    No version mention, no audience narrowing (applies to all project
    types), no sample-scene note.
-2. Badge row + trailer embed (KEEP both verbatim): five shields.io badges —
+2. Badge row + trailer embed (KEEP both verbatim): six shields.io badges —
    Trailer (YouTube link), Download (releases/latest), Docs
    (docs/FEATURES.md), Cinema 4D "2023 | 2024" (the tested versions —
    extend the badge when a new C4D version is verified; never a bare
    single-version pin), Support me (PayPal donate link, same target as the
-   Support section) — followed by the clickable trailer
+   Support section), Feedback (mailto:bamerus@proton.me, same channels as
+   the Feedback section) — followed by the clickable trailer
    thumbnail (GitHub cannot embed a playable YouTube iframe):
    `[![Watch the Overseer trailer](https://img.youtube.com/vi/jsoKxY_QdG0/maxresdefault.jpg)](https://www.youtube.com/watch?v=jsoKxY_QdG0)`
 3. Intro paragraph: what the tool does + the trust sentence (preview first,
@@ -89,8 +90,12 @@ this skill at the top:
 8. Development: test commands, note that `main` is the protected release
    branch (a PR into it replaces the release of the stamped version; work
    happens on `dev`/feature branches), reference to AGENTS.md/docs.
-9. **Support** — stays the last section, keep it minimal: the shields.io
-   "Support me" PayPal badge (donate link, no prose) + the GitHub Issues line.
+9. **Feedback** — the GitHub Issues line (bugs & feature requests) plus one
+   line of personal channels, exactly these: X DM (@LukasGuziel), Discord
+   (`bamerus`), mail (bamerus@proton.me). Never add other socials from the
+   GitHub profile (music links stay out).
+10. **Support** — stays the last section, keep it minimal: the shields.io
+    "Support me" PayPal badge (donate link, no prose).
 
 **docs/FEATURES.md — the detail tour, per tab exactly this form:**
 
