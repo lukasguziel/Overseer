@@ -158,11 +158,14 @@ interface PerfScan {
   summary: {
     total: number; measured: number; total_ms: number; heavy: number
     slowest: string; slowest_ms: number; slowest_share: number
-    scene_ms: number; overlap: number
+    scene_ms?: number; overlap?: number
   }
 }
 
-const ms1 = (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} ms`
+// A scan with no generators/deformers omits scene_ms (nothing to rebuild) —
+// render a dash rather than "NaN ms".
+export const ms1 = (n: number | undefined | null) =>
+  n == null ? '—' : `${n < 10 ? n.toFixed(1) : Math.round(n)} ms`
 const LEVEL_COLOR: Record<string, string> = {
   heavy: 'var(--err)', mid: 'var(--warn)', light: 'var(--dim2)',
 }
@@ -226,15 +229,17 @@ function PerfCard() {
       {perf && s && (
         <>
           <div className="substats" style={{ margin: '12px 0' }}>
-            <Tip text="One pass that rebuilds every generator at once — the real cost of a full scene update.">
-              <span><b>{ms1(s.scene_ms)}</b> full rebuild</span>
-            </Tip>
+            {s.scene_ms != null && (
+              <Tip text="One pass that rebuilds every generator at once — the real cost of a full scene update.">
+                <span><b>{ms1(s.scene_ms)}</b> full rebuild</span>
+              </Tip>
+            )}
             <span><b>{s.total}</b> generators &amp; deformers</span>
             <span className={s.heavy ? 'warn' : ''}><b>{s.heavy}</b> heavy</span>
           </div>
           {/* Honesty check: the rows only mean "this object" when they add up
               to the full rebuild. Nested generators make them add up to more. */}
-          {s.overlap >= 1.35 && (
+          {(s.overlap ?? 0) >= 1.35 && (
             <p className="hint-sm">
               ⚠ The rows below add up to {ms1(s.total_ms)}, but rebuilding the
               whole scene takes only {ms1(s.scene_ms)}. Generators are nested
