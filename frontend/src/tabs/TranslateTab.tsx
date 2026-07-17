@@ -16,11 +16,20 @@ const LANG_LABEL: Record<string, string> = {
   ar: 'Arabic', auto: 'auto', unknown: 'Unknown',
 }
 
+// A partial online-translate failure keeps cache-backed proposals but marks
+// the plan as incomplete (webapi._op_plan_translate). Surface that so the
+// preview is not mistaken for a full, confident translation.
+export function planWarning(plan: unknown): string | null {
+  const w = (plan as { warning?: unknown } | null | undefined)?.warning
+  return typeof w === 'string' && w.trim() ? w : null
+}
+
 export default function TranslateTab({ org }: { org: Organizer }) {
   const { translation, busy, previewing,
     translateTarget, setTranslateTarget, translateEngine, setTranslateEngine } = org
   const pager = usePager(translation?.diff || [], 10)
   const detected = translation?.detected
+  const warning = planWarning(translation)
 
   if (!org.report) {
     return <EmptyState onAction={org.doAnalyze} busy={busy} />
@@ -102,6 +111,9 @@ export default function TranslateTab({ org }: { org: Organizer }) {
         progress={org.progress}
         note={translation?.applied != null ? `${translation.applied} applied (undoable).` : null}
       >
+        {warning && (
+          <div className="info-bar warn" role="alert">⚠ {warning}</div>
+        )}
         <div className="rename-list">
           {pager.rows.map((d) => (
             <SuggestionRow key={d.guid} busy={busy}

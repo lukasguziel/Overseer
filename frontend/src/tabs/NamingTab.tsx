@@ -27,11 +27,11 @@ function RuleTags({ rules }: { rules: string[] }) {
   if (!open) {
     return (
       <button className="rule-tag rule-count" title={list.join(' + ')}
-        onClick={() => setOpen(true)}>{list.length} rules</button>
+        onClick={(e) => { e.stopPropagation(); setOpen(true) }}>{list.length} rules</button>
     )
   }
   return (
-    <span className="rule-tags" onClick={() => setOpen(false)} title="click to collapse">
+    <span className="rule-tags" onClick={(e) => { e.stopPropagation(); setOpen(false) }} title="click to collapse">
       {list.map((r) => <span key={r} className={'rule-tag rt-' + r}>{r}</span>)}
     </span>
   )

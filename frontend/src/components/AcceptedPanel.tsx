@@ -45,7 +45,7 @@ const TAB_SECTIONS: Record<string, string[]> = {
 
 export default function AcceptedPanel({ org }: { org: Organizer }) {
   const [open, setOpen] = useState(false)
-  const filesScan = useAuditData<{ accepted?: string[] }>('files_scan')
+  const filesScan = useAuditData<{ accepted?: string[]; accepted_all?: string[] }>('files_scan')
 
   const mine = TAB_SECTIONS[org.tab] || []
   const groups: Group[] = [
@@ -56,7 +56,8 @@ export default function AcceptedPanel({ org }: { org: Organizer }) {
       items: org.report?.materials?.accepted_all || [] },
     { section: 'textures', label: LABELS.textures,
       items: org.report?.textures?.accepted_all || [] },
-    { section: 'files', label: LABELS.files, items: filesScan?.accepted || [] },
+    { section: 'files', label: LABELS.files,
+      items: filesScan?.accepted_all || filesScan?.accepted || [] },
   ].filter((g) => mine.includes(g.section) && g.items.length > 0)
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)

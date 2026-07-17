@@ -106,13 +106,14 @@ def _scan(doc, adapter, tree, progress=None):
             hit = sims_logic.SimHit(
                 guid=guid, object=obj_name, carrier="object", kind=kind,
                 label=label, enabled=_read_enabled(op, kind), hidden=hidden)
+            hit.index = -1
             object_hits.append((hit, group))
 
         try:
             tags = op.GetTags()
         except Exception:
             tags = []
-        for tag in tags:
+        for tidx, tag in enumerate(tags):
             try:
                 ttype = tag.GetType()
             except Exception:
@@ -123,14 +124,16 @@ def _scan(doc, adapter, tree, progress=None):
             kind, label, group = spec
             if group == "cache":
                 cache_present = True
-                object_hits.append((sims_logic.SimHit(
+                hit = sims_logic.SimHit(
                     guid=guid, object=obj_name, carrier="tag", kind=kind,
-                    label=label, enabled=None, cached=True, hidden=hidden), group))
+                    label=label, enabled=None, cached=True, hidden=hidden)
             else:
-                object_hits.append((sims_logic.SimHit(
+                hit = sims_logic.SimHit(
                     guid=guid, object=obj_name, carrier="tag", kind=kind,
                     label=label, enabled=_read_enabled(tag, kind),
-                    hidden=hidden), group))
+                    hidden=hidden)
+            hit.index = tidx
+            object_hits.append((hit, group))
 
         for hit, group in object_hits:
             if group == "sim" and hit.kind in SIM_KINDS:
@@ -138,6 +141,28 @@ def _scan(doc, adapter, tree, progress=None):
             hits.append(hit)
 
     return hits
+
+
+def _result(hits):
+    dicts = []
+    for hit in hits:
+        d = hit.to_dict()
+        d["index"] = getattr(hit, "index", -1)
+        dicts.append(d)
+    findings = {
+        "active_hidden": [d for h, d in zip(hits, dicts)
+                          if sims_logic.is_active_hidden(h)],
+        "unbaked": [d for h, d in zip(hits, dicts)
+                    if sims_logic.is_unbaked(h)],
+        "disabled_leftovers": [d for h, d in zip(hits, dicts)
+                               if sims_logic.is_disabled_leftover(h)],
+    }
+    return {
+        "ok": True,
+        "hits": dicts,
+        "findings": findings,
+        "summary": sims_logic.summarize(hits),
+    }
 
 
 def _select(doc, adapter, guids):
@@ -158,32 +183,39 @@ def _select(doc, adapter, guids):
     return selected
 
 
-def _set_enabled(doc, adapter, guids, kind, enabled):
-    pid = _enable_param(kind)
+def _target_for(op, kind, index):
+    if index is not None and index >= 0:
+        try:
+            tags = op.GetTags()
+        except Exception:
+            tags = []
+        if 0 <= index < len(tags):
+            tag = tags[index]
+            try:
+                spec = TAG_BY_ID.get(tag.GetType())
+            except Exception:
+                spec = None
+            if spec is not None and spec[0] == kind:
+                return tag
+        return None
+    spec = OBJECT_BY_ID.get(op.GetType() if hasattr(op, "GetType") else None)
+    if spec is not None and spec[0] == kind:
+        return op
+    return None
+
+
+def _set_enabled(doc, adapter, targets, enabled):
     applied = 0
     skipped = 0
-    if pid is None:
-        return 0, len(guids)
 
     doc.StartUndo()
-    for guid in guids:
+    for guid, kind, index in targets:
+        pid = _enable_param(kind)
         op = adapter._by_guid.get(guid)
-        if op is None:
+        if pid is None or op is None:
             skipped += 1
             continue
-        target = None
-        try:
-            for tag in op.GetTags():
-                spec = TAG_BY_ID.get(tag.GetType())
-                if spec is not None and spec[0] == kind:
-                    target = tag
-                    break
-        except Exception:
-            target = None
-        if target is None:
-            spec = OBJECT_BY_ID.get(op.GetType() if hasattr(op, "GetType") else None)
-            if spec is not None and spec[0] == kind:
-                target = op
+        target = _target_for(op, kind, index)
         if target is None:
             skipped += 1
             continue
@@ -201,7 +233,7 @@ def _set_enabled(doc, adapter, guids, kind, enabled):
 def handle(op, payload, doc, adapter, tree, progress=None):
     if op == "sims_scan":
         hits = _scan(doc, adapter, tree, progress=progress)
-        return sims_logic.scan_result(hits)
+        return _result(hits)
 
     if op == "sims_select":
         guids = payload.get("guids")
@@ -213,10 +245,15 @@ def handle(op, payload, doc, adapter, tree, progress=None):
         return {"ok": True, "selected": selected}
 
     if op == "sims_set_enabled":
-        guids = [int(g) for g in (payload.get("guids") or [])]
-        kind = str(payload.get("kind") or "")
         enabled = bool(payload.get("enabled"))
-        applied, skipped = _set_enabled(doc, adapter, guids, kind, enabled)
+        targets = []
+        for t in payload.get("targets") or []:
+            try:
+                targets.append(
+                    (int(t.get("guid")), str(t.get("kind") or ""), t.get("index")))
+            except Exception:
+                continue
+        applied, skipped = _set_enabled(doc, adapter, targets, enabled)
         return {"ok": True, "applied": applied, "skipped": skipped}
 
     return {"error": "unknown sims op: %s" % op}

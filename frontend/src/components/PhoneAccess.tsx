@@ -3,12 +3,24 @@ import QRCode from 'qrcode'
 import { call } from '../api'
 import ActionButton from './ActionButton'
 
-interface NetInfo {
+export interface NetInfo {
   lan: boolean            // what the RUNNING server is bound to
   wanted: boolean         // the listen_lan opt-in in config.json
   restart_needed: boolean
   ip: string | null
   port: number
+}
+
+// Which of the three cards to show. The server can be LAN-bound (lan:true) yet
+// report ip:null when its UDP route probe fails — that is on, but with no
+// address to build a QR from, so it is neither the ready "on" state nor the
+// "not on yet" setup state.
+export type PhoneState = 'on' | 'no-address' | 'setup'
+
+export function phoneState(info: NetInfo, hasQr: boolean): PhoneState {
+  if (info.lan && hasQr) return 'on'
+  if (info.lan && !info.ip) return 'no-address'
+  return 'setup'
 }
 
 // "Open on phone": QR code for the UI's LAN URL. The server only listens on
@@ -49,9 +61,11 @@ export default function PhoneAccess() {
   if (err) return <p className="hint-sm">{err}</p>
   if (!info) return <p className="hint-sm">Checking network status…</p>
 
+  const state = phoneState(info, Boolean(qr))
+
   return (
     <div className="phone-access">
-      {info.lan && qr ? (
+      {state === 'on' ? (
         <>
           <p className="hint-sm">
             Phone access is on — show the QR code and scan it with your
@@ -81,6 +95,24 @@ export default function PhoneAccess() {
               </div>
             </div>
           )}
+        </>
+      ) : state === 'no-address' ? (
+        <>
+          <p className="hint-sm">
+            Phone access is on, but the LAN address of this computer could not
+            be worked out — so there is no QR code to show. Check that this
+            computer is connected to your Wi-Fi or network, then check again.
+          </p>
+          <div className="phone-actions">
+            <ActionButton tone="go" disabled={false} onClick={load}
+              title="Ask the server again for this computer's network address">
+              Check again
+            </ActionButton>
+            <ActionButton disabled={false} onClick={() => toggle(false)}
+              title="Make the tool reachable from this computer only again (takes effect after restarting Cinema 4D)">
+              Turn phone access off
+            </ActionButton>
+          </div>
         </>
       ) : (
         <>

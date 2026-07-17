@@ -189,7 +189,8 @@ def _scan(doc, adapter, progress=None) -> dict:
 
     entries.sort(key=lambda e: e["bytes"], reverse=True)
     return {"ok": True, "doc_path": doc_path, "entries": entries,
-            "accepted": accepted, "summary": fl.summarize(entries)}
+            "accepted": accepted, "accepted_all": sorted(kept),
+            "summary": fl.summarize(entries)}
 
 
 def _holders(adapter):
@@ -303,15 +304,19 @@ def _make_relative(doc, adapter, payload) -> dict:
     # lives (the same mechanism pick-replacement and relink already use),
     # so this is not limited to the Alembic generator's known param.
     scan = _scan(doc, adapter)
-    doc.StartUndo()
-    fixed = 0
-    skipped = 0
+    targets: dict = {}
     for e in scan["entries"]:
         if not e["relocatable"] or not e["rel_target"]:
             continue
         if wanted_set is not None and e["path"] not in wanted_set:
             continue
-        if _rewrite_everywhere(doc, adapter, e["path"], e["rel_target"]):
+        targets.setdefault(e["path"], e["rel_target"])
+
+    doc.StartUndo()
+    fixed = 0
+    skipped = 0
+    for raw, rel_target in targets.items():
+        if _rewrite_everywhere(doc, adapter, raw, rel_target):
             fixed += 1
         else:
             skipped += 1

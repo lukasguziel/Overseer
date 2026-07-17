@@ -151,8 +151,11 @@ export default function LayersTab({ org }: { org: Organizer }) {
     try {
       const colors = orderedLayers.map((l, i) => ({ name: l.name, color: gradColors[i] }))
       const r = await call('set_layer_colors', { colors })
+      // Set the outcome AFTER the follow-up analysis resolves: doAnalyze is
+      // run()-wrapped and resets the (unpinned) status to "Analysis …", so a
+      // message set before it would be lost.
+      await org.doAnalyze()
       org.setStatus(`Colored ${plural(r.applied, 'layer')} ✓ (undoable)`)
-      org.doAnalyze()
     } catch (e: any) { org.setStatus(`Color ✗ ${String(e.message || e)}`) }
   }
   const nlPager = usePager(noLayer)
@@ -174,8 +177,9 @@ export default function LayersTab({ org }: { org: Organizer }) {
     setConfirmSuggest(false)
     try {
       const r = await call('apply_layer_suggestions', { guids: suggested.map((n) => n.guid) })
+      // Outcome AFTER the analysis resolves — see doApplyGradient above.
+      await org.doAnalyze()
       org.setStatus(`Assigned ${plural(r.applied, 'object')} to their suggested layer ✓ (undoable)`)
-      org.doAnalyze()
     } catch (e: any) { org.setStatus(`Assign ✗ ${String(e.message || e)}`) }
   }
   const assignAll = () => {

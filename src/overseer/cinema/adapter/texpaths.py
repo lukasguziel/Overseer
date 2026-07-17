@@ -1083,13 +1083,17 @@ class TexturePathOps:
             "after": after,
         })
 
-    def clear_missing_textures(self) -> dict:
+    def clear_missing_textures(self, accepted=None) -> dict:
+        accepted_set = {str(p) for p in (accepted or [])}
         missing = self._missing_texture_refs()
         if not missing:
             return {"cleared": 0, "skipped": 0}
         cleared = skipped = 0
         self.doc.StartUndo()
         for owner, raw in missing:
+            if raw in accepted_set \
+                    or self._stored_path_for(owner, raw) in accepted_set:
+                continue
             if self._write_path_refs(owner, raw, ""):
                 cleared += 1
             else:

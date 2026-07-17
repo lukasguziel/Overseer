@@ -70,8 +70,9 @@ def _scan(payload, doc, adapter, tree, progress):
         return {"ok": True, "entries": [],
                 "summary": {"total": 0, "measured": 0, "total_ms": 0.0,
                             "heavy": 0, "slowest": "", "slowest_ms": 0.0,
-                            "slowest_share": 0.0},
-                "baseline_ms": 0.0}
+                            "slowest_share": 0.0, "scene_ms": 0.0,
+                            "overlap": 0.0},
+                "baseline_ms": 0.0, "scene_ms": 0.0}
 
     repeats = max(1, min(5, int(payload.get("repeats") or _REPEATS)))
 

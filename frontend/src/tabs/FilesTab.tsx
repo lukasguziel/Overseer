@@ -35,6 +35,14 @@ function selectable(e: FileEntry): '' | 'object' | 'material' {
   return ''
 }
 
+// Merge base for accept writes. set_keeps REPLACES the whole "files" keeps
+// section, so it must be the FULL accepted config set (accepted_all — every
+// project and path), never this scene's missing-only "accepted" intersection,
+// or accepts made on other scenes get wiped.
+export function acceptBase(scan: (FilesScan & { accepted_all?: string[] }) | null): string[] {
+  return scan?.accepted_all || scan?.accepted || []
+}
+
 function FileTable({ rows, onFocus, onPick, onAccept, onRel }: {
   rows: FileEntry[]
   onFocus: (e: FileEntry) => void
@@ -115,7 +123,7 @@ function FileTable({ rows, onFocus, onPick, onAccept, onRel }: {
 
 export default function FilesTab({ org }: { org: Organizer }) {
   const active = org.tab === 'files'
-  const { data, loading, error, reload } = useAudit<FilesScan>('files_scan', active)
+  const { data, loading, error, reload } = useAudit<FilesScan & { accepted_all?: string[] }>('files_scan', active)
   const [kind, setKind] = useState('')
   const [query, setQuery] = useState('')
   const [confirm, setConfirm] = useState(false)
@@ -128,7 +136,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
   // Outcomes stay in the sidebar note; FAILURES go to the app's one error
   // banner (dismissable, same place as everywhere else).
   const fail = (e: any) => { org.setError(String(e.message || e)); setNote('') }
-  const accepted = data?.accepted || []
+  const acceptedAll = acceptBase(data)
   const setFileKeeps = async (keys: string[]) => {
     try {
       await call('set_keeps', { section: 'files', keys })
@@ -137,7 +145,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
   }
   const acceptOne = (e: FileEntry) => {
     setNote(`Accepted “${e.file}” as missing ✓ (restore below)`)
-    setFileKeeps([...accepted, e.path])
+    setFileKeeps([...acceptedAll, e.path])
   }
   const pickOne = async (e: FileEntry) => {
     setNote('Pick the file in the Cinema 4D window…')
@@ -189,7 +197,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
     try {
       const r = await call('files_make_relative', {})
       setNote(`Rewrote ${plural(r.fixed, 'path')} ✓ (undoable)`
-        + (r.skipped ? ` · ${r.skipped} skipped (path not found in the scene)` : ''))
+        + (r.skipped ? ` · ${r.skipped} skipped (nothing to rewrite)` : ''))
       await reload()
     } catch (e: any) { fail(e) }
   }
@@ -267,7 +275,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
                     onClick={() => {
                       call('pick_folder', { title: 'Folder to search for the missing files' })
                         .then((r) => { if (r.path) { setRelinkDir(r.path); setRelinkConfirm(true) } })
-                        .catch(() => {})
+                        .catch((e: any) => fail(e))
                     }}>
                     Relink {allMissing.length}
                   </ActionButton>
@@ -345,7 +353,7 @@ export default function FilesTab({ org }: { org: Organizer }) {
           confirmLabel={`✓ Accept ${missPager.total}`}
           onConfirm={() => {
             setAcceptConfirm(false)
-            setFileKeeps([...accepted, ...missing.map((e) => e.path)])
+            setFileKeeps([...acceptedAll, ...missing.map((e) => e.path)])
           }}
           onCancel={() => setAcceptConfirm(false)}
         />

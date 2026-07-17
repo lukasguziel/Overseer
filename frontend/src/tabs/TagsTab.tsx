@@ -141,6 +141,15 @@ export default function TagsTab({ org }: { org: Organizer }) {
           onCancel={() => setConfirm(null)} />
       )}
 
+      {/* A rescan after an action keeps the previous data on failure; surface
+          the error so the stale worklists below are not read as current. */}
+      {error && (
+        <div className="error">
+          Tag rescan failed: {error}{' '}
+          <ActionButton onClick={reload} disabled={loading}>Retry</ActionButton>
+        </div>
+      )}
+
       <section className="card">
         <div className="card-head">
           <h3>Tags</h3>

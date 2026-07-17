@@ -17,10 +17,24 @@ interface SimHit {
   carrier: 'tag' | 'object'
   kind: string
   label: string
+  index: number
   enabled: boolean | null
   cached: boolean | null
   hidden: boolean
   notes: string[]
+}
+
+type SimTarget = { guid: number; kind: string; index: number }
+
+// A row is one sim carrier: an object can hold two tags of the same kind
+// (two Dynamics Body tags, or Cloth + Cloth Belt both -> "cloth"), so the
+// per-object tag index disambiguates rows that share (guid, kind).
+export function simRowKey(h: SimTarget): string {
+  return `${h.guid}:${h.kind}:${h.index}`
+}
+
+export function simTargets(hits: SimTarget[]): SimTarget[] {
+  return hits.map((h) => ({ guid: h.guid, kind: h.kind, index: h.index }))
 }
 
 interface SimsScan {
@@ -38,14 +52,6 @@ interface SimsScan {
     unbaked: number
     disabled: number
   }
-}
-
-// Group hits by kind, then issue one set_enabled call per kind (the backend
-// toggle is per-kind because each sim type has its own enable parameter).
-function groupByKind(hits: SimHit[]): Record<string, number[]> {
-  const out: Record<string, number[]> = {}
-  for (const h of hits) (out[h.kind] ||= []).push(h.guid)
-  return out
 }
 
 function StateBadges({ hit }: { hit: SimHit }) {
@@ -92,18 +98,16 @@ export default function SimsTab({ org }: { org: Organizer }) {
   const doFocus = (h: SimHit) => org.doFocus(h.guid, h.object)
 
   const doDisable = async (hits: SimHit[], label: string) => {
-    const byKind = groupByKind(hits)
+    const targets = simTargets(hits)
     let applied = 0
     let failed = 0
     let lastError = ''
-    for (const [kind, guids] of Object.entries(byKind)) {
-      try {
-        const r = await call('sims_set_enabled', { guids, kind, enabled: false })
-        applied += r.applied || 0
-      } catch (e: any) {
-        failed += guids.length
-        lastError = String(e.message || e)
-      }
+    try {
+      const r = await call('sims_set_enabled', { targets, enabled: false })
+      applied = r.applied || 0
+    } catch (e: any) {
+      failed = targets.length
+      lastError = String(e.message || e)
     }
     setNote(applied
       ? `${label}: ${applied} disabled ✓ (undoable)${failed ? ` — ${failed} failed: ${lastError}` : ''}`
@@ -209,7 +213,7 @@ function FindingCard({ title, hint, hits, tone, rowAction, onFocus, batch }: {
       <p className="hint-sm">{hint}</p>
       <div className="rename-list">
         {pager.rows.map((h) => (
-          <SimRow key={h.guid + ':' + h.kind} hit={h} onFocus={onFocus}
+          <SimRow key={simRowKey(h)} hit={h} onFocus={onFocus}
             action={rowAction ? rowAction(h) : undefined} />
         ))}
       </div>
@@ -255,7 +259,7 @@ function KindGroup({ kind, hits, onFocus, onSelect }: {
       </div>
       <div className="rename-list">
         {pager.rows.map((h) => (
-          <SimRow key={h.guid + ':' + h.kind} hit={h} onFocus={onFocus} showCarrier />
+          <SimRow key={simRowKey(h)} hit={h} onFocus={onFocus} showCarrier />
         ))}
       </div>
       <Pager pager={pager} />

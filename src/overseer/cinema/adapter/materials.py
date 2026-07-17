@@ -162,13 +162,16 @@ class MaterialOps:
         c4d.EventAdd()
         return len(targets)
 
-    def delete_unused_materials(self, include_hidden: bool = False) -> int:
+    def delete_unused_materials(self, include_hidden: bool = False,
+                                accepted: set | None = None) -> int:
         from ...core.materials_logic import is_internal_material
         doc = self.doc
+        accepted = accepted or set()
         used_any, used_visible = self._material_usage()
         protected = used_visible if include_hidden else used_any
         targets = [m for m in doc.GetMaterials()
                    if self._mat_key(m) not in protected
+                   and m.GetName() not in accepted
                    and not is_internal_material(m.GetName())]
         if not targets:
             return 0
