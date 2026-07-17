@@ -20,7 +20,8 @@ from ..naming.convention import NamingConvention
 from . import adapter as adaptermod
 from .adapter import SceneAdapter
 
-PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLUGIN_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _writable(directory: str) -> bool:
@@ -803,10 +804,11 @@ def _op_delete_material(req: ApiRequest) -> dict:
 
 
 def _op_delete_unused_materials(req: ApiRequest) -> dict:
-    payload, doc = req.payload, req.doc
+    payload, doc, cfg = req.payload, req.doc, req.cfg
     adapter = SceneAdapter(doc)
     deleted = adapter.delete_unused_materials(
-        include_hidden=bool(payload.get("include_hidden")))
+        include_hidden=bool(payload.get("include_hidden")),
+        accepted=cfg.accepted_unused)
     if deleted:
         _record_change("materials_delete",
                        "deleted %d unused material(s)" % deleted,
@@ -952,9 +954,9 @@ def _op_texture_resize(req: ApiRequest) -> dict:
 
 
 def _op_clear_missing_textures(req: ApiRequest) -> dict:
-    doc = req.doc
+    doc, cfg = req.doc, req.cfg
     adapter = SceneAdapter(doc)
-    res = adapter.clear_missing_textures()
+    res = adapter.clear_missing_textures(accepted=cfg.kept("textures"))
     if res.get("cleared"):
         _record_change("textures_clear",
                        "%d missing texture reference(s) cleared" % res["cleared"],
@@ -994,6 +996,11 @@ def _op_revert_change(req: ApiRequest) -> dict:
 
 def _op_clear_changes(req: ApiRequest) -> dict:
     _save_journal(req.doc, [])
+    try:
+        with open(CHANGES_PATH, "w", encoding="utf-8") as f:
+            json.dump([], f)
+    except Exception:
+        pass
     return {"ok": True}
 
 
@@ -1070,6 +1077,7 @@ def _op_plan_translate(req: ApiRequest) -> dict:
     target = payload.get("target") or "en"
     engine = (payload.get("engine") or settings.get("engine")
               or "offline").lower()
+    warning = None
     if engine == "google":
         def _gprog(cur, tot):
             _progress("Translating online (Google)", cur, tot,
@@ -1082,6 +1090,10 @@ def _op_plan_translate(req: ApiRequest) -> dict:
             _progress(_OP_LABELS.get(op, "Translating"))
         if gerr and not props:
             return {"error": "Google translate failed: %s" % gerr}
+        if gerr:
+            warning = ("Google translation was incomplete (%s). These "
+                       "proposals come from the local cache; newly seen "
+                       "names may be untranslated." % gerr)
     else:
         gdetected = None
         props = translatemod.plan_translations(
@@ -1103,8 +1115,11 @@ def _op_plan_translate(req: ApiRequest) -> dict:
         detected = gdetected
     else:
         detected = translatemod.detect_languages(tree, scope=scope).to_dict()
-    return {"ok": True, "count": len(props), "diff": diff, "kept": kept,
-            "target": target, "detected": detected, "engine": engine}
+    result = {"ok": True, "count": len(props), "diff": diff, "kept": kept,
+              "target": target, "detected": detected, "engine": engine}
+    if warning:
+        result["warning"] = warning
+    return result
 
 
 def _op_plan_layers(req: ApiRequest) -> dict:
