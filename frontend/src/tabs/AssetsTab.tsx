@@ -14,6 +14,12 @@ import type { FocusFn } from '../components/Treemap'
 const TYPE_ABBREV: Record<string, string> = { 'Subdivision Surface': 'SDS' }
 const typeLabel = (t: string) => TYPE_ABBREV[t] || t
 
+// Search predicate for the Filters box: name, type, the shown type
+// abbreviation ("SDS") and layer. q is already trimmed + lower-cased.
+export const matchesSearch = (n: SceneNode, q: string) =>
+  !q || n.name.toLowerCase().includes(q) || n.type.toLowerCase().includes(q) ||
+  typeLabel(n.type).toLowerCase().includes(q) || (n.layer || '').toLowerCase().includes(q)
+
 // Searchable, faceted, sortable asset browser with batching and
 // multi-select batch actions (assign to layer / move to group).
 export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLayer, onMoveToGroup }: {
@@ -59,8 +65,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
   // Facet counting: after search + onlyGeo + noLayer, but BEFORE the category filter.
   const q = query.trim().toLowerCase()
   const preFiltered = React.useMemo(() => nodes.filter((n) =>
-    (!q || n.name.toLowerCase().includes(q) || n.type.toLowerCase().includes(q) ||
-      (n.layer || '').toLowerCase().includes(q)) &&
+    matchesSearch(n, q) &&
     (!onlyGeo || n.polygons > 0) &&
     (!noLayer || !n.layer)
   ), [nodes, q, onlyGeo, noLayer])
@@ -198,7 +203,7 @@ export default function AssetsTab({ nodes, onFocus, layerNames, busy, onAssignLa
           ))}
         </div>
 
-        {typeCounts.length > 1 && (<>
+        {(typeCounts.length > 1 || types.size > 0) && (<>
           <div className="section-head sm">
             <span>Type</span>
             {types.size > 0 && (
