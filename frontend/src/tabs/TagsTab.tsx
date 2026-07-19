@@ -28,6 +28,9 @@ interface TagsData {
     phong_angles: { distribution: AngleBucket[]; dominant_angle: number | null }
   }
   summary: { total_tags: number; tag_types: number; missing_phong: number; duplicate_material_tags: number }
+  // Hosts without a Phong/smoothing concept (e.g. Blender, where pro projects
+  // don't use it) send phong:false to hide the smoothing-related UI.
+  phong?: boolean
 }
 
 const ANGLE_PRESETS = [30, 40, 60, 80]
@@ -103,6 +106,9 @@ export default function TagsTab({ org }: { org: Organizer }) {
 
   const s = data?.summary
   const dominant = data?.findings.phong_angles.dominant_angle ?? null
+  // Phong/smoothing is a Cinema 4D concept; hosts that opt out (phong:false)
+  // hide the missing-phong stat, the add-phong card and the angle card.
+  const showPhong = data?.phong !== false
   const busy = org.busy || loading
 
   // A number input's min/max only constrain the spinner, not typed text.
@@ -158,9 +164,11 @@ export default function TagsTab({ org }: { org: Organizer }) {
         <div className="substats">
           <span><b>{s?.total_tags ?? 0}</b> tags</span>
           <span><b>{s?.tag_types ?? 0}</b> types</span>
-          <Tip text="Polygon objects without a Phong tag render hard-faceted. Below they can be given a Phong tag in batch.">
-            <span className={s?.missing_phong ? 'warn' : ''}><b>{s?.missing_phong ?? 0}</b> missing phong</span>
-          </Tip>
+          {showPhong && (
+            <Tip text="Polygon objects without a Phong tag render hard-faceted. Below they can be given a Phong tag in batch.">
+              <span className={s?.missing_phong ? 'warn' : ''}><b>{s?.missing_phong ?? 0}</b> missing phong</span>
+            </Tip>
+          )}
           <Tip text="Objects that carry the same material multiple times via several texture tags. The redundant copies do nothing.">
             <span className={s?.duplicate_material_tags ? 'warn' : ''}><b>{s?.duplicate_material_tags ?? 0}</b> duplicate material tags</span>
           </Tip>
@@ -170,6 +178,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
 
       {/* ---- Findings: side by side ----------------------------------- */}
       <div className="ov-cols2">
+      {showPhong && (
       <section className="card">
         <div className="card-head"><h3>Missing phong tags</h3></div>
         <p className="hint-sm">
@@ -206,6 +215,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
           <Pager pager={missingPager} />
         </Workbench>
       </section>
+      )}
 
       <section className="card">
         <div className="card-head"><h3>Duplicate material tags</h3></div>
@@ -247,6 +257,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
 
       {/* ---- Phong angles + all tag types: side by side ---------------- */}
       <div className="ov-cols2">
+      {showPhong && (
       <section className="card">
         <div className="card-head">
           <Tip text="The Phong angle sets up to which edge angle surfaces are shaded smoothly. “Dominant” is the value used most often in the scene.">
@@ -286,6 +297,7 @@ export default function TagsTab({ org }: { org: Organizer }) {
             </>
           )}
       </section>
+      )}
 
       {/* ---- All tag types ------------------------------------------- */}
       <section className="card">

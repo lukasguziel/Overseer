@@ -1,7 +1,7 @@
 # Deploys the Overseer addon into one or more Blender addon folders.
 #
 # Blender twin of deploy.ps1. The installable addon is a single folder named
-# "overseer" that bundles the addon loader (__init__.py = blender_addon/__init__.py),
+# "overseer" that bundles the addon loader (__init__.py = src/blender_addon/__init__.py),
 # the shared package (overseer/), the Vite build (web/) and Pillow (vendor/).
 # This script mirrors those from the working tree into
 #   <blender_config>/scripts/addons/overseer/
@@ -31,7 +31,7 @@ $Target = @($Target | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Tri
 # Script lives in .claude/skills/deploy/ -- the repo root is three levels up.
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $src = Join-Path $repoRoot "src"
-$addonLoader = Join-Path $repoRoot "blender_addon\__init__.py"
+$addonLoader = Join-Path $src "blender_addon\__init__.py"
 
 $cfgPath = Join-Path $PSScriptRoot "deploy.config.json"
 
@@ -95,13 +95,13 @@ function Deploy-To([string]$Dir) {
   # <repo>/var (read by webapi._export_dir; machine-local, lives only in the target).
   Step "dev_repo.txt" { Set-Content -Path (Join-Path $Dir "dev_repo.txt") -Value $repoRoot -Encoding utf8 }
 
-  # Addon loader: blender_addon/__init__.py becomes <addon>/__init__.py.
+  # Addon loader: src/blender_addon/__init__.py becomes <addon>/__init__.py.
   Step "__init__.py (addon loader)" { Copy-Item $addonLoader (Join-Path $Dir "__init__.py") -Force }
 
   # Extension manifest (Blender 4.2+/5.x extensions system). Harmless for a
   # legacy scripts/addons install (the legacy loader ignores it); REQUIRED when
   # the target is an extensions/<repo> dir (Blender 5.x dropped legacy add-ons).
-  $manifest = Join-Path $repoRoot "blender_addon\blender_manifest.toml"
+  $manifest = Join-Path $src "blender_addon\blender_manifest.toml"
   if (Test-Path $manifest) {
     Step "blender_manifest.toml" { Copy-Item $manifest (Join-Path $Dir "blender_manifest.toml") -Force }
   }

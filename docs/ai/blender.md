@@ -169,7 +169,7 @@ Blender specifics:
 - `blender/host.py` — process singleton facade: `progress`, request queue,
   server, `open_panel()` (starts server + registers the pump timer +
   `webbrowser.open`). Mirrors `bridge/__init__.py` facades.
-- `blender_addon/__init__.py` — the addon: `bl_info`, an Operator
+- `src/blender_addon/__init__.py` — the addon: `bl_info`, an Operator
   "Overseer: Open" (and a menu/N-panel button) that calls `host.open_panel()`,
   plus `register()`/`unregister()`. Inserts its own dir on `sys.path` so
   `import overseer` resolves the bundled package.

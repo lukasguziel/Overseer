@@ -65,9 +65,9 @@ jobs:
                  || { echo "::error::pyproject.toml is not $V"; fail=1; }
                # The Blender addon carries the version as an int tuple in bl_info;
                # reconstruct "a.b.c" and compare (stable versions only).
-               BL="$(python -c "import ast,re; t=open('blender_addon/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
+               BL="$(python -c "import ast,re; t=open('src/blender_addon/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
                [ "$BL" = "$V" ] \
-                 || { echo "::error::blender_addon bl_info version is '$BL', not $V"; fail=1; } ;;
+                 || { echo "::error::src/blender_addon bl_info version is '$BL', not $V"; fail=1; } ;;
           esac
           exit $fail
 
@@ -128,7 +128,7 @@ jobs:
           cp -r src/web "$pkg/web"
 
       - name: Zip (Cinema 4D)
-        run: cd dist && zip -r "Overseer-$VERSION.zip" Overseer
+        run: cd dist && zip -r "Overseer-Cinema4D-$VERSION.zip" Overseer
 
       # Same shared package + web build + Pillow, wrapped as an installable
       # Blender addon (one top folder `overseer/` = the addon). Reuses the exact
@@ -154,7 +154,7 @@ jobs:
           BODY: |
             One codebase, two hosts — same web UI and features on both.
 
-            ## Cinema 4D  (`Overseer-${{ steps.version.outputs.version }}.zip`)
+            ## Cinema 4D  (`Overseer-Cinema4D-${{ steps.version.outputs.version }}.zip`)
 
             Unzip, copy the `Overseer` folder into your Cinema 4D `plugins`
             folder, restart Cinema 4D, then press `Shift+C` and search for
@@ -167,7 +167,7 @@ jobs:
             **Overseer** tab. Blender 4.2 LTS+.
         run: |
           BVER="${VERSION#v}"
-          C4D_ZIP="dist/Overseer-$VERSION.zip"
+          C4D_ZIP="dist/Overseer-Cinema4D-$VERSION.zip"
           BL_ZIP="dist/Overseer-Blender-v$BVER.zip"
           if gh release view "$VERSION" --json name > /dev/null 2>&1; then
             gh release upload "$VERSION" "$C4D_ZIP" "$BL_ZIP" --clobber

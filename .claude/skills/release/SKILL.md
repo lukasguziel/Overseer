@@ -54,7 +54,7 @@ release version gate fails):
 - `frontend/package.json` → `"version": "<without v>"`
 - `src/overseer/__init__.py` → `__version__ = "<without v>"`
 - `pyproject.toml` → `version = "<PEP-440>"`
-- `blender_addon/__init__.py` → `bl_info["version"]` int tuple, e.g. `1.0.0 → (1, 0, 0)`
+- `src/blender_addon/__init__.py` → `bl_info["version"]` int tuple, e.g. `1.0.0 → (1, 0, 0)`
   (Blender addon; the gate reconstructs "a.b.c" and compares — stable versions only)
 
 **3. Run the gates locally** (same as CI — a red tag push produces NO
@@ -114,8 +114,9 @@ gh release edit v<version> --notes "<curated notes>
 ```bash
 gh release view v<version> --json assets,url --jq '{url, assets: [.assets[].name]}'
 ```
-`Overseer-v<version>.zip` must be attached as an asset. Give the user the
-release URL.
+Both `Overseer-Cinema4D-v<version>.zip` (the Cinema 4D plugin) and
+`Overseer-Blender-v<version>.zip` (the Blender addon) must be attached — one
+release, two host builds from the same commit. Give the user the release URL.
 
 **8. Check the open issues.** The repo (`lukasguziel/overseer`) is the
 public home — code, releases and issues all live there (no mirror):
@@ -139,7 +140,7 @@ never checks that it loads as a plugin. So ask the user:
 gh release download v<version> --dir $env:TEMP\so-release --clobber
 # Target = plugin_dir from .claude/skills/deploy/deploy.config.json (user entry)
 powershell -File .claude/skills/release/test-release.ps1 `
-    -Zip "$env:TEMP\so-release\Overseer-v<version>.zip" `
+    -Zip "$env:TEMP\so-release\Overseer-Cinema4D-v<version>.zip" `
     -Target "<plugin_dir>"
 ```
 

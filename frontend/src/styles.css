@@ -738,6 +738,9 @@ mark.df-add { background: rgba(52, 211, 153, .28); color: var(--text); }
 .subscore-bar i.good { background: var(--apply); } .subscore-bar i.mid { background: var(--warn); } .subscore-bar i.low { background: var(--err); }
 @media (max-width: 720px) { .subscores { grid-template-columns: 1fr; } }
 .ov-cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+/* When one column is conditionally hidden (e.g. the Phong cards on hosts
+   without a smoothing concept), let the lone remaining card fill the row. */
+.ov-cols2:has(> :only-child) { grid-template-columns: 1fr; }
 /* Grid/flex items refuse to shrink below their content by default — without
    min-width:0 one long nowrap line (e.g. a change-history summary) widens
    the whole column past the viewport. */

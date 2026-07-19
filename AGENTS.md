@@ -112,12 +112,12 @@ Same codebase also ships as a Blender addon (branch `feature/blender-port`).
 Only the host glue differs — everything under `core/`, `naming/`, `config.py`
 and the whole `frontend/` web UI is **shared verbatim** with the C4D build.
 Read [docs/ai/blender.md](docs/ai/blender.md) BEFORE touching the port; only
-`src/overseer/blender/` (and `blender_addon/__init__.py`) may `import bpy`, and
+`src/overseer/blender/` (and `src/blender_addon/__init__.py`) may `import bpy`, and
 never at module load (CI imports the host without Blender).
 
 **Installable addon layout** — one top folder `overseer/` that *is* the package:
 ```
-overseer/__init__.py   = blender_addon/__init__.py   (addon loader: bl_info + operator)
+overseer/__init__.py   = src/blender_addon/__init__.py   (addon loader: bl_info + operator)
 overseer/overseer/     = src/overseer                (shared package incl. blender/)
 overseer/web/          = src/web                      (Vite build)
 overseer/vendor/       = src/vendor                   (Pillow, optional)

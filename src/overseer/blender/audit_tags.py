@@ -555,6 +555,11 @@ def _scan(doc, adapter, tree, progress) -> dict:
 
     return {
         "ok": True,
+        # Blender has no Cinema-4D-style Phong tag, and professional projects
+        # don't rely on the auto-smooth analog, so hide the smoothing UI (the
+        # missing-phong stat, the add-phong card and the angle card). The type
+        # inventory + duplicate-material-slot audit stay.
+        "phong": False,
         "types": type_list,
         "findings": {
             "missing_phong": missing_phong,

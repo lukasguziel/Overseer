@@ -116,7 +116,7 @@ against `src/web/index.html`.
 ## Blender (deploy_blender.ps1)
 
 Same shared package + web build, wrapped as a Blender addon. The installable
-folder is `overseer/` — `__init__.py` (from `blender_addon/__init__.py`, carries
+folder is `overseer/` — `__init__.py` (from `src/blender_addon/__init__.py`, carries
 `bl_info`), `blender_manifest.toml` (the extension manifest), `overseer/`, `web/`,
 `vendor/`. It works BOTH as a legacy add-on and as a 4.2+/5.x extension.
 
