@@ -62,10 +62,25 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
         tree = model.SceneTree()
         counter = [0]
 
-        present = set(self.doc.objects())
-        total = len(present) if progress else 0
+        objs = self.doc.objects()
+        total = len(objs) if progress else 0
         master = self._master_collection()
         depsgraph = self._depsgraph()
+
+        # Precompute object order + a parent->children adjacency map ONCE.
+        # Both ``obj.children`` and ``list(scene.objects).index()`` are O(N) in
+        # Blender (they scan every object), so using them per node made
+        # build_tree O(N^2) and froze large scenes. Keyed on ``obj.name``
+        # (file-global unique, a stable dict key — unlike ephemeral wrappers).
+        present_names = {o.name for o in objs}
+        order = {o.name: i for i, o in enumerate(objs)}
+        children_map: dict = {}
+        for o in objs:
+            p = o.parent
+            if p is not None and p.name in present_names:
+                children_map.setdefault(p.name, []).append(o)
+        for lst in children_map.values():
+            lst.sort(key=lambda c: order.get(c.name, 0))
 
         def selected(obj) -> bool:
             try:
@@ -99,12 +114,8 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
                 self._selected_direct.add(guid)
             if in_scope:
                 self._selected_subtree.add(guid)
-            try:
-                children = [c for c in obj.children if c in present]
-            except Exception:
-                children = []
-            # Stable order: scene object order.
-            for child in sorted(children, key=self._scene_index):
+            # Pre-sorted adjacency (built once above) — no per-node O(N) scan.
+            for child in children_map.get(obj.name, []):
                 node.add_child(
                     make(child, node, depth + 1, in_scope, hidden))
             return node
@@ -112,12 +123,6 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
         for root in self.doc.roots():
             tree.roots.append(make(root, None, 0, False, False))
         return tree
-
-    def _scene_index(self, obj) -> int:
-        try:
-            return list(self.doc.scene.objects).index(obj)
-        except Exception:
-            return 0
 
     def selected_guids(self, include_children: bool = True) -> set:
         return set(self._selected_subtree if include_children
