@@ -9,6 +9,7 @@ base owns tree building, selection and focus.
 from __future__ import annotations
 
 from ...core import model
+from ...core.hostapi import SceneAdapter as SceneAdapterPort
 from .apply import ApplyOps
 from .collections import CollectionOps
 from .materials import MaterialOps
@@ -26,7 +27,8 @@ from .texresize import TextureResizeOps
 
 
 class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
-                   TextureResizeOps, CollectionOps, ApplyOps):
+                   TextureResizeOps, CollectionOps, ApplyOps,
+                   SceneAdapterPort):
 
     def __init__(self, doc) -> None:
         self.doc = doc                      # a BScene

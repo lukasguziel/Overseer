@@ -12,9 +12,14 @@ from __future__ import annotations
 
 import os
 
+from ..core.hostapi import SceneHost
 
-class BScene:
-    """Thin wrapper over the active Blender scene + ``bpy.data``."""
+
+class BScene(SceneHost):
+    """Thin wrapper over the active Blender scene + ``bpy.data``.
+
+    Implements the ``SceneHost`` port (the normalized "document"), so the shared
+    op layer treats it identically to the C4D document wrapper."""
 
     def __init__(self, bpy_module, scene) -> None:
         self._bpy = bpy_module
