@@ -89,15 +89,19 @@ history/journal/export, caching, progress — is inherited unchanged.
 
 ## Migration status
 
-- **Phase 1 (done):** ports defined; the Blender adapter/audits declare the
-  ports as their base so the contract is enforced.
-- **Phase 2 (planned):** extract the two near-identical `webapi.py` copies into
-  `core/hostapi/webapi.py` driven by `HostContext`; `blender/webapi.py` and
-  `cinema/webapi.py` shrink to a context + `build_handle`. Removes the ~1200-line
-  duplication. Touches the shipped C4D backend → gated, tested behind CI + the
-  Blender contract tests before it can regress anything.
-- **Phase 3 (planned):** promote each area to a self-contained "port module" so
-  adding a host is a per-area checklist rather than a monolithic adapter.
+- **Phase 1 (done):** ports defined; both hosts declare them as their base so
+  the contract is enforced (a host missing a method can't instantiate).
+- **Phase 2 (done):** the two near-identical `webapi.py` copies are extracted
+  into `core/hostapi/webapi.py` (one `WebApi(ctx)`). `blender/webapi.py` (16
+  lines) and `cinema/webapi.py` (19 lines) now just bind a `BlenderContext` /
+  `CinemaContext`. Removed ~2400 lines of duplicated op logic. Each host has a
+  `SceneHost` wrapper (`BScene`, `CDoc`) + a `HostContext`. **The C4D path is
+  static-verified only** (no `c4d` in CI): ruff-clean, `py_compile`-clean, and
+  every port method confirmed present — but it needs a local C4D smoke-test
+  before merging to main (the release skill offers one).
+- **Phase 3 (planned):** promote each area to a self-contained "port module"
+  (adapter method-group + `Audit` subclass) so adding a host is a per-area
+  checklist; and migrate the audits from modules to `Audit` subclasses.
 
 See [blender.md](blender.md) for the concrete Blender mapping and
 [cinema.md](cinema.md) for the C4D one.

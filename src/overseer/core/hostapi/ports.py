@@ -210,6 +210,12 @@ class HostContext(ABC):
     @abstractmethod
     def data_dir(self) -> str: ...
 
+    @property
+    def export_dir(self) -> str:
+        """Where the scene report/CSV mirror lands (default: the data dir; a
+        host may point it at a dev repo)."""
+        return self.data_dir
+
     # -- progress -----------------------------------------------------------
     @abstractmethod
     def progress(self, phase, current=0, total=0, detail="") -> None: ...
@@ -238,8 +244,10 @@ class HostContext(ABC):
         return {}
 
     def pick_texture_path(self, payload: dict, host: SceneHost) -> dict:
-        """Native file picker for a texture (optional)."""
-        return {"ok": True, "cancelled": True}
+        """Native file picker for a texture (optional). Returns just the dialog
+        result — ``{"picked": path}`` | ``{"cancelled": True}`` | ``{"error"}`` —
+        the shared webapi does the relink + journal record."""
+        return {"cancelled": True}
 
     def pick_folder(self, payload: dict, host: SceneHost) -> dict:
         """Native folder picker (optional)."""

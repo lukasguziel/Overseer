@@ -1,10 +1,17 @@
+"""Per-project UI state persistence (host-neutral file IO).
+
+Pure: no host SDK. Stores each project's web-UI state under
+``<data_dir>/configs/<slug>.json`` (slug/sanitize delegated to
+``ui_settings_logic``). Shared by every host via the hostapi webapi. (Moved out
+of ``cinema/`` so the shared ``core`` layer no longer imports a host package.)
+"""
 from __future__ import annotations
 
 import json
 import os
 import time
 
-from ..core import ui_settings_logic as logic
+from . import ui_settings_logic as logic
 
 
 def _configs_dir(data_dir: str) -> str:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import c4d
 
 from ...core import model
+from ...core.hostapi import SceneAdapter as SceneAdapterPort
 from .apply import ApplyOps
 from .layers import LayerOps
 from .materials import MaterialOps
@@ -13,7 +14,7 @@ from .texresize import TextureResizeOps
 
 
 class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
-                   TextureResizeOps, LayerOps, ApplyOps):
+                   TextureResizeOps, LayerOps, ApplyOps, SceneAdapterPort):
 
     def __init__(self, doc) -> None:
         self.doc = doc
@@ -22,6 +23,35 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
         self._selected_direct: set = set()
         self._selected_subtree: set = set()
         self.last_changes: list[dict] = []
+
+    # -- host binding (SceneAdapter port) -----------------------------------
+    def set_host(self, host) -> None:
+        # ``host`` is a CDoc (SceneHost) wrapping the live c4d document; the
+        # adapter works on the raw doc.
+        self.doc = getattr(host, "raw", host)
+
+    def refresh_selection(self, tree) -> None:
+        self._selected_direct.clear()
+        self._selected_subtree.clear()
+
+        def visit(node, sel_ancestor):
+            op = self._by_guid.get(node.guid)
+            is_sel = False
+            if op is not None:
+                try:
+                    is_sel = bool(op.GetBit(c4d.BIT_ACTIVE))
+                except Exception:
+                    is_sel = False
+            if is_sel:
+                self._selected_direct.add(node.guid)
+            in_scope = sel_ancestor or is_sel
+            if in_scope:
+                self._selected_subtree.add(node.guid)
+            for child in node.children:
+                visit(child, in_scope)
+
+        for root in tree.roots:
+            visit(root, False)
 
     def count_objects(self) -> int:
         n = 0

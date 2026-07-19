@@ -104,9 +104,10 @@ class WebApi:
         self.ctx = ctx
         self.PLUGIN_DIR = ctx.plugin_dir
         self.DATA_DIR = ctx.data_dir
+        export_dir = getattr(ctx, "export_dir", None) or self.DATA_DIR
         self.CONFIG_PATH = os.path.join(self.DATA_DIR, "config.json")
-        self.EXPORT_PATH = os.path.join(self.DATA_DIR, "scene_report.json")
-        self.EXPORT_CSV_PATH = os.path.join(self.DATA_DIR, "scene_structure.csv")
+        self.EXPORT_PATH = os.path.join(export_dir, "scene_report.json")
+        self.EXPORT_CSV_PATH = os.path.join(export_dir, "scene_structure.csv")
         self.HISTORY_DIR = os.path.join(self.DATA_DIR, "history")
         self.HISTORY_PATH = os.path.join(self.DATA_DIR, "analysis_history.json")
         self.CHANGES_PATH = os.path.join(self.DATA_DIR, "change_history.json")
@@ -298,12 +299,12 @@ class WebApi:
                 "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
 
     def _op_ui_settings_get(self, payload, doc) -> dict:
-        from ...cinema import ui_settings as uimod
+        from .. import ui_settings_io as uimod
         ui = uimod.load_ui(self.DATA_DIR, doc.path or "", doc.name or "")
         return {"ok": True, "found": bool(ui), "ui": ui}
 
     def _op_ui_settings_set(self, payload, doc) -> dict:
-        from ...cinema import ui_settings as uimod
+        from .. import ui_settings_io as uimod
         res = uimod.save_ui(self.DATA_DIR, doc.path or "", doc.name or "",
                             payload.get("ui") or {})
         return {"ok": bool(res.get("ok")), "path": res.get("path"),
@@ -761,7 +762,24 @@ class WebApi:
         return {"ok": True}
 
     def _op_pick_texture_path(self, req) -> dict:
-        return self.ctx.pick_texture_path(req.payload, req.doc)
+        # The native picker is host-specific; the relink + journal record are
+        # shared. ctx returns {"picked": path} | {"cancelled": True} | {"error"}.
+        payload, doc = req.payload, req.doc
+        picked = self.ctx.pick_texture_path(payload, doc)
+        if picked.get("error"):
+            return picked
+        chosen = picked.get("picked") or picked.get("path")
+        if picked.get("cancelled") or not chosen:
+            return {"ok": True, "cancelled": True}
+        adapter = self.ctx.make_adapter(doc)
+        res = adapter.set_texture_path(str(payload.get("path") or ""), chosen,
+                                       material=payload.get("material") or None)
+        if res.get("changed"):
+            self._record_change(
+                "textures_edit",
+                "texture reference relinked to %s" % os.path.basename(chosen),
+                [], revertible=False, doc=doc)
+        return {"ok": True, "picked": chosen, **res}
 
     def _op_pick_folder(self, req) -> dict:
         return self.ctx.pick_folder(req.payload, req.doc)
@@ -911,8 +929,12 @@ class WebApi:
             if mod is None:
                 return {"error": "unknown op: %s" % op}
             adapter, tree = self._get_scene(doc, "%s audit" % prefix)
-            return mod.handle(op, payload, doc=doc, adapter=adapter, tree=tree,
-                              progress=self._progress)
+            # Audits receive the doc reference the ADAPTER works on: the SceneHost
+            # for Blender (its audits use ``doc.undo_push``), the raw c4d document
+            # for Cinema (its audits use ``doc.StartUndo``). ``adapter.doc`` is
+            # exactly that per host.
+            return mod.handle(op, payload, doc=adapter.doc, adapter=adapter,
+                              tree=tree, progress=self._progress)
 
         return {"error": "unknown op: %s" % op}
 
