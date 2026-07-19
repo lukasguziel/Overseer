@@ -56,29 +56,21 @@ class BScene:
 
     # -- dirty token --------------------------------------------------------
     def dirty(self) -> int:
-        """A structural fingerprint that bumps on add/remove/rename/reparent
-        but NOT on selection or camera moves.
+        """An O(1) edit token that bumps on any data edit (transform, geometry,
+        rename, add/remove) but NOT on selection or camera moves.
 
-        The cross-request scene cache is keyed on this so guids stay stable
-        between a plan and its apply. Mutating ops additionally call
-        ``invalidate_scene_cache()`` for correctness even if this collides.
+        Backed by the singleton ``host`` edit-epoch counter, which a
+        depsgraph_update_post handler advances (mirrors C4D's native O(1)
+        ``doc.GetDirty()``). Was an O(N) per-object per-character hash that the
+        function audit flagged as a main-thread stall on large scenes. The
+        cross-request scene cache is keyed on this so guids stay stable between
+        a plan and its apply; mutating ops also call ``invalidate_scene_cache``.
         """
-        h = 1469598103934665603
         try:
-            objs = self.scene.objects
-            for o in objs:
-                parent = o.parent
-                pname = parent.name if parent is not None else ""
-                for part in (o.name, pname, o.type):
-                    for ch in part:
-                        h = ((h ^ ord(ch)) * 1099511628211) & 0xFFFFFFFFFFFFFFFF
-                    h = (h * 1099511628211) & 0xFFFFFFFFFFFFFFFF
-            h ^= len(objs)
-            h ^= (len(self._bpy.data.materials) << 8)
-            h ^= (len(self._bpy.data.collections) << 16)
+            from . import host
+            return int(host.edit_epoch())
         except Exception:
             return 0
-        return h & 0x7FFFFFFFFFFFFFFF
 
     # C4D parity: DIRTYFLAGS args are ignored, we return the fingerprint.
     def GetDirty(self, *args) -> int:  # noqa: N802 - c4d parity

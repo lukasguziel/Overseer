@@ -164,7 +164,7 @@ jobs:
 
             *Edit > Preferences > Add-ons > Install…*, pick the zip, enable
             **Overseer**, then open it from the 3D Viewport sidebar (**N**) >
-            **Overseer** tab. Blender 3.6+.
+            **Overseer** tab. Blender 4.2 LTS+.
         run: |
           BVER="${VERSION#v}"
           C4D_ZIP="dist/Overseer-$VERSION.zip"

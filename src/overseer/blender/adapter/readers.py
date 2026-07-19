@@ -44,9 +44,10 @@ def own_geo(obj, depsgraph=None) -> tuple:
     modifier is reflected, then clears the temporary mesh.
     """
     try:
-        if obj.type not in ("MESH", "CURVE", "SURFACE", "FONT", "META"):
-            return 0, 0
+        otype = obj.type
     except Exception:
+        return 0, 0
+    if otype not in ("MESH", "CURVE", "SURFACE", "FONT", "META"):
         return 0, 0
     eval_obj = obj
     try:
@@ -54,14 +55,23 @@ def own_geo(obj, depsgraph=None) -> tuple:
             eval_obj = obj.evaluated_get(depsgraph)
     except Exception:
         eval_obj = obj
+    # Fast path: an evaluated MESH already has modifiers / geometry nodes
+    # applied in its ``.data``; read the counts directly. This avoids the
+    # per-object to_mesh()/to_mesh_clear() allocation churn the function audit
+    # flagged as a large-scene cost.
+    try:
+        data = eval_obj.data
+        if otype == "MESH" and data is not None and hasattr(data, "polygons"):
+            return len(data.vertices), len(data.polygons)
+    except Exception:
+        pass
+    # Curves / text / metaballs (non-mesh evaluated data) still need to_mesh().
     mesh = None
     try:
         mesh = eval_obj.to_mesh()
         if mesh is None:
             return 0, 0
-        pts = len(mesh.vertices)
-        polys = len(mesh.polygons)
-        return pts, polys
+        return len(mesh.vertices), len(mesh.polygons)
     except Exception:
         return 0, 0
     finally:

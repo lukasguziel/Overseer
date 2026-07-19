@@ -17,7 +17,7 @@ bl_info = {
     "name": "Overseer",
     "author": "Lukas Guziel",
     "version": (1, 0, 0),
-    "blender": (3, 6, 0),
+    "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > Overseer",
     "description": "Analyze & organize the scene: naming, collections, "
                    "materials, textures, modifiers, simulations, files. "
@@ -90,10 +90,12 @@ def unregister():
             bpy.utils.unregister_class(cls)
         except Exception:
             pass
-    # Best-effort: stop the server so a disabled addon frees the port.
+    # Full teardown: stop the server AND drop the timer + depsgraph handlers so
+    # a disabled addon leaves nothing firing (the audit flagged the orphaned
+    # persistent pump timer).
     try:
         import overseer.blender.host as host
-        host.stop()
+        host.shutdown()
     except Exception:
         pass
 

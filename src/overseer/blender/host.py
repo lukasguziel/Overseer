@@ -133,10 +133,92 @@ def _register_timer():
         pass
 
 
+# --- O(1) scene-edit epoch --------------------------------------------------
+# BScene.dirty() must be cheap (it keys the scene cache and is polled on every
+# request). Instead of an O(N) per-object hash, a depsgraph_update_post handler
+# bumps a monotonic counter on any data edit (transform/geometry/rename), and
+# load_post bumps it on file switch. This mirrors C4D's O(1) doc.GetDirty()
+# native counter. Selection/camera moves are not depsgraph updates, so — like
+# C4D's OBJECT|DATA dirty — they do NOT bump it.
+_edit_epoch = 0
+_handlers_registered = False
+_pers_handler = None
+
+
+def edit_epoch() -> int:
+    return _edit_epoch
+
+
+def bump_epoch() -> None:
+    global _edit_epoch
+    _edit_epoch += 1
+
+
+def _on_edit(*args):
+    # depsgraph_update_post -> (scene, depsgraph); load_post -> (path,). Accept
+    # any signature and just advance the counter.
+    global _edit_epoch
+    _edit_epoch += 1
+
+
+def _register_handlers():
+    global _handlers_registered, _pers_handler
+    if _handlers_registered:
+        return
+    try:
+        import bpy
+        from bpy.app.handlers import persistent
+        # Apply @persistent at runtime (can't decorate at import: bpy is absent
+        # in CI) so the handler survives .blend loads.
+        if _pers_handler is None:
+            _pers_handler = persistent(_on_edit)
+        for lst in (bpy.app.handlers.depsgraph_update_post,
+                    bpy.app.handlers.load_post):
+            if _pers_handler not in lst:
+                lst.append(_pers_handler)
+        _handlers_registered = True
+    except Exception:
+        pass
+
+
+def _unregister_handlers():
+    global _handlers_registered
+    try:
+        import bpy
+        for lst in (bpy.app.handlers.depsgraph_update_post,
+                    bpy.app.handlers.load_post):
+            if _pers_handler is not None and _pers_handler in lst:
+                lst.remove(_pers_handler)
+    except Exception:
+        pass
+    _handlers_registered = False
+
+
+def _unregister_timer():
+    global _timer_registered
+    try:
+        import bpy
+        if bpy.app.timers.is_registered(_pump):
+            bpy.app.timers.unregister(_pump)
+    except Exception:
+        pass
+    _timer_registered = False
+
+
+def shutdown() -> None:
+    """Full teardown for addon unregister: stop the server, drop the timer and
+    the edit-epoch handlers so a disabled addon leaves nothing running."""
+    stop()
+    _unregister_timer()
+    _unregister_handlers()
+
+
 def open_panel(port=None) -> int:
-    """Start the server, register the main-thread pump, open the web UI."""
+    """Start the server, register the main-thread pump + edit-epoch handlers,
+    open the web UI."""
     port = start(port)
     _register_timer()
+    _register_handlers()
     try:
         webbrowser.open("http://127.0.0.1:%d/" % port)
     except Exception:
