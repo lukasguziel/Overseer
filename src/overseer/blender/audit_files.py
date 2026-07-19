@@ -124,10 +124,10 @@ class _Ref:
     """A single external reference and the ``bpy`` slot that stores its path."""
 
     __slots__ = ("kind", "raw", "owner_name", "guid", "owner_kind",
-                 "library", "_holder", "_attr")
+                 "library", "_holder", "_attr", "_reload_after")
 
     def __init__(self, kind, raw, owner_name, guid, library, holder,
-                 attr="filepath"):
+                 attr="filepath", reload_after=False):
         self.kind = kind
         self.raw = raw
         self.owner_name = owner_name
@@ -136,22 +136,44 @@ class _Ref:
         self.library = library
         self._holder = holder
         self._attr = attr
+        self._reload_after = reload_after
 
     def write(self, new_path: str) -> bool:
         try:
             setattr(self._holder, self._attr, new_path)
-            return True
         except Exception:
             return False
+
+        # A linked-library holder only stores the path on assignment; the
+        # external .blend is not re-read until Library.reload() runs. Report
+        # success only when the data actually came back.
+        if self._reload_after:
+            try:
+                self._holder.reload()
+            except Exception:
+                return False
+        return True
+
+
+def _db_key(db):
+    """Stable identity for a data-block across independently obtained ``bpy``
+    wrappers. ``as_pointer()`` is the underlying RNA pointer (documented,
+    stable while the data-block lives); ``id()`` of the Python wrapper is NOT -
+    the wrapper is ephemeral and its address is recycled, so keying on it loses
+    owner attribution once the temporary wrapper is freed."""
+    try:
+        return db.as_pointer()
+    except Exception:
+        return id(db)
 
 
 def _owner_index(adapter):
     """Reverse map data-block -> owning objects, plus inline mesh-cache
     modifier references (their path lives on the modifier, not a datablock).
 
-    Returns ``(idx, meshcache)`` where ``idx`` maps a data-block ``id()`` to a
-    list of ``(guid, obj)`` and ``meshcache`` is a list of ``(guid, obj, raw,
-    modifier)``.
+    Returns ``(idx, meshcache)`` where ``idx`` maps a data-block identity
+    (``_db_key``) to a list of ``(guid, obj)`` and ``meshcache`` is a list of
+    ``(guid, obj, raw, modifier, library)``.
     """
     idx = {"sound": {}, "font": {}, "volume": {}, "cachefile": {}}
     meshcache = []
@@ -167,15 +189,15 @@ def _owner_index(adapter):
         if otype == "SPEAKER" and data is not None:
             snd = getattr(data, "sound", None)
             if snd is not None:
-                idx["sound"].setdefault(id(snd), []).append((guid, obj))
+                idx["sound"].setdefault(_db_key(snd), []).append((guid, obj))
         elif otype == "FONT" and data is not None:
             for attr in ("font", "font_bold", "font_italic",
                          "font_bold_italic"):
                 f = getattr(data, attr, None)
                 if f is not None:
-                    idx["font"].setdefault(id(f), []).append((guid, obj))
+                    idx["font"].setdefault(_db_key(f), []).append((guid, obj))
         elif otype == "VOLUME" and data is not None:
-            idx["volume"].setdefault(id(data), []).append((guid, obj))
+            idx["volume"].setdefault(_db_key(data), []).append((guid, obj))
         try:
             mods = list(obj.modifiers)
         except Exception:
@@ -188,11 +210,13 @@ def _owner_index(adapter):
             if mtype == "MESH_SEQUENCE_CACHE":
                 cf = getattr(m, "cache_file", None)
                 if cf is not None:
-                    idx["cachefile"].setdefault(id(cf), []).append((guid, obj))
+                    idx["cachefile"].setdefault(
+                        _db_key(cf), []).append((guid, obj))
             elif mtype == "MESH_CACHE":
                 raw = getattr(m, "filepath", "") or ""
                 if raw:
-                    meshcache.append((guid, obj, raw, m))
+                    meshcache.append(
+                        (guid, obj, raw, m, getattr(obj, "library", None)))
         try:
             cons = list(obj.constraints)
         except Exception:
@@ -205,7 +229,8 @@ def _owner_index(adapter):
             if ctype == "TRANSFORM_CACHE":
                 cf = getattr(c, "cache_file", None)
                 if cf is not None:
-                    idx["cachefile"].setdefault(id(cf), []).append((guid, obj))
+                    idx["cachefile"].setdefault(
+                        _db_key(cf), []).append((guid, obj))
     return idx, meshcache
 
 
@@ -219,7 +244,7 @@ def _packed(db) -> bool:
 
 
 def _owner_of(idx_bucket, db):
-    owners = idx_bucket.get(id(db), [])
+    owners = idx_bucket.get(_db_key(db), [])
     if owners:
         guid, obj = owners[0]
         try:
@@ -253,7 +278,7 @@ def _iter_refs(bpy, adapter):
             name = lib.name
         except Exception:
             name = os.path.basename(raw)
-        yield _Ref("scene", raw, name, None, None, lib)
+        yield _Ref("scene", raw, name, None, None, lib, reload_after=True)
 
     # Sounds.
     for snd in getattr(data, "sounds", []) or []:
@@ -324,12 +349,12 @@ def _iter_refs(bpy, adapter):
                    getattr(cf, "library", None), cf)
 
     # Mesh Cache modifiers (.mdd / .pc2) - path lives on the modifier itself.
-    for guid, obj, raw, mod in meshcache:
+    for guid, obj, raw, mod, lib in meshcache:
         try:
             name = obj.name
         except Exception:
             name = ""
-        yield _Ref(_blend_kind(raw), raw, name, guid, None, mod)
+        yield _Ref(_blend_kind(raw), raw, name, guid, lib, mod)
 
 
 def _safe_name(db) -> str:
@@ -413,11 +438,11 @@ def _scan(doc, adapter, progress=None) -> dict:
 # ---------------------------------------------------------------------------
 def _select(doc, adapter, payload) -> dict:
     guids = [g for g in (payload.get("guids") or []) if g is not None]
-    try:
-        for o in doc.selected_objects():
+    for o in doc.selected_objects():
+        try:
             o.select_set(False)
-    except Exception:
-        pass
+        except Exception:
+            continue
     selected = 0
     active_set = False
     for guid in guids:
@@ -426,15 +451,15 @@ def _select(doc, adapter, payload) -> dict:
             continue
         try:
             obj.select_set(True)
-            if not active_set:
-                try:
-                    adapter.bpy.context.view_layer.objects.active = obj
-                except Exception:
-                    pass
-                active_set = True
-            selected += 1
         except Exception:
             continue
+        selected += 1
+        if not active_set:
+            try:
+                adapter.bpy.context.view_layer.objects.active = obj
+            except Exception:
+                pass
+            active_set = True
     doc.tag_redraw()
     return {"ok": True, "selected": selected}
 
@@ -456,6 +481,8 @@ def _make_relative(doc, adapter, payload) -> dict:
     # rewritten, but the path counts once (parity with C4D _rewrite_everywhere).
     targets: dict = {}
     for ref in _iter_refs(bpy, adapter):
+        if ref.library is not None:
+            continue
         raw = ref.raw
         if wanted_set is not None and raw not in wanted_set:
             continue

@@ -60,6 +60,8 @@ _REGISTRY = [
 
 _BY_TYPE = {e["mod_type"]: e for e in _REGISTRY}
 
+_GROUP_CACHE = {}
+
 # Instancing is a per-object generator (not a modifier). Its holder is the
 # object itself; the enum label for each value is read from the object bl_rna.
 _INSTANCE_KEY = "instance"
@@ -166,7 +168,12 @@ def _group_for_mod(mod):
     """(group_key, label, params_def) for a modifier, or None to skip.
 
     Geometry Nodes group by node-group name; registry types use their curated
-    params; any other modifier still appears, with no editable params."""
+    params; any other modifier still appears, with no editable params.
+
+    Results are memoised on ``_GROUP_CACHE`` keyed by (mod.type, node-group
+    name) - both session-stable - so the bl_rna label introspection runs once
+    per distinct modifier type/name instead of once per modifier instance
+    (gens_apply/gens_select re-walk the whole tree on every interaction)."""
     try:
         mtype = mod.type
     except Exception:
@@ -178,12 +185,26 @@ def _group_for_mod(mod):
             gname = ng.name if ng is not None else ""
         except Exception:
             gname = ""
-        return ("nodes:" + gname, gname or "Geometry Nodes", [])
+        cache_key = ("NODES", gname)
+        cached = _GROUP_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+        result = ("nodes:" + gname, gname or "Geometry Nodes", [])
+        _GROUP_CACHE[cache_key] = result
+        return result
+
+    cache_key = (mtype, None)
+    cached = _GROUP_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     label = _mod_type_label(mod)
     entry = _BY_TYPE.get(mtype)
     if entry is not None:
-        return (entry["key"], label, entry["params"])
-    return ("mod:" + str(mtype), label, [])
+        result = (entry["key"], label, entry["params"])
+    else:
+        result = ("mod:" + str(mtype), label, [])
+    _GROUP_CACHE[cache_key] = result
+    return result
 
 
 def _instance_type(obj):
@@ -351,32 +372,58 @@ def _apply(payload, doc, adapter, tree, progress):
     return {"ok": True, "applied": applied}
 
 
-def _select_guids(adapter, doc, guids):
+def _in_view_layer(view_objects, obj) -> bool:
+    """Whether ``select_set`` can act on ``obj``. ``Object.select_set`` raises
+    RuntimeError for objects absent from the active view layer (excluded
+    collection, other scene). When membership cannot be determined we return
+    True and let the guarded ``select_set`` be the final arbiter."""
+    if view_objects is None:
+        return True
+    try:
+        return obj.name in view_objects
+    except Exception:
+        return True
+
+
+def _select_guids(adapter, doc, guids, progress=None):
     bpy = adapter.bpy
     try:
         for o in doc.selected_objects():
             o.select_set(False)
     except Exception:
         pass
+
+    try:
+        view_objects = bpy.context.view_layer.objects
+    except Exception:
+        view_objects = None
+
     selected = 0
+    skipped = 0
     active = None
-    for guid in guids:
+    total = len(guids)
+    for i, guid in enumerate(guids):
+        if progress and total > 500 and i % 500 == 0:
+            progress("Selecting generators", i, total, "")
         obj = adapter._by_guid.get(guid)
         if obj is None:
+            continue
+        if not _in_view_layer(view_objects, obj):
+            skipped += 1
             continue
         try:
             obj.select_set(True)
             active = obj
             selected += 1
         except Exception:
-            pass
+            skipped += 1
     if active is not None:
         try:
             bpy.context.view_layer.objects.active = active
         except Exception:
             pass
     doc.tag_redraw()
-    return selected
+    return selected, skipped
 
 
 def _select(payload, doc, adapter, tree, progress):
@@ -386,7 +433,8 @@ def _select(payload, doc, adapter, tree, progress):
         # Direct guid selection fallback (task contract); the frozen UI drives
         # selection by type/param/value, handled below.
         guids = payload.get("guids") or []
-        return {"ok": True, "selected": _select_guids(adapter, doc, guids)}
+        selected, skipped = _select_guids(adapter, doc, guids, progress)
+        return {"ok": True, "selected": selected, "skipped": skipped}
 
     members = _members_of(adapter, tree, type_key)
     if param_key is not None and "value" in payload:
@@ -400,7 +448,8 @@ def _select(payload, doc, adapter, tree, progress):
         if node.guid not in seen:
             seen.add(node.guid)
             guids.append(node.guid)
-    return {"ok": True, "selected": _select_guids(adapter, doc, guids)}
+    selected, skipped = _select_guids(adapter, doc, guids, progress)
+    return {"ok": True, "selected": selected, "skipped": skipped}
 
 
 def handle(op, payload, doc, adapter, tree, progress):

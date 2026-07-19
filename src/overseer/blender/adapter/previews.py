@@ -3,10 +3,6 @@ from __future__ import annotations
 import base64
 import os
 
-_BLANK = ("data:image/png;base64,"
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
-          "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
-
 
 class PreviewOps:
 
@@ -32,13 +28,15 @@ class PreviewOps:
                     pass
             mat = by_name.get(name)
             uri = self._material_uri(mat, size) if mat is not None else None
-            out[name] = uri or _BLANK
+            if uri is not None:
+                out[name] = uri
         return out
 
     def texture_previews(self, paths=None, size=40, progress=None) -> dict:
         out: dict = {}
         all_paths = list(paths or [])
         total = len(all_paths)
+        img_by_path = None
         for i, p in enumerate(all_paths):
             if progress:
                 try:
@@ -50,12 +48,15 @@ class PreviewOps:
                 if p and os.path.isfile(p):
                     uri = self._pillow_uri(p, size)
                     if uri is None:
-                        img = self._find_image(p)
+                        if img_by_path is None:
+                            img_by_path = self._build_image_index()
+                        img = img_by_path.get(self._norm_path(p))
                         if img is not None:
                             uri = self._image_preview_uri(img, size)
             except Exception:
                 uri = None
-            out[p] = uri or _BLANK
+            if uri is not None:
+                out[p] = uri
         return out
 
     def _material_uri(self, mat, size: int):
@@ -74,6 +75,8 @@ class PreviewOps:
             if not flat or len(flat) < w * h * 4:
                 return None
             raw = self._sample_rgba(flat, w, h, size, size)
+            if not any(raw):
+                return None
             return self._encode_uri(raw, size, size)
         except Exception:
             return None
@@ -91,6 +94,8 @@ class PreviewOps:
             if not flat or len(flat) < w * h * 4:
                 return None
             raw = self._sample_rgba(flat, w, h, size, size)
+            if not any(raw):
+                return None
             return self._encode_uri(raw, size, size)
         except Exception:
             return None
@@ -115,28 +120,30 @@ class PreviewOps:
         except Exception:
             return None
 
-    def _find_image(self, path: str):
+    def _norm_path(self, path: str):
         try:
-            target = os.path.normcase(os.path.abspath(path))
+            return os.path.normcase(os.path.abspath(path))
         except Exception:
             return None
+
+    def _build_image_index(self) -> dict:
+        index: dict = {}
         try:
-            for img in self.bpy.data.images:
-                try:
-                    lib = getattr(img, "library", None)
-                    fp = self.bpy.path.abspath(img.filepath, library=lib)
-                except Exception:
-                    fp = ""
-                if not fp:
-                    continue
-                try:
-                    if os.path.normcase(os.path.abspath(fp)) == target:
-                        return img
-                except Exception:
-                    continue
+            images = list(self.bpy.data.images)
         except Exception:
-            return None
-        return None
+            return index
+        for img in images:
+            try:
+                lib = getattr(img, "library", None)
+                fp = self.bpy.path.abspath(img.filepath, library=lib)
+            except Exception:
+                fp = ""
+            if not fp:
+                continue
+            key = self._norm_path(fp)
+            if key is not None:
+                index.setdefault(key, img)
+        return index
 
     def _sample_rgba(self, flat, sw: int, sh: int, dw: int, dh: int) -> bytes:
         out = bytearray(dw * dh * 4)

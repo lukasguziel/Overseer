@@ -115,18 +115,25 @@ def test_selection_sets_populate_from_select_get(blender_scene):
     assert body not in adapter.selected_guids(include_children=False)
 
 
-def test_dirty_is_stable_across_selection_but_bumps_on_rename(blender_scene):
+def test_dirty_is_stable_across_selection_but_bumps_on_edit(blender_scene):
+    # dirty() is now the O(1) host edit-epoch counter (a depsgraph_update_post
+    # handler advances it on real data edits). Selection changes are not
+    # depsgraph updates, so they must not move it; a real edit (simulated here
+    # via the same counter the handler drives) must.
+    from overseer.blender import host
+
     fake = blender_scene(SCENE, collections=COLLECTIONS)
     doc = BScene.active()
 
     base = doc.dirty()
 
-    # Changing selection must NOT move the structural fingerprint (the scene
-    # cache is keyed on it and guids must survive a plan -> apply round trip).
+    # Changing selection must NOT move the token (the scene cache is keyed on it
+    # and guids must survive a plan -> apply round trip).
     for obj in fake.data.objects:
         obj.select_set(not obj.select_get())
     assert doc.dirty() == base
 
-    # A rename is a real structural edit -> the fingerprint bumps.
-    fake.data.objects[0].name = fake.data.objects[0].name + "_renamed"
+    # A real data edit fires depsgraph_update_post -> the handler bumps the
+    # epoch. Simulate that edit signal and confirm dirty() reflects it.
+    host.bump_epoch()
     assert doc.dirty() != base

@@ -7,6 +7,10 @@ type, or "Shade Smooth" (the smoothing analog of a Phong tag). Kind ids are
 synthetic - a stable integer hashed from the kind string - because Blender
 kinds are strings and the frontend only needs an opaque, unique selector.
 
+Minimum target is Blender 4.2 LTS: Auto-Smooth is ONLY the "Smooth by Angle"
+Geometry Nodes modifier (the old ``mesh.use_auto_smooth`` flag was removed in
+4.1), so there is no legacy data path anymore.
+
 Result shapes mirror the C4D audit key-for-key so the frozen ``TagsTab``
 renders unchanged:
 
@@ -35,13 +39,13 @@ from ..core.tags_logic import (
     dominant_angle,
 )
 
-# Modifier names that Blender 4.1+ adds for "Shade Auto Smooth" - a Geometry
-# Nodes modifier, not a mesh flag. Matched case-insensitively.
+# Name of the Geometry Nodes modifier / node group Blender's Auto-Smooth adds
+# (the "Shade Auto Smooth" operator). Matched case-insensitively.
 _SMOOTH_BY_ANGLE = "smooth by angle"
 
-# Candidate socket identifiers for the Smooth by Angle angle input, tried in
-# order before falling back to introspecting the node group interface.
-_ANGLE_SOCKETS = ("Input_1", "Socket_1", "Angle")
+# Per-request cache of the resolved angle-socket identifier, keyed by node
+# group name (the module is purged per request, so this never goes stale).
+_ANGLE_IDENT_CACHE: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +134,7 @@ def _mat_name(mat) -> str:
 # mesh smoothing (the Phong analog)
 # ---------------------------------------------------------------------------
 def _smooth_by_angle_modifier(obj):
-    """The 4.1+ "Smooth by Angle" Geometry Nodes modifier, if present."""
+    """The "Smooth by Angle" Geometry Nodes modifier, if present."""
     for mod in _safe_iter(obj, "modifiers"):
         try:
             if _SMOOTH_BY_ANGLE in (mod.name or "").lower():
@@ -146,52 +150,98 @@ def _smooth_by_angle_modifier(obj):
     return None
 
 
-def _read_modifier_angle(mod):
-    """Best-effort read of the Smooth by Angle angle input (radians)."""
-    for ident in _ANGLE_SOCKETS:
-        try:
-            v = mod[ident]
-            if isinstance(v, (int, float)):
-                return float(v)
-        except Exception:
-            continue
+def _angle_socket_identifier(mod):
+    """Identifier of the modifier's angle INPUT socket, via the node group
+    interface (never blind key guesses; identifiers change across releases).
+    Cached per node group name for the length of the request."""
     try:
         ng = mod.node_group
-        for item in ng.interface.items_tree:
-            if (getattr(item, "in_out", "") == "INPUT"
-                    and getattr(item, "subtype", "") == "ANGLE"):
-                v = mod[item.identifier]
-                if isinstance(v, (int, float)):
-                    return float(v)
     except Exception:
-        pass
+        return None
+    if ng is None:
+        return None
+
+    try:
+        key = ng.name
+    except Exception:
+        key = None
+    if key is not None and key in _ANGLE_IDENT_CACHE:
+        return _ANGLE_IDENT_CACHE[key]
+
+    ident = None
+    named = None
+    try:
+        for item in ng.interface.items_tree:
+            if getattr(item, "item_type", "SOCKET") != "SOCKET":
+                continue
+            if getattr(item, "in_out", "") != "INPUT":
+                continue
+            if getattr(item, "subtype", "") == "ANGLE":
+                ident = getattr(item, "identifier", None)
+                break
+            if named is None and (getattr(item, "name", "") or "").lower() == "angle":
+                named = getattr(item, "identifier", None)
+    except Exception:
+        ident = None
+    if ident is None:
+        ident = named
+
+    if key is not None:
+        _ANGLE_IDENT_CACHE[key] = ident
+    return ident
+
+
+def _read_modifier_angle(mod):
+    """Best-effort read of the Smooth by Angle angle input (radians)."""
+    ident = _angle_socket_identifier(mod)
+    if ident is None:
+        return None
+    try:
+        v = mod[ident]
+    except Exception:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
     return None
 
 
 def _write_modifier_angle(mod, radians: float) -> bool:
-    for ident in _ANGLE_SOCKETS:
-        try:
-            mod[ident] = radians
-            return True
-        except Exception:
-            continue
+    ident = _angle_socket_identifier(mod)
+    if ident is None:
+        return False
     try:
-        ng = mod.node_group
-        for item in ng.interface.items_tree:
-            if (getattr(item, "in_out", "") == "INPUT"
-                    and getattr(item, "subtype", "") == "ANGLE"):
-                mod[item.identifier] = radians
-                return True
+        mod[ident] = radians
+        return True
     except Exception:
-        pass
-    return False
+        return False
+
+
+def _any_smooth(mesh) -> bool:
+    """Is any polygon shade-smooth? Bulk ``foreach_get`` over ALL polygons
+    (vectorised) - never decide from ``polygons[0]`` alone."""
+    try:
+        polys = mesh.polygons
+        n = len(polys)
+    except Exception:
+        return False
+    if not n:
+        return False
+    try:
+        flags = [False] * n
+        polys.foreach_get("use_smooth", flags)
+        return any(flags)
+    except Exception:
+        try:
+            return any(p.use_smooth for p in polys)
+        except Exception:
+            return False
 
 
 def _smooth_state(obj) -> dict:
     """(smooth, auto, angle_deg) for a mesh object.
 
     ``smooth`` - is it shade-smooth at all (the "has a Phong tag" analog).
-    ``auto``   - does it carry Auto-Smooth (legacy flag or 4.1+ modifier);
+    ``auto``   - does it carry Auto-Smooth (the "Smooth by Angle" modifier);
                  only these contribute an angle to the distribution.
     ``angle_deg`` - the Auto-Smooth angle in degrees, when determinable.
     """
@@ -200,118 +250,132 @@ def _smooth_state(obj) -> dict:
     if mesh is None:
         return state
 
-    # Whole-object shade-smooth is uniform in practice; sampling the first
-    # polygon keeps this O(1) on the multi-million-poly production scene.
-    try:
-        polys = mesh.polygons
-        if len(polys) and polys[0].use_smooth:
-            state["smooth"] = True
-    except Exception:
-        pass
+    if _any_smooth(mesh):
+        state["smooth"] = True
 
-    # Legacy (<=4.0): the mesh carries the auto-smooth flag + angle directly.
-    try:
-        if getattr(mesh, "use_auto_smooth", False):
-            state["auto"] = True
-            state["smooth"] = True
-            ang = getattr(mesh, "auto_smooth_angle", None)
-            if ang is not None:
-                state["angle_deg"] = deg_from_rad(float(ang))
-    except Exception:
-        pass
-
-    # 4.1+: Auto-Smooth is a "Smooth by Angle" Geometry Nodes modifier.
-    if not state["auto"]:
-        mod = _smooth_by_angle_modifier(obj)
-        if mod is not None:
-            state["auto"] = True
-            state["smooth"] = True
-            rad = _read_modifier_angle(mod)
-            if rad is not None:
-                state["angle_deg"] = deg_from_rad(rad)
+    mod = _smooth_by_angle_modifier(obj)
+    if mod is not None:
+        state["auto"] = True
+        state["smooth"] = True
+        rad = _read_modifier_angle(mod)
+        if rad is not None:
+            state["angle_deg"] = deg_from_rad(rad)
 
     return state
 
 
-def _apply_smooth(obj, radians: float, bpy) -> bool:
-    """Shade-smooth a mesh and enable Auto-Smooth at ``radians``."""
+def _shade_smooth_faces(obj) -> bool:
+    """Set all polygon smooth flags - the "shade smooth" half of Auto-Smooth.
+    Version-agnostic, needs no operator. NOT the Auto-Smooth attachment."""
     mesh = _mesh_data(obj)
     if mesh is None:
         return False
-    ok = False
-    # Shade smooth via polygon flags - version-agnostic, needs no operator.
     try:
         n = len(mesh.polygons)
-        if n:
-            mesh.polygons.foreach_set("use_smooth", [True] * n)
-            try:
-                mesh.update()
-            except Exception:
-                pass
-            ok = True
-    except Exception:
-        pass
-    # Auto-Smooth: prefer the direct data API (<=4.0), else the 4.1+ operator.
-    try:
-        if hasattr(mesh, "use_auto_smooth"):
-            mesh.use_auto_smooth = True
-            try:
-                mesh.auto_smooth_angle = radians
-            except Exception:
-                pass
-            ok = True
-        elif _op_shade_auto_smooth(obj, radians, bpy):
-            ok = True
-    except Exception:
-        pass
-    return ok
-
-
-def _op_shade_auto_smooth(obj, radians: float, bpy) -> bool:
-    """4.1+ Auto-Smooth via operator (adds/updates the modifier)."""
-    try:
-        with bpy.context.temp_override(
-                object=obj, active_object=obj,
-                selected_objects=[obj], selected_editable_objects=[obj]):
-            bpy.ops.object.shade_auto_smooth(angle=radians)
-        return True
-    except Exception:
-        pass
-    # Older signature: shade_smooth carried the auto-smooth args.
-    try:
-        with bpy.context.temp_override(
-                object=obj, active_object=obj,
-                selected_objects=[obj], selected_editable_objects=[obj]):
-            bpy.ops.object.shade_smooth(
-                use_auto_smooth=True, auto_smooth_angle=radians)
-        return True
-    except Exception:
-        return False
-
-
-def _set_auto_smooth_angle(obj, radians: float, bpy) -> bool:
-    """Set the Auto-Smooth angle on a mesh that already has Auto-Smooth."""
-    mesh = _mesh_data(obj)
-    if mesh is None:
-        return False
-    if hasattr(mesh, "use_auto_smooth"):
-        try:
-            mesh.auto_smooth_angle = radians
-            mesh.use_auto_smooth = True
-            return True
-        except Exception:
+        if not n:
             return False
-    mod = _smooth_by_angle_modifier(obj)
-    if mod is None:
-        return False
-    if _write_modifier_angle(mod, radians):
+        mesh.polygons.foreach_set("use_smooth", [True] * n)
         try:
-            obj.update_tag()
+            mesh.update()
         except Exception:
             pass
         return True
-    # Re-running the operator updates the existing modifier in place.
-    return _op_shade_auto_smooth(obj, radians, bpy)
+    except Exception:
+        return False
+
+
+def _find_smooth_group(bpy):
+    """An already-loaded "Smooth by Angle" node group, reusable for a direct
+    modifier attach (so a batch loads the asset once, not once per object)."""
+    try:
+        groups = bpy.data.node_groups
+    except Exception:
+        return None
+    try:
+        for ng in groups:
+            if _SMOOTH_BY_ANGLE in (getattr(ng, "name", "") or "").lower():
+                return ng
+    except Exception:
+        pass
+    return None
+
+
+def _attach_smooth_directly(obj, group, radians: float, bpy) -> bool:
+    """Add a Smooth-by-Angle NodesModifier reusing an existing node group -
+    reliable (no operator, no asset-load race)."""
+    try:
+        mod = obj.modifiers.new(name="Smooth by Angle", type="NODES")
+    except Exception:
+        return False
+    try:
+        mod.node_group = group
+    except Exception:
+        try:
+            obj.modifiers.remove(mod)
+        except Exception:
+            pass
+        return False
+    _write_modifier_angle(mod, radians)
+    try:
+        obj.update_tag()
+    except Exception:
+        pass
+    return True
+
+
+def _op_shade_auto_smooth(obj, radians: float, bpy):
+    """Auto-Smooth via the operator - unreliable (async asset-library load
+    can raise), so retry and VERIFY the modifier actually landed. Returns the
+    Smooth-by-Angle modifier or None; never trusts the operator's own result."""
+    for _ in range(2):
+        try:
+            with bpy.context.temp_override(
+                    object=obj, active_object=obj,
+                    selected_objects=[obj], selected_editable_objects=[obj]):
+                bpy.ops.object.shade_auto_smooth(angle=radians)
+        except Exception:
+            pass
+        mod = _smooth_by_angle_modifier(obj)
+        if mod is not None:
+            return mod
+    return None
+
+
+def _attach_auto_smooth(obj, group, radians: float, bpy):
+    """Ensure ``obj`` carries a Smooth-by-Angle modifier at ``radians``.
+
+    Returns the node group used (so a batch can reuse it for later objects) or
+    None if attachment truly failed. Reuses ``group`` via a direct modifier
+    when known; otherwise falls back to the operator and adopts the group it
+    loaded.
+    """
+    existing = _smooth_by_angle_modifier(obj)
+    if existing is not None:
+        _write_modifier_angle(existing, radians)
+        return _attr(existing, "node_group", None) or group
+
+    if group is not None and _attach_smooth_directly(obj, group, radians, bpy):
+        return group
+
+    mod = _op_shade_auto_smooth(obj, radians, bpy)
+    if mod is not None:
+        _write_modifier_angle(mod, radians)
+        return _attr(mod, "node_group", None) or group
+    return None
+
+
+def _set_auto_smooth_angle(obj, radians: float, bpy) -> bool:
+    """Set the Auto-Smooth angle on a mesh that already carries the modifier."""
+    mod = _smooth_by_angle_modifier(obj)
+    if mod is None:
+        return False
+    if not _write_modifier_angle(mod, radians):
+        return False
+    try:
+        obj.update_tag()
+    except Exception:
+        pass
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -374,13 +438,23 @@ def _remove_slot(obj, index: int, bpy) -> bool:
             bpy.ops.object.material_slot_remove()
         return True
     except Exception:
-        # Fallback: pop from the datablock (operator remaps polygon indices;
-        # this path is a best-effort last resort).
-        try:
-            obj.data.materials.pop(index=index)
-            return True
-        except Exception:
-            return False
+        pass
+
+    # Fallback pops the mesh datablock's material by index. That index only
+    # lines up with the object's slot index when EVERY slot is DATA-linked; an
+    # OBJECT-linked slot (per-instance override) diverges the two arrays, so
+    # refuse rather than remove the wrong material and mis-report success.
+    try:
+        slots = list(obj.material_slots)
+    except Exception:
+        return False
+    if not all(_attr(s, "link", "DATA") == "DATA" for s in slots):
+        return False
+    try:
+        obj.data.materials.pop(index=index)
+        return True
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -515,7 +589,7 @@ def _current_phong_angles(adapter, tree) -> dict:
 # ---------------------------------------------------------------------------
 # mutations
 # ---------------------------------------------------------------------------
-def _add_phong(doc, adapter, tree, payload) -> dict:
+def _add_phong(doc, adapter, tree, payload, progress) -> dict:
     bpy = adapter.bpy
     guids = payload.get("guids")
     wanted = set(guids) if guids is not None else None
@@ -524,7 +598,7 @@ def _add_phong(doc, adapter, tree, payload) -> dict:
         angle_deg = DEFAULT_PHONG_ANGLE_DEG
     radians = math.radians(float(angle_deg))
 
-    applied = 0
+    targets: list = []
     for node in tree.walk():
         if wanted is not None and node.guid not in wanted:
             continue
@@ -534,8 +608,22 @@ def _add_phong(doc, adapter, tree, payload) -> dict:
         state = _smooth_state(obj)
         if state["smooth"] or state["auto"]:
             continue
-        if _apply_smooth(obj, radians, bpy):
+        targets.append((node, obj))
+
+    total = len(targets)
+    group = _find_smooth_group(bpy)
+    applied = 0
+    for i, (node, obj) in enumerate(targets):
+        if progress and i % 50 == 0:
+            progress("Adding auto-smooth", i, total, node.name)
+        _shade_smooth_faces(obj)
+        used = _attach_auto_smooth(obj, group, radians, bpy)
+        if used is not None:
+            group = used
             applied += 1
+
+    if progress:
+        progress("Adding auto-smooth", total, total, "")
 
     if applied:
         doc.undo_push("Overseer: add auto-smooth")
@@ -649,7 +737,7 @@ def handle(op, payload, doc, adapter, tree, progress):
     if op == "tags_scan":
         return _scan(doc, adapter, tree, progress)
     if op == "tags_add_phong":
-        return _add_phong(doc, adapter, tree, payload)
+        return _add_phong(doc, adapter, tree, payload, progress)
     if op == "tags_set_phong_angle":
         return _set_phong_angle(doc, adapter, tree, payload)
     if op == "tags_delete_duplicates":

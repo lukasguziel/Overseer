@@ -19,6 +19,12 @@ class TexturePathOps:
         except Exception:
             return ""
 
+    def _img_key(self, img) -> str:
+        try:
+            return getattr(img, "name_full", None) or img.name
+        except Exception:
+            return "id:%d" % id(img)
+
     def _raw(self, img) -> str:
         for attr in ("filepath_raw", "filepath"):
             try:
@@ -29,17 +35,32 @@ class TexturePathOps:
                 return str(val)
         return ""
 
-    def _resolve(self, raw: str) -> str:
+    def _resolve(self, raw: str, library=None) -> str:
         if not raw:
             return ""
         try:
-            resolved = self.bpy.path.abspath(raw)
+            resolved = self.bpy.path.abspath(raw, library=library)
         except Exception:
-            resolved = raw
+            try:
+                resolved = self.bpy.path.abspath(raw)
+            except Exception:
+                resolved = raw
         try:
             return os.path.normpath(resolved)
         except Exception:
             return resolved
+
+    def _library_for_raw(self, raw: str):
+        try:
+            for img in self._real_images():
+                try:
+                    if self._raw(img) == raw:
+                        return getattr(img, "library", None)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return None
 
     def _real_images(self) -> list:
         try:
@@ -49,14 +70,14 @@ class TexturePathOps:
         out: list = []
         for img in images:
             try:
-                if getattr(img, "source", "") in ("GENERATED", "VIEWER"):
+                if getattr(img, "source", "") in ("GENERATED", "VIEWER", "TILED"):
                     continue
                 if getattr(img, "packed_file", None) is not None:
                     continue
                 raw = self._raw(img)
             except Exception:
                 continue
-            if not raw or raw == "<builtin>":
+            if not raw:
                 continue
             out.append(img)
         return out
@@ -75,9 +96,11 @@ class TexturePathOps:
                 if img is not None:
                     out.append(img)
                 sub = getattr(node, "node_tree", None)
-                if sub is not None and id(sub) not in seen:
-                    seen.add(id(sub))
-                    out.extend(self._images_in_node_tree(sub, seen))
+                if sub is not None:
+                    key = getattr(sub, "name_full", None) or id(sub)
+                    if key not in seen:
+                        seen.add(key)
+                        out.extend(self._images_in_node_tree(sub, seen))
             except Exception:
                 continue
         return out
@@ -89,12 +112,15 @@ class TexturePathOps:
         except Exception:
             mats = []
         for mat in mats:
-            name = self._mat_name(mat)
-            if not name:
+            try:
+                name = self._mat_name(mat)
+                if not name:
+                    continue
+                tree = getattr(mat, "node_tree", None)
+                for img in self._images_in_node_tree(tree, set()):
+                    out.setdefault(self._img_key(img), set()).add(name)
+            except Exception:
                 continue
-            tree = getattr(mat, "node_tree", None)
-            for img in self._images_in_node_tree(tree, set()):
-                out.setdefault(id(img), set()).add(name)
         return out
 
     def _all_material_names(self) -> set:
@@ -140,12 +166,16 @@ class TexturePathOps:
         mats_for = self._image_material_map() if material else None
         out: list = []
         for img in self._real_images():
-            raw = self._raw(img)
-            if self._norm(raw) == target_norm or (
-                    target_abs and self._norm(self._resolve(raw)) == target_abs):
-                if material and material not in mats_for.get(id(img), set()):
-                    continue
-                out.append(img)
+            try:
+                raw = self._raw(img)
+                lib = getattr(img, "library", None)
+                if self._norm(raw) == target_norm or (
+                        target_abs and self._norm(self._resolve(raw, lib)) == target_abs):
+                    if material and material not in mats_for.get(self._img_key(img), set()):
+                        continue
+                    out.append(img)
+            except Exception:
+                continue
         return out
 
     def _to_blend_relative(self, abspath: str, doc_path: str) -> str | None:
@@ -153,7 +183,7 @@ class TexturePathOps:
             return None
         rel = None
         try:
-            candidate = self.bpy.path.relpath(abspath)
+            candidate = self.bpy.path.relpath(abspath, start=doc_path)
         except Exception:
             candidate = None
         if candidate and candidate.startswith("//"):
@@ -172,6 +202,13 @@ class TexturePathOps:
         return rel
 
     def _set_image_path(self, img, path: str, reload: bool = True) -> bool:
+        if not reload:
+            try:
+                img.filepath_raw = path
+            except Exception:
+                return False
+            return True
+
         try:
             img.filepath = path
         except Exception:
@@ -180,9 +217,15 @@ class TexturePathOps:
             img.filepath_raw = path
         except Exception:
             pass
-        if reload and path:
+        if path:
             try:
                 img.reload()
+            except Exception:
+                pass
+        lib = getattr(img, "library", None)
+        if lib is not None:
+            try:
+                lib.reload()
             except Exception:
                 pass
         return True
@@ -200,7 +243,7 @@ class TexturePathOps:
         from ...core import imagesize
         from ...core import textures as texmod
         doc_path = self.doc.path or ""
-        resolved = self._resolve(raw)
+        resolved = self._resolve(raw, getattr(img, "library", None))
         blend_relative = raw.startswith("//")
         absolute = (not blend_relative) and os.path.isabs(raw)
         exists = bool(resolved) and os.path.isfile(resolved)
@@ -269,23 +312,25 @@ class TexturePathOps:
         entries: list = []
         meta_cache: dict = {}
         for img in self._real_images():
-            raw = self._raw(img)
-            if not raw:
+            try:
+                raw = self._raw(img)
+                if not raw:
+                    continue
+                mats = sorted(image_to_mats.get(self._img_key(img), set()))
+                if not mats:
+                    try:
+                        orphan_used = bool(getattr(img, "users", 0))
+                    except Exception:
+                        orphan_used = False
+                    entries.append(self._build_entry(
+                        img, raw, "", orphan_used, accepted_set, meta_cache))
+                    continue
+                for name in mats:
+                    used = name in used_names or name not in all_names
+                    entries.append(self._build_entry(
+                        img, raw, name, used, accepted_set, meta_cache))
+            except Exception:
                 continue
-            mats = sorted(image_to_mats.get(id(img), set()))
-            if not mats:
-                try:
-                    orphan_used = bool(getattr(img, "users_material", 0)) \
-                        or bool(getattr(img, "users", 0))
-                except Exception:
-                    orphan_used = False
-                entries.append(self._build_entry(
-                    img, raw, "", orphan_used, accepted_set, meta_cache))
-                continue
-            for name in mats:
-                used = name in used_names or name not in all_names
-                entries.append(self._build_entry(
-                    img, raw, name, used, accepted_set, meta_cache))
 
         absolute = [e for e in entries if e["absolute"]]
         relative = [e for e in entries if not e["absolute"]]
@@ -322,20 +367,23 @@ class TexturePathOps:
 
         fixed = 0
         for img in self._real_images():
-            raw = self._raw(img)
-            if not raw or raw.startswith("//") or not os.path.isabs(raw):
+            try:
+                raw = self._raw(img)
+                if not raw or raw.startswith("//") or not os.path.isabs(raw):
+                    continue
+                if only is not None and not (
+                        image_to_mats.get(self._img_key(img), set()) & only):
+                    continue
+                resolved = self._resolve(raw, getattr(img, "library", None))
+                if not os.path.isfile(resolved):
+                    continue
+                rel = self._to_blend_relative(resolved, doc_path)
+                if rel is None:
+                    continue
+                if self._set_image_path(img, rel, reload=False):
+                    fixed += 1
+            except Exception:
                 continue
-            if only is not None and not (
-                    image_to_mats.get(id(img), set()) & only):
-                continue
-            resolved = self._resolve(raw)
-            if not os.path.isfile(resolved):
-                continue
-            rel = self._to_blend_relative(resolved, doc_path)
-            if rel is None:
-                continue
-            if self._set_image_path(img, rel, reload=False):
-                fixed += 1
         if fixed:
             self.doc.undo_push("Overseer: make textures relative")
             self.doc.tag_redraw()
@@ -345,11 +393,11 @@ class TexturePathOps:
         if not (path or "").strip():
             return {"materials": [], "objects": []}
         imgs = self._match_images(path)
-        img_ids = {id(i) for i in imgs}
+        img_keys = {self._img_key(i) for i in imgs}
         image_to_mats = self._image_material_map()
         mat_names: set = set()
-        for iid in img_ids:
-            mat_names |= image_to_mats.get(iid, set())
+        for key in img_keys:
+            mat_names |= image_to_mats.get(key, set())
 
         objects: list = []
         try:
@@ -399,27 +447,30 @@ class TexturePathOps:
         candidates: list = []
         diag: list = []
         for img in self._real_images():
-            raw = self._raw(img)
-            if not raw or raw.startswith("//") or not os.path.isabs(raw):
+            try:
+                raw = self._raw(img)
+                if not raw or raw.startswith("//") or not os.path.isabs(raw):
+                    continue
+                if only is not None and not (
+                        image_to_mats.get(self._img_key(img), set()) & only):
+                    continue
+                resolved = self._resolve(raw, getattr(img, "library", None))
+                if raws is not None and not any(
+                        self._norm(raw) == self._norm(p)
+                        or self._norm(resolved) == self._norm(self._resolve(p))
+                        for p in raws):
+                    continue
+                base = self._basename(raw) or raw
+                if not os.path.isfile(resolved):
+                    diag.append("%s: the file cannot be found on disk" % base)
+                    continue
+                if self._to_blend_relative(resolved, doc_path) is not None:
+                    diag.append('%s: already inside the project'
+                                ' (use "Make relative")' % base)
+                    continue
+                candidates.append((raw, resolved, img))
+            except Exception:
                 continue
-            if only is not None and not (
-                    image_to_mats.get(id(img), set()) & only):
-                continue
-            if raws is not None and not any(
-                    self._norm(raw) == self._norm(p)
-                    or self._norm(self._resolve(raw)) == self._norm(self._resolve(p))
-                    for p in raws):
-                continue
-            resolved = self._resolve(raw)
-            base = self._basename(raw) or raw
-            if not os.path.isfile(resolved):
-                diag.append("%s: the file cannot be found on disk" % base)
-                continue
-            if self._to_blend_relative(resolved, doc_path) is not None:
-                diag.append('%s: already inside the project'
-                            ' (use "Make relative")' % base)
-                continue
-            candidates.append((raw, resolved, img))
         if not candidates:
             return {"copied": 0, "relinked": 0, "skipped": 0,
                     "target": target_dir, "diag": diag}
@@ -474,17 +525,21 @@ class TexturePathOps:
                 return None
 
         for _raw, src, img in candidates:
-            dst = dest_for(src)
-            if dst is None:
+            try:
+                dst = dest_for(src)
+                if dst is None:
+                    skipped += 1
+                    continue
+                rel = "//" + subdir.replace("\\", "/") + "/" + os.path.basename(dst)
+                if self._set_image_path(img, rel, reload=False):
+                    relinked += 1
+                else:
+                    skipped += 1
+                    diag.append("%s: copied, but the image could not be relinked"
+                                % os.path.basename(src))
+            except Exception:
                 skipped += 1
                 continue
-            rel = "//" + subdir.replace("\\", "/") + "/" + os.path.basename(dst)
-            if self._set_image_path(img, rel, reload=False):
-                relinked += 1
-            else:
-                skipped += 1
-                diag.append("%s: copied, but the image could not be relinked"
-                            % os.path.basename(src))
         copied = copies[0]
         if relinked or copied:
             self.doc.undo_push("Overseer: collect textures")
@@ -501,12 +556,15 @@ class TexturePathOps:
 
         missing: list = []
         for img in self._real_images():
-            raw = self._raw(img)
-            if not raw:
+            try:
+                raw = self._raw(img)
+                if not raw:
+                    continue
+                resolved = self._resolve(raw, getattr(img, "library", None))
+                if not resolved or not os.path.isfile(resolved):
+                    missing.append((img, raw))
+            except Exception:
                 continue
-            resolved = self._resolve(raw)
-            if not resolved or not os.path.isfile(resolved):
-                missing.append((img, raw))
         if not missing:
             return {"relinked": 0, "not_found": 0, "skipped": 0}
 
@@ -521,19 +579,23 @@ class TexturePathOps:
 
         relinked = not_found = skipped = 0
         for img, raw in missing:
-            found = index.get(self._basename(raw).lower())
-            if found is None:
-                not_found += 1
-                continue
-            new_path = found
-            if doc_path:
-                rel = self._to_blend_relative(found, doc_path)
-                if rel is not None:
-                    new_path = rel
-            if self._set_image_path(img, new_path):
-                relinked += 1
-            else:
+            try:
+                found = index.get(self._basename(raw).lower())
+                if found is None:
+                    not_found += 1
+                    continue
+                new_path = found
+                if doc_path:
+                    rel = self._to_blend_relative(found, doc_path)
+                    if rel is not None:
+                        new_path = rel
+                if self._set_image_path(img, new_path):
+                    relinked += 1
+                else:
+                    skipped += 1
+            except Exception:
                 skipped += 1
+                continue
         if relinked:
             self.doc.undo_push("Overseer: relink textures")
             self.doc.tag_redraw()
@@ -544,23 +606,31 @@ class TexturePathOps:
         accepted_set = {str(p) for p in (accepted or [])}
         missing: list = []
         for img in self._real_images():
-            raw = self._raw(img)
-            if not raw:
+            try:
+                raw = self._raw(img)
+                if not raw:
+                    continue
+                resolved = self._resolve(raw, getattr(img, "library", None))
+                if not resolved or not os.path.isfile(resolved):
+                    missing.append((img, raw))
+            except Exception:
                 continue
-            resolved = self._resolve(raw)
-            if not resolved or not os.path.isfile(resolved):
-                missing.append((img, raw))
         if not missing:
             return {"cleared": 0, "skipped": 0}
 
         cleared = skipped = 0
         for img, raw in missing:
-            if raw in accepted_set or self._resolve(raw) in accepted_set:
-                continue
-            if self._set_image_path(img, "", reload=False):
-                cleared += 1
-            else:
+            try:
+                if raw in accepted_set \
+                        or self._resolve(raw, getattr(img, "library", None)) in accepted_set:
+                    continue
+                if self._set_image_path(img, "", reload=False):
+                    cleared += 1
+                else:
+                    skipped += 1
+            except Exception:
                 skipped += 1
+                continue
         if cleared:
             self.doc.undo_push("Overseer: clear missing textures")
             self.doc.tag_redraw()
@@ -582,10 +652,14 @@ class TexturePathOps:
 
         changed = skipped = 0
         for img in imgs:
-            if self._set_image_path(img, write_path):
-                changed += 1
-            else:
+            try:
+                if self._set_image_path(img, write_path):
+                    changed += 1
+                else:
+                    skipped += 1
+            except Exception:
                 skipped += 1
+                continue
         if changed:
             self.doc.undo_push("Overseer: set texture path")
             self.doc.tag_redraw()
@@ -599,7 +673,7 @@ class TexturePathOps:
             if not raw or raw in seen:
                 continue
             seen.add(raw)
-            resolved = self._resolve(raw)
+            resolved = self._resolve(raw, self._library_for_raw(raw))
             if not resolved or not os.path.isfile(resolved):
                 continue
             blend_rel = raw.startswith("//")
@@ -633,8 +707,11 @@ class TexturePathOps:
             imgs = self._match_images(raw, material)
             wrote = False
             for img in imgs:
-                if self._set_image_path(img, new_path):
-                    wrote = True
+                try:
+                    if self._set_image_path(img, new_path):
+                        wrote = True
+                except Exception:
+                    continue
             if wrote:
                 changed += 1
                 self._log_texpath(raw, new_path)
@@ -653,7 +730,7 @@ class TexturePathOps:
         base = self._basename(raw) or raw
         if not doc_path:
             return "%s: the project has never been saved" % base
-        resolved = self._resolve(raw)
+        resolved = self._resolve(raw, self._library_for_raw(raw))
         if not resolved or not os.path.isfile(resolved):
             return "%s: the file cannot be found on disk" % base
         blend_rel = raw.startswith("//")

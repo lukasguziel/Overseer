@@ -18,7 +18,11 @@ def _emit(progress, phase, cur, tot, detail):
 
 def _is_candidate(obj) -> bool:
     try:
-        return len(obj.modifiers) > 0
+        mods = getattr(obj, "modifiers", None)
+        if mods and len(mods) > 0:
+            return True
+        gp = getattr(obj, "grease_pencil_modifiers", None)
+        return bool(gp) and len(gp) > 0
     except Exception:
         return False
 
@@ -110,6 +114,8 @@ def _scan(payload, doc, adapter, tree, progress):
 
     repeats = max(1, min(5, int(payload.get("repeats") or _REPEATS)))
     dg = _depsgraph(adapter)
+    if dg is None:
+        return _empty_result()
 
     _update(dg)
     baseline = perf_logic.median([_update(dg) for _ in range(repeats)])

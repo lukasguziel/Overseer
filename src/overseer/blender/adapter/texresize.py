@@ -2,6 +2,18 @@ from __future__ import annotations
 
 import os
 
+_BLENDER_SAVE_FORMATS = {
+    ".png": "PNG",
+    ".jpg": "JPEG",
+    ".jpeg": "JPEG",
+    ".tif": "TIFF",
+    ".tiff": "TIFF",
+    ".bmp": "BMP",
+    ".tga": "TARGA",
+    ".exr": "OPEN_EXR",
+    ".hdr": "HDR",
+}
+
 
 class TextureResizeOps:
 
@@ -12,6 +24,37 @@ class TextureResizeOps:
         except Exception:
             info = None
         return bool(info and info.has_alpha)
+
+    def _host_resize(self, src: str, dst: str, percent: int) -> bool:
+        from ...core import textures as texmod
+        ext = os.path.splitext(dst)[1].lower()
+        fmt = _BLENDER_SAVE_FORMATS.get(ext)
+        if fmt is None:
+            return False
+        if self._image_has_alpha(src) and ext not in texmod.PURE_RESIZE_EXTS:
+            return False
+
+        bpy = self.bpy
+        img = None
+        try:
+            img = bpy.data.images.load(src, check_existing=False)
+            w, h = int(img.size[0]), int(img.size[1])
+            if w <= 0 or h <= 0:
+                return False
+            nw, nh = texmod.scaled_dims(w, h, percent)
+            img.scale(nw, nh)
+            img.file_format = fmt
+            img.filepath_raw = dst
+            img.save()
+            return os.path.isfile(dst)
+        except Exception:
+            return False
+        finally:
+            if img is not None:
+                try:
+                    bpy.data.images.remove(img)
+                except Exception:
+                    pass
 
     def _relink_resized(self, raw: str, new_raw: str) -> bool:
         wrote = False
@@ -33,6 +76,7 @@ class TextureResizeOps:
                     % (texmod.RESIZE_PERCENTS,)}
 
         has_pillow = vendor.import_pillow() is not None
+        has_host = bool(_BLENDER_SAVE_FORMATS)
         results: list = []
         resized = skipped = relinked = 0
         done_copies: dict = {}
@@ -46,7 +90,7 @@ class TextureResizeOps:
             base = self._basename(raw)
             resolved = self._resolve(raw)
             ext = os.path.splitext(raw)[1].lower()
-            ok, note = texmod.resize_decision(ext, has_pillow, False)
+            ok, note = texmod.resize_decision(ext, has_pillow, has_host)
             if not resolved or not os.path.isfile(resolved):
                 results.append({"file": base, "status": "skipped",
                                 "note": "file is missing"})
@@ -65,10 +109,12 @@ class TextureResizeOps:
                 continue
 
             dst = texmod.resize_target(resolved, percent)
-            wrote = done_copies.get(resolved)
+            cache_key = os.path.normcase(resolved)
+            wrote = done_copies.get(cache_key)
             if wrote is None:
-                wrote = texmod.resize_file(resolved, dst, percent, has_pillow)
-                done_copies[resolved] = wrote
+                wrote = texmod.resize_file(resolved, dst, percent, has_pillow) \
+                    or self._host_resize(resolved, dst, percent)
+                done_copies[cache_key] = wrote
             if not wrote:
                 note = "has an alpha channel - the bundled resizer is missing" \
                     if self._image_has_alpha(resolved) and not has_pillow \

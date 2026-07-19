@@ -800,9 +800,12 @@ def _op_texture_repath(req: ApiRequest) -> dict:
     res = adapter.texture_repath(payload.get("paths") or [], mode=mode,
                                  material=payload.get("material") or None)
     if res.get("changed"):
+        # The Blender texpaths mixin has no owner-index / path-writer yet, so a
+        # texpath revert can never succeed; do not advertise a Revert action
+        # that always reports "missing".
         _record_change("textures_repath",
                        "%d texture path(s) made %s" % (res["changed"], mode),
-                       adapter.last_changes, doc=doc)
+                       adapter.last_changes, revertible=False, doc=doc)
     return {"ok": True, **res}
 
 

@@ -18,15 +18,36 @@ class MaterialOps:
         except Exception:
             return False
 
+    def _all_objects(self) -> list:
+        try:
+            return list(self.bpy.data.objects)
+        except Exception:
+            try:
+                return self.doc.objects()
+            except Exception:
+                return []
+
+    def _fake_user_names(self) -> set:
+        out: set = set()
+        try:
+            for m in self.bpy.data.materials:
+                try:
+                    if getattr(m, "use_fake_user", False):
+                        out.add(m.name_full)
+                except Exception:
+                    continue
+        except Exception:
+            return out
+        return out
+
     def _scene_material_usage(self) -> tuple:
         used_any: set = set()
         used_visible: set = set()
-        try:
-            objs = self.doc.objects()
-        except Exception:
-            objs = []
-        for obj in objs:
-            visible = not editor_hidden(obj)
+        for obj in self._all_objects():
+            try:
+                visible = not editor_hidden(obj)
+            except Exception:
+                visible = False
             try:
                 slots = obj.material_slots
             except Exception:
@@ -42,6 +63,10 @@ class MaterialOps:
                 used_any.add(key)
                 if visible:
                     used_visible.add(key)
+
+        keep = self._fake_user_names()
+        used_any |= keep
+        used_visible |= keep
         return used_any, used_visible
 
     def _material_images(self, mat) -> list:
@@ -52,13 +77,38 @@ class MaterialOps:
             tree = mat.node_tree
             if tree is None:
                 return out
-            for node in tree.nodes:
-                img = getattr(node, "image", None)
-                if img is not None:
-                    out.append(img)
+            self._collect_tree_images(tree, out, set())
         except Exception:
             return out
         return out
+
+    def _collect_tree_images(self, tree, out: list, seen: set) -> None:
+        try:
+            tid = id(tree)
+        except Exception:
+            tid = None
+        if tid is not None:
+            if tid in seen:
+                return
+            seen.add(tid)
+        try:
+            nodes = tree.nodes
+        except Exception:
+            return
+        for node in nodes:
+            try:
+                img = getattr(node, "image", None)
+                if img is not None:
+                    out.append(img)
+            except Exception:
+                pass
+            try:
+                if getattr(node, "type", None) == "GROUP":
+                    sub = getattr(node, "node_tree", None)
+                    if sub is not None:
+                        self._collect_tree_images(sub, out, seen)
+            except Exception:
+                continue
 
     def _image_abspath(self, img, raw: str) -> str:
         try:
@@ -87,9 +137,43 @@ class MaterialOps:
                 return None
         except Exception:
             pass
+        try:
+            tiled = img.source == "TILED"
+        except Exception:
+            tiled = False
+        if tiled:
+            return self._missing_tiled(img, mat_name, raw)
+
         resolved = self._image_abspath(img, raw)
         if resolved and os.path.isfile(resolved):
             return None
+        return {"material": mat_name, "file": os.path.basename(str(raw))}
+
+    def _missing_tiled(self, img, mat_name: str, raw: str):
+        has_token = "<UDIM>" in raw or "<UVTILE>" in raw
+        if not has_token:
+            return None
+        try:
+            tiles = list(img.tiles)
+        except Exception:
+            tiles = []
+        if not tiles:
+            return None
+        for tile in tiles:
+            try:
+                num = int(tile.number)
+            except Exception:
+                continue
+            candidate = raw
+            if "<UDIM>" in candidate:
+                candidate = candidate.replace("<UDIM>", str(num))
+            if "<UVTILE>" in candidate:
+                u = (num - 1001) % 10 + 1
+                v = (num - 1001) // 10 + 1
+                candidate = candidate.replace("<UVTILE>", "u%d_v%d" % (u, v))
+            resolved = self._image_abspath(img, candidate)
+            if resolved and os.path.isfile(resolved):
+                return None
         return {"material": mat_name, "file": os.path.basename(str(raw))}
 
     def scan_materials(self, include_hidden: bool = True,
@@ -197,6 +281,18 @@ class MaterialOps:
 
         if first is None:
             return {"ok": True, "object": None}
+
+        try:
+            for idx, slot in enumerate(first.material_slots):
+                try:
+                    mat = slot.material
+                except Exception:
+                    mat = None
+                if mat is not None and mat.name_full == name:
+                    first.active_material_index = idx
+                    break
+        except Exception:
+            pass
 
         try:
             self.bpy.context.view_layer.objects.active = first

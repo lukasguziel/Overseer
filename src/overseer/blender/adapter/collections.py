@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from ...core.defaults import LAYER_COLORS
-from .readers import layer_name
 
 COLOR_TAG_RGB = {
     "COLOR_01": (0.94, 0.25, 0.25),
@@ -38,6 +37,33 @@ class CollectionOps:
         if master is not None:
             visit(master)
         return out
+
+    def _scene_collection_names(self) -> set:
+        names: set = set()
+        for col in self._scene_collections():
+            try:
+                nm = col.name
+            except Exception:
+                nm = None
+            if nm:
+                names.add(nm)
+        return names
+
+    def _scene_layer_name(self, obj, scene_names: set, master) -> str | None:
+        try:
+            cols = obj.users_collection
+        except Exception:
+            return None
+        for c in cols:
+            try:
+                if master is not None and c == master:
+                    continue
+                name = c.name
+                if name and name in scene_names:
+                    return name
+            except Exception:
+                continue
+        return None
 
     @staticmethod
     def _nearest_color_tag(rgb) -> str:
@@ -91,9 +117,10 @@ class CollectionOps:
     def _layer_object_counts(self) -> dict:
         counts: dict = {}
         master = self._master_collection()
+        scene_names = self._scene_collection_names()
         for obj in self.doc.objects():
             try:
-                nm = layer_name(obj, master)
+                nm = self._scene_layer_name(obj, scene_names, master)
             except Exception:
                 nm = None
             if nm:
@@ -106,49 +133,123 @@ class CollectionOps:
         except Exception:
             return 0
 
-    def _is_branch_empty(self, col, keep: set) -> bool:
+    def _reference_names(self) -> set:
+        names: set = set()
+        try:
+            objs = list(self.bpy.data.objects)
+        except Exception:
+            objs = []
+        for obj in objs:
+            try:
+                if getattr(obj, "instance_type", None) == "COLLECTION":
+                    ic = getattr(obj, "instance_collection", None)
+                    nm = getattr(ic, "name", None)
+                    if nm:
+                        names.add(nm)
+            except Exception:
+                pass
+            try:
+                for ps in getattr(obj, "particle_systems", None) or []:
+                    st = getattr(ps, "settings", None)
+                    ic = getattr(st, "instance_collection", None)
+                    nm = getattr(ic, "name", None)
+                    if nm:
+                        names.add(nm)
+            except Exception:
+                pass
+        return names
+
+    def _link_count(self, col) -> int:
+        try:
+            name = col.name
+        except Exception:
+            return 0
+        if not name:
+            return 0
+        count = 0
+        try:
+            for c in self.bpy.data.collections:
+                try:
+                    for ch in c.children:
+                        if ch.name == name:
+                            count += 1
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        master = self._master_collection()
+        if master is not None:
+            try:
+                for ch in master.children:
+                    if ch.name == name:
+                        count += 1
+            except Exception:
+                pass
+        return count
+
+    def _extra_referenced(self, col) -> bool:
+        users = getattr(col, "users", None)
+        if not isinstance(users, int):
+            return False
+        return users > self._link_count(col)
+
+    def _is_branch_empty(self, col, keep: set, ref_names: set) -> bool:
         try:
             name = col.name
         except Exception:
             return False
         if name in keep:
             return False
+        if name in ref_names:
+            return False
         if self._collection_object_count(col) > 0:
+            return False
+        if self._extra_referenced(col):
             return False
         try:
             children = list(col.children)
         except Exception:
             children = []
         for c in children:
-            if not self._is_branch_empty(c, keep):
+            if not self._is_branch_empty(c, keep, ref_names):
                 return False
         return True
 
-    def _remove_collection(self, col) -> bool:
+    def _remove_collection(self, col, seen: set | None = None) -> int:
+        seen = seen if seen is not None else set()
+        key = id(col)
+        if key in seen:
+            return 0
+        seen.add(key)
+        removed = 0
         try:
             children = list(col.children)
         except Exception:
             children = []
         for c in children:
-            self._remove_collection(c)
+            removed += self._remove_collection(c, seen)
         try:
             self.bpy.data.collections.remove(col)
-            return True
+            removed += 1
         except Exception:
-            return False
+            pass
+        return removed
 
     def delete_layer(self, name: str) -> int:
+        ref_names = self._reference_names()
         target = None
         for col in self._scene_collections():
             try:
-                if col.name == name and self._is_branch_empty(col, set()):
+                if col.name == name and self._is_branch_empty(
+                        col, set(), ref_names):
                     target = col
                     break
             except Exception:
                 continue
         if target is None:
             return 0
-        if not self._remove_collection(target):
+        removed = self._remove_collection(target)
+        if not removed:
             return 0
         self.doc.undo_push("Delete layer")
         self.doc.tag_redraw()
@@ -159,17 +260,22 @@ class CollectionOps:
         master = self._master_collection()
         if master is None:
             return 0
+        ref_names = self._reference_names()
         try:
             top = list(master.children)
         except Exception:
             top = []
-        targets = [c for c in top if self._is_branch_empty(c, keep)]
+        targets = [c for c in top if self._is_branch_empty(c, keep, ref_names)]
         if not targets:
             return 0
+        seen: set = set()
         removed = 0
         for col in targets:
-            if self._remove_collection(col):
-                removed += 1
+            try:
+                if self._remove_collection(col, seen) > 0:
+                    removed += 1
+            except Exception:
+                continue
         if removed:
             self.doc.undo_push("Delete empty layers")
             self.doc.tag_redraw()
@@ -190,9 +296,8 @@ class CollectionOps:
             return 0
         changed = 0
         for col, rgb in targets:
-            tag = self._nearest_color_tag(rgb)
             try:
-                col.color_tag = tag
+                col.color_tag = self._nearest_color_tag(rgb)
                 changed += 1
             except Exception:
                 continue
@@ -201,35 +306,84 @@ class CollectionOps:
             self.doc.tag_redraw()
         return changed
 
+    def _collection_cache(self) -> dict:
+        cache = getattr(self, "_col_cache", None)
+        if cache is None:
+            cache = {}
+            self._col_cache = cache
+        return cache
+
+    def _link_under_master(self, col) -> None:
+        master = self._master_collection()
+        if master is None:
+            return
+        try:
+            name = col.name
+        except Exception:
+            name = None
+        try:
+            already = any(getattr(ch, "name", None) == name
+                          for ch in master.children)
+        except Exception:
+            already = False
+        if already:
+            return
+        try:
+            master.children.link(col)
+        except Exception:
+            pass
+
     def _find_or_create_collection(self, name: str):
+        cache = self._collection_cache()
+        cached = cache.get(name)
+        if cached is not None:
+            return cached
+
         for col in self._scene_collections():
             try:
                 if col.name == name:
+                    cache[name] = col
                     return col
             except Exception:
                 continue
+
+        existing = None
+        try:
+            existing = self.bpy.data.collections.get(name)
+        except Exception:
+            existing = None
+        if existing is not None:
+            self._link_under_master(existing)
+            cache[name] = existing
+            try:
+                cache[existing.name] = existing
+            except Exception:
+                pass
+            return existing
+
         try:
             col = self.bpy.data.collections.new(name)
         except Exception:
             return None
-        master = self._master_collection()
-        if master is not None:
-            try:
-                master.children.link(col)
-            except Exception:
-                pass
+        self._link_under_master(col)
         rgb = LAYER_COLORS.get(name)
         if rgb is not None:
             try:
                 col.color_tag = self._nearest_color_tag(rgb)
             except Exception:
                 pass
+        cache[name] = col
+        try:
+            cache[col.name] = col
+        except Exception:
+            pass
         return col
 
     def _current_layer_name(self, obj) -> str:
         master = self._master_collection()
+        scene_names = self._scene_collection_names()
         try:
-            nm = layer_name(obj, master)
+            nm = self._scene_layer_name(obj, scene_names, master)
         except Exception:
             nm = None
         return nm or ""

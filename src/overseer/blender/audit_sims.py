@@ -2,11 +2,6 @@ from __future__ import annotations
 
 from ..core import sims_logic
 
-_PHYSICS_MODIFIER_TYPES = {
-    "CLOTH", "SOFT_BODY", "DYNAMIC_PAINT", "FLUID", "COLLISION",
-    "PARTICLE_SYSTEM", "FLUID_SIMULATION", "SMOKE",
-}
-
 
 def has_any(adapter, tree) -> bool:
     for node in tree.walk():
@@ -14,13 +9,17 @@ def has_any(adapter, tree) -> bool:
         if obj is None:
             continue
         try:
-            if obj.rigid_body is not None:
+            if getattr(obj, "rigid_body", None) is not None:
                 return True
-            for m in obj.modifiers:
-                if m.type in _PHYSICS_MODIFIER_TYPES:
-                    return True
         except Exception:
-            continue
+            pass
+        try:
+            mods = list(obj.modifiers)
+        except Exception:
+            mods = []
+        for m in mods:
+            if _modifier_sim(m) is not None:
+                return True
     return False
 
 
@@ -108,8 +107,6 @@ def _modifier_sim(m):
         return "dynamicpaint", "Dynamic Paint", _dynpaint_baked(m)
     if mtype == "FLUID":
         return _fluid_spec(m)
-    if mtype == "SMOKE":
-        return "smoke", "Smoke", None
     if mtype == "PARTICLE_SYSTEM":
         return _particle_spec(m)
     return None
@@ -154,7 +151,8 @@ def _object_sims(obj, guid, name, hidden, world_baked):
             continue
         kind, label, cached = spec
         try:
-            enabled = bool(m.show_viewport)
+            enabled = bool(getattr(m, "show_viewport", False)
+                           or getattr(m, "show_render", False))
         except Exception:
             enabled = None
         hit = sims_logic.SimHit(
@@ -273,11 +271,19 @@ def _apply_enabled(obj, kind, index, enabled):
     spec = _modifier_sim(m)
     if spec is None or spec[0] != kind:
         return False
+    val = bool(enabled)
+    applied = False
     try:
-        m.show_viewport = bool(enabled)
-        return True
+        m.show_viewport = val
+        applied = True
     except Exception:
-        return False
+        pass
+    try:
+        m.show_render = val
+        applied = True
+    except Exception:
+        pass
+    return applied
 
 
 def _set_enabled(doc, adapter, targets, enabled):
