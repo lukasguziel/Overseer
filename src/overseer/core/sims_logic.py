@@ -14,6 +14,9 @@ class SimHit:
     cached: bool | None = None
     hidden: bool = False
     notes: list = field(default_factory=list)
+    # Per-object attachment index (disambiguates rows sharing (guid, kind);
+    # the frontend keys rows + set_enabled targets on it). -1 = object-level.
+    index: int = -1
 
     def to_dict(self) -> dict:
         return {
@@ -26,6 +29,7 @@ class SimHit:
             "cached": self.cached,
             "hidden": self.hidden,
             "notes": list(self.notes),
+            "index": self.index,
         }
 
 

@@ -180,4 +180,7 @@ class CinemaContext(HostContext):
                 "perf": "audit_perf"}.get(prefix)
         if name is None:
             return None
-        return importlib.import_module("overseer.cinema." + name)
+        mod = importlib.import_module("overseer.cinema." + name)
+        # Audits are per-area Audit subclasses exposing a ready ``AUDIT``
+        # instance; fall back to the module for any not-yet-converted area.
+        return getattr(mod, "AUDIT", mod)
