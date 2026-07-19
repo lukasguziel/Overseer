@@ -49,10 +49,13 @@ version commit in step 5 — only gates, notes, tag push and release
 follow-up remain. (Typical case: the bump was part of the last work
 session.)
 
-**2. Set the version everywhere** (all three spots, otherwise it drifts):
+**2. Set the version everywhere** (all four spots, otherwise it drifts and the
+release version gate fails):
 - `frontend/package.json` → `"version": "<without v>"`
 - `src/overseer/__init__.py` → `__version__ = "<without v>"`
 - `pyproject.toml` → `version = "<PEP-440>"`
+- `blender_addon/__init__.py` → `bl_info["version"]` int tuple, e.g. `1.0.0 → (1, 0, 0)`
+  (Blender addon; the gate reconstructs "a.b.c" and compares — stable versions only)
 
 **3. Run the gates locally** (same as CI — a red tag push produces NO
 release, the workflow aborts):

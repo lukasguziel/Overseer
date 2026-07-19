@@ -13,6 +13,7 @@ dead weight.**
 [![Download](https://img.shields.io/badge/Download-latest%20release-2ea44f?logo=github&logoColor=white)](https://github.com/lukasguziel/overseer/releases/latest)
 [![Docs](https://img.shields.io/badge/Docs-feature%20tour-0969da?logo=readthedocs&logoColor=white)](docs/FEATURES.md)
 [![Cinema 4D](https://img.shields.io/badge/Cinema%204D-2023%2B-111111?logo=maxon&logoColor=white)](https://www.maxon.net/cinema-4d)
+[![Blender](https://img.shields.io/badge/Blender-3.6%2B-EA7600?logo=blender&logoColor=white)](https://www.blender.org)
 [![Support me](https://img.shields.io/badge/Support%20me-PayPal-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/donate/?hosted_button_id=XSBBJYYEJZ7TE)
 [![Feedback](https://img.shields.io/badge/Feedback-bamerus%40proton.me-6D4AFF?logo=proton&logoColor=white)](mailto:bamerus@proton.me)
 
@@ -58,11 +59,18 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
 
 ## Installation
 
-1. Grab the latest **`Overseer-<version>.zip`** from
-   [Releases](https://github.com/lukasguziel/overseer/releases).
-2. Unzip the archive and copy the `Overseer` folder into your Cinema 4D
-   `plugins` folder.
+One codebase, two hosts — the same web UI and features on both. Each
+[release](https://github.com/lukasguziel/overseer/releases) ships both builds.
+
+**Cinema 4D** (2023+)
+1. Grab the latest **`Overseer-<version>.zip`**.
+2. Unzip and copy the `Overseer` folder into your Cinema 4D `plugins` folder.
 3. Restart Cinema 4D, then press `Shift+C` and search for **"Overseer"**.
+
+**Blender** (3.6+)
+1. Grab the latest **`Overseer-Blender-<version>.zip`**.
+2. *Edit → Preferences → Add-ons → Install…*, pick the zip, enable **Overseer**.
+3. Open it from the 3D Viewport sidebar (**N**) → **Overseer** tab.
 
 ## License
 
