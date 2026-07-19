@@ -21,12 +21,15 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      # Lints src/overseer.pyp too (extend-include in pyproject.toml).
+      # Lints src/overseer.pyp and blender_addon/__init__.py too
+      # (both via extend-include in pyproject.toml).
       - name: Lint (ruff)
-        run: ruff check src tests
+        run: ruff check src tests blender_addon
 
-      - name: Syntax-check the plugin entry point
-        run: python -m py_compile src/overseer.pyp
+      - name: Syntax-check the plugin entry points
+        run: |
+          python -m py_compile src/overseer.pyp
+          python -m py_compile blender_addon/__init__.py
 
   plugin-test:
     needs: plugin-lint
@@ -45,6 +48,13 @@ jobs:
 
       - name: Run unit tests
         run: pytest
+
+      # The Blender host glue must import WITHOUT bpy (bpy is unavailable in CI,
+      # exactly like c4d) — bpy is imported lazily inside functions, never at
+      # module load. This guards that contract so the addon package stays
+      # CI-importable like overseer/cinema stays c4d-free.
+      - name: Import the Blender host without bpy
+        run: python -c "import sys; sys.path.insert(0, 'src'); import overseer.blender.webapi, overseer.blender.host"
 
   frontend-lint:
     runs-on: ubuntu-latest

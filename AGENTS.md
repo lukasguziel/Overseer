@@ -106,6 +106,32 @@ repo: it lives in the machine-local, gitignored
 next to it). `deploy.ps1` reads that config (or an explicit `-Target <plugin dir>`);
 Program Files targets need an elevated shell, the `%APPDATA%` prefs folder does not.
 
+## Blender build
+
+Same codebase also ships as a Blender addon (branch `feature/blender-port`).
+Only the host glue differs — everything under `core/`, `naming/`, `config.py`
+and the whole `frontend/` web UI is **shared verbatim** with the C4D build.
+Read [docs/ai/blender.md](docs/ai/blender.md) BEFORE touching the port; only
+`src/overseer/blender/` (and `blender_addon/__init__.py`) may `import bpy`, and
+never at module load (CI imports the host without Blender).
+
+**Installable addon layout** — one top folder `overseer/` that *is* the package:
+```
+overseer/__init__.py   = blender_addon/__init__.py   (addon loader: bl_info + operator)
+overseer/overseer/     = src/overseer                (shared package incl. blender/)
+overseer/web/          = src/web                      (Vite build)
+overseer/vendor/       = src/vendor                   (Pillow, optional)
+```
+
+- **Dev deploy:** `powershell -File .claude/skills/deploy/deploy_blender.ps1`
+  mirrors the tree into `<blender_config>/scripts/addons/overseer/`. Targets come
+  from `-Target <addon dir>` or the optional per-user `blender_targets` list in
+  `deploy.config.json` (see `deploy.config.example.json`).
+- **Release zip:** `python .claude/skills/release/build_blender_zip.py` writes
+  `dist/Overseer-Blender-v<version>.zip` in the layout above — install via
+  Blender's *Edit > Preferences > Add-ons > Install…*, then enable **Overseer**
+  and open it from *View3D > Sidebar (N) > Overseer*.
+
 ## Commands
 
 ```bash
@@ -117,7 +143,9 @@ cd frontend && pnpm run dev      # HMR dev server, proxy /api -> localhost:8787
 cd frontend && pnpm test         # vitest unit tests
 cd frontend && pnpm run test:e2e # Playwright e2e per area (frontend/e2e/, fully mocked /api — no C4D; system Chrome)
 
-powershell -File .claude/skills/deploy/deploy.ps1   # copy to the C4D plugin dir (target via deploy skill)
+powershell -File .claude/skills/deploy/deploy.ps1          # copy to the C4D plugin dir (target via deploy skill)
+powershell -File .claude/skills/deploy/deploy_blender.ps1  # copy to a Blender scripts/addons/overseer/ dir
+python .claude/skills/release/build_blender_zip.py         # -> dist/Overseer-Blender-v<version>.zip
 ```
 
 ## Usage in C4D

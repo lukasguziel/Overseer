@@ -12,7 +12,9 @@ var/scene_structure.csv
 frontend/node_modules/
 frontend/dist/
 
-# Local packaging output (release zips are built by the release workflow)
+# Local packaging output: release zips built by the release workflow AND the
+# Blender addon zip from .claude/skills/release/build_blender_zip.py
+# (Overseer-Blender-v*.zip)
 dist/
 
 # Vite build output (built from frontend/, distributed by deploy.ps1)

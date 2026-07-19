@@ -1,23 +1,269 @@
-"""MaterialOps - material scan/focus/delete for Blender.
-
-STUB: implemented by a dedicated subagent. Reference: cinema/adapter/materials.py
-and core/materials_logic.py. Material identity = ``name_full`` (duplicate base
-names exist as ``.001``). Skip ``__``-prefixed internal materials. Mirror the
-C4D return-dict shapes exactly.
-"""
 from __future__ import annotations
+
+import os
+
+from ...core.materials_logic import is_internal_material
+from ..constants import INTERNAL_MATERIAL_PREFIXES
+from .readers import editor_hidden
 
 
 class MaterialOps:
 
-    def scan_materials(self, include_hidden=False, accepted=None) -> dict:
-        return {"materials": [], "unused": [], "summary": {}}
+    def _is_internal_material(self, name: str) -> bool:
+        n = name or ""
+        if is_internal_material(n):
+            return True
+        try:
+            return n.startswith(INTERNAL_MATERIAL_PREFIXES)
+        except Exception:
+            return False
+
+    def _scene_material_usage(self) -> tuple:
+        used_any: set = set()
+        used_visible: set = set()
+        try:
+            objs = self.doc.objects()
+        except Exception:
+            objs = []
+        for obj in objs:
+            visible = not editor_hidden(obj)
+            try:
+                slots = obj.material_slots
+            except Exception:
+                continue
+            for slot in slots:
+                try:
+                    mat = slot.material
+                    key = mat.name_full if mat is not None else None
+                except Exception:
+                    key = None
+                if key is None:
+                    continue
+                used_any.add(key)
+                if visible:
+                    used_visible.add(key)
+        return used_any, used_visible
+
+    def _material_images(self, mat) -> list:
+        out: list = []
+        try:
+            if not getattr(mat, "use_nodes", False):
+                return out
+            tree = mat.node_tree
+            if tree is None:
+                return out
+            for node in tree.nodes:
+                img = getattr(node, "image", None)
+                if img is not None:
+                    out.append(img)
+        except Exception:
+            return out
+        return out
+
+    def _image_abspath(self, img, raw: str) -> str:
+        try:
+            lib = getattr(img, "library", None)
+            return self.bpy.path.abspath(raw, library=lib)
+        except Exception:
+            try:
+                return self.bpy.path.abspath(raw)
+            except Exception:
+                return raw
+
+    def _missing_image(self, img, mat_name: str):
+        try:
+            if getattr(img, "packed_file", None) is not None:
+                return None
+        except Exception:
+            pass
+        try:
+            raw = img.filepath_raw or img.filepath or ""
+        except Exception:
+            raw = ""
+        if not raw:
+            return None
+        try:
+            if img.source in ("GENERATED", "VIEWER"):
+                return None
+        except Exception:
+            pass
+        resolved = self._image_abspath(img, raw)
+        if resolved and os.path.isfile(resolved):
+            return None
+        return {"material": mat_name, "file": os.path.basename(str(raw))}
+
+    def scan_materials(self, include_hidden: bool = True,
+                       accepted=None) -> dict:
+        accepted = set(accepted or ())
+        try:
+            mats = list(self.bpy.data.materials)
+        except Exception:
+            return {"total": 0, "unused": [], "only_hidden": [],
+                    "accepted": [], "accepted_all": sorted(accepted),
+                    "deletable_count": 0, "missing": [], "missing_textures": 0}
+
+        used_any, used_visible = self._scene_material_usage()
+
+        unused: list = []
+        only_hidden: list = []
+        accepted_out: list = []
+        missing: list = []
+        seen_images: set = set()
+        for m in mats:
+            try:
+                name = m.name_full
+            except Exception:
+                continue
+            if self._is_internal_material(name):
+                continue
+
+            nowhere = name not in used_any
+            hidden_only = (not nowhere) and name not in used_visible
+            if nowhere or (hidden_only and include_hidden):
+                if name in accepted:
+                    accepted_out.append(name)
+                else:
+                    unused.append(name)
+                    if hidden_only:
+                        only_hidden.append(name)
+
+            for img in self._material_images(m):
+                try:
+                    ident = img.name_full
+                except Exception:
+                    ident = id(img)
+                if (name, ident) in seen_images:
+                    continue
+                seen_images.add((name, ident))
+                info = self._missing_image(img, name)
+                if info is not None:
+                    missing.append(info)
+
+        return {
+            "total": len(mats),
+            "unused": unused,
+            "only_hidden": only_hidden,
+            "accepted": accepted_out,
+            "accepted_all": sorted(accepted),
+            "deletable_count": len(unused),
+            "missing": missing[:50],
+            "missing_textures": len(missing),
+        }
 
     def focus_material(self, name: str) -> dict:
-        return {"found": False}
+        target = None
+        try:
+            for m in self.bpy.data.materials:
+                if m.name_full == name:
+                    target = m
+                    break
+        except Exception:
+            target = None
+        if target is None:
+            return {"ok": False, "object": None}
 
-    def delete_material(self, name: str, include_hidden=False) -> int:
-        return 0
+        users: list = []
+        try:
+            for obj in self.doc.objects():
+                try:
+                    slots = obj.material_slots
+                except Exception:
+                    continue
+                for slot in slots:
+                    try:
+                        mat = slot.material
+                    except Exception:
+                        mat = None
+                    if mat is not None and mat.name_full == name:
+                        users.append(obj)
+                        break
+        except Exception:
+            users = []
 
-    def delete_unused_materials(self, include_hidden=False, accepted=None) -> int:
-        return 0
+        try:
+            for o in self.doc.selected_objects():
+                o.select_set(False)
+        except Exception:
+            pass
+
+        first = None
+        for obj in users:
+            try:
+                obj.select_set(True)
+                if first is None:
+                    first = obj
+            except Exception:
+                continue
+
+        if first is None:
+            return {"ok": True, "object": None}
+
+        try:
+            self.bpy.context.view_layer.objects.active = first
+        except Exception:
+            pass
+        self._view_selected()
+        self.doc.tag_redraw()
+        return {"ok": True, "object": first.name}
+
+    def delete_material(self, name: str, include_hidden: bool = False) -> int:
+        used_any, used_visible = self._scene_material_usage()
+        protected = used_visible if include_hidden else used_any
+        targets: list = []
+        try:
+            for m in self.bpy.data.materials:
+                try:
+                    if m.name_full == name and m.name_full not in protected:
+                        targets.append(m)
+                except Exception:
+                    continue
+        except Exception:
+            return 0
+        if not targets:
+            return 0
+
+        removed = 0
+        for m in targets:
+            try:
+                self.bpy.data.materials.remove(m)
+                removed += 1
+            except Exception:
+                continue
+        if removed:
+            self.doc.undo_push("Delete material '%s'" % name)
+            self.doc.tag_redraw()
+        return removed
+
+    def delete_unused_materials(self, include_hidden: bool = False,
+                                accepted=None) -> int:
+        accepted = set(accepted or ())
+        used_any, used_visible = self._scene_material_usage()
+        protected = used_visible if include_hidden else used_any
+        targets: list = []
+        try:
+            for m in self.bpy.data.materials:
+                try:
+                    name = m.name_full
+                except Exception:
+                    continue
+                if name in protected or name in accepted:
+                    continue
+                if self._is_internal_material(name):
+                    continue
+                targets.append(m)
+        except Exception:
+            return 0
+        if not targets:
+            return 0
+
+        removed = 0
+        for m in targets:
+            try:
+                self.bpy.data.materials.remove(m)
+                removed += 1
+            except Exception:
+                continue
+        if removed:
+            self.doc.undo_push("Delete %d unused material(s)" % removed)
+            self.doc.tag_redraw()
+        return removed
