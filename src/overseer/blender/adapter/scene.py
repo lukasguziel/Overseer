@@ -1,0 +1,164 @@
+"""``SceneAdapter`` - the BScene <-> ``core.model.SceneTree`` bridge and the
+composition root for every Blender scene mutation.
+
+The Blender twin of ``cinema/adapter/scene.py``. Domain mutations live in the
+mixins (materials / previews / texture paths / texture resize / collections /
+apply), composed here exactly like the C4D adapter composes its mixins. This
+base owns tree building, selection and focus.
+"""
+from __future__ import annotations
+
+from ...core import model
+from .apply import ApplyOps
+from .collections import CollectionOps
+from .materials import MaterialOps
+from .previews import PreviewOps
+from .readers import (
+    classify,
+    editor_hidden,
+    layer_name,
+    own_geo,
+    stable_id,
+    type_name,
+)
+from .texpaths import TexturePathOps
+from .texresize import TextureResizeOps
+
+
+class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
+                   TextureResizeOps, CollectionOps, ApplyOps):
+
+    def __init__(self, doc) -> None:
+        self.doc = doc                      # a BScene
+        self._by_guid: dict[int, object] = {}
+        self._by_sid: dict[int, object] = {}
+        self._selected_direct: set = set()
+        self._selected_subtree: set = set()
+        self.last_changes: list[dict] = []
+
+    # -- helpers ------------------------------------------------------------
+    @property
+    def bpy(self):
+        return self.doc._bpy
+
+    def _master_collection(self):
+        try:
+            return self.doc.scene.collection
+        except Exception:
+            return None
+
+    def _depsgraph(self):
+        try:
+            return self.bpy.context.evaluated_depsgraph_get()
+        except Exception:
+            return None
+
+    # -- tree ---------------------------------------------------------------
+    def build_tree(self, progress=None) -> model.SceneTree:
+        self._by_guid.clear()
+        self._by_sid.clear()
+        self._selected_direct.clear()
+        self._selected_subtree.clear()
+        tree = model.SceneTree()
+        counter = [0]
+
+        present = set(self.doc.objects())
+        total = len(present) if progress else 0
+        master = self._master_collection()
+        depsgraph = self._depsgraph()
+
+        def selected(obj) -> bool:
+            try:
+                return bool(obj.select_get())
+            except Exception:
+                return False
+
+        def make(obj, parent, depth, sel_ancestor, hidden_ancestor):
+            guid = counter[0]
+            counter[0] += 1
+            if progress and counter[0] % 50 == 0:
+                progress(counter[0], total, getattr(obj, "name", ""))
+            pts, polys = own_geo(obj, depsgraph)
+            hidden = editor_hidden(obj, hidden_ancestor)
+            node = model.SceneNode(
+                name=obj.name,
+                type_name=type_name(obj),
+                category=classify(obj),
+                guid=guid,
+                depth=depth,
+                point_count=pts,
+                poly_count=polys,
+                visible=not hidden,
+                layer=layer_name(obj, master),
+            )
+            self._by_guid[guid] = obj
+            self._by_sid[stable_id(obj)] = obj
+            is_sel = selected(obj)
+            in_scope = sel_ancestor or is_sel
+            if is_sel:
+                self._selected_direct.add(guid)
+            if in_scope:
+                self._selected_subtree.add(guid)
+            try:
+                children = [c for c in obj.children if c in present]
+            except Exception:
+                children = []
+            # Stable order: scene object order.
+            for child in sorted(children, key=self._scene_index):
+                node.add_child(
+                    make(child, node, depth + 1, in_scope, hidden))
+            return node
+
+        for root in self.doc.roots():
+            tree.roots.append(make(root, None, 0, False, False))
+        return tree
+
+    def _scene_index(self, obj) -> int:
+        try:
+            return list(self.doc.scene.objects).index(obj)
+        except Exception:
+            return 0
+
+    def selected_guids(self, include_children: bool = True) -> set:
+        return set(self._selected_subtree if include_children
+                   else self._selected_direct)
+
+    # -- focus --------------------------------------------------------------
+    def focus(self, guid: int) -> bool:
+        obj = self._by_guid.get(guid)
+        if obj is None:
+            return False
+        try:
+            for o in self.doc.selected_objects():
+                o.select_set(False)
+        except Exception:
+            pass
+        try:
+            obj.select_set(True)
+            self.bpy.context.view_layer.objects.active = obj
+        except Exception:
+            return False
+        self._view_selected()
+        self.doc.tag_redraw()
+        return True
+
+    def _view_selected(self) -> None:
+        """Frame the active selection in the first 3D viewport (needs a
+        temp context override pointing at that area/region)."""
+        bpy = self.bpy
+        try:
+            win = bpy.context.window
+            screen = bpy.context.screen
+            for area in screen.areas:
+                if area.type != "VIEW_3D":
+                    continue
+                region = next((r for r in area.regions
+                               if r.type == "WINDOW"), None)
+                if region is None:
+                    continue
+                with bpy.context.temp_override(window=win, area=area,
+                                               region=region):
+                    bpy.ops.view3d.view_selected()
+                return
+        except Exception:
+            pass
