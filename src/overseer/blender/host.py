@@ -1,12 +1,12 @@
 """Process-singleton host facade for the Blender backend.
 
-The Blender twin of ``overseer.bridge.__init__``: owns the progress state, the
+The Blender twin of ``overseer.cinema.bridge.__init__``: owns the progress state, the
 main-thread request queue, the HTTP server and the ``bpy.app.timers`` pump. It
 is never purged by per-request hot reload (see ``reload.py``).
 
 ``ProgressState`` is inlined here (rather than imported from
-``overseer.bridge.progress``) because importing anything under
-``overseer.bridge`` would run ``bridge/__init__.py`` -> ``import c4d`` and fail
+``overseer.cinema.bridge.progress``) because importing anything under
+``overseer.cinema.bridge`` would run ``bridge/__init__.py`` -> ``import c4d`` and fail
 inside Blender.
 """
 from __future__ import annotations

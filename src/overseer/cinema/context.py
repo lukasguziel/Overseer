@@ -15,9 +15,9 @@ import tempfile
 
 import c4d
 
-from .. import bridge
 from ..core import webio
 from ..core.hostapi import HostContext
+from . import bridge
 from .adapter import SceneAdapter, load_journal, save_journal
 from .scene_host import CDoc
 

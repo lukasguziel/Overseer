@@ -7,7 +7,7 @@ import threading
 
 import c4d
 
-from ..core.defaults import DEFAULT_PORT
+from ...core.defaults import DEFAULT_PORT
 
 WEB_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

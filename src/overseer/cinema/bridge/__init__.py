@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import c4d
 
-from ..core.defaults import DEFAULT_PORT
+from ...core.defaults import DEFAULT_PORT
 from .dialog import SERVER_DIALOG_ID, ServerDialog
 from .mainthread import MainThreadQueue
 from .progress import ProgressState

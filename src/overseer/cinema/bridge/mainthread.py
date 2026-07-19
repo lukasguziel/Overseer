@@ -48,7 +48,7 @@ class MainThreadQueue:
 
     def _dispatch(self, payload):
         dropped = reload_all()
-        from ..cinema import webapi
+        from .. import webapi
         if payload.get("op") == "reload":
             try:
                 import overseer

@@ -1,6 +1,6 @@
 """Host-neutral HTTP bridge server (no ``bpy``).
 
-A copy of ``overseer.bridge.server`` with the Cinema-specific config probe
+A copy of ``overseer.cinema.bridge.server`` with the Cinema-specific config probe
 factored out behind a callback, so it runs on Blender's background thread
 without importing any host module. It only enqueues requests and reads
 published progress; it never touches ``bpy``.

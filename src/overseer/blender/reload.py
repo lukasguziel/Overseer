@@ -1,6 +1,6 @@
 """Per-request hot reload for the Blender backend.
 
-Mirrors ``overseer.bridge.reload`` but keeps the Blender process-singleton
+Mirrors ``overseer.cinema.bridge.reload`` but keeps the Blender process-singleton
 modules alive (host/pump/server/reload/scene) while purging every other
 ``overseer.*`` module so the next request re-imports edited ``webapi`` /
 adapter / audit source with no Blender restart.
