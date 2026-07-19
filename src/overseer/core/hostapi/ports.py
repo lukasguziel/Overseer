@@ -66,6 +66,17 @@ class SceneAdapter(ABC):
     dict documented on the C4D reference. Hosts keep composing these from
     mixins — this ABC only makes the contract explicit and enforced."""
 
+    # -- host binding (host-specific; used by the shared scene cache) -------
+    @abstractmethod
+    def set_host(self, host: SceneHost) -> None:
+        """Rebind this adapter to ``host`` on a scene-cache hit (the adapter's
+        underlying document reference; host-specific)."""
+
+    @abstractmethod
+    def refresh_selection(self, tree) -> None:
+        """Recompute the selected-guid sets from the live host selection
+        (selection is not part of the dirty token, so it is re-read per hit)."""
+
     # -- tree ---------------------------------------------------------------
     @abstractmethod
     def build_tree(self, progress=None) -> model.SceneTree: ...
@@ -212,6 +223,14 @@ class HostContext(ABC):
 
     @abstractmethod
     def lan_enabled(self) -> bool: ...
+
+    # -- change journal persistence (host-specific storage) -----------------
+    @abstractmethod
+    def load_journal(self, host: SceneHost, fallback_path: str) -> list: ...
+
+    @abstractmethod
+    def save_journal(self, host: SceneHost, entries: list,
+                     fallback_path: str) -> None: ...
 
     # -- host-specific ops --------------------------------------------------
     def type_icons(self, ids) -> dict:

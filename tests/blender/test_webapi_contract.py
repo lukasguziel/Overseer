@@ -40,12 +40,15 @@ SCENE = [
 
 @pytest.fixture
 def sandbox_paths(tmp_path, monkeypatch):
-    """Redirect every file the webapi writes into a tmp dir - by default
-    ``DATA_DIR`` resolves to the (writable) source tree."""
+    """Redirect every file the webapi writes into a tmp dir - by default the
+    data dir resolves to the (writable) source tree. The op logic now lives in
+    the shared ``WebApi`` instance (``webapi._api``), so the path attributes are
+    patched there."""
     data = tmp_path / "data"
     history = data / "history"
     data.mkdir()
     history.mkdir()
+    api = webapi._api
     for attr, path in {
         "DATA_DIR": data,
         "CONFIG_PATH": data / "config.json",
@@ -56,7 +59,7 @@ def sandbox_paths(tmp_path, monkeypatch):
         "CHANGES_PATH": data / "change_history.json",
         "GOOGLE_CACHE_PATH": data / "google_cache.json",
     }.items():
-        monkeypatch.setattr(webapi, attr, str(path))
+        monkeypatch.setattr(api, attr, str(path))
     return data
 
 

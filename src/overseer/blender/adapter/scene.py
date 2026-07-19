@@ -130,6 +130,33 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
         return set(self._selected_subtree if include_children
                    else self._selected_direct)
 
+    # -- host binding (SceneAdapter port) -----------------------------------
+    def set_host(self, host) -> None:
+        self.doc = host
+
+    def refresh_selection(self, tree) -> None:
+        self._selected_direct.clear()
+        self._selected_subtree.clear()
+
+        def visit(node, sel_ancestor):
+            obj = self._by_guid.get(node.guid)
+            is_sel = False
+            if obj is not None:
+                try:
+                    is_sel = bool(obj.select_get())
+                except Exception:
+                    is_sel = False
+            if is_sel:
+                self._selected_direct.add(node.guid)
+            in_scope = sel_ancestor or is_sel
+            if in_scope:
+                self._selected_subtree.add(node.guid)
+            for child in node.children:
+                visit(child, in_scope)
+
+        for root in tree.roots:
+            visit(root, False)
+
     # -- focus --------------------------------------------------------------
     def focus(self, guid: int) -> bool:
         obj = self._by_guid.get(guid)
