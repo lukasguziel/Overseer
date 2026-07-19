@@ -34,6 +34,7 @@ PKG = "overseer"
 # What goes into the zip, as (source path, path inside overseer/).
 LAYOUT = [
     (ROOT / "blender_addon" / "__init__.py", "__init__.py"),
+    (ROOT / "blender_addon" / "blender_manifest.toml", "blender_manifest.toml"),
     (SRC / "overseer", "overseer"),
     (SRC / "web", "web"),
     (SRC / "vendor", "vendor"),

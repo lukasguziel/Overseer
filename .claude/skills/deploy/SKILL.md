@@ -1,16 +1,16 @@
 ---
 name: deploy
 description: >-
-  Deploy the Overseer plugin into one or more Cinema 4D installations.
-  The repo carries no target path: the machine-local, gitignored
-  deploy.config.json holds each WINDOWS USER's target list (schema 2, keyed by
-  $env:USERNAME — different users on the same machine can point at different
-  Cinemas, and one user can deploy to several Cinemas at once). If the current
-  user has no entry (or names a different Cinema), the skill discovers all
-  installed Cinema 4D versions and asks which one(s) to use (showing each
-  install path), writes the config, and runs the skill's deploy.ps1. Use when
-  the user says "deploy", "deploye das Plugin", "deploy nach Cinema",
-  "installier das Plugin", or after building the frontend.
+  Deploy the Overseer plugin into one or more Cinema 4D installations AND/OR the
+  Blender addon into one or more Blender installations. The repo carries no
+  target path: the machine-local, gitignored deploy.config.json holds each
+  WINDOWS USER's target list (schema 2, keyed by $env:USERNAME) — Cinema targets
+  in "targets", Blender targets in "blender_targets". If the current user has no
+  entry for the requested host, the skill discovers installed versions and asks
+  which one(s) to use, writes the config, and runs deploy.ps1 (Cinema) /
+  deploy_blender.ps1 (Blender). Use when the user says "deploy", "deploye das
+  Plugin", "deploy nach Cinema", "deploy nach/in blender", "installier das
+  Plugin/Addon", or after building the frontend.
 ---
 
 # Deploy — plugin into one or more Cinema 4D installations
@@ -112,6 +112,43 @@ against `src/web/index.html`.
   targets yet → step 2.
 - One target fails, others ok → the script keeps deploying the rest, reports
   "DEPLOY INCOMPLETE" per target and exits 1 at the end.
+
+## Blender (deploy_blender.ps1)
+
+Same shared package + web build, wrapped as a Blender addon. The installable
+folder is `overseer/` — `__init__.py` (from `blender_addon/__init__.py`, carries
+`bl_info`), `blender_manifest.toml` (the extension manifest), `overseer/`, `web/`,
+`vendor/`. It works BOTH as a legacy add-on and as a 4.2+/5.x extension.
+
+**Target = the `overseer` folder itself**, in one of two spots per Blender
+version (both under the user config dir, no admin):
+- **extension** (Blender 4.2+ / **required on 5.x** — legacy add-ons are gone):
+  `…\Blender\<ver>\extensions\user_default\overseer`
+- **legacy add-on** (≤ 4.x): `…\Blender\<ver>\scripts\addons\overseer`
+
+Procedure (mirrors the Cinema flow):
+1. `blender_targets` under `users.<$env:USERNAME>` in `deploy.config.json` →
+   use them. Otherwise discover:
+   ```bash
+   powershell -File .claude/skills/deploy/scripts/list_blenders.ps1
+   ```
+   JSON `[{blender, kind, addon_dir, exists}]` — for every Blender config/install
+   version, the extension dir (4.2+) and/or the legacy add-ons dir. Print a lean
+   numbered list, let the user pick one or several (recommend `extension` for
+   4.2+, especially 5.x).
+2. Write the chosen `{blender, addon_dir}` entries to
+   `users.<$env:USERNAME>.blender_targets` (leave `targets` + other users alone).
+3. Deploy: `powershell -File .claude/skills/deploy/deploy_blender.ps1`
+   (all `blender_targets`) or `-Target <addon dir1>,<addon dir2>`.
+4. Verify per target: `Test-Path "<addon_dir>\blender_manifest.toml"` and, for
+   frontend changes, compare `<addon_dir>\web\index.html` hash vs `src/web`.
+5. In Blender: *Edit > Preferences > Add-ons*, search **Overseer**, enable it,
+   then open from *View3D > Sidebar (N) > Overseer*. A freshly-dropped extension
+   may need an add-on list refresh or a Blender restart to appear.
+
+Notes: pure `overseer`/`webapi`/adapter/audit edits hot-reload on the next API
+request (no Blender restart); `blender/host.py`/`server`/`pump` or the loader
+need a Blender restart. Frontend changes need `pnpm run build` first.
 
 ## Don't forget
 - Frontend changes need `npm run build` BEFORE the deploy (output `src/web/`).

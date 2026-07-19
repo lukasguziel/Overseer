@@ -98,6 +98,14 @@ function Deploy-To([string]$Dir) {
   # Addon loader: blender_addon/__init__.py becomes <addon>/__init__.py.
   Step "__init__.py (addon loader)" { Copy-Item $addonLoader (Join-Path $Dir "__init__.py") -Force }
 
+  # Extension manifest (Blender 4.2+/5.x extensions system). Harmless for a
+  # legacy scripts/addons install (the legacy loader ignores it); REQUIRED when
+  # the target is an extensions/<repo> dir (Blender 5.x dropped legacy add-ons).
+  $manifest = Join-Path $repoRoot "blender_addon\blender_manifest.toml"
+  if (Test-Path $manifest) {
+    Step "blender_manifest.toml" { Copy-Item $manifest (Join-Path $Dir "blender_manifest.toml") -Force }
+  }
+
   # Mirror the shared package recursively (core/, naming/, blender/, cinema/, ...).
   Step "overseer/" { Mirror (Join-Path $src "overseer") (Join-Path $Dir "overseer") }
 
