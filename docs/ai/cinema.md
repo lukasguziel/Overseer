@@ -133,6 +133,12 @@ collide.
   it in a `finally`, so a crashed op never leaves a stuck spinner.
 - `GetAllAssetsNew(doc, allowDialogs, prefix, flags, outList)` returns an int
   status code and FILLS `outList` with dicts — never iterate the return value.
+  It does NOT report every renderer's textures (C4D 2026 + Octane: none at
+  all) — the texture scan therefore always merges a shader-tree walk on top.
+- Plugin shaders (Octane ImageTexture id 1029508, file param 1100, …) keep
+  their file params OUT of the description — `GetDescription` yields only the
+  base-shader entries. Read/write texture paths via the raw `GetDataInstance()`
+  container (matched by extension/value, not by hardcoded id).
 - Material identity is `GetGUID()`, not name (duplicate names are common); path
   matching is normcase+normpath tolerant; path rewrites hit every parameter that
   holds the exact string.
