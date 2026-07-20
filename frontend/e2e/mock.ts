@@ -58,6 +58,8 @@ const DEFAULTS: Record<string, Responder> = {
   texture_owners: () => ({ ok: true, materials: ['Parquet_Oak', 'Floor_Trim'] }),
   ui_settings_get: () => ({ ok: true, found: false, ui: {} }),
   ui_settings_set: () => ({ ok: true }),
+  ui_global_get: () => ({ ok: true, ui: {} }),
+  ui_global_set: () => ({ ok: true }),
 }
 
 const GENERIC = { ok: true, applied: 0, count: 0 }

@@ -182,7 +182,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
   // Overall health = average of the per-area decision scores (same numbers
   // as the ring next to the navigation). Translate/Layers need their plan —
   // the hook preloads both while the Overview is open; until they arrive the
-  // ring shows a placeholder. Structure is parked with its tab.
+  // ring shows a placeholder. Structure is parked with its tab. Areas hidden
+  // via the profile drop out entirely — an area the user does not work with
+  // must not drag the health number.
   const AREAS = [
     { key: 'naming', label: 'Naming', tab: 'naming' as const },
     { key: 'translate', label: 'Translate', tab: 'translate' as const },
@@ -190,7 +192,7 @@ export default function OverviewTab({ org }: { org: Organizer }) {
     { key: 'materials', label: 'Materials', tab: 'materials' as const },
     { key: 'tags', label: 'Tags', tab: 'tags' as const },
     { key: 'files', label: 'Files', tab: 'files' as const },
-  ]
+  ].filter((a) => !org.hiddenTabs.has(a.tab))
   const subScores = AREAS.map((a) => ({ ...a, pct: org.areaScore(a.tab) }))
   const known = subScores.filter((s): s is typeof s & { pct: number } => s.pct != null)
   // No area has a score yet (empty scene, or nothing loaded) -> no health.
@@ -345,7 +347,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head">
             <h3>Materials &amp; textures</h3>
-            <ActionButton onClick={() => org.setTab('materials')}>Manage →</ActionButton>
+            {!org.hiddenTabs.has('materials') && (
+              <ActionButton onClick={() => org.setTab('materials')}>Manage →</ActionButton>
+            )}
           </div>
           <table className="mini"><tbody>
             <tr><td>Materials</td><td>{mat?.total ?? 0}</td></tr>
@@ -363,7 +367,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
         <section className="card">
           <div className="card-head">
             <h3>Polygon concentration</h3>
-            <ActionButton onClick={() => org.setTab('assets')}>Browse all →</ActionButton>
+            {!org.hiddenTabs.has('assets') && (
+              <ActionButton onClick={() => org.setTab('assets')}>Browse all →</ActionButton>
+            )}
           </div>
           <table className="mini"><tbody>
             <tr><td>Total polygons</td><td>{humanNum(report.total_polys)}</td></tr>
@@ -381,7 +387,9 @@ export default function OverviewTab({ org }: { org: Organizer }) {
             <Tip text="Estimated texture memory: width × height × 4 bytes per map, incl. mipmaps (~1.33×) — what the maps cost uncompressed in RAM/VRAM, regardless of JPG size on disk.">
               <h3>Texture budget</h3>
             </Tip>
-            <ActionButton onClick={() => org.setTab('materials')}>Inspect →</ActionButton>
+            {!org.hiddenTabs.has('materials') && (
+              <ActionButton onClick={() => org.setTab('materials')}>Inspect →</ActionButton>
+            )}
           </div>
           {texBudget.count > 0 ? (
             <>

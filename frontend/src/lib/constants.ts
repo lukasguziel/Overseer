@@ -40,6 +40,15 @@ export const TABS: [TabId, string, boolean?][] = [
   ['misc', 'Misc'],
 ]
 
+// The areas the user can hide via the Misc "Visible areas" profile (stored
+// globally, not per project). Hidden areas leave the menu AND stop counting
+// toward the overall health score. Overview and Misc always stay — the
+// dashboard and the plumbing cannot be turned off.
+export const HIDEABLE_TABS: TabId[] = [
+  'naming', 'translate', 'layers', 'materials', 'tags',
+  'files', 'assets', 'generators', 'sims',
+]
+
 // The producible target casings, used to auto-pick the scene's dominant one.
 const PRODUCIBLE = CASINGS.map(([v]) => v)
 

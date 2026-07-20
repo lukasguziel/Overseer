@@ -49,3 +49,20 @@ def test_sanitize_rejects_bool_for_int_and_non_dict():
     assert "numberPad" not in uisl.sanitize_ui({"numberPad": True})
     assert uisl.sanitize_ui(None) == {}
     assert uisl.sanitize_ui([1, 2]) == {}
+
+
+def test_sanitize_global_keeps_deduped_string_areas_only():
+    # setup: duplicates, non-strings and empties mixed into the hidden list
+    raw = {"hiddenAreas": ["tags", "sims", "tags", "", 7, None, "files"],
+           "casing": "PascalCase"}  # per-project key -> not global
+
+    clean = uisl.sanitize_global_ui(raw)
+
+    # postcondition: order-preserving dedupe, strings only, no foreign keys
+    assert clean == {"hiddenAreas": ["tags", "sims", "files"]}
+
+
+def test_sanitize_global_tolerates_garbage():
+    # postcondition: non-dict input and a non-list hiddenAreas yield {}
+    assert uisl.sanitize_global_ui(None) == {}
+    assert uisl.sanitize_global_ui({"hiddenAreas": "tags"}) == {}

@@ -13,6 +13,10 @@ import time
 
 from . import ui_settings_logic as logic
 
+# The global (all-projects) ui profile file. Project slugs always start with
+# an alphanumeric character, so the underscore name cannot collide.
+GLOBAL_SLUG = "_global"
+
 
 def _configs_dir(data_dir: str) -> str:
     path = os.path.join(data_dir, "configs")
@@ -27,11 +31,7 @@ def _config_path(data_dir: str, slug: str) -> str:
     return os.path.join(_configs_dir(data_dir), slug + ".json")
 
 
-def load_ui(data_dir: str, path: str, name: str) -> dict:
-    slug = logic.project_slug(path, name)
-    if not slug:
-        return {}
-    fp = _config_path(data_dir, slug)
+def _read_ui_file(fp: str) -> dict:
     if not os.path.isfile(fp):
         return {}
     try:
@@ -41,7 +41,30 @@ def load_ui(data_dir: str, path: str, name: str) -> dict:
         return {}
     if not isinstance(data, dict):
         return {}
-    return logic.sanitize_ui(data.get("ui"))
+    ui = data.get("ui")
+    return ui if isinstance(ui, dict) else {}
+
+
+def _write_ui_file(fp: str, payload: dict) -> bool:
+    tmp = fp + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, fp)
+    except Exception:
+        try:
+            with open(fp, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        except Exception:
+            return False
+    return True
+
+
+def load_ui(data_dir: str, path: str, name: str) -> dict:
+    slug = logic.project_slug(path, name)
+    if not slug:
+        return {}
+    return logic.sanitize_ui(_read_ui_file(_config_path(data_dir, slug)))
 
 
 def save_ui(data_dir: str, path: str, name: str, ui: object) -> dict:
@@ -55,15 +78,23 @@ def save_ui(data_dir: str, path: str, name: str, ui: object) -> dict:
         "ui": logic.sanitize_ui(ui),
     }
     fp = _config_path(data_dir, slug)
-    tmp = fp + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, fp)
-    except Exception:
-        try:
-            with open(fp, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2, ensure_ascii=False)
-        except Exception:
-            return {"ok": False, "error": "write failed"}
+    if not _write_ui_file(fp, payload):
+        return {"ok": False, "error": "write failed"}
     return {"ok": True, "path": fp, "slug": slug}
+
+
+def load_global_ui(data_dir: str) -> dict:
+    return logic.sanitize_global_ui(
+        _read_ui_file(_config_path(data_dir, GLOBAL_SLUG)))
+
+
+def save_global_ui(data_dir: str, ui: object) -> dict:
+    payload = {
+        "schema": 1,
+        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "ui": logic.sanitize_global_ui(ui),
+    }
+    fp = _config_path(data_dir, GLOBAL_SLUG)
+    if not _write_ui_file(fp, payload):
+        return {"ok": False, "error": "write failed"}
+    return {"ok": True, "path": fp}

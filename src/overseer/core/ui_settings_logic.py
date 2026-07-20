@@ -40,6 +40,27 @@ def project_slug(path: str, name: str) -> str:
     return "%s-%s" % (base, digest)
 
 
+def sanitize_global_ui(raw: object) -> dict:
+    """The GLOBAL ui profile (one file for all projects), currently the area
+    profile: which tool areas the web UI hides from its menu (hidden areas
+    also stop counting toward the health score). Kept separate from the
+    per-project keys — hiding the Tags tool is a "how I work" choice, not a
+    property of one scene."""
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    hidden = raw.get("hiddenAreas")
+    if isinstance(hidden, list):
+        seen: set = set()
+        uniq: list = []
+        for v in hidden:
+            if isinstance(v, str) and v and v not in seen:
+                seen.add(v)
+                uniq.append(v)
+        out["hiddenAreas"] = uniq[:32]
+    return out
+
+
 def sanitize_ui(raw: object) -> dict:
     if not isinstance(raw, dict):
         return {}

@@ -26,8 +26,18 @@ class ServerDialog(c4d.gui.GeDialog):
 
     def CreateLayout(self):
         self.SetTitle("Overseer")
-        self.GroupBegin(1000, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, cols=1, rows=1)
+        self.GroupBegin(1000, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, cols=1, rows=2)
         self.GroupBorderSpace(6, 6, 6, 6)
+
+        # Escape hatch: the embedded HtmlViewer misbehaves on some C4D
+        # versions (resize collapses the window) — the same UI always works
+        # in the default browser against the same local server.
+        self.GroupBegin(1001, c4d.BFH_SCALEFIT, cols=2, rows=1)
+        self.AddButton(self._BTN_OPEN, c4d.BFH_LEFT, name="Open in Browser")
+        self.AddStaticText(
+            0, c4d.BFH_SCALEFIT,
+            name="Window acting up? Use the browser — same UI, same server.")
+        self.GroupEnd()
 
         html_constant = getattr(c4d, "CUSTOMGUI_HTMLVIEWER", None)
         if html_constant is None:

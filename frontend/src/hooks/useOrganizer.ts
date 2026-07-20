@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '../api'
 import type { TabId } from '../lib/constants'
-import { dominantCasing, GOOGLE_TARGETS } from '../lib/constants'
+import { dominantCasing, GOOGLE_TARGETS, HIDEABLE_TABS } from '../lib/constants'
 import { computeHygiene } from '../lib/hygiene'
 import { prefetchAudit, refreshLoadedAudits, loadedAuditCount, useAuditData } from './useAudit'
 import { useTextureActions, type FireFn, type RunFn } from './useTextureActions'
@@ -37,6 +37,13 @@ export function useOrganizer() {
   // changed since the last (selection-scoped) analysis.
   const [sel, setSel] = useState<{ count: number; names: string[] }>({ count: 0, names: [] })
   const [selStale, setSelStale] = useState(false)
+
+  // Area profile (GLOBAL, one file for all projects): tabs the user hid via
+  // the Misc "Visible areas" card. Hidden areas leave the menu, skip their
+  // plan/scan work and stop counting toward the overall health score.
+  const [hiddenTabs, setHiddenTabs] = useState<Set<TabId>>(new Set())
+  const hiddenTabsRef = useRef(hiddenTabs)
+  hiddenTabsRef.current = hiddenTabs
 
   // Auto-refresh is derived from the scope: selection scope follows the live
   // C4D selection automatically; whole-scene is manual (click the refresh
@@ -169,8 +176,23 @@ export function useOrganizer() {
   // Change token of the scene as of the last analysis, so the auto-refresh
   // watcher knows when the scene has moved on (survives re-renders via a ref).
   const lastDirty = useRef<{ dirty: number; name: string; sel: number } | null>(null)
+  // Watcher loop protection. `pendingToken` is the stability gate: a change
+  // only triggers a reload once the token has held still for one full tick
+  // (playback / a running sim / a mid-drag selection would otherwise fire a
+  // reload per tick). `stormCount`/`autoPaused` are the breaker: reloads that
+  // keep re-triggering each other mean the scene dirties itself on read — a
+  // feedback loop the watcher must not chase forever.
+  const pendingToken = useRef<string | null>(null)
+  const stormCount = useRef(0)
+  const lastWatcherReload = useRef(0)
+  const autoPaused = useRef(false)
 
   const doAnalyze = useCallback(() => run('Analysis', async () => {
+    // A manual refresh always resets the watcher's loop breaker — the user
+    // explicitly asked for a fresh read, so watching starts over.
+    stormCount.current = 0
+    autoPaused.current = false
+    pendingToken.current = null
     // Selection scope + the eye toggle narrow every stat in the report
     // (Overview, Assets, …) — the server re-aggregates the tree.
     const r = await call('analyze', { settings: { selection: scope, include_hidden: includeHidden } })
@@ -397,10 +419,16 @@ export function useOrganizer() {
         setSelStale(false)
         setSceneVersion((v) => v + 1)
       }],
-      ['Naming', () => reloadNamingRef.current(), 'naming', () => namingDepsRef.current],
-      ['Translate', () => reloadTranslateRef.current(), 'translate', () => translateDepsRef.current],
-      ['Layers', () => reloadLayerExtrasRef.current(), 'layers', () => layersDepsRef.current],
     ]
+    // Areas hidden via the profile plan nothing — no tab shows the result
+    // and their score is excluded, so the work would be pure wait time.
+    const hidden = hiddenTabsRef.current
+    if (!hidden.has('naming')) steps.push(
+      ['Naming', () => reloadNamingRef.current(), 'naming', () => namingDepsRef.current])
+    if (!hidden.has('translate')) steps.push(
+      ['Translate', () => reloadTranslateRef.current(), 'translate', () => translateDepsRef.current])
+    if (!hidden.has('layers')) steps.push(
+      ['Layers', () => reloadLayerExtrasRef.current(), 'layers', () => layersDepsRef.current])
     if (loadedAuditCount() > 0) {
       steps.push(['Tags, files, generators & sims', () => refreshLoadedAudits()])
     }
@@ -667,6 +695,45 @@ export function useOrganizer() {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
   }, [currentUi])
 
+  // --- Global area profile -------------------------------------------------
+  // Which areas are visible is a "how I work" preference, not a property of
+  // one scene — ONE server-side file for all projects (configs/_global.json).
+  const profileHydrated = useRef(false)
+  useEffect(() => {
+    call('ui_global_get')
+      .then((r) => {
+        const list: unknown = r.ui?.hiddenAreas
+        if (!Array.isArray(list)) return
+        const known = list.filter(
+          (t): t is TabId => typeof t === 'string' && (HIDEABLE_TABS as string[]).includes(t))
+        if (known.length) setHiddenTabs(new Set(known))
+      })
+      .catch(() => {})
+      .finally(() => { profileHydrated.current = true })
+  }, [])
+
+  const setAreaHidden = useCallback((id: TabId, hide: boolean) => {
+    setHiddenTabs((prev) => {
+      if (prev.has(id) === hide) return prev
+      const next = new Set(prev)
+      if (hide) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
+
+  // Persist on change — gated so the initial load echo cannot clobber the
+  // stored profile with the mount-time default.
+  useEffect(() => {
+    if (!profileHydrated.current) return
+    call('ui_global_set', { ui: { hiddenAreas: [...hiddenTabs] } }).catch(() => {})
+  }, [hiddenTabs])
+
+  // A hidden area cannot stay (or become) the active tab.
+  useEffect(() => {
+    if (hiddenTabs.has(tab)) setTab('overview')
+  }, [hiddenTabs, tab])
+
   // Boot sequence on first load: just analyze. Analyze sets docName, which
   // fires per-project settings hydration; the seed effect below then loads the
   // previews with the HYDRATED settings and lifts the `ready` gate. The whole
@@ -696,12 +763,17 @@ export function useOrganizer() {
     seededOnce.current = true
     const seed = async () => {
       try {
-        await reloadNamingRef.current()
-        await reloadTranslateRef.current()
-        // Mark both plans as previewed so opening the tab right after boot
-        // does not re-plan the identical state.
-        previewDone.current.naming = namingDepsRef.current
-        previewDone.current.translate = translateDepsRef.current
+        // Hidden areas seed nothing (their badge and score are off anyway).
+        // Each plan is marked as previewed so opening the tab right after
+        // boot does not re-plan the identical state.
+        if (!hiddenTabsRef.current.has('naming')) {
+          await reloadNamingRef.current()
+          previewDone.current.naming = namingDepsRef.current
+        }
+        if (!hiddenTabsRef.current.has('translate')) {
+          await reloadTranslateRef.current()
+          previewDone.current.translate = translateDepsRef.current
+        }
       } catch { /* transient — the tab's own preview will catch up */ }
     }
     ;(async () => {
@@ -726,6 +798,34 @@ export function useOrganizer() {
   //    so the UI can nudge the user to refresh.
   useEffect(() => {
     let stop = false
+    // A watcher-triggered full reload, guarded by the storm breaker: three
+    // reloads back-to-back (each new change token arriving within 8 s of the
+    // previous reload finishing) mean the scene reports a change after every
+    // read — a feedback loop (e.g. a material preview render bumping the
+    // dirty counter), not a user. Pause and hand control back to the manual
+    // refresh button instead of spinning forever. `countStorm` is false for
+    // selection-only triggers: clicking through objects under selection
+    // scope is a legitimate reload per click, and our reads never move the
+    // selection token.
+    const reload = (countStorm: boolean) => {
+      if (countStorm) {
+        const now = Date.now()
+        stormCount.current = now - lastWatcherReload.current < 8000
+          ? stormCount.current + 1 : 1
+        if (stormCount.current > 3) {
+          autoPaused.current = true
+          setError('Auto-refresh paused: the scene reported new changes right '
+            + 'after every reload (possible feedback loop). Click the refresh '
+            + 'button to re-analyze.')
+          return
+        }
+      }
+      refreshing.current = true
+      Promise.resolve(reloadEverythingRef.current()).finally(() => {
+        refreshing.current = false
+        lastWatcherReload.current = Date.now()
+      })
+    }
     const tick = async () => {
       if (stop || busy || refreshing.current) return
       try {
@@ -740,9 +840,14 @@ export function useOrganizer() {
         setDocName(d.name ?? null)  // triggers per-project settings hydration on switch
         const last = lastDirty.current
         if (!last) return
-        const docChanged = d.name !== last.name
+        // Normalized on BOTH sides — `last.name` is stored with `?? ''`, and
+        // a raw null vs '' mismatch would read as a doc switch on every tick.
+        const docChanged = (d.name ?? '') !== last.name
         const sceneChanged = d.dirty !== last.dirty || docChanged
         const selChanged = d.sel !== last.sel
+        // Tripped breaker: only the selection display keeps updating; every
+        // automatic reload waits for the user's manual refresh.
+        if (autoPaused.current) return
         // A DOCUMENT switch always reloads everything, even in manual mode —
         // the server now answers for a different scene, so every displayed
         // number (report, plans, audits, health) is stale, not merely old.
@@ -754,16 +859,20 @@ export function useOrganizer() {
           if (hydrated.current && docNameRef.current === (d.name ?? null)) {
             // Hydration for this document already finished (e.g. a previous
             // reload attempt failed) — plan right away, the settings are current.
-            refreshing.current = true
-            Promise.resolve(reloadEverythingRef.current())
-              .finally(() => { refreshing.current = false })
+            reload(true)
           } else {
             pendingFullReload.current = true
           }
         } else if (autoRefresh && (sceneChanged || (scope && selChanged))) {
-          refreshing.current = true
-          Promise.resolve(reloadEverythingRef.current())
-            .finally(() => { refreshing.current = false })
+          // Stability gate (see above): fire only once dirty+selection held
+          // still for one full tick.
+          const token = `${d.dirty}:${d.sel}`
+          if (token !== pendingToken.current) {
+            pendingToken.current = token
+            return
+          }
+          pendingToken.current = null
+          reload(sceneChanged)
         } else if (!autoRefresh && scope && selChanged) {
           setSelStale(true)
         }
@@ -983,9 +1092,11 @@ export function useOrganizer() {
   // boot sequence above (and kept fresh by the tab preview effects).
   useEffect(() => {
     if (tab !== 'overview' || !report) return
-    prefetchAudit('tags_scan')   // tags score without visiting the Tags tab
-    prefetchAudit('files_scan')  // external-files size for the size tile
-  }, [tab, report])
+    // Hidden areas are excluded from the health score — their scans would
+    // be dead weight on every Overview visit.
+    if (!hiddenTabs.has('tags')) prefetchAudit('tags_scan')   // tags score without visiting the Tags tab
+    if (!hiddenTabs.has('files')) prefetchAudit('files_scan') // external-files size for the size tile
+  }, [tab, report, hiddenTabs])
 
   // First time a scene is analyzed and no casing is chosen yet: pick the
   // scene's dominant producible casing (e.g. mostly PascalCase -> PascalCase).
@@ -1046,6 +1157,7 @@ export function useOrganizer() {
   return {
     tab, setTab, scope, setScope: chooseScope, includeHidden, setIncludeHidden,
     autoRefresh, setAutoRefresh, sel, selStale,
+    hiddenTabs, setAreaHidden,
     casing, setCasing, language, setLanguage, numberPad, setNumberPad,
     applyCasing, setApplyCasing, keepSeparators, setKeepSeparators,
     keepSpecials, setKeepSpecials,

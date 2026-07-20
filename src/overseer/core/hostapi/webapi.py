@@ -118,6 +118,8 @@ class WebApi:
             "dirty": self._op_dirty,
             "ui_settings_get": self._op_ui_settings_get,
             "ui_settings_set": self._op_ui_settings_set,
+            "ui_global_get": self._op_ui_global_get,
+            "ui_global_set": self._op_ui_global_set,
         }
         self._cfg_handlers = {
             "analyze": self._op_analyze, "export": self._op_analyze,
@@ -309,6 +311,15 @@ class WebApi:
                             payload.get("ui") or {})
         return {"ok": bool(res.get("ok")), "path": res.get("path"),
                 "error": res.get("error")}
+
+    def _op_ui_global_get(self, payload, doc) -> dict:
+        from .. import ui_settings_io as uimod
+        return {"ok": True, "ui": uimod.load_global_ui(self.DATA_DIR)}
+
+    def _op_ui_global_set(self, payload, doc) -> dict:
+        from .. import ui_settings_io as uimod
+        res = uimod.save_global_ui(self.DATA_DIR, payload.get("ui") or {})
+        return {"ok": bool(res.get("ok")), "error": res.get("error")}
 
     # -- analyze / export ---------------------------------------------------
     def _op_analyze(self, req: ApiRequest) -> dict:
@@ -635,11 +646,17 @@ class WebApi:
         doc_key = doc.name or ""
         names = payload.get("names") or []
         previews, missing = {}, []
+        # Materials whose preview never materializes are remembered with the
+        # dirty token they failed at and NOT retried until the scene actually
+        # changes: rendering a preview can bump the host's dirty counter, and
+        # a retry on every fetch would feed the frontend's scene watcher an
+        # endless refresh loop.
+        dirty = doc.dirty()
         for name in names:
             hit = cache.get((doc_key, name, size))
             if hit is not None:
                 previews[name] = hit
-            else:
+            elif cache.get(("failed", doc_key, name, size)) != dirty:
                 missing.append(name)
         if missing:
             fresh = adapter.material_previews(
@@ -648,6 +665,12 @@ class WebApi:
                     "Rendering material previews", c, t, nm))
             for name, data in fresh.items():
                 cache[(doc_key, name, size)] = data
+            # Stamp failures with the POST-render token — if the render
+            # itself bumped dirty, the next fetch still counts as tried.
+            failed_dirty = doc.dirty()
+            for name in missing:
+                if name not in fresh:
+                    cache[("failed", doc_key, name, size)] = failed_dirty
             previews.update(fresh)
         return {"ok": True, "previews": previews}
 
