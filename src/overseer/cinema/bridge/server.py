@@ -9,8 +9,12 @@ import c4d
 
 from ...core.defaults import DEFAULT_PORT
 
+# web/ sits NEXT TO the overseer package in the plugin dir. This file is
+# nested one level deeper than the blender host (cinema/bridge/ vs blender/),
+# so it climbs FOUR levels: bridge -> cinema -> overseer package -> plugin dir.
 WEB_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))),
     "web")
 
 CONTENT_TYPES = {
