@@ -147,7 +147,7 @@ export default function UpdateBanner() {
       {confirming && (
         <ConfirmModal
           title={`Install Overseer v${info.latest}?`}
-          message={`Downloads the release from GitHub and replaces the plugin files. Your settings and histories are kept, and the current version is backed up for automatic restore. ${host} needs a restart afterwards.`}
+          message={`Overseer handles the update by itself: it downloads v${info.latest} from GitHub and installs it in place. Your settings and histories are kept, and the current version is saved as a backup that is restored automatically if the new one fails to start. Afterwards, restart ${host} once to finish.`}
           confirmLabel="Install"
           onCancel={() => setConfirming(false)}
           onConfirm={() => {

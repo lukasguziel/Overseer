@@ -15,7 +15,7 @@ UPDATE_CINEMA = {
 UPDATE_BLENDER = {
     "asset_pattern": "Overseer-Blender-*.zip",
     "payload_marker": "__init__.py",
-    "disable_globs": (),
+    "disable_globs": ("blender_manifest.toml",),
 }
 
 RS_LIGHT_IDS = {1036751}

@@ -191,6 +191,34 @@ def test_swap_carries_unshipped_entries_but_not_pycache(tmp_path):
     assert os.path.isdir(backup)
 
 
+def test_swap_disables_the_blender_manifest_in_the_backup(tmp_path):
+    # setup: a blender-addon-shaped install (extensions discovery keys on
+    # blender_manifest.toml, so the backup's copy must be neutralized)
+    install = tmp_path / "overseer"
+    install.mkdir()
+    (install / "__init__.py").write_text("old loader")
+    (install / "blender_manifest.toml").write_text("id = overseer")
+    target = updater.UpdateTarget(
+        repo="x/y", current_version="1.1.0",
+        install_dir=str(install), data_dir=str(install),
+        asset_pattern="Overseer-Blender-*.zip", payload_marker="__init__.py",
+        disable_globs=("blender_manifest.toml",))
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    (payload / "__init__.py").write_text("new loader")
+    (payload / "blender_manifest.toml").write_text("id = overseer")
+
+    # do it
+    backup = updater.swap(target, str(payload))
+
+    # postcondition: manifest disabled, the loader itself stays (the dotted
+    # backup folder name is already not importable)
+    assert not os.path.exists(os.path.join(backup, "blender_manifest.toml"))
+    assert os.path.exists(os.path.join(
+        backup, "blender_manifest.toml" + updater.DISABLED_SUFFIX))
+    assert os.path.exists(os.path.join(backup, "__init__.py"))
+
+
 def test_note_boot_rolls_back_after_boot_limit(tmp_path):
     # setup
     target = make_target(tmp_path)

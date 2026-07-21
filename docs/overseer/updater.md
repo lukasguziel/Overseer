@@ -39,10 +39,12 @@ Windows will not let you delete or overwrite files a process has loaded
    copied into the new folder. User data is preserved *by construction*, no
    hand-maintained keep list (`keep` exists for overrides; `__pycache__` and
    the state file are excluded),
-4. loader files in the backup are disabled (`*.pyp` -> `*.pyp.off`), because
-   C4D scans the plugins dir recursively and would otherwise register the
-   backup as a second plugin with the same IDs. (Blender needs no rename: the
-   dotted backup folder name is not an importable module.)
+4. loader files in the backup are disabled, because the host would otherwise
+   pick the backup up as a second copy: C4D scans the plugins dir recursively
+   for `*.pyp` (-> `*.pyp.off`); Blender's extensions dir discovers any folder
+   with a `blender_manifest.toml` (-> disabled too). A legacy Blender addons
+   dir needs nothing extra, the dotted backup folder name is not an importable
+   module.
 
 A failure before step 2 completes renames the backup straight back. The swap
 requires `swap_supported()` (install dir + parent writable); a Program Files
