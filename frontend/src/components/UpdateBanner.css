@@ -4,8 +4,8 @@
 /* Metrics are tuned to match the scope/visibility toggles next to it in
    height: two tight lines inside the same 9px-radius panel box. */
 .update-banner { position: relative; display: flex; flex-direction: column;
-  gap: 3px; align-items: stretch; background: var(--panel2);
-  border: 1px solid var(--line); border-radius: 9px; padding: 4px 12px;
+  gap: 4px; align-items: stretch; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 9px; padding: 6px 12px;
   font-size: 12px; }
 
 /* "Update available" gets a slowly spinning rainbow ring + soft glow; the
