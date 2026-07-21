@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overseer"
-version = "1.1.0"
+version = "1.2.0"
 description = "Cinema 4D plugin: scene analysis, naming normalization, and structure optimization"
 requires-python = ">=3.9"
 
@@ -22,7 +22,7 @@ target-version = "py39"
 src = ["src"]
 # The C4D plugin loader is Python but carries C4D's .pyp extension, so ruff
 # needs to be told to lint it. The Blender addon loader lives at
-# src/blender_addon/__init__.py - a normal .py under src/, already linted.
+# src/plugin/blender/__init__.py - a normal .py under src/, already linted.
 extend-include = ["*.pyp"]
 # extend-include makes ruff descend into gitignored trees, which would drag the
 # vendored Pillow copy into our lint gate. It is third-party source — not ours to fix.

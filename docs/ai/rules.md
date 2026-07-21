@@ -36,8 +36,8 @@ Binding conventions and hard-won gotchas. AGENTS.md links here; keep both curren
 - **Prose explanation lives in `docs/`**, one markdown file per module,
   mirroring the source tree (`src/overseer/bridge/server.py` ->
   `docs/overseer/bridge.md`, `src/overseer/core/ops.py` ->
-  `docs/overseer/core/ops.md`, `src/overseer.pyp` ->
-  `docs/overseer.md`). Update the module's doc when you change its
+  `docs/overseer/core/ops.md`, `src/plugin/cinema4d/overseer.pyp` ->
+  `docs/plugin/cinema4d.md`). Update the module's doc when you change its
   behavior. Hard-won c4d gotchas that used to sit in comments now live there.
 
 ## Language

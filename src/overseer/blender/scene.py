@@ -82,11 +82,40 @@ class BScene(SceneHost):
         return self.dirty()
 
     # -- selection ----------------------------------------------------------
-    def selected_objects(self) -> list:
+    def view_layer(self):
+        """The view layer selection is tested against. Screen-context members
+        of ``bpy.context`` do not exist inside ``bpy.app.timers`` callbacks -
+        and every request runs there via the pump - so fall back to the
+        scene's first view layer when the context one is missing."""
+        vl = getattr(self._bpy.context, "view_layer", None)
+        if vl is not None:
+            return vl
         try:
-            return list(self._bpy.context.selected_objects)
+            return self.scene.view_layers[0]
         except Exception:
-            return []
+            return None
+
+    def object_selected(self, obj) -> bool:
+        """Timer-safe ``select_get`` with an explicit view layer."""
+        vl = self.view_layer()
+        try:
+            if vl is not None:
+                return bool(obj.select_get(view_layer=vl))
+            return bool(obj.select_get())
+        except Exception:
+            return False
+
+    def selected_objects(self) -> list:
+        """The selected objects, timer-safe: ``bpy.context.selected_objects``
+        is a screen-context member and unavailable in the pump timer, so the
+        fallback scans the scene with ``object_selected``."""
+        try:
+            objs = self._bpy.context.selected_objects
+        except Exception:
+            objs = None
+        if objs:
+            return list(objs)
+        return [o for o in self.objects() if self.object_selected(o)]
 
     def selection_token(self) -> tuple:
         """Return ``(token, names, count)`` like ``_selection_info`` in the

@@ -15,6 +15,7 @@ import GlobalTooltip from './components/GlobalTooltip'
 import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
+import UpdateBanner from './components/UpdateBanner'
 import SectionIntro from './components/SectionIntro'
 import SupportHeart from './components/SupportHeart'
 import type { TabId } from './lib/constants'
@@ -91,6 +92,8 @@ export default function App() {
             )}
           </div>
         </div>
+
+        <UpdateBanner />
 
         <div className="topbar-right">
           <Tip text="Scope: “Whole scene” analyzes and changes all objects, “Selection” only the active C4D selection including children.">

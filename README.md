@@ -76,6 +76,15 @@ One codebase, two hosts — the same web UI and features on both. Each
 2. *Edit → Preferences → Add-ons → Install…*, pick the zip, enable **Overseer**.
 3. Open it from the 3D Viewport sidebar (**N**) → **Overseer** tab.
 
+**Updating**
+
+Overseer keeps itself up to date: it checks the GitHub releases and shows a
+banner in the web UI when a newer version exists, with the release notes of
+everything you skipped. One click on **Install** downloads the release,
+swaps the plugin in place (your settings and histories are kept) and asks for
+a host restart. The previous version stays next to the install as a backup
+and is restored automatically if the update fails to start.
+
 ## License
 
 Overseer is free to use for personal and commercial projects, and you may

@@ -1,11 +1,14 @@
 ﻿# src â€” Overseer plugin source
 
-The C4D plugin entry point lives directly here (`overseer.pyp`); all pure,
-`c4d`-free domain logic lives under `overseer/`.
+Per-host plugin entry points live under `plugin/` (`plugin/cinema4d/` with
+`overseer.pyp` + `logo.png` + `config.example.json`, `plugin/blender/` with the
+addon `__init__.py` + `blender_manifest.toml`); all pure, `c4d`-free domain
+logic lives under `overseer/`. Deployed layouts are unchanged: the loader
+always ends up at the root of the installed plugin/addon folder.
 
 ## Files
 
-### overseer.pyp
+### plugin/cinema4d/overseer.pyp
 Loader. Registers ONE command ("Overseer", plugin id `1069217`) whose
 `Execute` calls `overseer.bridge.open_panel()` â€” starting the HTTP server and
 opening the web UI (the only UI). The web port comes from config.json `port`
@@ -22,4 +25,4 @@ opening the web UI (the only UI). The web port comes from config.json `port`
 ## Subpackages
 - `overseer/` â€” the package root and all domain logic; see [overseer.md](overseer.md).
 
-Per-module prose: see `docs/overseer.md`.
+Per-module prose: see `docs/plugin/cinema4d.md`.

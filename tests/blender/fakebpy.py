@@ -65,11 +65,11 @@ class FakeObject:
         self._polys = 0
         self._selected = False
 
-    # selection -------------------------------------------------------------
-    def select_get(self) -> bool:
+    # selection (real bpy takes an optional view_layer kwarg) ----------------
+    def select_get(self, view_layer=None) -> bool:
         return self._selected
 
-    def select_set(self, value) -> None:
+    def select_set(self, value, view_layer=None) -> None:
         self._selected = bool(value)
 
     # visibility ------------------------------------------------------------

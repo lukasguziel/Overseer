@@ -67,7 +67,9 @@ The small host-specific surface the shared webapi calls instead of importing a
 host: `active_host()`, `make_adapter(host)`, `data_dir`/`plugin_dir`,
 `progress`/`clear_progress`, the bridge facades (`server_port`, `lan_enabled`,
 config read/write for `netinfo`), `type_icons(ids)`, `pick_texture_path` /
-`pick_folder`, and `audit(prefix)` → the host's `Audit` for that area. Registered
+`pick_folder`, `audit(prefix)` → the host's `Audit` for that area, and the
+auto-update surface (`host_label` + `update_profile` → the host's release-asset
+shape from `core/defaults.py`; empty profile = updates unsupported). Registered
 per host; `webapi.build_handle(ctx)` returns that host's `handle(payload)`.
 
 ## Adding a new 3D host (the whole checklist)

@@ -85,10 +85,7 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
             lst.sort(key=lambda c: order.get(c.name, 0))
 
         def selected(obj) -> bool:
-            try:
-                return bool(obj.select_get())
-            except Exception:
-                return False
+            return self.doc.object_selected(obj)
 
         def make(obj, parent, depth, sel_ancestor, hidden_ancestor):
             guid = counter[0]
@@ -140,12 +137,7 @@ class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
 
         def visit(node, sel_ancestor):
             obj = self._by_guid.get(node.guid)
-            is_sel = False
-            if obj is not None:
-                try:
-                    is_sel = bool(obj.select_get())
-                except Exception:
-                    is_sel = False
+            is_sel = obj is not None and self.doc.object_selected(obj)
             if is_sel:
                 self._selected_direct.add(node.guid)
             in_scope = sel_ancestor or is_sel

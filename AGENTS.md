@@ -33,11 +33,21 @@ all code runs as a plugin inside the licensed C4D GUI (details in rules.md).
 
 ```
 src/
-  overseer.pyp     Loader. Registers ONE command "Overseer" that
-                          starts the server + opens the web UI (the only UI).
+  plugin/                 per-host loader/entry files (ONLY what is custom to
+                          one host's plugin format; everything else is shared)
+    cinema4d/             overseer.pyp (loader: registers ONE command
+                          "Overseer" that starts the server + opens the web UI,
+                          the only UI), logo.png, config.example.json
+    blender/              __init__.py (addon loader: bl_info + operator/panel)
+                          + blender_manifest.toml
   overseer/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
                           per-section "accepted as-is" keeps map)
+    updater.py            pure, reusable auto-updater: GitHub release check ->
+                          zip download -> folder swap with backup -> confirm/
+                          auto-rollback (docs/overseer/updater.md); ops
+                          update_check/update_install/update_ack, UI banner
+                          in frontend/src/components/UpdateBanner.tsx
     bridge/               [c4d] HTTP server (BG thread) + main-thread queue + progress
                           state; one file per class (progress/mainthread/reload/
                           server/dialog). PROCESS SINGLETON — the whole package
@@ -93,7 +103,8 @@ name "GFCSceneOrganizer" — the registration name never changes):
 `1069217` CommandData "Overseer" (the only command; opens the web UI) ·
 `1069220` ServerDialog ID. `1069218`/`1069219` are retired (former native
 dialog / web command) — do not reuse them for anything else.
-Web port: config.json `port` (default `8787` in `core/defaults.py`).
+Web port: config.json `port` (defaults in `core/defaults.py`: Cinema `8787`,
+Blender `8788`, separate ports so both hosts can run side by side).
 No MessageData — the ServerDialog timer drains the queue.
 
 ## Deployment
@@ -112,12 +123,12 @@ Same codebase also ships as a Blender addon (branch `feature/blender-port`).
 Only the host glue differs — everything under `core/`, `naming/`, `config.py`
 and the whole `frontend/` web UI is **shared verbatim** with the C4D build.
 Read [docs/ai/blender.md](docs/ai/blender.md) BEFORE touching the port; only
-`src/overseer/blender/` (and `src/blender_addon/__init__.py`) may `import bpy`, and
+`src/overseer/blender/` (and `src/plugin/blender/__init__.py`) may `import bpy`, and
 never at module load (CI imports the host without Blender).
 
 **Installable addon layout** — one top folder `overseer/` that *is* the package:
 ```
-overseer/__init__.py   = src/blender_addon/__init__.py   (addon loader: bl_info + operator)
+overseer/__init__.py   = src/plugin/blender/__init__.py  (addon loader: bl_info + operator)
 overseer/overseer/     = src/overseer                (shared package incl. blender/)
 overseer/web/          = src/web                      (Vite build)
 overseer/vendor/       = src/vendor                   (Pillow, optional)

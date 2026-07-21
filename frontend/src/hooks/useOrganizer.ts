@@ -960,6 +960,7 @@ export function useOrganizer() {
   // Latest tags/files scans, shared from their tabs via the audit cache —
   // feed the area scores and badges without re-running the scans here.
   const tagsScan = useAuditData<{
+    phong?: boolean
     summary?: { missing_phong?: number; duplicate_material_tags?: number }
   }>('tags_scan')
   const filesScan = useAuditData<{
@@ -1067,7 +1068,11 @@ export function useOrganizer() {
         // the Tags tab opens) — no ring before that.
         const t = tagsScan?.summary
         if (!t) return null
-        const bad = (t.missing_phong || 0) + (t.duplicate_material_tags || 0)
+        // Hosts that opt out of the phong/smoothing concept (phong:false,
+        // e.g. Blender) hide the missing-phong worklist in the tab — the
+        // score must not count what the artist cannot see or act on.
+        const phongBad = tagsScan?.phong === false ? 0 : (t.missing_phong || 0)
+        const bad = phongBad + (t.duplicate_material_tags || 0)
         const total = report.nodes?.length || report.object_count || 0
         if (!total) return bad ? 0 : 100
         return capped(bad, Math.max(0, total - bad) / total)

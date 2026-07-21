@@ -80,6 +80,16 @@ class CinemaContext(HostContext):
     def export_dir(self) -> str:
         return self._export_dir
 
+    # -- auto-update --------------------------------------------------------
+    @property
+    def host_label(self) -> str:
+        return "Cinema 4D"
+
+    @property
+    def update_profile(self) -> dict:
+        from ..core import defaults
+        return defaults.UPDATE_CINEMA
+
     # -- progress (bridge + C4D status bar) ---------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
         bridge.set_progress(phase, current, total, detail)

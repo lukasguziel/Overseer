@@ -21,15 +21,15 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      # Lints src/overseer.pyp and src/blender_addon/__init__.py too
-      # (both via extend-include in pyproject.toml).
+      # Lints src/plugin/cinema4d/overseer.pyp and src/plugin/blender/__init__.py
+      # too (the .pyp via extend-include in pyproject.toml).
       - name: Lint (ruff)
         run: ruff check src tests
 
       - name: Syntax-check the plugin entry points
         run: |
-          python -m py_compile src/overseer.pyp
-          python -m py_compile src/blender_addon/__init__.py
+          python -m py_compile src/plugin/cinema4d/overseer.pyp
+          python -m py_compile src/plugin/blender/__init__.py
 
   plugin-test:
     needs: plugin-lint
