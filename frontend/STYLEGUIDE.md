@@ -253,16 +253,19 @@ whole tab has no data yet ("Run an analysis").
 
 ---
 
-## Update banner — `<UpdateBanner>` / `.update-banner`
+## Update chip — `<UpdateBanner>` / `.update-banner`
 
-The one strip under the topbar that talks about the plugin itself, not the
-scene. No box: it sits flush on the app's content edge; a small `.update-dot`
-carries the tone — a newer release exists (accent), an update is installed and
-waits for a host restart (green), or a failed update was rolled back (red).
-Self-contained (own `update_check` call, session-dismiss per version); rendered
-once in `App.tsx`, never inside a tab. Actions are plain `<ActionButton>`s
-("What's new" neutral, Install `go`); the notes fold uses `.section-head sm`
-per version and renders through `<Markdown>`.
+The one block that talks about the plugin itself, not the scene: a small
+two-line box in the topbar (first child of `.topbar-right`, so it sits right
+of the brand and left of the scope toggle). Top line = `.update-dot` + the
+compressed version ("v1.2.0 available") + ✕ to skip; bottom line = the
+actions as plain `<ActionButton>`s ("What's new" neutral, Install `go`).
+The dot carries the tone — newer release (accent), installed/restart pending
+(green), rolled back (red). The release notes open in a modal that reuses the
+`.confirm-overlay`/`.confirm-box` chrome, one `.section-head sm` per version,
+body rendered through `<Markdown>`. Self-contained (own `update_check` call,
+session-dismiss per version); rendered once in `App.tsx`, never inside a tab;
+hidden below the 820px topbar wrap.
 
 `<Markdown>` (`components/Markdown.tsx` + `lib/markdown.ts`) is the strict
 subset renderer for untrusted release notes — headings, lists, paragraphs,

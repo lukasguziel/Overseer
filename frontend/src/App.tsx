@@ -94,6 +94,7 @@ export default function App() {
         </div>
 
         <div className="topbar-right">
+          <UpdateBanner />
           <Tip text="Scope: “Whole scene” analyzes and changes all objects, “Selection” only the active C4D selection including children.">
             <ScopeToggle scope={org.scope} setScope={org.setScope} sel={org.sel} />
           </Tip>
@@ -110,8 +111,6 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      <UpdateBanner />
 
       <div className="tabs-row">
         <button className="nav-burger" onClick={() => setNavOpen((o) => !o)}

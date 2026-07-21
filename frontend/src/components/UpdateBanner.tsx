@@ -5,10 +5,11 @@ import ConfirmModal from './ConfirmModal'
 import Markdown from './Markdown'
 import './UpdateBanner.css'
 
-// Auto-update banner under the topbar. One check per app load (the backend
-// caches the GitHub answer); hidden whenever there is nothing to say. Install
-// downloads the release zip, swaps the plugin folder (backup kept for
-// auto-restore) and then asks for a host restart.
+// Compact update chip in the topbar (right of the brand, left of the scope
+// toggle): top line = the new version, bottom line = What's new / Install / ✕.
+// The release notes open in a modal; install confirms first, then downloads,
+// swaps the plugin folder (backup kept for auto-restore) and asks for a host
+// restart. One check per app load — the backend caches the GitHub answer.
 type UpdateRelease = { version: string; name: string; notes: string; date: string }
 type UpdateInfo = {
   host?: string
@@ -19,7 +20,7 @@ type UpdateInfo = {
   update_available?: boolean
   writable?: boolean
   releases?: UpdateRelease[]
-  state?: { state?: string; from?: string; to?: string }
+  state?: { state?: string; from?: string; to?: string; reason?: string }
   check_failed?: string
 }
 
@@ -48,21 +49,21 @@ export default function UpdateBanner() {
   // A fresh install failed and the previous version was restored: say so once.
   if (!installed && (info.state?.state === 'rolled_back' || info.state?.state === 'failed')) {
     const rolledBack = info.state.state === 'rolled_back'
+    const detail = rolledBack
+      ? `The update to v${info.state.to} could not start, so v${info.state.from} was restored from its backup.`
+      : `The update to v${info.state.to} could not be completed (${info.state.reason || 'see the host console'}).`
     return (
-      <div className="update-banner err">
-        <div className="update-row">
+      <div className="update-banner err" title={detail}>
+        <span className="update-line">
           <span className="update-dot" />
-          <span className="update-title">
-            {rolledBack
-              ? `The update to v${info.state.to} could not start, so v${info.state.from} was restored from its backup.`
-              : `The update to v${info.state.to} could not be completed. Check the ${host} console.`}
-          </span>
-          <span className="update-actions">
-            <ActionButton onClick={() => { call('update_ack').catch(() => {}); setHidden(true) }}>
-              Got it
-            </ActionButton>
-          </span>
-        </div>
+          <span className="update-title">Update rolled back</span>
+        </span>
+        <span className="update-acts">
+          {rolledBack && <span className="update-hint">v{info.state.from} restored</span>}
+          <ActionButton onClick={() => { call('update_ack').catch(() => {}); setHidden(true) }}>
+            Got it
+          </ActionButton>
+        </span>
       </div>
     )
   }
@@ -72,12 +73,13 @@ export default function UpdateBanner() {
     const to = installed ? info.latest : info.state?.to
     return (
       <div className="update-banner ok">
-        <div className="update-row">
+        <span className="update-line">
           <span className="update-dot" />
-          <span className="update-title">
-            Overseer v{to} is installed. Restart {host} to finish the update.
-          </span>
-        </div>
+          <span className="update-title">v{to} installed</span>
+        </span>
+        <span className="update-acts">
+          <span className="update-hint">restart {host} to finish</span>
+        </span>
       </div>
     )
   }
@@ -88,53 +90,59 @@ export default function UpdateBanner() {
 
   return (
     <div className="update-banner">
-      <div className="update-row">
+      <span className="update-line">
         <span className="update-dot" />
-        <span className="update-title">
-          Overseer v{info.latest} is available
-          <span className="update-installed">installed: v{info.current}</span>
-        </span>
-        <span className="update-actions">
-          {releases.length > 0 && (
-            <ActionButton onClick={() => setOpen((o) => !o)}>
-              {open ? 'Hide notes' : "What's new"}
-            </ActionButton>
-          )}
-          {info.writable ? (
-            <ActionButton tone="go" disabled={installing}
-              onClick={() => setConfirming(true)}>
-              {installing ? 'Installing…' : `Install v${info.latest}`}
-            </ActionButton>
-          ) : (
-            <a className="update-link" target="_blank" rel="noreferrer"
-              href={`https://github.com/${info.repo || ''}/releases`}>
-              Download from GitHub
-            </a>
-          )}
-          <button className="error-dismiss" title="Skip this version for now"
-            onClick={() => { sessionStorage.setItem(DISMISS_KEY, info.latest || ''); setHidden(true) }}>
-            ✕
-          </button>
-        </span>
-      </div>
-      {!info.writable && (
-        <p className="hint-sm">
-          The plugin folder is read-only for {host}, so the update cannot install
-          itself. Download the zip and replace the folder manually.
-        </p>
-      )}
-      {error && <p className="update-error">{error}</p>}
+        <span className="update-title">v{info.latest} available</span>
+        <button className="update-x" title="Skip this version for now"
+          onClick={() => { sessionStorage.setItem(DISMISS_KEY, info.latest || ''); setHidden(true) }}>
+          ✕
+        </button>
+      </span>
+      <span className="update-acts">
+        {releases.length > 0 && (
+          <ActionButton onClick={() => setOpen(true)}>What's new</ActionButton>
+        )}
+        {info.writable ? (
+          <ActionButton tone="go" disabled={installing}
+            onClick={() => setConfirming(true)}>
+            {installing ? 'Installing…' : 'Install'}
+          </ActionButton>
+        ) : (
+          <a className="update-link" target="_blank" rel="noreferrer"
+            title={`The plugin folder is read-only for ${host}, so the update cannot install itself. Download the zip and replace the folder manually.`}
+            href={`https://github.com/${info.repo || ''}/releases`}>
+            Download from GitHub
+          </a>
+        )}
+        {error && <span className="update-error" title={error}>install failed</span>}
+      </span>
       {open && (
-        <div className="update-notes">
-          {releases.map((r) => (
-            <div key={r.version} className="update-note">
-              <div className="section-head sm">
-                <span>v{r.version}</span>
-                {r.date && <span className="update-date">{r.date}</span>}
-              </div>
-              <Markdown source={r.notes || 'No notes for this release.'} />
+        <div className="confirm-overlay" onClick={() => setOpen(false)}>
+          <div className="confirm-box update-notes-box" role="dialog" aria-modal="true"
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="confirm-title">What's new in v{info.latest}</h3>
+            <p className="update-notes-sub">installed: v{info.current}</p>
+            <div className="update-notes">
+              {releases.map((r) => (
+                <div key={r.version} className="update-note">
+                  <div className="section-head sm">
+                    <span>v{r.version}</span>
+                    {r.date && <span className="update-date">{r.date}</span>}
+                  </div>
+                  <Markdown source={r.notes || 'No notes for this release.'} />
+                </div>
+              ))}
             </div>
-          ))}
+            <div className="confirm-actions">
+              <button className="ghost" onClick={() => setOpen(false)}>Close</button>
+              {info.writable && (
+                <button className="apply" disabled={installing}
+                  onClick={() => { setOpen(false); setConfirming(true) }}>
+                  Install v{info.latest}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
       {confirming && (
