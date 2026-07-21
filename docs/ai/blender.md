@@ -84,6 +84,16 @@ handful of doc-methods the handlers call, mapped onto `bpy`:
 `BScene.dirty()` must bump on real edits but stay stable across selection /
 camera moves (the scene cache is keyed on it — see below).
 
+**Timer-context gotcha:** every request runs inside the `bpy.app.timers` pump,
+where `bpy.context` has NO screen context — `bpy.context.selected_objects` /
+`active_object` simply do not exist there. Any selection read must go through
+`BScene.object_selected(obj)` / `BScene.selected_objects()`, which call
+`obj.select_get(view_layer=...)` with an explicit view layer
+(`BScene.view_layer()`: context view layer, else `scene.view_layers[0]`).
+A bare `obj.select_get()` or `bpy.context.selected_objects` works in the
+Python console but silently returns nothing via the web API — that bug shipped
+once (the Selection scope never updated in Blender).
+
 ## SceneAdapter contract (`blender/adapter/`)
 
 `SceneAdapter` is composed from mixins exactly like C4D's. It is constructed
