@@ -3,10 +3,33 @@
    green = installed/restart pending, red = a rolled-back update. */
 /* Metrics are tuned to match the scope/visibility toggles next to it in
    height: two tight lines inside the same 9px-radius panel box. */
-.update-banner { display: flex; flex-direction: column; gap: 3px;
-  align-items: flex-start; background: var(--panel2);
-  border: 1px solid var(--line); border-radius: 9px; padding: 4px 9px;
+.update-banner { position: relative; display: flex; flex-direction: column;
+  gap: 3px; align-items: flex-start; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 9px; padding: 4px 12px;
   font-size: 12px; }
+
+/* "Update available" gets a slowly spinning rainbow ring + soft glow; the
+   ok/err states keep the plain box. The border is painted by layering the
+   panel background (padding-box) over a conic gradient (border-box); the
+   glow is the same gradient blurred behind the chip. */
+@property --ub-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes ub-spin { to { --ub-angle: 360deg; } }
+.update-banner:not(.ok):not(.err) {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--panel2), var(--panel2)) padding-box,
+    conic-gradient(from var(--ub-angle),
+      #f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f472b6, #f87171) border-box;
+  animation: ub-spin 6s linear infinite;
+}
+.update-banner:not(.ok):not(.err)::before {
+  content: ""; position: absolute; inset: -2px; z-index: -1;
+  border-radius: 12px;
+  background: conic-gradient(from var(--ub-angle),
+    #f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f472b6, #f87171);
+  filter: blur(7px); opacity: .45;
+  animation: ub-spin 6s linear infinite;
+}
 
 .update-line { display: inline-flex; align-items: center; gap: 7px; line-height: 1.1; }
 .update-dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
