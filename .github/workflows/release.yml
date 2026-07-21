@@ -107,7 +107,7 @@ jobs:
       # the plugin so the artist never pip-installs into Cinema's Python. The
       # wheel is fetched here rather than committed, so no binaries in git.
       - name: Vendor Pillow (cp311 / win_amd64)
-        run: python .claude/skills/release/vendor_pillow.py
+        run: python scripts/release/vendor_pillow.py
 
       # --- Package: same layout as deploy.ps1 produces ---
       - name: Assemble plugin folder
@@ -135,7 +135,7 @@ jobs:
       # layout deploy_blender.ps1 mirrors and build_blender_zip.py assembles, so
       # the Blender download and the dev deploy never diverge.
       - name: Zip (Blender addon)
-        run: python .claude/skills/release/build_blender_zip.py
+        run: python scripts/release/build_blender_zip.py
 
       # On a main push the tag follows the release: same version, new content.
       # (GITHUB_TOKEN pushes never re-trigger workflows, so no recursion.)

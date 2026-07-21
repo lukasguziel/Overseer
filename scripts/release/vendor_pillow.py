@@ -5,7 +5,7 @@ Cinema 4D 2024 embeds CPython 3.11, 64-bit Windows, so the wheel we fetch must
 be exactly cp311 / win_amd64 — NOT whatever interpreter runs this script. That
 is why this uses pip's cross-download flags instead of a plain `pip install`.
 
-    python .claude/skills/release/vendor_pillow.py
+    python scripts/release/vendor_pillow.py
 
 Re-run it to refresh; the plugin works without it (Cinema's own bitmap engine
 is the fallback), it just resizes with lower quality and refuses alpha maps.
@@ -25,7 +25,7 @@ PY_VERSION = "311"
 PLATFORM = "win_amd64"
 PILLOW = "pillow==11.3.0"
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 VENDOR = ROOT / "src" / "vendor"
 
 

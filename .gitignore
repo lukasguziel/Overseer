@@ -13,16 +13,16 @@ frontend/node_modules/
 frontend/dist/
 
 # Local packaging output: release zips built by the release workflow AND the
-# Blender addon zip from .claude/skills/release/build_blender_zip.py
+# Blender addon zip from scripts/release/build_blender_zip.py
 # (Overseer-Blender-v*.zip)
 dist/
 
 # Vite build output (built from frontend/, distributed by deploy.ps1)
 src/web/
 
-# Vendored third-party wheels (Pillow), unpacked by the release skill's
-# vendor_pillow.py and
-# by the release workflow. Generated, never committed — no binaries in git.
+# Vendored third-party wheels (Pillow), unpacked by scripts/release/
+# vendor_pillow.py (locally and in the release workflow). Generated, never
+# committed — no binaries in git.
 src/vendor/
 
 # C4D SDK reference archives (large vendor zips) stay local, never in git
@@ -34,8 +34,10 @@ resp.json
 .coverage
 
 
-# Deploy target: machine-local, NEVER in the repo (written by the deploy skill)
-.claude/skills/deploy/deploy.config.json
+# Claude Code project config, skills and instructions stay machine-local —
+# the public repo ships without them (CI scripts live in scripts/release/)
+.claude/
+CLAUDE.md
 
 # Personal working config (the shipped template is config.example.json;
 # the plugin falls back to DEFAULT_CONFIG when no config.json exists)

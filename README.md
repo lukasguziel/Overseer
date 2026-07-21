@@ -95,8 +95,7 @@ Blender:
 python -m pytest                 # unit tests (no c4d / bpy)
 python -m ruff check src tests   # lint
 cd frontend && pnpm run build    # web UI -> src/web/
-powershell -File .claude/skills/deploy/deploy.ps1          # -> a Cinema 4D plugin dir
-powershell -File .claude/skills/deploy/deploy_blender.ps1  # -> a Blender addon dir
+python scripts/release/build_blender_zip.py   # -> dist/Overseer-Blender-v<version>.zip
 ```
 
 `main` is the protected release branch: every merge into it rebuilds both the

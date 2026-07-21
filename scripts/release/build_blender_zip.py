@@ -8,7 +8,7 @@ that IS the addon package. So the zip contains one folder, `overseer/`, holding:
     overseer/web/          <- src/web       (Vite build output)
     overseer/vendor/       <- src/vendor    (Pillow, optional)
 
-    python .claude/skills/release/build_blender_zip.py
+    python scripts/release/build_blender_zip.py
 
 The version is read from src/overseer/__init__.py (the three version spots -
 pyproject.toml, __init__.py, package.json - are kept in lockstep by the release
@@ -24,7 +24,7 @@ import re
 import sys
 import zipfile
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 DIST = ROOT / "dist"
 
