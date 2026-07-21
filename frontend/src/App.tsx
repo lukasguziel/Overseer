@@ -93,8 +93,9 @@ export default function App() {
           </div>
         </div>
 
+        <UpdateBanner />
+
         <div className="topbar-right">
-          <UpdateBanner />
           <Tip text="Scope: “Whole scene” analyzes and changes all objects, “Selection” only the active C4D selection including children.">
             <ScopeToggle scope={org.scope} setScope={org.setScope} sel={org.sel} />
           </Tip>
