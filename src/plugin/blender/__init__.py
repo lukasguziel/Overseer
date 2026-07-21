@@ -16,7 +16,7 @@ import sys
 bl_info = {
     "name": "Overseer",
     "author": "Lukas Guziel",
-    "version": (1, 1, 0),
+    "version": (1, 2, 0),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > Overseer",
     "description": "Analyze & organize the scene: naming, collections, "
