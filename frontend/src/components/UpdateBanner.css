@@ -1,12 +1,14 @@
 /* Update chip: a small two-line box in the topbar (right of the brand, left
    of the scope toggle). The dot carries the tone: accent = a newer release,
    green = installed/restart pending, red = a rolled-back update. */
-.update-banner { display: flex; flex-direction: column; gap: 4px;
+/* Metrics are tuned to match the scope/visibility toggles next to it in
+   height: two tight lines inside the same 9px-radius panel box. */
+.update-banner { display: flex; flex-direction: column; gap: 3px;
   align-items: flex-start; background: var(--panel2);
-  border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: 9px; padding: 4px 9px;
   font-size: 12px; }
 
-.update-line { display: inline-flex; align-items: center; gap: 7px; line-height: 1.2; }
+.update-line { display: inline-flex; align-items: center; gap: 7px; line-height: 1.1; }
 .update-dot { width: 7px; height: 7px; border-radius: 50%; flex: none;
   background: var(--accent); }
 .update-banner.ok .update-dot { background: var(--apply); }
@@ -17,16 +19,18 @@
 .update-x:hover { color: var(--text); }
 
 .update-acts { display: inline-flex; align-items: center; gap: 6px; }
+.update-acts .act { padding: 2px 7px; }
 .update-hint { color: var(--dim2); font-size: 11px; white-space: nowrap; }
 .update-link { color: var(--accent); font-size: 11px; white-space: nowrap; }
 .update-error { color: var(--err); font-size: 11px; }
 .update-date { color: var(--dim2); letter-spacing: 0; text-transform: none; }
 
-/* Release-notes modal (reuses the confirm overlay/box chrome). */
-.update-notes-box { width: min(560px, 92vw); text-align: left; }
+/* Release-notes modal (reuses the confirm overlay/box chrome; the double
+   selector outranks .confirm-box's fixed 380px width). */
+.confirm-box.update-notes-box { width: min(760px, 94vw); text-align: left; }
 .update-notes-sub { margin: 2px 0 0; color: var(--dim2); font-size: 12px; }
-.update-notes { max-height: 50vh; overflow-y: auto; margin: 10px 0 4px;
-  padding-right: 4px; }
+.update-notes { max-height: 62vh; overflow-y: auto; margin: 12px 0 6px;
+  padding-right: 6px; }
 .update-note + .update-note { margin-top: 12px; }
 
 /* The topbar wraps below 820px — the chip would crowd the brand row. */
