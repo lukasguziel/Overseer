@@ -52,44 +52,90 @@ def _is_control_object(op) -> bool:
 
 
 def _virtual_geo(op) -> tuple:
-    pts = polys = 0
+    """Geometry of a cache subtree as (pts, polys, ctrl_pts, ctrl_polys).
+
+    Polygon objects flagged BIT_CONTROLOBJECT are tallied separately: the
+    flag normally marks the generator INPUTS duplicated into the cache
+    (counting them would double the geometry) — but C4D 2026 flags the
+    generated result meshes too, so a Sweep/Symmetry cache holds ONLY
+    control-marked polys and the plain count comes back 0. The caller
+    falls back to the ctrl tally exactly then — a fallback can never
+    double count against a zero.
+    """
+    pts = polys = cpts = cpolys = 0
     o = op
     while o:
         dc = o.GetDeformCache()
         c = o.GetCache() if dc is None else None
         if dc:
-            p2, q2 = _virtual_geo(dc)
+            p2, q2, cp2, cq2 = _virtual_geo(dc)
             pts += p2
             polys += q2
+            cpts += cp2
+            cpolys += cq2
         elif c:
-            p2, q2 = _virtual_geo(c)
+            p2, q2, cp2, cq2 = _virtual_geo(c)
             pts += p2
             polys += q2
-        elif o.IsInstanceOf(c4d.Opolygon) and not _is_control_object(o):
+            cpts += cp2
+            cpolys += cq2
+        elif o.IsInstanceOf(c4d.Opolygon):
             try:
-                pts += o.GetPointCount()
-                polys += o.GetPolygonCount()
+                if _is_control_object(o):
+                    cpts += o.GetPointCount()
+                    cpolys += o.GetPolygonCount()
+                else:
+                    pts += o.GetPointCount()
+                    polys += o.GetPolygonCount()
             except Exception:
                 pass
         down = o.GetDown()
         if down:
-            p2, q2 = _virtual_geo(down)
+            p2, q2, cp2, cq2 = _virtual_geo(down)
             pts += p2
             polys += q2
+            cpts += cp2
+            cpolys += cq2
         o = o.GetNext()
-    return pts, polys
+    return pts, polys, cpts, cpolys
 
 
-def own_geo(op) -> tuple:
+def own_geo(op, _depth: int = 0) -> tuple:
     if op.IsInstanceOf(c4d.Opolygon):
         try:
             return op.GetPointCount(), op.GetPolygonCount()
         except Exception:
             return 0, 0
     cache = op.GetDeformCache() or op.GetCache()
-    if cache is None:
-        return 0, 0
-    return _virtual_geo(cache)
+    if cache is not None:
+        pts, polys, cpts, cpolys = _virtual_geo(cache)
+        if pts or polys:
+            return pts, polys
+        if cpts or cpolys:
+            return cpts, cpolys
+    # Render instances build no cache at all — resolve the link and count
+    # the referenced SUBTREE (the link often points at a null group; the
+    # instance renders the whole branch). Depth-capped against link cycles
+    # and instances nested under their own reference.
+    if _depth < 8 and op.CheckType(c4d.Oinstance):
+        try:
+            ref = op[c4d.INSTANCEOBJECT_LINK]
+        except Exception:
+            ref = None
+        if ref is not None:
+            return _subtree_geo(ref, _depth + 1)
+    return 0, 0
+
+
+def _subtree_geo(op, _depth: int = 0) -> tuple:
+    pts, polys = own_geo(op, _depth)
+    child = op.GetDown()
+    while child:
+        p2, q2 = _subtree_geo(child, _depth)
+        pts += p2
+        polys += q2
+        child = child.GetNext()
+    return pts, polys
 
 
 def classify(op) -> str:

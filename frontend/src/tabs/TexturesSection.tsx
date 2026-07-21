@@ -1,7 +1,7 @@
 // The Textures area of the Materials tab: every map the scene references,
 // faceted filters left, the decide-per-row table right. Extracted from
 // MaterialsTab so each of the tab's two areas can be read in one piece.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '../api'
 import type { Organizer } from '../hooks/useOrganizer'
 import type { TextureEntry } from '../types'
@@ -393,22 +393,34 @@ export default function TexturesSection({ org }: { org: Organizer }) {
   // interleave instead of queueing behind one 15s+ preview job) and the
   // images pop in progressively. The server caches rendered previews, so
   // revisiting the tab is instant.
+  // One chunk chain at a time: a filter click changes the visible set faster
+  // than thumbnails render, and an in-flight request cannot be cancelled —
+  // without this gate, rapid clicking stacks preview jobs in the C4D
+  // main-thread queue until Cinema visibly freezes.
+  const texChain = useRef<Promise<void> | null>(null)
   useEffect(() => {
     const paths = visibleKey ? visibleKey.split('\n') : []
     const missing = paths.filter((p) => !(p in texPreviews))
     if (!missing.length) return
     let alive = true
-    ;(async () => {
-      // 4 per request: big EXR/HDR maps take ~1s each to thumbnail, and each
-      // request blocks the C4D main thread — keep the blocks short.
-      for (let i = 0; i < missing.length && alive; i += 4) {
-        try {
-          const r = await call('texture_previews', { paths: missing.slice(i, i + 4), size: 40 })
-          if (alive) setTexPreviews((prev) => ({ ...prev, ...(r.previews || {}) }))
-        } catch { /* dots stay as fallback */ }
-      }
-    })()
-    return () => { alive = false }
+    // Debounced: fetch only once the view has settled — clicking through
+    // filters must cost nothing until the user stops on one.
+    const t = setTimeout(async () => {
+      await texChain.current  // let the previous chain drain fully
+      if (!alive) return
+      texChain.current = (async () => {
+        // 4 per request: big EXR/HDR maps take ~1s each to thumbnail, and
+        // each request blocks the C4D main thread — keep the blocks short.
+        for (let i = 0; i < missing.length && alive; i += 4) {
+          try {
+            const r = await call('texture_previews', { paths: missing.slice(i, i + 4), size: 40 })
+            if (alive) setTexPreviews((prev) => ({ ...prev, ...(r.previews || {}) }))
+          } catch { /* dots stay as fallback */ }
+        }
+      })()
+      await texChain.current
+    }, 350)
+    return () => { alive = false; clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleKey])
 

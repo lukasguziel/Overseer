@@ -60,9 +60,14 @@ jobs:
           grep -qF "\"version\": \"$V\"" frontend/package.json \
             || { echo "::error::frontend/package.json is not $V"; fail=1; }
           case "$V" in
-            *-*) echo "prerelease — skipping pyproject.toml (PEP-440 form differs)" ;;
+            *-*) echo "prerelease — skipping pyproject.toml + bl_info (integer/PEP-440 forms differ)" ;;
             *) grep -qF "version = \"$V\"" pyproject.toml \
-                 || { echo "::error::pyproject.toml is not $V"; fail=1; } ;;
+                 || { echo "::error::pyproject.toml is not $V"; fail=1; }
+               # The Blender addon carries the version as an int tuple in bl_info;
+               # reconstruct "a.b.c" and compare (stable versions only).
+               BL="$(python -c "import ast,re; t=open('src/blender_addon/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
+               [ "$BL" = "$V" ] \
+                 || { echo "::error::src/blender_addon bl_info version is '$BL', not $V"; fail=1; } ;;
           esac
           exit $fail
 
@@ -102,7 +107,7 @@ jobs:
       # the plugin so the artist never pip-installs into Cinema's Python. The
       # wheel is fetched here rather than committed, so no binaries in git.
       - name: Vendor Pillow (cp311 / win_amd64)
-        run: python .claude/skills/release/vendor_pillow.py
+        run: python scripts/release/vendor_pillow.py
 
       # --- Package: same layout as deploy.ps1 produces ---
       - name: Assemble plugin folder
@@ -122,8 +127,15 @@ jobs:
           find "$pkg/vendor" -name __pycache__ -type d -prune -exec rm -rf {} +
           cp -r src/web "$pkg/web"
 
-      - name: Zip
-        run: cd dist && zip -r "Overseer-$VERSION.zip" Overseer
+      - name: Zip (Cinema 4D)
+        run: cd dist && zip -r "Overseer-Cinema4D-$VERSION.zip" Overseer
+
+      # Same shared package + web build + Pillow, wrapped as an installable
+      # Blender addon (one top folder `overseer/` = the addon). Reuses the exact
+      # layout deploy_blender.ps1 mirrors and build_blender_zip.py assembles, so
+      # the Blender download and the dev deploy never diverge.
+      - name: Zip (Blender addon)
+        run: python scripts/release/build_blender_zip.py
 
       # On a main push the tag follows the release: same version, new content.
       # (GITHUB_TOKEN pushes never re-trigger workflows, so no recursion.)
@@ -140,15 +152,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BODY: |
-            ## Installation
+            One codebase, two hosts — same web UI and features on both.
 
-            Unzip the archive, copy the `Overseer` folder into your Cinema 4D
-            `plugins` folder, restart Cinema 4D, then press `Shift+C` and search
-            for **"Overseer"**.
+            ## Cinema 4D  (`Overseer-Cinema4D-${{ steps.version.outputs.version }}.zip`)
+
+            Unzip, copy the `Overseer` folder into your Cinema 4D `plugins`
+            folder, restart Cinema 4D, then press `Shift+C` and search for
+            **"Overseer"**.
+
+            ## Blender  (`Overseer-Blender-${{ steps.version.outputs.version }}.zip`)
+
+            *Edit > Preferences > Add-ons > Install…*, pick the zip, enable
+            **Overseer**, then open it from the 3D Viewport sidebar (**N**) >
+            **Overseer** tab. Blender 4.2 LTS+.
         run: |
+          BVER="${VERSION#v}"
+          C4D_ZIP="dist/Overseer-Cinema4D-$VERSION.zip"
+          BL_ZIP="dist/Overseer-Blender-v$BVER.zip"
           if gh release view "$VERSION" --json name > /dev/null 2>&1; then
-            gh release upload "$VERSION" "dist/Overseer-$VERSION.zip" --clobber
+            gh release upload "$VERSION" "$C4D_ZIP" "$BL_ZIP" --clobber
           else
             gh release create "$VERSION" --title "Overseer $VERSION" \
-              --notes "$BODY" "dist/Overseer-$VERSION.zip"
+              --notes "$BODY" "$C4D_ZIP" "$BL_ZIP"
           fi

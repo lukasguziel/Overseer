@@ -240,6 +240,9 @@ History — the plumbing that makes the rest trustworthy.
   undoable).
 - ✅ **Analysis history** — object/polygon/size/compliance over time feeds
   the Overview trends.
+- ✅ **Visible areas profile** — untick the areas you don't use: they leave
+  the menu, skip their background work and stop counting toward the overall
+  health score (stored per machine, not per scene).
 - ✅ **Read the scene on your phone** — a QR code opens the tool on your
   phone for reading through the scene away from the desk; opt-in, and best
   turned off again afterwards.

@@ -1,0 +1,37 @@
+schema_version = "1.0.0"
+
+# Extension metadata for Blender 4.2+ / 5.x. The addon also keeps a bl_info in
+# __init__.py so the same folder works as a legacy add-on in older Blenders;
+# the extension system reads THIS file and ignores bl_info.
+id = "overseer"
+version = "1.1.0"
+name = "Overseer"
+tagline = "Analyze and organize your scene from a web UI"
+maintainer = "Lukas Guziel <bamerus@proton.me>"
+type = "add-on"
+
+website = "https://github.com/lukasguziel/overseer"
+
+tags = ["Scene", "Object", "System"]
+
+blender_version_min = "4.2.0"
+
+# Custom (non-OSI) license — the project is free to use but not for resale (see
+# the repo LICENSE). Local installs accept a LicenseRef; the public extensions
+# platform would require an approved SPDX id.
+license = ["SPDX:LicenseRef-Overseer"]
+
+# The addon runs a small localhost web server (the UI) and reads/writes scene
+# reports, texture files and its own config — declared so Blender's permission
+# prompt is accurate.
+[permissions]
+network = "Serves the Overseer web UI on 127.0.0.1"
+files = "Reads scene data and rewrites texture paths, reports and config"
+
+# Never ship compiled/cache junk in the extension.
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "*.pyc",
+  "/dev_repo.txt",
+]

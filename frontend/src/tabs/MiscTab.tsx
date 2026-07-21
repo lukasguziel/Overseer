@@ -1,4 +1,5 @@
 import type { Organizer } from '../hooks/useOrganizer'
+import { HIDEABLE_TABS, TABS } from '../lib/constants'
 import ActionButton from '../components/ActionButton'
 import ChangeHistory from '../components/ChangeHistory'
 import PhoneAccess from '../components/PhoneAccess'
@@ -80,6 +81,29 @@ export default function MiscTab({ org }: { org: Organizer }) {
             : <HistoryList rows={analysisRows(history)} perPage={10} />}
         </section>
       </div>
+
+      <SectionHead title="Profile" />
+      <section className="card">
+        <div className="card-head">
+          <Tip text="Which tool areas the menu shows. The profile applies everywhere — it is stored per machine, not per scene.">
+            <h3>Visible areas</h3>
+          </Tip>
+        </div>
+        <p className="hint-sm">
+          Untick the areas you don&apos;t use — they disappear from the menu,
+          skip their background work and stop counting toward the overall
+          health score. Overview and Misc always stay.
+        </p>
+        <div className="check-grid">
+          {HIDEABLE_TABS.map((id) => (
+            <label className="check" key={id}>
+              <input type="checkbox" checked={!org.hiddenTabs.has(id)}
+                onChange={(e) => org.setAreaHidden(id, !e.target.checked)} />
+              {TABS.find(([t]) => t === id)?.[1] ?? id}
+            </label>
+          ))}
+        </div>
+      </section>
 
       <SectionHead title="Additional" />
       {/* Left column: Credits (+ the dev-only Debug card below it — Vite drops

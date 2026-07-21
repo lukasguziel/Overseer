@@ -118,7 +118,8 @@ export default function App() {
           {TABS.find(([id]) => id === tab)?.[1] || 'Menu'}
         </button>
         <nav className={'tabs' + (navOpen ? ' nav-open' : '')}>
-          {TABS.map(([id, label, soon]) => {
+          {/* Areas hidden via the Misc "Visible areas" profile leave the menu. */}
+          {TABS.filter(([id]) => !org.hiddenTabs.has(id)).map(([id, label, soon]) => {
             // `soon` tabs are shown disabled with a badge.
             // Generators/Sims are disabled when the analyzed scene has none
             // (flags default undefined → stay clickable until a report says false).

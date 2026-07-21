@@ -47,6 +47,10 @@ The JSON API. Every op is a small `_op_*` handler in a registry: `_DOC_HANDLERS`
 cache for `_MUTATING_OPS` afterward; `netinfo` is answered before any doc access.
 `_get_scene()` caches `(adapter, tree)` on the `overseer` package keyed by the
 doc dirty counter; selection is re-read on every hit (dirty ignores selection).
+Material previews that come back EMPTY are negative-cached with the dirty
+token they failed at — `GetPreview` can bump the doc's dirty counter, and
+retrying failed previews on every fetch would feed the frontend watcher an
+endless refresh loop.
 Owns config/journal file IO and the PER-PROJECT analysis log
 (`history/<project-slug>.json`, same slug as the UI settings; the flat
 `analysis_history.json` is the pre-split log and is still read as a seed), Google-translate online engine
@@ -99,7 +103,12 @@ form.
 ### ui_settings.py
 Per-project UI state persistence to `<data_dir>/configs/<slug>.json`; delegates
 slug/sanitize to `core.ui_settings_logic`. Atomic temp-file write with a
-direct-write fallback.
+direct-write fallback. Also owns the GLOBAL (all-projects) profile
+`configs/_global.json` (`load_global_ui`/`save_global_ui`, ops
+`ui_global_get`/`ui_global_set`): currently the web UI's area profile
+(`hiddenAreas` — tabs hidden from the menu and excluded from the health
+score). Slugs always start alphanumeric, so the underscore name cannot
+collide.
 
 ## Conventions & gotchas
 
@@ -124,6 +133,12 @@ direct-write fallback.
   it in a `finally`, so a crashed op never leaves a stuck spinner.
 - `GetAllAssetsNew(doc, allowDialogs, prefix, flags, outList)` returns an int
   status code and FILLS `outList` with dicts — never iterate the return value.
+  It does NOT report every renderer's textures (C4D 2026 + Octane: none at
+  all) — the texture scan therefore always merges a shader-tree walk on top.
+- Plugin shaders (Octane ImageTexture id 1029508, file param 1100, …) keep
+  their file params OUT of the description — `GetDescription` yields only the
+  base-shader entries. Read/write texture paths via the raw `GetDataInstance()`
+  container (matched by extension/value, not by hardcoded id).
 - Material identity is `GetGUID()`, not name (duplicate names are common); path
   matching is normcase+normpath tolerant; path rewrites hit every parameter that
   holds the exact string.

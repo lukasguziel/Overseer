@@ -22,6 +22,48 @@ class TexturePathOps:
         except Exception:
             return
 
+    def _iter_shader_tree(self, mat):
+        """EVERY shader under the material, plugin types included."""
+        try:
+            first = mat.GetFirstShader()
+        except Exception:
+            return
+        stack = [first] if first is not None else []
+        while stack:
+            sh = stack.pop()
+            while sh is not None:
+                yield sh
+                try:
+                    down = sh.GetDown()
+                except Exception:
+                    down = None
+                if down is not None:
+                    stack.append(down)
+                sh = sh.GetNext()
+
+    def _container_texture_paths(self, holder) -> list:
+        """Texture-looking string values in the holder's raw BaseContainer.
+        Plugin shaders (Octane's ImageTexture stores its file in container
+        id 1100, Redshift & friends vary) do NOT publish their file params
+        in the DESCRIPTION — GetDescription yields only the base-shader
+        entries — so a description walk comes back empty and the container
+        is the only reliable source. Matched by extension, not by id."""
+        out: list = []
+        try:
+            bc = holder.GetDataInstance()
+        except Exception:
+            return out
+        if bc is None:
+            return out
+        try:
+            for _pid, val in bc:
+                if isinstance(val, str) and val \
+                        and self._is_texture_file(val):
+                    out.append(val)
+        except Exception:
+            pass
+        return out
+
     _TEX_EXTS = frozenset({
         ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".exr", ".hdr", ".tga",
         ".psd", ".bmp", ".gif", ".iff", ".dds", ".webp", ".pict", ".pct",
@@ -79,7 +121,7 @@ class TexturePathOps:
             try:
                 description = holder.GetDescription(c4d.DESCFLAGS_DESC_NONE)
             except Exception:
-                continue
+                description = ()
             for _bc, paramid, _group in description:
                 try:
                     v = holder[paramid]
@@ -87,6 +129,11 @@ class TexturePathOps:
                     continue
                 if isinstance(v, str) and v and \
                         os.path.basename(v).lower() == base:
+                    return v
+            # Plugin shaders keep file params out of the description —
+            # the raw container is the only place the stored path shows.
+            for v in self._container_texture_paths(holder):
+                if os.path.basename(v).lower() == base:
                     return v
         return resolved
 
@@ -123,8 +170,10 @@ class TexturePathOps:
             seen.add(key)
             used = name in used_names or name not in all_names
             refs.append((name, raw, used))
-        if refs:
-            return refs
+        # ALWAYS also walk the material shader trees and merge (dedupe by
+        # material+path): GetAllAssetsNew does not report the textures of
+        # every renderer — C4D 2026 + Octane returns none at all — and a
+        # partial asset list must not hide the rest.
         try:
             mats = doc.GetMaterials()
         except Exception:
@@ -144,6 +193,15 @@ class TexturePathOps:
                     continue
                 seen.add(key)
                 refs.append((name, raw, used))
+            holders = [m]
+            holders.extend(self._iter_shader_tree(m))
+            for holder in holders:
+                for raw in self._container_texture_paths(holder):
+                    key = (name, raw)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    refs.append((name, raw, used))
         return refs
 
     def scan_textures(self, include_hidden: bool = True, accepted=None) -> dict:
@@ -543,6 +601,15 @@ class TexturePathOps:
                         continue
                     if isinstance(val, str) and self._same_path(val, raw):
                         out.append((holder, paramid))
+            except Exception:
+                pass
+            # Container ids invisible to the description (Octane & co) —
+            # writable via plain int ids just the same.
+            try:
+                bc = holder.GetDataInstance()
+                for pid, val in (bc or ()):
+                    if isinstance(val, str) and self._same_path(val, raw):
+                        out.append((holder, pid))
             except Exception:
                 continue
         return out

@@ -433,6 +433,10 @@ Three states, all drawn: **checked** (tick), **indeterminate** (dash — the
 
 `label.check` is the row that pairs a box with its text (flex, 8px gap).
 
+`.check-grid` lays several `label.check` rows out as a wrapping grid (columns
+of ~110px min) — used when a card offers a set of independent toggles (Misc:
+visible areas) instead of a single option in a sidebar.
+
 ---
 
 ## Colour meaning
