@@ -50,16 +50,19 @@ export default function UpdateBanner() {
     const rolledBack = info.state.state === 'rolled_back'
     return (
       <div className="update-banner err">
-        <span className="update-title">
-          {rolledBack
-            ? `The update to v${info.state.to} could not start, so v${info.state.from} was restored from its backup.`
-            : `The update to v${info.state.to} could not be completed. Check the ${host} console.`}
-        </span>
-        <span className="update-actions">
-          <ActionButton onClick={() => { call('update_ack').catch(() => {}); setHidden(true) }}>
-            Got it
-          </ActionButton>
-        </span>
+        <div className="update-row">
+          <span className="update-dot" />
+          <span className="update-title">
+            {rolledBack
+              ? `The update to v${info.state.to} could not start, so v${info.state.from} was restored from its backup.`
+              : `The update to v${info.state.to} could not be completed. Check the ${host} console.`}
+          </span>
+          <span className="update-actions">
+            <ActionButton onClick={() => { call('update_ack').catch(() => {}); setHidden(true) }}>
+              Got it
+            </ActionButton>
+          </span>
+        </div>
       </div>
     )
   }
@@ -69,9 +72,12 @@ export default function UpdateBanner() {
     const to = installed ? info.latest : info.state?.to
     return (
       <div className="update-banner ok">
-        <span className="update-title">
-          Overseer v{to} is installed. Restart {host} to finish the update.
-        </span>
+        <div className="update-row">
+          <span className="update-dot" />
+          <span className="update-title">
+            Overseer v{to} is installed. Restart {host} to finish the update.
+          </span>
+        </div>
       </div>
     )
   }
@@ -83,6 +89,7 @@ export default function UpdateBanner() {
   return (
     <div className="update-banner">
       <div className="update-row">
+        <span className="update-dot" />
         <span className="update-title">
           Overseer v{info.latest} is available
           <span className="update-installed">installed: v{info.current}</span>

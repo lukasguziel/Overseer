@@ -256,7 +256,8 @@ whole tab has no data yet ("Run an analysis").
 ## Update banner — `<UpdateBanner>` / `.update-banner`
 
 The one strip under the topbar that talks about the plugin itself, not the
-scene: a newer release exists (accent border), an update is installed and
+scene. No box: it sits flush on the app's content edge; a small `.update-dot`
+carries the tone — a newer release exists (accent), an update is installed and
 waits for a host restart (green), or a failed update was rolled back (red).
 Self-contained (own `update_check` call, session-dismiss per version); rendered
 once in `App.tsx`, never inside a tab. Actions are plain `<ActionButton>`s
