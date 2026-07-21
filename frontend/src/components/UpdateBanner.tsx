@@ -43,15 +43,18 @@ export default function UpdateBanner() {
     return () => { dead = true }
   }, [])
 
+  // Deliberately no host name in any copy: with both hosts defaulting to the
+  // same port, a browser tab can end up talking to the OTHER host's server —
+  // a wrong name ("restart Cinema 4D" inside Blender) is worse than a
+  // neutral "the app".
   if (!info || hidden) return null
-  const host = info.host || 'the host application'
 
   // A fresh install failed and the previous version was restored: say so once.
   if (!installed && (info.state?.state === 'rolled_back' || info.state?.state === 'failed')) {
     const rolledBack = info.state.state === 'rolled_back'
     const detail = rolledBack
       ? `The update to v${info.state.to} could not start, so v${info.state.from} was restored from its backup.`
-      : `The update to v${info.state.to} could not be completed (${info.state.reason || 'see the host console'}).`
+      : `The update to v${info.state.to} could not be completed (${info.state.reason || 'see the app console'}).`
     return (
       <div className="update-banner err" title={detail}>
         <span className="update-line">
@@ -78,7 +81,7 @@ export default function UpdateBanner() {
           <span className="update-title">v{to} installed</span>
         </span>
         <span className="update-acts">
-          <span className="update-hint">restart {host} to finish</span>
+          <span className="update-hint">restart the app to finish</span>
         </span>
       </div>
     )
@@ -108,7 +111,7 @@ export default function UpdateBanner() {
           </ActionButton>
         ) : (
           <a className="update-link" target="_blank" rel="noreferrer"
-            title={`The plugin folder is read-only for ${host}, so the update cannot install itself. Download the zip and replace the folder manually.`}
+            title="The plugin folder is read-only, so the update cannot install itself. Download the zip and replace the folder manually."
             href={`https://github.com/${info.repo || ''}/releases`}>
             Download from GitHub
           </a>
@@ -147,7 +150,7 @@ export default function UpdateBanner() {
       {confirming && (
         <ConfirmModal
           title={`Install Overseer v${info.latest}?`}
-          message={`Overseer handles the update by itself: it downloads v${info.latest} from GitHub and installs it in place. Your settings and histories are kept, and the current version is saved as a backup that is restored automatically if the new one fails to start. Afterwards, restart ${host} once to finish.`}
+          message={`Overseer handles the update by itself: it downloads v${info.latest} from GitHub and installs it in place. Your settings and histories are kept, and the current version is saved as a backup that is restored automatically if the new one fails to start. Afterwards, restart the app once to finish.`}
           confirmLabel="Install"
           onCancel={() => setConfirming(false)}
           onConfirm={() => {
