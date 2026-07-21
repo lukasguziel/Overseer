@@ -13,7 +13,8 @@
   background: var(--accent); }
 .update-banner.ok .update-dot { background: var(--apply); }
 .update-banner.err .update-dot { background: var(--err); }
-.update-title { color: var(--text); white-space: nowrap; font-weight: 500; }
+.update-title { color: var(--text); white-space: nowrap; font-weight: 500;
+  font-size: 11px; }
 .update-x { border: 0; background: none; color: var(--dim2); cursor: pointer;
   font-size: 10px; padding: 0 2px; line-height: 1; }
 .update-x:hover { color: var(--text); }
