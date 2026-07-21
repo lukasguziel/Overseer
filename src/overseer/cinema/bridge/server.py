@@ -66,9 +66,50 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             payload["op"] = self.path[len("/api/"):].split("?")[0]
             if payload["op"] == "progress":
                 return self._json(self.server.progress.snapshot())
+            if payload["op"] == "texture_previews":
+                return self._json(self._texture_previews(payload))
             self._json(self.server.requests.submit(payload))
         except Exception as e:
             self._json({"error": str(e)}, 500)
+
+    def _texture_previews(self, payload):
+        # Answered on THIS thread: thumbnails only read image files, so the
+        # C4D main thread must not block for them (a big map costs ~1s and
+        # the embedded web view swallows clicks meanwhile). Pillow decodes
+        # the common formats right here; only formats it cannot read (EXR,
+        # HDR, renderer containers) travel through the main-thread queue.
+        # The import stays inside the handler: core/* is hot-reloaded, only
+        # the bridge package is a process singleton.
+        import overseer
+
+        from ...core import texthumbs
+        cache_root = getattr(overseer, "_scene_cache", None)
+        if cache_root is None:
+            cache_root = overseer._scene_cache = {}
+        cache = cache_root.setdefault("tex_previews", {})
+        size = int(payload.get("size") or 40)
+        previews, hard = {}, []
+        for p in payload.get("paths") or []:
+            try:
+                mtime = os.path.getmtime(p) if p and os.path.isfile(p) else 0
+            except OSError:
+                mtime = 0
+            key = (p, mtime, size)
+            hit = cache.get(key)
+            if hit is not None:
+                previews[p] = hit
+                continue
+            uri = texthumbs.thumbnail(p, size)
+            if uri is not None:
+                cache[key] = uri
+                previews[p] = uri
+            elif mtime:  # file exists but Pillow could not read it
+                hard.append(p)
+        if hard:
+            sub = self.server.requests.submit(
+                {"op": "texture_previews", "paths": hard, "size": size})
+            previews.update(sub.get("previews") or {})
+        return {"ok": True, "previews": previews}
 
     def _static(self):
         path = self.path.split("?")[0]

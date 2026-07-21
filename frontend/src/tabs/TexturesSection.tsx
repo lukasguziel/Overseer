@@ -409,8 +409,9 @@ export default function TexturesSection({ org }: { org: Organizer }) {
       await texChain.current  // let the previous chain drain fully
       if (!alive) return
       texChain.current = (async () => {
-        // 4 per request: big EXR/HDR maps take ~1s each to thumbnail, and
-        // each request blocks the C4D main thread — keep the blocks short.
+        // 4 per request: common formats are answered off the C4D main
+        // thread (Pillow in the bridge), but EXR/HDR still block it ~1s
+        // each — small blocks keep the embedded view responsive.
         for (let i = 0; i < missing.length && alive; i += 4) {
           try {
             const r = await call('texture_previews', { paths: missing.slice(i, i + 4), size: 40 })

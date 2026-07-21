@@ -243,6 +243,9 @@ History — the plumbing that makes the rest trustworthy.
 - ✅ **Visible areas profile** — untick the areas you don't use: they leave
   the menu, skip their background work and stop counting toward the overall
   health score (stored per machine, not per scene).
+- ✅ **Open in browser** — one click opens the same UI in your default
+  browser against the same local server, for hosts where the embedded
+  window misbehaves.
 - ✅ **Read the scene on your phone** — a QR code opens the tool on your
   phone for reading through the scene away from the desk; opt-in, and best
   turned off again afterwards.
