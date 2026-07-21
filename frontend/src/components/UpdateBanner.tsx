@@ -91,7 +91,6 @@ export default function UpdateBanner() {
   return (
     <div className="update-banner">
       <span className="update-line">
-        <span className="update-dot" />
         <span className="update-title">v{info.latest} available</span>
         <button className="update-x" title="Skip this version for now"
           onClick={() => { sessionStorage.setItem(DISMISS_KEY, info.latest || ''); setHidden(true) }}>
