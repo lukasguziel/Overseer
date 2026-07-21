@@ -8,7 +8,7 @@ Per-package working guides for AI agents (conventions, gotchas, module maps —
 formerly per-package instruction files inside the source tree): [ai/](ai/).
 
 ## Entry / host glue
-- [overseer.md](overseer.md) — plugin loader (`src/overseer.pyp`)
+- [plugin/cinema4d.md](plugin/cinema4d.md) — C4D plugin loader (`src/plugin/cinema4d/overseer.pyp`)
 - [overseer/bridge.md](overseer/bridge.md) — HTTP server + main-thread queue (process singleton)
 - [overseer/config.md](overseer/config.md) — config.json schema 2 + migration
 

@@ -65,9 +65,9 @@ jobs:
                  || { echo "::error::pyproject.toml is not $V"; fail=1; }
                # The Blender addon carries the version as an int tuple in bl_info;
                # reconstruct "a.b.c" and compare (stable versions only).
-               BL="$(python -c "import ast,re; t=open('src/blender_addon/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
+               BL="$(python -c "import ast,re; t=open('src/plugin/blender/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
                [ "$BL" = "$V" ] \
-                 || { echo "::error::src/blender_addon bl_info version is '$BL', not $V"; fail=1; } ;;
+                 || { echo "::error::src/plugin/blender bl_info version is '$BL', not $V"; fail=1; } ;;
           esac
           exit $fail
 
@@ -114,9 +114,9 @@ jobs:
         run: |
           pkg=dist/Overseer
           mkdir -p "$pkg"
-          cp src/overseer.pyp "$pkg/"
-          cp src/logo.png "$pkg/"
-          cp src/config.example.json "$pkg/"
+          cp src/plugin/cinema4d/overseer.pyp "$pkg/"
+          cp src/plugin/cinema4d/logo.png "$pkg/"
+          cp src/plugin/cinema4d/config.example.json "$pkg/"
           cp LICENSE "$pkg/"
           # The whole package, not just its top-level modules: overseer/ has
           # subpackages (core, naming, structure, cinema) and a flat *.py glob

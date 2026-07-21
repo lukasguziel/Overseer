@@ -3,7 +3,7 @@
 Blender's `bpy.ops.preferences.addon_install` expects a single top-level folder
 that IS the addon package. So the zip contains one folder, `overseer/`, holding:
 
-    overseer/__init__.py   <- src/blender_addon/__init__.py (the addon loader)
+    overseer/__init__.py   <- src/plugin/blender/__init__.py (the addon loader)
     overseer/overseer/     <- src/overseer  (shared core/naming/config + blender/)
     overseer/web/          <- src/web       (Vite build output)
     overseer/vendor/       <- src/vendor    (Pillow, optional)
@@ -33,8 +33,8 @@ PKG = "overseer"
 
 # What goes into the zip, as (source path, path inside overseer/).
 LAYOUT = [
-    (SRC / "blender_addon" / "__init__.py", "__init__.py"),
-    (SRC / "blender_addon" / "blender_manifest.toml", "blender_manifest.toml"),
+    (SRC / "plugin" / "blender" / "__init__.py", "__init__.py"),
+    (SRC / "plugin" / "blender" / "blender_manifest.toml", "blender_manifest.toml"),
     (SRC / "overseer", "overseer"),
     (SRC / "web", "web"),
     (SRC / "vendor", "vendor"),
