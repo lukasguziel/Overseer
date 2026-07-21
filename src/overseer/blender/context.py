@@ -51,6 +51,16 @@ class BlenderContext(HostContext):
     def data_dir(self) -> str:
         return self._data_dir
 
+    # -- auto-update --------------------------------------------------------
+    @property
+    def host_label(self) -> str:
+        return "Blender"
+
+    @property
+    def update_profile(self) -> dict:
+        from ..core import defaults
+        return defaults.UPDATE_BLENDER
+
     # -- progress -----------------------------------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
         bridge.set_progress(phase, current, total, detail)

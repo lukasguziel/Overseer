@@ -18,12 +18,15 @@ import time
 from dataclasses import dataclass, field
 
 # hostapi is overseer.core.hostapi: ``..`` = overseer.core, ``...`` = overseer.
+from ... import __version__ as APP_VERSION
 from ... import config as cfgmod
+from ... import updater as updatermod
 from ...naming import detect as detectmod
 from ...naming import translate as translatemod
 from ...naming import translations
 from ...naming.casing import Casing
 from ...naming.convention import NamingConvention
+from .. import defaults as cfgdefaults
 from .. import journal as journalmod
 from .. import keeps as keepsmod
 from .. import layers as layersmod
@@ -76,6 +79,8 @@ _OP_LABELS = {
     "delete_material": "Deleting material",
     "delete_unused_materials": "Deleting unused materials",
     "perf_scan": "Measuring generator rebuild times",
+    "update_check": "Checking for updates",
+    "update_install": "Downloading and installing the update",
 }
 
 _AUDIT_MODULES = {"tags", "gens", "files", "sims", "perf"}
@@ -113,6 +118,7 @@ class WebApi:
         self.CHANGES_PATH = os.path.join(self.DATA_DIR, "change_history.json")
         self.GOOGLE_CACHE_PATH = os.path.join(self.DATA_DIR, "google_cache.json")
         webio.seed_config(self.PLUGIN_DIR, self.CONFIG_PATH)
+        updatermod.confirm_ok(self._update_target())
 
         self._doc_handlers = {
             "dirty": self._op_dirty,
@@ -308,6 +314,77 @@ class WebApi:
         except Exception:
             ok = False
         return {"ok": ok}
+
+    # -- auto-update (doc-independent, like netinfo) ------------------------
+    def _update_target(self) -> updatermod.UpdateTarget:
+        profile = dict(self.ctx.update_profile or {})
+        return updatermod.UpdateTarget(
+            repo=cfgdefaults.UPDATE_REPO, current_version=APP_VERSION,
+            install_dir=self.PLUGIN_DIR, data_dir=self.DATA_DIR,
+            asset_pattern=str(profile.get("asset_pattern") or ""),
+            payload_marker=str(profile.get("payload_marker") or ""),
+            disable_globs=tuple(profile.get("disable_globs") or ()))
+
+    def _op_update_check(self, payload: dict) -> dict:
+        import overseer
+        target = self._update_target()
+        out = {"ok": True, "host": self.ctx.host_label,
+               "current": APP_VERSION, "repo": cfgdefaults.UPDATE_REPO,
+               "supported": bool(target.asset_pattern),
+               "state": updatermod.read_state(self.DATA_DIR)}
+        if not target.asset_pattern:
+            return out
+        cache = getattr(overseer, "_update_cache", None)
+        if not payload.get("force") and cache \
+                and time.time() - cache.get("ts", 0) < updatermod.CHECK_TTL:
+            result = cache["result"]
+        else:
+            result = updatermod.check(target)
+            if result.get("ok"):
+                overseer._update_cache = {"ts": time.time(), "result": result}
+        if result.get("ok"):
+            out.update({k: result[k] for k in
+                        ("latest", "update_available", "writable", "releases")})
+        else:
+            out["check_failed"] = result.get("error") or "update check failed"
+        return out
+
+    def _op_update_install(self, payload: dict) -> dict:
+        import overseer
+        target = self._update_target()
+        if not target.asset_pattern:
+            return {"error": "updates are not supported on this host"}
+        try:
+            raw = updatermod.fetch_release_list(target.repo)
+        except Exception as ex:  # noqa: BLE001
+            return {"error": "update check failed: %s" % ex}
+        fresh = updatermod.newer_releases(
+            updatermod.parse_releases(raw, target.asset_pattern),
+            target.current_version)
+        if not fresh:
+            return {"error": "no newer release found"}
+        wanted = str(payload.get("version") or "")
+        release = next((r for r in fresh if r.version == wanted),
+                       None if wanted else fresh[0])
+        if release is None:
+            return {"error": "release %s not found" % wanted}
+
+        def prog(stage, done=0, total=0):
+            if stage == "download":
+                self._progress("Downloading update", done, total,
+                               release.asset_name)
+            else:
+                self._progress("Installing update")
+
+        out = updatermod.install(target, release, progress=prog)
+        if out.get("ok"):
+            overseer._update_cache = None
+            out["host"] = self.ctx.host_label
+        return out
+
+    def _op_update_ack(self, payload: dict) -> dict:
+        updatermod.acknowledge(self.DATA_DIR)
+        return {"ok": True}
 
     # -- doc-only handlers --------------------------------------------------
     def _op_dirty(self, payload, doc) -> dict:
@@ -959,6 +1036,12 @@ class WebApi:
             return self._netinfo(payload)
         if op == "open_browser":
             return self._open_browser()
+        if op == "update_check":
+            return self._op_update_check(payload)
+        if op == "update_install":
+            return self._op_update_install(payload)
+        if op == "update_ack":
+            return self._op_update_ack(payload)
 
         doc = self.ctx.active_host()
         if doc is None:

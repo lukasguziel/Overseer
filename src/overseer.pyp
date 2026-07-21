@@ -12,6 +12,43 @@ def _ensure_path():
         sys.path.insert(0, base)
 
 
+def _update_target():
+    _ensure_path()
+    from overseer import __version__, updater
+    from overseer.core import defaults, webio
+    base = os.path.dirname(os.path.abspath(__file__))
+    try:
+        prefs = c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)
+    except Exception:
+        prefs = None
+    return updater.UpdateTarget(
+        repo=defaults.UPDATE_REPO, current_version=__version__,
+        install_dir=base, data_dir=webio.resolve_data_dir(base, prefs),
+        **defaults.UPDATE_CINEMA)
+
+
+def _update_boot_guard():
+    from overseer import updater
+    state = updater.note_boot(_update_target())
+    if state and state.get("state") == "rolled_back":
+        print("[Overseer] The update to v%s never started successfully - "
+              "restored v%s from its backup."
+              % (state.get("to"), state.get("from")))
+
+
+def _update_failed_start():
+    try:
+        from overseer import updater
+        state = updater.failed_start(_update_target())
+        if state and state.get("state") == "rolled_back":
+            return ("\n\nA freshly installed update failed to start, so the "
+                    "previous version v%s was restored from its backup.\n"
+                    "Please restart Cinema 4D." % state.get("from"))
+    except Exception:
+        pass
+    return ""
+
+
 def _load_icon():
     try:
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -38,7 +75,8 @@ class OverseerCommand(c4d.plugins.CommandData):
             import traceback
             tb = traceback.format_exc()
             print("[Overseer] ERROR:\n" + tb)
-            c4d.gui.MessageDialog("Overseer error:\n\n" + tb)
+            c4d.gui.MessageDialog("Overseer error:\n\n" + tb
+                                  + _update_failed_start())
             return False
         return True
 
@@ -53,6 +91,7 @@ def _safe(fn, what):
 
 
 def main():
+    _safe(_update_boot_guard, "UpdateGuard")
     _safe(lambda: c4d.plugins.RegisterCommandPlugin(
         id=CMD_MAIN, str="Overseer", info=0,
         help="Analyzes and organizes the scene structure",

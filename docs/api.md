@@ -23,6 +23,9 @@ with a JSON body; `webapi.py` is hot-reloaded per request.
 | `move_to_group` | `{"guids":[…],"group":"Furniture"}` | selected objects under a named Null (created if missing) |
 | `focus` | `{"guid": 108}` | selects + frames the object in the viewport |
 | `delete_material` / `delete_unused_materials` | `{"name":…}` / `{}` | material cleanup |
+| `update_check` | `{}` resp. `{force:true}` | `{current, latest, update_available, writable, releases:[{version,name,notes,date,…}], state, host, repo}` — GitHub releases newer than the installed version, notes included; cached 6 h unless forced |
+| `update_install` | `{version?}` | downloads + installs that release (default: latest), swaps the plugin folder with a backup, returns `{installed, backup, restart_required}` — restart the host to finish |
+| `update_ack` | `{}` | clears a finished/rolled-back update state (dismisses the banner notice) |
 
 ## Recipes
 

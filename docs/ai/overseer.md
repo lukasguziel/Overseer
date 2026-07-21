@@ -36,6 +36,14 @@ pre-schema-3 call sites. `DEFAULT_CONFIG` also carries the server settings
 `port` (from `core/defaults.DEFAULT_PORT`) and `listen_lan`;
 `MACHINE_LOCAL_KEYS` names them as machine-local.
 
+### updater.py
+Pure, self-contained auto-updater (GitHub releases -> download -> folder swap
+with backup -> confirm/rollback lifecycle). Generic by design, reusable in
+other plugins; Overseer's repo + per-host asset profiles live in
+`core/defaults.py`, the webapi ops (`update_check`/`update_install`/
+`update_ack`) in the shared hostapi webapi, the boot/rollback hooks in the
+host loaders. Full prose: `docs/overseer/updater.md`.
+
 ## Subpackages
 - core/ â€” pure domain logic (see [core.md](core.md))
 - cinema/ â€” c4d host glue (see [cinema.md](cinema.md))

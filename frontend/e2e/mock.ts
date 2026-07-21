@@ -61,6 +61,7 @@ const DEFAULTS: Record<string, Responder> = {
   ui_global_get: () => ({ ok: true, ui: {} }),
   ui_global_set: () => ({ ok: true }),
   open_browser: () => ({ ok: true }),
+  update_check: () => ({ ok: true, host: 'Cinema 4D', current: '1.1.0', supported: true, update_available: false, state: {} }),
 }
 
 const GENERIC = { ok: true, applied: 0, count: 0 }

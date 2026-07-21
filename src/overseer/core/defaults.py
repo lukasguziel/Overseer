@@ -4,6 +4,20 @@ from . import model
 
 DEFAULT_PORT = 8787
 
+UPDATE_REPO = "lukasguziel/overseer"
+
+UPDATE_CINEMA = {
+    "asset_pattern": "Overseer-Cinema4D-*.zip",
+    "payload_marker": "overseer.pyp",
+    "disable_globs": ("*.pyp",),
+}
+
+UPDATE_BLENDER = {
+    "asset_pattern": "Overseer-Blender-*.zip",
+    "payload_marker": "__init__.py",
+    "disable_globs": (),
+}
+
 RS_LIGHT_IDS = {1036751}
 RS_CAMERA_IDS = {1057516}
 

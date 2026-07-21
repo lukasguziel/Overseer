@@ -238,6 +238,19 @@ class HostContext(ABC):
     def save_journal(self, host: SceneHost, entries: list,
                      fallback_path: str) -> None: ...
 
+    # -- auto-update (optional) ---------------------------------------------
+    @property
+    def host_label(self) -> str:
+        """Human name of the host application, for update/restart wording."""
+        return "the host application"
+
+    @property
+    def update_profile(self) -> dict:
+        """This host's release-asset shape for the auto-updater
+        (``asset_pattern``/``payload_marker``/``disable_globs``, see
+        ``core/defaults.py``). Empty dict = updates unsupported."""
+        return {}
+
     # -- host-specific ops --------------------------------------------------
     def type_icons(self, ids) -> dict:
         """type id -> data-URI icon (optional; default: none)."""

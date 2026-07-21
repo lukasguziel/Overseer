@@ -38,6 +38,11 @@ src/
   overseer/
     config.py             config.json schema 3 (migrate_config reads v1/v2 forever;
                           per-section "accepted as-is" keeps map)
+    updater.py            pure, reusable auto-updater: GitHub release check ->
+                          zip download -> folder swap with backup -> confirm/
+                          auto-rollback (docs/overseer/updater.md); ops
+                          update_check/update_install/update_ack, UI banner
+                          in frontend/src/components/UpdateBanner.tsx
     bridge/               [c4d] HTTP server (BG thread) + main-thread queue + progress
                           state; one file per class (progress/mainthread/reload/
                           server/dialog). PROCESS SINGLETON — the whole package

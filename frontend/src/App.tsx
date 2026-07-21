@@ -15,6 +15,7 @@ import GlobalTooltip from './components/GlobalTooltip'
 import ProgressChip from './components/ProgressChip'
 import EmptyState from './components/EmptyState'
 import StatusBar from './components/StatusBar'
+import UpdateBanner from './components/UpdateBanner'
 import SectionIntro from './components/SectionIntro'
 import SupportHeart from './components/SupportHeart'
 import type { TabId } from './lib/constants'
@@ -109,6 +110,8 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      <UpdateBanner />
 
       <div className="tabs-row">
         <button className="nav-burger" onClick={() => setNavOpen((o) => !o)}
