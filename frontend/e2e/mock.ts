@@ -60,6 +60,7 @@ const DEFAULTS: Record<string, Responder> = {
   ui_settings_set: () => ({ ok: true }),
   ui_global_get: () => ({ ok: true, ui: {} }),
   ui_global_set: () => ({ ok: true }),
+  open_browser: () => ({ ok: true }),
 }
 
 const GENERIC = { ok: true, applied: 0, count: 0 }

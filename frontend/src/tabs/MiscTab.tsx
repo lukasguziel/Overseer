@@ -83,27 +83,45 @@ export default function MiscTab({ org }: { org: Organizer }) {
       </div>
 
       <SectionHead title="Profile" />
-      <section className="card">
-        <div className="card-head">
-          <Tip text="Which tool areas the menu shows. The profile applies everywhere — it is stored per machine, not per scene.">
-            <h3>Visible areas</h3>
-          </Tip>
-        </div>
-        <p className="hint-sm">
-          Untick the areas you don&apos;t use — they disappear from the menu,
-          skip their background work and stop counting toward the overall
-          health score. Overview and Misc always stay.
-        </p>
-        <div className="check-grid">
-          {HIDEABLE_TABS.map((id) => (
-            <label className="check" key={id}>
-              <input type="checkbox" checked={!org.hiddenTabs.has(id)}
-                onChange={(e) => org.setAreaHidden(id, !e.target.checked)} />
-              {TABS.find(([t]) => t === id)?.[1] ?? id}
-            </label>
-          ))}
-        </div>
-      </section>
+      <div className="ov-cols2">
+        <section className="card">
+          <div className="card-head">
+            <Tip text="Which tool areas the menu shows. The profile applies everywhere — it is stored per machine, not per scene.">
+              <h3>Visible areas</h3>
+            </Tip>
+          </div>
+          <p className="hint-sm">
+            Untick the areas you don&apos;t use — they disappear from the menu,
+            skip their background work and stop counting toward the overall
+            health score. Overview and Misc always stay.
+          </p>
+          <div className="check-grid">
+            {HIDEABLE_TABS.map((id) => (
+              <label className="check" key={id}>
+                <input type="checkbox" checked={!org.hiddenTabs.has(id)}
+                  onChange={(e) => org.setAreaHidden(id, !e.target.checked)} />
+                {TABS.find(([t]) => t === id)?.[1] ?? id}
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="card-head">
+            <Tip text="Opens this UI in your default browser — same local server, same state.">
+              <h3>Open in browser</h3>
+            </Tip>
+          </div>
+          <p className="hint-sm">
+            The embedded window acting up (resize, focus)? The same UI runs in
+            your normal browser against the same local server — nothing else
+            changes.
+          </p>
+          <div className="btns btns-auto">
+            <ActionButton onClick={org.doOpenBrowser}>Open in browser</ActionButton>
+          </div>
+        </section>
+      </div>
 
       <SectionHead title="Additional" />
       {/* Left column: Credits (+ the dev-only Debug card below it — Vite drops

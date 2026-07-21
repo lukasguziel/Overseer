@@ -27,7 +27,7 @@ from ...naming.convention import NamingConvention
 from .. import journal as journalmod
 from .. import keeps as keepsmod
 from .. import layers as layersmod
-from .. import ops, webio
+from .. import ops, texthumbs, webio
 from ..analyzer import SceneAnalyzer
 
 
@@ -293,6 +293,21 @@ class WebApi:
         return {"ok": True, "lan": lan,
                 "wanted": bool(self._read_config_data().get("listen_lan", False)),
                 "restart_needed": changed, "ip": webio.lan_ip(), "port": port}
+
+    def _open_browser(self) -> dict:
+        # Escape hatch for hosts whose embedded web view misbehaves (e.g. the
+        # C4D 2026 HtmlViewer collapsing on resize): same UI, same local
+        # server, just in the system browser. Doc-independent like netinfo.
+        import webbrowser
+        try:
+            port = int(self.ctx.server_port())
+        except Exception:
+            port = int(cfgmod.DEFAULT_CONFIG["port"])
+        try:
+            ok = bool(webbrowser.open("http://127.0.0.1:%d/" % port))
+        except Exception:
+            ok = False
+        return {"ok": ok}
 
     # -- doc-only handlers --------------------------------------------------
     def _op_dirty(self, payload, doc) -> dict:
@@ -692,12 +707,23 @@ class WebApi:
                 previews[p] = hit
             else:
                 missing.append((p, key))
-        if missing:
+        # Pillow first — thread-safe and independent of the host bitmap
+        # engine (the C4D bridge answers these on the server thread already;
+        # here it covers Blender and any path that slipped past the bridge).
+        still = []
+        for p, key in missing:
+            uri = texthumbs.thumbnail(p, size)
+            if uri is not None:
+                cache[key] = uri
+                previews[p] = uri
+            else:
+                still.append((p, key))
+        if still:
             fresh = adapter.texture_previews(
-                [p for p, _ in missing], size=size,
+                [p for p, _ in still], size=size,
                 progress=lambda c, t, nm: self._progress(
                     "Rendering texture thumbnails", c, t, nm))
-            for p, key in missing:
+            for p, key in still:
                 if p in fresh:
                     cache[key] = fresh[p]
                     previews[p] = fresh[p]
@@ -931,6 +957,8 @@ class WebApi:
         op = str(payload.get("op") or "")
         if op == "netinfo":
             return self._netinfo(payload)
+        if op == "open_browser":
+            return self._open_browser()
 
         doc = self.ctx.active_host()
         if doc is None:

@@ -1137,6 +1137,12 @@ export function useOrganizer() {
     call('clear_changes').then(() => loadChanges()).catch(() => {})
   }, [loadChanges])
 
+  // The host opens the system browser on the same local server — the escape
+  // hatch when an embedded web view (C4D 2026 HtmlViewer) misbehaves.
+  const doOpenBrowser = useCallback(() => {
+    call('open_browser').catch(() => {})
+  }, [])
+
   // Wipe the analysis-run log (the snapshots behind the trend sparklines).
   // Purely a log — nothing in the scene changes.
   const doClearHistory = useCallback(() => {
@@ -1169,7 +1175,7 @@ export function useOrganizer() {
     naming, layers, translation,
     layerSuggestions, layerMismatches, doDeleteLayer, doDeleteEmptyLayers,
     keeps, keep, unkeep, unkeepAll, keepAll, keepMany, planCount, areaScore, doRenameObject,
-    changes, doRevertChange, doClearChanges, doClearHistory,
+    changes, doRevertChange, doClearChanges, doClearHistory, doOpenBrowser,
     exported, history,
     doAnalyze, doDetect, doExportJson, doExportCsv, doFocus,
     doAssignLayer, doMoveToGroup,
