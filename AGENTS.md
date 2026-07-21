@@ -103,7 +103,8 @@ name "GFCSceneOrganizer" — the registration name never changes):
 `1069217` CommandData "Overseer" (the only command; opens the web UI) ·
 `1069220` ServerDialog ID. `1069218`/`1069219` are retired (former native
 dialog / web command) — do not reuse them for anything else.
-Web port: config.json `port` (default `8787` in `core/defaults.py`).
+Web port: config.json `port` (defaults in `core/defaults.py`: Cinema `8787`,
+Blender `8788`, separate ports so both hosts can run side by side).
 No MessageData — the ServerDialog timer drains the queue.
 
 ## Deployment

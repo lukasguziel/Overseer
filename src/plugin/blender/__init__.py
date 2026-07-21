@@ -72,7 +72,7 @@ class OVERSEER_PT_panel(bpy.types.Panel):
             try:
                 port = host.server_port()
             except Exception:
-                port = 8787
+                port = 8788
             layout.label(text="Running on :%d" % port, icon="CHECKMARK")
 
 

@@ -12,7 +12,9 @@ import json
 import os
 import threading
 
-from ..core.defaults import DEFAULT_PORT
+# Blender gets its own default port so both hosts can run side by side
+# (Cinema's server owns 8787); an explicit config.json ``port`` still wins.
+from ..core.defaults import DEFAULT_PORT_BLENDER as DEFAULT_PORT
 
 # The web bundle is shipped next to the ``overseer`` package (addon root/web),
 # i.e. two levels up from this file: overseer/blender/server.py -> <root>/web.

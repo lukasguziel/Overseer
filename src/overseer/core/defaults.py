@@ -3,6 +3,7 @@ from __future__ import annotations
 from . import model
 
 DEFAULT_PORT = 8787
+DEFAULT_PORT_BLENDER = 8788
 
 UPDATE_REPO = "lukasguziel/overseer"
 
