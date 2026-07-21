@@ -58,7 +58,8 @@ Full feature tour with screenshots: **[docs/FEATURES.md](docs/FEATURES.md)**
   undoable step.
 - **Sims** — finds simulation setups that cost you silently: active on
   hidden objects, unbaked, or disabled leftovers.
-- **Misc** — change history with revert and analysis history per scene.
+- **Misc** — change history with revert, analysis history per scene, and a
+  profile to hide the areas you don't use.
 
 ## Installation
 

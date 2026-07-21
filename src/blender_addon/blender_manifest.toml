@@ -4,7 +4,7 @@ schema_version = "1.0.0"
 # __init__.py so the same folder works as a legacy add-on in older Blenders;
 # the extension system reads THIS file and ignores bl_info.
 id = "overseer"
-version = "1.0.0"
+version = "1.1.0"
 name = "Overseer"
 tagline = "Analyze and organize your scene from a web UI"
 maintainer = "Lukas Guziel <bamerus@proton.me>"

@@ -42,6 +42,8 @@ const API = {
   texture_previews: () => ({ ok: true, previews: {} }),
   ui_settings_get: () => ({ ok: true, found: false, ui: {} }),
   ui_settings_set: () => ({ ok: true }),
+  ui_global_get: () => ({ ok: true, found: false, ui: {} }),
+  ui_global_set: () => ({ ok: true }),
 }
 
 const server = http.createServer(async (req, res) => {
