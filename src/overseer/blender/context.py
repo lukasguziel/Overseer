@@ -12,8 +12,9 @@ import os
 
 from ..core.hostapi import HostContext
 from . import host as bridge
-from .adapter import SceneAdapter, load_journal, save_journal
-from .scene import BScene
+from .organize.journal import load_journal, save_journal
+from .scene.adapter import SceneAdapter
+from .scene.doc import BScene
 
 # Addon root = dir containing the ``overseer`` package (3 up from this file).
 _PLUGIN_DIR = os.path.dirname(
@@ -58,8 +59,8 @@ class BlenderContext(HostContext):
 
     @property
     def update_profile(self) -> dict:
-        from ..core import defaults
-        return defaults.UPDATE_BLENDER
+        from .constants import UPDATE_PROFILE
+        return UPDATE_PROFILE
 
     # -- progress -----------------------------------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
@@ -69,6 +70,11 @@ class BlenderContext(HostContext):
         bridge.clear_progress()
 
     # -- bridge facades -----------------------------------------------------
+    @property
+    def default_port(self) -> int:
+        from .constants import DEFAULT_PORT
+        return DEFAULT_PORT
+
     def server_port(self) -> int:
         return int(bridge.server_port())
 
@@ -99,9 +105,8 @@ class BlenderContext(HostContext):
                 "note": "Folder picking from the web UI is not yet wired on Blender."}
 
     def audit(self, prefix: str):
-        name = {"tags": "audit_tags", "gens": "audit_generators",
-                "files": "audit_files", "sims": "audit_sims",
-                "perf": "audit_perf"}.get(prefix)
+        name = {"tags": "tags", "gens": "generators", "files": "files",
+                "sims": "sims", "perf": "perf"}.get(prefix)
         if name is None:
             return None
         mod = importlib.import_module("overseer.blender." + name)

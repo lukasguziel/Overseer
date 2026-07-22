@@ -7,8 +7,8 @@ at import time so the regression is caught in CI without Blender.
 """
 from __future__ import annotations
 
-from overseer.blender.adapter import SceneAdapter as BlenderAdapter
-from overseer.blender.scene import BScene
+from overseer.blender.scene.adapter import SceneAdapter as BlenderAdapter
+from overseer.blender.scene.doc import BScene
 from overseer.core.hostapi import SceneAdapter, SceneHost
 
 
@@ -31,7 +31,7 @@ def test_blender_audits_are_concrete_audit_instances():
     from overseer.core.hostapi import Audit
 
     for area in ("tags", "generators", "sims", "perf", "files"):
-        mod = importlib.import_module("overseer.blender.audit_" + area)
+        mod = importlib.import_module("overseer.blender." + area)
         assert mod.AUDIT is not None, area
         assert isinstance(mod.AUDIT, Audit), area
         assert type(mod.AUDIT).__abstractmethods__ == frozenset(), area

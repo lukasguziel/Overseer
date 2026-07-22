@@ -1,7 +1,15 @@
 """Blender type/category constants (the Blender twin of cinema/constants.py)."""
 from __future__ import annotations
 
-from ..core import model
+from ..core.scene import model
+
+DEFAULT_PORT = 8788
+
+UPDATE_PROFILE = {
+    "asset_pattern": "Overseer-Blender-*.zip",
+    "payload_marker": "__init__.py",
+    "disable_globs": ("blender_manifest.toml",),
+}
 
 # bpy object type enum -> overseer category.
 CATEGORY_BY_TYPE = {

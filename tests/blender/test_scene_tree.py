@@ -9,8 +9,8 @@ from __future__ import annotations
 import fakebpy
 import pytest
 
-from overseer.blender.adapter.scene import SceneAdapter
-from overseer.blender.scene import BScene
+from overseer.blender.scene.adapter import SceneAdapter
+from overseer.blender.scene.doc import BScene
 
 
 @pytest.fixture

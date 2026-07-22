@@ -17,7 +17,7 @@ Quality gates green: `pytest` 110 passed, `ruff` clean, `pnpm test` 16 passed,
 ## What changed
 
 ### Pure domain logic (no c4d)
-- **New `src/overseer/core/layers.py`**
+- **New `src/overseer/core/layers/report.py`**
   - `LayerInfo` dataclass: `object_count` / `material_count` / `tag_count` /
     `poly_count`; `empty` is true only when nothing references the layer.
   - `build_layer_report(layer_meta, object_counts, poly_counts, no_layer)` —
@@ -25,7 +25,7 @@ Quality gates green: `pytest` 110 passed, `ruff` clean, `pnpm test` 16 passed,
     inline `_merge_layers` body in webapi).
   - `LayerMismatch` + `find_layer_mismatches(tree, keep)` — child-vs-parent
     layer differences, keeps-filtered, informational.
-- **`src/overseer/core/ops.py`** — `plan_layer_suggestions(tree, scope, keep)`
+- **`src/overseer/core/organize/ops.py`** — `plan_layer_suggestions(tree, scope, keep)`
   returns `LayerOp`s inheriting the nearest ancestor's layer.
 
 ### c4d adapter (`src/overseer/cinema/adapter.py`)

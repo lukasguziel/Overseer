@@ -15,6 +15,7 @@ def _ensure_path():
 def _update_target():
     _ensure_path()
     from overseer import __version__, updater
+    from overseer.cinema.constants import UPDATE_PROFILE
     from overseer.core import defaults, webio
     base = os.path.dirname(os.path.abspath(__file__))
     try:
@@ -24,7 +25,7 @@ def _update_target():
     return updater.UpdateTarget(
         repo=defaults.UPDATE_REPO, current_version=__version__,
         install_dir=base, data_dir=webio.resolve_data_dir(base, prefs),
-        **defaults.UPDATE_CINEMA)
+        **UPDATE_PROFILE)
 
 
 def _update_boot_guard():

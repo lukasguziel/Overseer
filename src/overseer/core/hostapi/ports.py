@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from .. import model
+from ..layers.base import LayersBase
+from ..materials.base import MaterialsBase
+from ..organize.base import OrganizeBase
+from ..scene import model
+from ..textures.base import PreviewsBase, TexturePathsBase, TextureResizeBase
 
 
 class SceneHost(ABC):
@@ -60,11 +64,13 @@ class SceneHost(ABC):
         """Best-effort host status-bar text (optional)."""
 
 
-class SceneAdapter(ABC):
-    """The doc<->``SceneTree`` bridge and every scene mutation, grouped by
-    area. The one place host-specific bodies live; each returns the normalized
-    dict documented on the C4D reference. Hosts keep composing these from
-    mixins — this ABC only makes the contract explicit and enforced."""
+class SceneAdapter(OrganizeBase, LayersBase, MaterialsBase, PreviewsBase,
+                   TexturePathsBase, TextureResizeBase):
+    """The doc<->``SceneTree`` bridge and every scene mutation: the SUM of the
+    per-area bases (``core/<area>/base.py``) plus the tree/host-binding
+    surface below. A host implements one subclass per area
+    (``Cinema<Area>`` / ``Blender<Area>``) and composes them; each method
+    returns the normalized dict built by the area's row factories."""
 
     # -- host binding (host-specific; used by the shared scene cache) -------
     @abstractmethod
@@ -86,87 +92,6 @@ class SceneAdapter(ABC):
 
     @abstractmethod
     def focus(self, guid: int) -> bool: ...
-
-    # -- naming / structure -------------------------------------------------
-    @abstractmethod
-    def rename_object(self, guid: int, new_name: str) -> bool: ...
-
-    @abstractmethod
-    def apply_renames(self, renames) -> int: ...
-
-    @abstractmethod
-    def apply_reparents(self, reparents) -> int: ...
-
-    @abstractmethod
-    def revert(self, items) -> dict: ...
-
-    # -- layers -------------------------------------------------------------
-    @abstractmethod
-    def apply_layers(self, layerops) -> int: ...
-
-    @abstractmethod
-    def scan_layers(self) -> list: ...
-
-    @abstractmethod
-    def _layer_object_counts(self) -> dict: ...
-
-    @abstractmethod
-    def delete_layer(self, name: str) -> int: ...
-
-    @abstractmethod
-    def delete_empty_layers(self, keep=None) -> int: ...
-
-    @abstractmethod
-    def set_layer_colors(self, colors: dict) -> int: ...
-
-    # -- materials ----------------------------------------------------------
-    @abstractmethod
-    def scan_materials(self, include_hidden=False, accepted=None) -> dict: ...
-
-    @abstractmethod
-    def focus_material(self, name: str) -> dict: ...
-
-    @abstractmethod
-    def delete_material(self, name: str, include_hidden=False) -> int: ...
-
-    @abstractmethod
-    def delete_unused_materials(self, include_hidden=False,
-                                accepted=None) -> int: ...
-
-    # -- previews -----------------------------------------------------------
-    @abstractmethod
-    def material_previews(self, names, size=48, progress=None) -> dict: ...
-
-    @abstractmethod
-    def texture_previews(self, paths, size=40, progress=None) -> dict: ...
-
-    # -- textures -----------------------------------------------------------
-    @abstractmethod
-    def scan_textures(self, include_hidden=False, accepted=None) -> dict: ...
-
-    @abstractmethod
-    def make_textures_relative(self, materials=None) -> dict: ...
-
-    @abstractmethod
-    def texture_owners(self, path: str) -> dict: ...
-
-    @abstractmethod
-    def collect_textures(self, materials=None, subdir="tex", paths=None) -> dict: ...
-
-    @abstractmethod
-    def relink_textures(self, folder: str, progress=None) -> dict: ...
-
-    @abstractmethod
-    def clear_missing_textures(self, accepted=None) -> dict: ...
-
-    @abstractmethod
-    def set_texture_path(self, path: str, new_path: str, material=None) -> dict: ...
-
-    @abstractmethod
-    def texture_repath(self, paths, mode="relative", material=None) -> dict: ...
-
-    @abstractmethod
-    def texture_resize(self, paths, percent) -> dict: ...
 
 
 class Audit(ABC):
@@ -224,6 +149,12 @@ class HostContext(ABC):
     def clear_progress(self) -> None: ...
 
     # -- bridge facades (for netinfo) --------------------------------------
+    @property
+    @abstractmethod
+    def default_port(self) -> int:
+        """This host build's default web port (each host registers its own;
+        a ``port`` in config.json overrides it)."""
+
     @abstractmethod
     def server_port(self) -> int: ...
 

@@ -3,7 +3,7 @@ import zlib
 
 import pytest
 
-from overseer.core import model
+from overseer.core.scene import model
 
 
 def png_chunk(ctype, body):

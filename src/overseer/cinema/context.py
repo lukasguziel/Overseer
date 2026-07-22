@@ -18,8 +18,9 @@ import c4d
 from ..core import webio
 from ..core.hostapi import HostContext
 from . import bridge
-from .adapter import SceneAdapter, load_journal, save_journal
-from .scene_host import CDoc
+from .organize.journal import load_journal, save_journal
+from .scene.adapter import SceneAdapter
+from .scene.doc import CDoc
 
 # Repo/plugin root = dir containing the ``overseer`` package (3 up from here).
 PLUGIN_DIR = os.path.dirname(
@@ -87,8 +88,8 @@ class CinemaContext(HostContext):
 
     @property
     def update_profile(self) -> dict:
-        from ..core import defaults
-        return defaults.UPDATE_CINEMA
+        from .constants import UPDATE_PROFILE
+        return UPDATE_PROFILE
 
     # -- progress (bridge + C4D status bar) ---------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
@@ -110,9 +111,15 @@ class CinemaContext(HostContext):
             pass
 
     # -- bridge facades -----------------------------------------------------
+    @property
+    def default_port(self) -> int:
+        from .constants import DEFAULT_PORT
+        return DEFAULT_PORT
+
     def server_port(self) -> int:
         fn = getattr(bridge, "server_port", None)
-        return int(fn()) if fn else int(getattr(bridge, "DEFAULT_PORT", 8787))
+        return int(fn()) if fn else int(getattr(bridge, "DEFAULT_PORT",
+                                                self.default_port))
 
     def lan_enabled(self) -> bool:
         return bool(getattr(bridge, "lan_enabled", lambda: False)())
@@ -185,9 +192,8 @@ class CinemaContext(HostContext):
         return {"ok": True, "path": chosen or "", "cancelled": not chosen}
 
     def audit(self, prefix: str):
-        name = {"tags": "audit_tags", "gens": "audit_generators",
-                "files": "audit_files", "sims": "audit_sims",
-                "perf": "audit_perf"}.get(prefix)
+        name = {"tags": "tags", "gens": "generators", "files": "files",
+                "sims": "sims", "perf": "perf"}.get(prefix)
         if name is None:
             return None
         mod = importlib.import_module("overseer.cinema." + name)

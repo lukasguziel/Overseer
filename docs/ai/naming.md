@@ -1,9 +1,10 @@
-# overseer.naming — naming convention engine
+# overseer.core.naming — naming convention engine
 
 Pure, `c4d`-free logic that turns a raw object name into a normalized one:
 tokenize -> translate (optional) -> apply casing -> pad trailing number. Every
 transform is idempotent (running it twice yields the same name), so it is safe
-to re-apply on each pass. No module here imports `c4d`.
+to re-apply on each pass. Lives at `src/overseer/core/naming/` (an area
+package of `core`); no module here imports `c4d` or `bpy`.
 
 ## Modules
 
@@ -63,4 +64,4 @@ keyed by file mtime/size. Gotcha: the German dictionary keys/values (e.g.
 - translations.py German data (keys/values, umlauts included) is deliberate and
   non-ASCII by design — never "clean it up". Only code/comments stay ASCII.
 
-Per-module prose: see the mirrored files under `docs/overseer/naming/`.
+Per-module prose: see the mirrored files under `docs/overseer/core/naming/`.
