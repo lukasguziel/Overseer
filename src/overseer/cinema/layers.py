@@ -4,7 +4,6 @@ import c4d
 
 from ..core.defaults import LAYER_COLORS
 from ..core.layers.base import LayersBase
-from ..core.layers.report import layer_entry
 from .scene.readers import layer_name
 
 
@@ -58,33 +57,44 @@ class CinemaLayers(LayersBase):
         visit(self.doc.GetFirstObject())
         return counts
 
-    def scan_layers(self) -> list[dict]:
-        out: list[dict] = []
+    def get_layer_references(self) -> dict:
+        mats, tags = self._layer_ref_counts()
+        refs: dict = {}
+        for name in set(mats) | set(tags):
+            refs[name] = {"materials": mats.get(name, 0),
+                          "tags": tags.get(name, 0)}
+        return refs
+
+    def get_layer_handles(self) -> list:
         try:
             root = self.doc.GetLayerObjectRoot()
         except Exception:
-            return out
-        mats, tags = self._layer_ref_counts()
+            return []
+        out: list = []
         lay = root.GetDown() if root is not None else None
         while lay:
-            name = lay.GetName()
-            entry = layer_entry(name, materials=mats.get(name, 0),
-                                tags=tags.get(name, 0))
-            try:
-                d = lay.GetLayerData(self.doc) or {}
-                col = d.get("color")
-                if col is not None:
-                    entry["color"] = [round(col.x, 3), round(col.y, 3),
-                                      round(col.z, 3)]
-                entry["solo"] = bool(d.get("solo", False))
-                entry["view"] = bool(d.get("view", True))
-                entry["render"] = bool(d.get("render", True))
-                entry["locked"] = bool(d.get("locked", False))
-            except Exception:
-                pass
-            out.append(entry)
+            out.append(lay)
             lay = lay.GetNext()
         return out
+
+    def get_layer_name(self, handle) -> str | None:
+        return handle.GetName()
+
+    def get_layer_meta(self, handle) -> dict:
+        meta: dict = {}
+        try:
+            d = handle.GetLayerData(self.doc) or {}
+            col = d.get("color")
+            if col is not None:
+                meta["color"] = [round(col.x, 3), round(col.y, 3),
+                                 round(col.z, 3)]
+            meta["solo"] = bool(d.get("solo", False))
+            meta["view"] = bool(d.get("view", True))
+            meta["render"] = bool(d.get("render", True))
+            meta["locked"] = bool(d.get("locked", False))
+        except Exception:
+            pass
+        return meta
 
     def _is_layer_empty(self, name: str, obj_counts: dict,
                         mats: dict, tags: dict) -> bool:

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import os
+
 import c4d
 
-from ..core.materials import logic as mat_logic
 from ..core.materials.base import MaterialsBase
 from .scene.readers import editor_hidden
 
@@ -63,52 +64,33 @@ class CinemaMaterials(MaterialsBase):
         except Exception:
             return set()
 
-    def scan_materials(self, include_hidden: bool = True,
-                       accepted: set | None = None) -> dict:
-        import os
-        accepted = accepted or set()
-        doc = self.doc
-        try:
-            mats = doc.GetMaterials()
-        except Exception:
-            return mat_logic.scan_result(0, [], [], [], accepted, [])
+    def get_materials(self) -> list:
+        return self.doc.GetMaterials()
 
-        from ..core.materials.logic import is_internal_material
+    def get_material_name(self, mat):
+        return mat.GetName()
 
-        used_any, used_visible = self._material_usage()
-        doc_path = doc.GetDocumentPath() or ""
-        unused: list = []
-        only_hidden: list = []
-        accepted_out: list = []
-        missing: list = []
-        for m in mats:
-            name = m.GetName()
-            if is_internal_material(name):
-                continue
-            key = self._mat_key(m)
-            nowhere = key not in used_any
-            hidden_only = (not nowhere) and key not in used_visible
-            if nowhere or (hidden_only and include_hidden):
-                if name in accepted:
-                    accepted_out.append(name)
-                else:
-                    unused.append(name)
-                    if hidden_only:
-                        only_hidden.append(name)
-            for sh in self._iter_bitmap_shaders(m):
-                try:
-                    fn = sh[c4d.BITMAPSHADER_FILENAME]
-                    if not fn:
-                        continue
-                    resolved = c4d.GenerateTexturePath(doc_path, fn, "")
-                    if not resolved or not os.path.isfile(resolved):
-                        missing.append({"material": name,
-                                        "file": os.path.basename(str(fn))})
-                except Exception:
+    def get_material_key(self, mat):
+        return self._mat_key(mat)
+
+    def get_material_usage(self) -> tuple:
+        return self._material_usage()
+
+    def get_missing_textures(self, mat, name: str) -> list:
+        doc_path = self.doc.GetDocumentPath() or ""
+        out: list = []
+        for sh in self._iter_bitmap_shaders(mat):
+            try:
+                fn = sh[c4d.BITMAPSHADER_FILENAME]
+                if not fn:
                     continue
-
-        return mat_logic.scan_result(len(mats), unused, only_hidden,
-                                      accepted_out, accepted, missing)
+                resolved = c4d.GenerateTexturePath(doc_path, fn, "")
+                if not resolved or not os.path.isfile(resolved):
+                    out.append({"material": name,
+                                "file": os.path.basename(str(fn))})
+            except Exception:
+                continue
+        return out
 
     def focus_material(self, name: str) -> dict:
         target = None
@@ -157,7 +139,6 @@ class CinemaMaterials(MaterialsBase):
 
     def delete_unused_materials(self, include_hidden: bool = False,
                                 accepted: set | None = None) -> int:
-        from ..core.materials.logic import is_internal_material
         doc = self.doc
         accepted = accepted or set()
         used_any, used_visible = self._material_usage()
@@ -165,7 +146,7 @@ class CinemaMaterials(MaterialsBase):
         targets = [m for m in doc.GetMaterials()
                    if self._mat_key(m) not in protected
                    and m.GetName() not in accepted
-                   and not is_internal_material(m.GetName())]
+                   and not self.is_internal(m.GetName())]
         if not targets:
             return 0
 

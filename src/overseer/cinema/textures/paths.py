@@ -206,11 +206,11 @@ class CinemaTexturePaths(TexturePathsBase):
                     refs.append((name, raw, used))
         return refs
 
-    def scan_textures(self, include_hidden: bool = True, accepted=None) -> dict:
-        import os
-        accepted_set = {str(p) for p in (accepted or [])}
+    def _doc_path(self) -> str:
+        return self.doc.GetDocumentPath() or ""
 
-        from ...core.textures import analysis as texmod
+    def get_texture_refs(self, include_hidden: bool = True):
+        import os
         doc = self.doc
         doc_path = doc.GetDocumentPath() or ""
         used_any, used_visible = self._material_usage()
@@ -222,21 +222,6 @@ class CinemaTexturePaths(TexturePathsBase):
                     effective.add(m.GetName())
         except Exception:
             pass
-        entries: list = []
-        meta_cache: dict = {}
-
-        def file_meta(path):
-            if path in meta_cache:
-                return meta_cache[path]
-            size = 0
-            try:
-                size = os.path.getsize(path)
-            except Exception:
-                size = 0
-            info = texmod.analyze_image(path)
-            meta_cache[path] = (size, info)
-            return meta_cache[path]
-
         for name, raw, used in self._texture_refs(effective):
             try:
                 resolved = c4d.GenerateTexturePath(doc_path, raw, "") or ""
@@ -254,15 +239,7 @@ class CinemaTexturePaths(TexturePathsBase):
                         rel_target = rp.replace("\\", "/")
                 except Exception:
                     pass
-            disk_bytes = 0
-            info = None
-            if exists:
-                disk_bytes, info = file_meta(resolved)
-            entries.append(texmod.texture_row(
-                name, used, raw, resolved, absolute, exists, relocatable,
-                rel_target, disk_bytes, info, raw in accepted_set))
-        return texmod.texture_scan_result(entries, doc_path, accepted_set,
-                                           meta_cache.values())
+            yield (raw, resolved, name, used, absolute, relocatable, rel_target)
 
     def make_textures_relative(self, materials: list | None = None) -> dict:
         import os

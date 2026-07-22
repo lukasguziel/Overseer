@@ -3,13 +3,39 @@ from __future__ import annotations
 import c4d
 
 from ...core.organize.base import OrganizeBase
-from ...core.organize.journal import change_item
-from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
+from ...core.organize.ops import LayerOp, ReparentOp
 from ..scene.readers import stable_id
 
 
 class CinemaOrganize(OrganizeBase):
 
+    # -- OrganizeBase primitives -------------------------------------------
+    def resolve_object(self, guid):
+        return self._by_guid.get(guid)
+
+    def get_object_name(self, obj) -> str:
+        return obj.GetName()
+
+    def set_object_name(self, obj, name: str) -> bool:
+        obj.SetName(name)
+        return True
+
+    def object_sid(self, obj) -> int:
+        return stable_id(obj)
+
+    def begin_edit(self) -> None:
+        self.doc.StartUndo()
+
+    def touch(self, obj, kind: str) -> None:
+        self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+
+    def end_edit(self, label: str) -> None:
+        self.doc.EndUndo()
+
+    def notify(self) -> None:
+        c4d.EventAdd()
+
+    # -- group resolution --------------------------------------------------
     def _match_group(self, obj, segment: str) -> bool:
         if not obj.CheckType(c4d.Onull):
             return False
@@ -68,59 +94,17 @@ class CinemaOrganize(OrganizeBase):
             parent = found
         return parent
 
-    def _log_change(self, obj, field: str, before, after) -> None:
-        self.last_changes.append(change_item(
-            stable_id(obj), obj.GetName(), field, before, after))
-
-    def _do_renames(self, renames: list[RenameOp]) -> int:
-        count = 0
-        for op in renames:
-            obj = self._by_guid.get(op.guid)
-            if obj is None:
-                continue
-            before = obj.GetName()
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-            obj.SetName(op.new_name)
-            self._log_change(obj, "name", before, op.new_name)
-            count += 1
-        return count
-
-    def apply_renames(self, renames: list[RenameOp]) -> int:
-        self.last_changes = []
-        if not renames:
-            return 0
-        self.doc.StartUndo()
-        count = self._do_renames(renames)
-        self.doc.EndUndo()
-        c4d.EventAdd()
-        return count
-
-    def rename_object(self, guid: int, new_name: str) -> bool:
-        obj = self._by_guid.get(guid)
-        if obj is None:
-            return False
-        self.last_changes = []
-        before = obj.GetName()
-        if before == new_name:
-            return True
-        self.doc.StartUndo()
-        self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
-        obj.SetName(new_name)
-        self._log_change(obj, "name", before, new_name)
-        self.doc.EndUndo()
-        c4d.EventAdd()
-        return True
-
+    # -- layers ------------------------------------------------------------
     def _do_layers(self, layerops: list[LayerOp], created: list,
                    cache: dict) -> int:
         count = 0
         for op in layerops:
-            obj = self._by_guid.get(op.guid)
+            obj = self.resolve_object(op.guid)
             if obj is None:
                 continue
             before = self._current_layer_name(obj)
             layer = self._find_or_create_layer(op.layer, created, cache)
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+            self.touch(obj, "layer")
             obj.SetLayerObject(layer)
             self._log_change(obj, "layer", before, op.layer)
             count += 1
@@ -130,14 +114,15 @@ class CinemaOrganize(OrganizeBase):
         self.last_changes = []
         if not layerops:
             return 0
-        self.doc.StartUndo()
+        self.begin_edit()
         created: list = []
         cache: dict = {}
         count = self._do_layers(layerops, created, cache)
-        self.doc.EndUndo()
-        c4d.EventAdd()
+        self.end_edit("Overseer: assign layer %d" % count)
+        self.notify()
         return count
 
+    # -- reparents ---------------------------------------------------------
     @staticmethod
     def _is_ancestor_of(obj, group) -> bool:
         up = group.GetUp()
@@ -150,13 +135,13 @@ class CinemaOrganize(OrganizeBase):
     def _do_reparents(self, reparents: list[ReparentOp], created: list) -> int:
         count = 0
         for op in reparents:
-            obj = self._by_guid.get(op.guid)
+            obj = self.resolve_object(op.guid)
             if obj is None:
                 continue
             group = self.ensure_group_path(op.to_group, created)
             if obj == group or self._is_ancestor_of(obj, group):
                 continue
-            self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+            self.touch(obj, "parent")
             mg = obj.GetMg()
             obj.Remove()
             obj.InsertUnderLast(group)
@@ -169,13 +154,14 @@ class CinemaOrganize(OrganizeBase):
         self.last_changes = []
         if not reparents:
             return 0
-        self.doc.StartUndo()
+        self.begin_edit()
         created: list[object] = []
         count = self._do_reparents(reparents, created)
-        self.doc.EndUndo()
-        c4d.EventAdd()
+        self.end_edit("Overseer: reparent %d" % count)
+        self.notify()
         return count
 
+    # -- revert ------------------------------------------------------------
     def _resolve_change(self, item: dict):
         obj = self._by_sid.get(item.get("sid"))
         if obj is not None:
@@ -190,7 +176,7 @@ class CinemaOrganize(OrganizeBase):
         reverted = 0
         missing = 0
         results: list = []
-        self.doc.StartUndo()
+        self.begin_edit()
         created: list = []
         cache: dict = {}
         index: dict | None = None
@@ -223,17 +209,17 @@ class CinemaOrganize(OrganizeBase):
             before = item.get("before")
 
             if field == "name":
-                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                self.touch(obj, "name")
                 obj.SetName(before)
             elif field == "layer":
-                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                self.touch(obj, "layer")
                 if before:
                     obj.SetLayerObject(
                         self._find_or_create_layer(before, created, cache))
                 else:
                     obj.SetLayerObject(None)
             elif field == "parent":
-                self.doc.AddUndo(c4d.UNDOTYPE_CHANGE, obj)
+                self.touch(obj, "parent")
                 mg = obj.GetMg()
                 obj.Remove()
                 if before and before not in ("(root)", "/"):
@@ -250,6 +236,6 @@ class CinemaOrganize(OrganizeBase):
             reverted += 1
             results.append({**note, "status": "reverted"})
 
-        self.doc.EndUndo()
-        c4d.EventAdd()
+        self.end_edit("Overseer: revert")
+        self.notify()
         return {"reverted": reverted, "missing": missing, "results": results}

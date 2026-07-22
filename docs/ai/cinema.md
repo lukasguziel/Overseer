@@ -28,29 +28,29 @@ cache/deform-cache recursion) and records guid->object maps; all apply methods
 wrap `StartUndo`/`AddUndo`/`EndUndo` + `EventAdd`.
 
 ### organize/ (apply.py, journal.py)
-`apply.py` — `ApplyOps`: `apply_renames`/`apply_reparents`/`apply_layers`/
+`apply.py` — `CinemaOrganize`: `apply_renames`/`apply_reparents`/`apply_layers`/
 `revert`, records `last_changes` for the journal. `journal.py` —
 `load_journal`/`save_journal` (journal travels in the doc's BaseContainer,
 file fallback).
 
 ### layers.py
-`LayerOps`: `scan_layers`, delete/color ops for C4D layer objects.
+`CinemaLayers`: `scan_layers`, delete/color ops for C4D layer objects.
 
 ### materials.py
-`MaterialOps`: material scan/focus/delete. Identity keys use `GetGUID()` not
+`CinemaMaterials`: material scan/focus/delete. Identity keys use `GetGUID()` not
 names (scenes carry duplicate material names); dunder materials
 (`__octanetemp__`) are plugin-internal — skipped by the unused scan and never
 deleted (`core.materials.logic`).
 
 ### textures/ (paths.py, resize.py, previews.py)
-`paths.py` — `TexturePathOps`: texture scan, relink, repath, collect. Path
+`paths.py` — `CinemaTexturePaths`: texture scan, relink, repath, collect. Path
 writes go to EVERY parameter holding the exact string (Octane/Redshift nodes
 repeat a path across params), matched slash/case-insensitively. Plugin
 shaders keep file params OUT of the description — read/write via the raw
-`GetDataInstance()` container. `resize.py` — `TextureResizeOps`:
+`GetDataInstance()` container. `resize.py` — `CinemaTextureResize`:
 `_host_resize` keeps bit depth end to end (deep sources save with
 `SAVEBIT_32BITCHANNELS`, so hdr/exr stay float — no tonemap) and refuses
-alpha maps rather than dropping the mask. `previews.py` — `PreviewOps`
+alpha maps rather than dropping the mask. `previews.py` — `CinemaPreviews`
 (material/texture preview data-URIs).
 
 ### tags.py

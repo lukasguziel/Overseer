@@ -38,9 +38,13 @@ plus the mutation plumbing the webapi needs, nothing area-specific:
 `objects()`, `roots()`, `tag_redraw()`, `status()`. (C4D: wraps `BaseDocument`;
 Blender: `BScene`.)
 
-### `SceneAdapter` — every area's read + write, as abstract methods
-The one place the host-specific bodies live. Grouped by area, all abstract so a
-new host gets a compile-time checklist:
+### `SceneAdapter` — the sum of the per-area bases
+`SceneAdapter` inherits the area bases (`OrganizeBase`, `LayersBase`,
+`MaterialsBase`, `PreviewsBase`, `TexturePathsBase`, `TextureResizeBase` from
+`core/<area>/base.py`) and adds only the tree/host-binding surface. The bases
+own the shared workflows (template methods) and declare the host primitives
+(`get_*`/`set_*`) abstract, so a new host gets a compile-time checklist per
+area:
 - tree: `build_tree`, `selected_guids`, `focus`
 - naming/structure: `rename_object`, `apply_renames`, `apply_reparents`, `revert`
 - layers: `apply_layers`, `scan_layers`, `_layer_object_counts`, `delete_layer`,
@@ -52,9 +56,9 @@ new host gets a compile-time checklist:
   `collect_textures`, `relink_textures`, `clear_missing_textures`,
   `set_texture_path`, `texture_repath`, `texture_resize`
 
-Each method's **normalized return shape** is fixed by its docstring (the same
-dict both hosts already produce). Hosts keep composing these from mixins; the
-ABC just makes the contract explicit and enforced.
+Each method's **normalized return shape** is produced by the area's row
+factories, called from the base workflows. Hosts compose one `<Host><Area>`
+subclass per area into their `SceneAdapter`.
 
 ### `Audit` — per-area op dispatch
 The tags/generators/sims/perf/files audits share the same signature

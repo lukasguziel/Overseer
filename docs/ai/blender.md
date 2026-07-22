@@ -115,7 +115,7 @@ once (the Selection scope never updated in Blender).
 - `selected_guids(include_children=True) -> set[int]`
 - `focus(guid) -> bool` — select + frame in the viewport.
 
-**Apply (organize/apply.py — ApplyOps):**
+**Apply (organize/apply.py — BlenderOrganize):**
 - `rename_object(guid, new_name) -> bool` (sets `last_changes`)
 - `apply_renames(list[ops.RenameOp]) -> int`
 - `apply_reparents(list[ops.ReparentOp]) -> int` (reparent under a named Empty)
@@ -125,25 +125,25 @@ once (the Selection scope never updated in Blender).
   keep the SAME item schema the C4D `apply.py`/`journal.py` use so
   `core/organize/journal.py` (shared) works unchanged.
 
-**Collections=Layers (layers.py — LayerOps; the layers AREA implemented on Blender collections):**
+**Collections=Layers (layers.py — BlenderLayers; the layers AREA implemented on Blender collections):**
 - `scan_layers() -> list[dict]` (name, color[r,g,b]|None, solo, view, render,
   locked, materials, tags)
 - `_layer_object_counts() -> dict[str,int]`
 - `delete_layer(name) -> int`, `delete_empty_layers(keep:set) -> int`
 - `set_layer_colors(colors: dict[str,[r,g,b]]) -> int`
 
-**Materials (materials.py — MaterialOps):**
+**Materials (materials.py — BlenderMaterials):**
 - `scan_materials(include_hidden, accepted) -> dict` (shape per C4D)
 - `focus_material(name) -> dict`, `delete_material(name, include_hidden) -> int`,
   `delete_unused_materials(include_hidden, accepted) -> int`
 
-**Previews (textures/previews.py — PreviewOps):**
+**Previews (textures/previews.py — BlenderPreviews):**
 - `material_previews(names, size, progress) -> dict[name, dataURI]`
 - `texture_previews(paths, size, progress) -> dict[path, dataURI]`
   (use `bpy.data.images[...].preview` / render, or Pillow from `vendor/`; a
   transparent 1×1 PNG data-URI is an acceptable fallback if unavailable.)
 
-**Texture paths (textures/paths.py — TexturePathOps):**
+**Texture paths (textures/paths.py — BlenderTexturePaths):**
 - `scan_textures(include_hidden, accepted) -> dict`
 - `make_textures_relative(materials) -> dict`
 - `texture_owners(path) -> dict`, `collect_textures(materials, subdir, paths) -> dict`
@@ -151,7 +151,7 @@ once (the Selection scope never updated in Blender).
 - `set_texture_path(path, new_path, material) -> dict`
 - `texture_repath(paths, mode, material) -> dict`
 
-**Texture resize (textures/resize.py — TextureResizeOps):**
+**Texture resize (textures/resize.py — BlenderTextureResize):**
 - `texture_resize(paths, percent) -> dict` (Pillow from `vendor/`, keep bit depth)
 
 Return-dict keys for each are defined by the matching C4D method — mirror them.

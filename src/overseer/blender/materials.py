@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 
-from ..core.materials import logic as mat_logic
 from ..core.materials.base import MaterialsBase
 from ..core.materials.logic import is_internal_material
 from .constants import INTERNAL_MATERIAL_PREFIXES
@@ -11,7 +10,7 @@ from .scene.readers import editor_hidden
 
 class BlenderMaterials(MaterialsBase):
 
-    def _is_internal_material(self, name: str) -> bool:
+    def is_internal(self, name: str) -> bool:
         n = name or ""
         if is_internal_material(n):
             return True
@@ -178,53 +177,39 @@ class BlenderMaterials(MaterialsBase):
                 return None
         return {"material": mat_name, "file": os.path.basename(str(raw))}
 
-    def scan_materials(self, include_hidden: bool = True,
-                       accepted=None) -> dict:
-        accepted = set(accepted or ())
+    def get_materials(self) -> list:
+        return list(self.bpy.data.materials)
+
+    def get_material_name(self, mat):
         try:
-            mats = list(self.bpy.data.materials)
+            return mat.name_full
         except Exception:
-            return mat_logic.scan_result(0, [], [], [], accepted, [])
+            return None
 
-        used_any, used_visible = self._scene_material_usage()
+    def get_material_key(self, mat):
+        try:
+            return mat.name_full
+        except Exception:
+            return None
 
-        unused: list = []
-        only_hidden: list = []
-        accepted_out: list = []
-        missing: list = []
-        seen_images: set = set()
-        for m in mats:
+    def get_material_usage(self) -> tuple:
+        return self._scene_material_usage()
+
+    def get_missing_textures(self, mat, name: str) -> list:
+        out: list = []
+        seen: set = set()
+        for img in self._material_images(mat):
             try:
-                name = m.name_full
+                ident = img.name_full
             except Exception:
+                ident = id(img)
+            if ident in seen:
                 continue
-            if self._is_internal_material(name):
-                continue
-
-            nowhere = name not in used_any
-            hidden_only = (not nowhere) and name not in used_visible
-            if nowhere or (hidden_only and include_hidden):
-                if name in accepted:
-                    accepted_out.append(name)
-                else:
-                    unused.append(name)
-                    if hidden_only:
-                        only_hidden.append(name)
-
-            for img in self._material_images(m):
-                try:
-                    ident = img.name_full
-                except Exception:
-                    ident = id(img)
-                if (name, ident) in seen_images:
-                    continue
-                seen_images.add((name, ident))
-                info = self._missing_image(img, name)
-                if info is not None:
-                    missing.append(info)
-
-        return mat_logic.scan_result(len(mats), unused, only_hidden,
-                                      accepted_out, accepted, missing)
+            seen.add(ident)
+            info = self._missing_image(img, name)
+            if info is not None:
+                out.append(info)
+        return out
 
     def focus_material(self, name: str) -> dict:
         target = None
@@ -336,7 +321,7 @@ class BlenderMaterials(MaterialsBase):
                     continue
                 if name in protected or name in accepted:
                     continue
-                if self._is_internal_material(name):
+                if self.is_internal(name):
                     continue
                 targets.append(m)
         except Exception:

@@ -13,19 +13,19 @@ scene/
   doc.py            CDoc - the SceneHost wrapper over the active document
   readers.py        module-level c4d readers (type_name/own_geo/classify/
                     layer_name/stable_id/editor_hidden, _SAVE_FILTERS)
-  adapter.py        SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
-                    TextureResizeOps, LayerOps, ApplyOps): build_tree/focus/
+  adapter.py        SceneAdapter(CinemaMaterials, CinemaPreviews, CinemaTexturePaths,
+                    CinemaTextureResize, CinemaLayers, CinemaOrganize): build_tree/focus/
                     selection
 organize/
-  apply.py          ApplyOps: renames/reparents/layers/bundle/plan/revert
+  apply.py          CinemaOrganize: renames/reparents/layers/bundle/plan/revert
   journal.py        journal persistence (document container + sidecar)
-layers.py           LayerOps: layer scan/delete/colors, find-or-create
-materials.py        MaterialOps: usage scan, unused/missing, delete
+layers.py           CinemaLayers: layer scan/delete/colors, find-or-create
+materials.py        CinemaMaterials: usage scan, unused/missing, delete
 textures/
-  paths.py          TexturePathOps: texture reference scan + path rewriting
+  paths.py          CinemaTexturePaths: texture reference scan + path rewriting
                     (incl. maxon node-graph ports)
-  resize.py         TextureResizeOps: resized copies + relink
-  previews.py       PreviewOps: material/texture thumbnail rendering
+  resize.py         CinemaTextureResize: resized copies + relink
+  previews.py       CinemaPreviews: material/texture thumbnail rendering
 ```
 
 ## Module constants

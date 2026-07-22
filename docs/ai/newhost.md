@@ -101,7 +101,10 @@ Each step is verifiable in the real host via the web UI before the next:
 ## Step 3 — the contracts
 
 - `core/hostapi/ports.py` is the compile-time checklist: a concrete class with
-  a missing method cannot instantiate.
+  a missing method cannot instantiate. The adapter areas are template-method
+  bases (`core/<area>/base.py`): implement the abstract `get_*`/`set_*`
+  primitives and the base runs the shared workflow; override a base method
+  only where your host genuinely needs a different flow.
 - Result shapes: build every row/envelope via the `core/<area>` factories
   (`layer_entry`, `texture_row`, `file_entry`, per-area `scan_result`,
   `organize.journal.change_item`, ...) — never hand-assemble the dicts. What

@@ -240,9 +240,10 @@ class BlenderTexturePaths(TexturePathsBase):
             "after": after,
         })
 
-    def _build_entry(self, img, raw: str, material: str, used: bool,
-                     accepted_set: set, meta_cache: dict) -> dict:
-        from ...core.textures import analysis as texmod
+    def _doc_path(self) -> str:
+        return self.doc.path or ""
+
+    def _normalize_ref(self, img, raw: str, material: str, used: bool):
         doc_path = self.doc.path or ""
         resolved = self._resolve(raw, getattr(img, "library", None))
         blend_relative = raw.startswith("//")
@@ -255,35 +256,15 @@ class BlenderTexturePaths(TexturePathsBase):
             if rel is not None:
                 relocatable = True
                 rel_target = rel[2:] if rel.startswith("//") else rel
+        return (raw, resolved, material, used, absolute, relocatable,
+                rel_target)
 
-        disk_bytes = 0
-        info = None
-        if exists:
-            if resolved in meta_cache:
-                disk_bytes, info = meta_cache[resolved]
-            else:
-                try:
-                    disk_bytes = os.path.getsize(resolved)
-                except Exception:
-                    disk_bytes = 0
-                info = texmod.analyze_image(resolved)
-                meta_cache[resolved] = (disk_bytes, info)
-        return texmod.texture_row(material, used, raw, resolved, absolute,
-                                  exists, relocatable, rel_target, disk_bytes,
-                                  info, raw in accepted_set)
-
-    def scan_textures(self, include_hidden: bool = True, accepted=None) -> dict:
-        from ...core.textures import analysis as texmod
-        accepted_set = {str(p) for p in (accepted or [])}
-        doc_path = self.doc.path or ""
-
+    def get_texture_refs(self, include_hidden: bool = True):
         used_any, used_visible = self._material_usage()
         used_names = used_any if include_hidden else used_visible
         all_names = self._all_material_names()
         image_to_mats = self._image_material_map()
 
-        entries: list = []
-        meta_cache: dict = {}
         for img in self._real_images():
             try:
                 raw = self._raw(img)
@@ -295,18 +276,13 @@ class BlenderTexturePaths(TexturePathsBase):
                         orphan_used = bool(getattr(img, "users", 0))
                     except Exception:
                         orphan_used = False
-                    entries.append(self._build_entry(
-                        img, raw, "", orphan_used, accepted_set, meta_cache))
+                    yield self._normalize_ref(img, raw, "", orphan_used)
                     continue
                 for name in mats:
                     used = name in used_names or name not in all_names
-                    entries.append(self._build_entry(
-                        img, raw, name, used, accepted_set, meta_cache))
+                    yield self._normalize_ref(img, raw, name, used)
             except Exception:
                 continue
-
-        return texmod.texture_scan_result(entries, doc_path, accepted_set,
-                                           meta_cache.values())
 
     def make_textures_relative(self, materials: list | None = None) -> dict:
         doc_path = self.doc.path or ""

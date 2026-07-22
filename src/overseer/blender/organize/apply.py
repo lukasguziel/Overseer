@@ -31,7 +31,6 @@ a rigid-body-world collection.
 from __future__ import annotations
 
 from ...core.organize.base import OrganizeBase
-from ...core.organize.journal import change_item
 from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
 from ..scene.readers import stable_id
 
@@ -54,9 +53,32 @@ class BlenderOrganize(OrganizeBase):
         except Exception:
             return False
 
-    def _log_change(self, obj, field: str, before, after) -> None:
-        self.last_changes.append(change_item(
-            stable_id(obj), self._safe_name(obj), field, before, after))
+    # -- OrganizeBase primitives -------------------------------------------
+    # Blender groups all edits into ONE undo push, so begin_edit/touch are
+    # no-ops; end_edit/notify issue that single push + one viewport refresh.
+    def resolve_object(self, guid):
+        return self._by_guid.get(guid)
+
+    def get_object_name(self, obj) -> str:
+        return self._safe_name(obj)
+
+    def set_object_name(self, obj, name: str) -> bool:
+        return self._set_name(obj, name)
+
+    def object_sid(self, obj) -> int:
+        return stable_id(obj)
+
+    def begin_edit(self) -> None:
+        pass
+
+    def touch(self, obj, kind: str) -> None:
+        pass
+
+    def end_edit(self, label: str) -> None:
+        self.doc.undo_push(label)
+
+    def notify(self) -> None:
+        self.doc.tag_redraw()
 
     # -- group (Empty) resolution ------------------------------------------
     @staticmethod
@@ -241,21 +263,10 @@ class BlenderOrganize(OrganizeBase):
             return False
 
     # -- renames -----------------------------------------------------------
-    def rename_object(self, guid, new_name: str) -> bool:
-        self.last_changes = []
-        obj = self._by_guid.get(guid)
-        if obj is None:
-            return False
-        before = self._safe_name(obj)
-        if before == new_name:
-            return True
-        if not self._set_name(obj, new_name):
-            return False
-        self._log_change(obj, "name", before, self._safe_name(obj))
-        self.doc.undo_push("Overseer: rename")
-        self.doc.tag_redraw()
-        return True
-
+    # ``rename_object`` (single object) is the shared OrganizeBase template.
+    # ``apply_renames`` stays a FULL OVERRIDE: Blender's file-global object
+    # namespace forces a two-phase temp-name + disambiguation pass the plain
+    # base loop cannot express.
     def _external_object_names(self, temp_names: set) -> set:
         """Every object name currently taken in the file EXCEPT the batch
         objects (which are parked under temp names). Seeds the disambiguation
@@ -291,7 +302,7 @@ class BlenderOrganize(OrganizeBase):
         pairs: list = []
         for op in renames:
             try:
-                obj = self._by_guid.get(op.node.guid)
+                obj = self.resolve_object(op.node.guid)
                 if obj is None:
                     continue
                 pairs.append((obj, op.new_name, self._safe_name(obj)))
@@ -323,8 +334,8 @@ class BlenderOrganize(OrganizeBase):
             except Exception:
                 continue
         if count:
-            self.doc.undo_push("Overseer: rename %d" % count)
-            self.doc.tag_redraw()
+            self.end_edit("Overseer: rename %d" % count)
+            self.notify()
         return count
 
     # -- reparents ---------------------------------------------------------
@@ -338,7 +349,7 @@ class BlenderOrganize(OrganizeBase):
         count = 0
         for op in reparents:
             try:
-                obj = self._by_guid.get(op.node.guid)
+                obj = self.resolve_object(op.node.guid)
                 if obj is None:
                     continue
                 group = self._find_or_create_group(op.to_group, index, created)
@@ -351,8 +362,8 @@ class BlenderOrganize(OrganizeBase):
             except Exception:
                 continue
         if count:
-            self.doc.undo_push("Overseer: reparent %d" % count)
-            self.doc.tag_redraw()
+            self.end_edit("Overseer: reparent %d" % count)
+            self.notify()
         return count
 
     # -- layers (collections) ----------------------------------------------
@@ -366,7 +377,7 @@ class BlenderOrganize(OrganizeBase):
         count = 0
         for op in layerops:
             try:
-                obj = self._by_guid.get(op.node.guid)
+                obj = self.resolve_object(op.node.guid)
                 if obj is None:
                     continue
                 before = self._current_layer_name(obj) or ""
@@ -384,8 +395,8 @@ class BlenderOrganize(OrganizeBase):
             except Exception:
                 continue
         if count:
-            self.doc.undo_push("Overseer: assign collection %d" % count)
-            self.doc.tag_redraw()
+            self.end_edit("Overseer: assign collection %d" % count)
+            self.notify()
         return count
 
     # -- revert ------------------------------------------------------------
@@ -517,6 +528,6 @@ class BlenderOrganize(OrganizeBase):
                                 "status": "missing"})
 
         if changed:
-            self.doc.undo_push("Overseer: revert")
-            self.doc.tag_redraw()
+            self.end_edit("Overseer: revert")
+            self.notify()
         return {"reverted": reverted, "missing": missing, "results": results}

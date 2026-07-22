@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from ..core.defaults import LAYER_COLORS
 from ..core.layers.base import LayersBase
-from ..core.layers.report import layer_entry
 
 COLOR_TAG_RGB = {
     "COLOR_01": (0.94, 0.25, 0.25),
@@ -94,25 +93,26 @@ class BlenderLayers(LayersBase):
             return None
         return [round(rgb[0], 3), round(rgb[1], 3), round(rgb[2], 3)]
 
-    def scan_layers(self) -> list:
-        out: list = []
-        for col in self._scene_collections():
-            try:
-                name = col.name
-            except Exception:
-                continue
-            entry = layer_entry(name)
-            entry["color"] = self._color_from_tag(col)
-            try:
-                entry["view"] = not bool(col.hide_viewport)
-            except Exception:
-                pass
-            try:
-                entry["render"] = not bool(col.hide_render)
-            except Exception:
-                pass
-            out.append(entry)
-        return out
+    def get_layer_handles(self) -> list:
+        return self._scene_collections()
+
+    def get_layer_name(self, handle) -> str | None:
+        try:
+            return handle.name
+        except Exception:
+            return None
+
+    def get_layer_meta(self, handle) -> dict:
+        meta: dict = {"color": self._color_from_tag(handle)}
+        try:
+            meta["view"] = not bool(handle.hide_viewport)
+        except Exception:
+            pass
+        try:
+            meta["render"] = not bool(handle.hide_render)
+        except Exception:
+            pass
+        return meta
 
     def _layer_object_counts(self) -> dict:
         counts: dict = {}

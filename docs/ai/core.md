@@ -81,6 +81,21 @@ shared JSON op layer (all `_op_*` handlers, host-neutral, bound to a host via
 `LAYER_COLORS`, update profiles, ports). `webio.py` — host-neutral web/data-dir
 IO helpers.
 
+## Area base classes: the shared workflow is CODE, not convention
+
+Each adapter area ships a `base.py` with an `<Area>Base` ABC (template-method
+pattern, all inheriting `core/items.py::ItemsBase` for progress-chunked
+`each()` loops): the base owns the genuinely shared workflow (e.g.
+`MaterialsBase.scan_materials` — the whole classification loop;
+`LayersBase.scan_layers`; `TexturePathsBase.scan_textures`;
+`OrganizeBase.rename_object`/`apply_renames` + the change log) and declares
+host reads/writes as abstract `get_*`/`set_*` primitives. A host implements
+`Cinema<Area>` / `Blender<Area>` with ONLY the primitives; where a host
+genuinely needs a different workflow it OVERRIDES the base method and that
+override stays visible (Blender's two-phase `apply_renames`, its
+`is_internal` prefix rule). `hostapi.SceneAdapter` is the sum of these bases.
+Each base has a fake-host unit test in `tests/core/<area>/test_<area>_base.py`.
+
 ## Row factories: the displayed shape is CODE, not convention
 
 Every JSON row/envelope the frontend sees is built by a factory in its area —

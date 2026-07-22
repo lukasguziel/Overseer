@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import os
 from abc import abstractmethod
 
-from ..hostapi.items import ItemsBase
+from ..items import ItemsBase
 
 
 class TexturePathsBase(ItemsBase):
@@ -11,7 +12,42 @@ class TexturePathsBase(ItemsBase):
     own shader/image system."""
 
     @abstractmethod
-    def scan_textures(self, include_hidden=False, accepted=None) -> dict: ...
+    def _doc_path(self) -> str:
+        """Directory of the saved document ("" if unsaved)."""
+
+    @abstractmethod
+    def get_texture_refs(self, include_hidden=True):
+        """Yield one normalized tuple per texture reference:
+        ``(raw, resolved, material, used, absolute, relocatable,
+        rel_target)``. Every host read (shaders / images / node graphs)
+        happens here; the base turns the tuples into the canonical rows."""
+
+    def scan_textures(self, include_hidden=True, accepted=None) -> dict:
+        from . import analysis as texmod
+        accepted_set = {str(p) for p in (accepted or [])}
+        doc_path = self._doc_path()
+        entries: list = []
+        meta_cache: dict = {}
+        for (raw, resolved, material, used, absolute,
+             relocatable, rel_target) in self.get_texture_refs(include_hidden):
+            exists = bool(resolved) and os.path.isfile(resolved)
+            disk_bytes = 0
+            info = None
+            if exists:
+                if resolved in meta_cache:
+                    disk_bytes, info = meta_cache[resolved]
+                else:
+                    try:
+                        disk_bytes = os.path.getsize(resolved)
+                    except Exception:
+                        disk_bytes = 0
+                    info = texmod.analyze_image(resolved)
+                    meta_cache[resolved] = (disk_bytes, info)
+            entries.append(texmod.texture_row(
+                material, used, raw, resolved, absolute, exists, relocatable,
+                rel_target, disk_bytes, info, raw in accepted_set))
+        return texmod.texture_scan_result(entries, doc_path, accepted_set,
+                                          meta_cache.values())
 
     @abstractmethod
     def make_textures_relative(self, materials=None) -> dict: ...
