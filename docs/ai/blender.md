@@ -36,7 +36,7 @@ Read `docs/api.md` for the op table.
 | layer color | collection `color_tag` (`'COLOR_01'`..`'COLOR_08'`, or `'NONE'`) | Blender has only 8 preset tags; map an RGB triple to the nearest preset. Keep the API `[r,g,b]` shape; store nearest tag. |
 | layer solo/view/render/locked | `collection.hide_viewport`/`hide_render`; `LayerCollection.exclude`; no per-collection lock | fill what exists, default the rest. |
 | materials | `bpy.data.materials` (node-based) | identity key = `material.name_full` (or `session_uid`); duplicate base names exist (`.001`) just like C4D dup names. |
-| unused material | `material.users == 0` **or** assigned to no object's material slots | `__`-prefixed / internal names are skipped (see `core.materials.logic`). |
+| unused material | `material.users == 0` **or** assigned to no object's material slots | `__`-prefixed / internal names are skipped (see `MaterialsBase.is_internal`). |
 | textures | `bpy.data.images` + Image Texture nodes | path = `image.filepath` (raw) / `filepath_from_user()`; `//` prefix means blend-relative. |
 | relative/absolute path | `//` prefix (blend-relative) | use `bpy.path.abspath` / `bpy.path.relpath`; "make relative" = rewrite to `//…`. |
 | **tags** (C4D) | **modifiers + constraints + custom properties + vertex groups/UV maps** | Blender has no "tags". The Tags tab audits *object attachments*: one row per (object, attachment-kind). Phong/smoothing ⇒ Auto-Smooth / "Shade Smooth" (a mesh property, not a tag). Duplicate-material-tag ⇒ duplicate material slots referencing the same material. |

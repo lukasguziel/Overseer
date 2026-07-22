@@ -1,4 +1,4 @@
-from overseer.core.perf import logic as perf_logic
+from overseer.core.perf.audit import PerfAudit as perf_logic
 
 
 def _e(name, ms, guid=0):

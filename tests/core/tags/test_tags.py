@@ -1,13 +1,6 @@
 import math
 
-from overseer.core.tags.logic import (
-    deg_from_rad,
-    dominant_angle,
-    merge_selection_types,
-    object_row,
-    scan_result,
-    type_entry,
-)
+from overseer.core.tags.audit import TagsAudit
 
 POINT, POLY, EDGE = 5674, 5673, 5701
 KINDS = {POINT: "point", POLY: "polygon", EDGE: "edge"}
@@ -21,7 +14,7 @@ def _entry(type_id, label, objects):
 
 def test_deg_from_rad_rounds_to_tenth():
     # do it
-    result = deg_from_rad(math.radians(40.0))
+    result = TagsAudit.deg_from_rad(math.radians(40.0))
 
     # postcondition
     assert result == 40.0
@@ -32,7 +25,7 @@ def test_dominant_angle_picks_most_common():
     counts = {40.0: 3, 60.0: 1, 80.0: 3}
 
     # do it: ties break on the larger angle
-    result = dominant_angle(counts)
+    result = TagsAudit.dominant_angle(counts)
 
     # postcondition
     assert result == 80.0
@@ -40,7 +33,7 @@ def test_dominant_angle_picks_most_common():
 
 def test_dominant_angle_empty_is_none():
     # do it / postcondition
-    assert dominant_angle({}) is None
+    assert TagsAudit.dominant_angle({}) is None
 
 
 def test_merge_folds_selection_types_into_one_entry():
@@ -55,7 +48,7 @@ def test_merge_folds_selection_types_into_one_entry():
     ]
 
     # do it
-    result = merge_selection_types(types, KINDS)
+    result = TagsAudit.merge_selection_types(types, KINDS)
 
     # postcondition: one "Selection" entry carrying both source ids and kinds
     labels = [e["label"] for e in result]
@@ -78,7 +71,7 @@ def test_merge_groups_multi_tag_object_into_one_row():
     ]
 
     # do it
-    sel = merge_selection_types(types, KINDS)[0]
+    sel = TagsAudit.merge_selection_types(types, KINDS)[0]
 
     # postcondition: ONE row for the object, all three tags with their kind
     assert len(sel["objects"]) == 1
@@ -92,7 +85,7 @@ def test_merge_without_selection_entries_is_a_no_op():
     types = [_entry(5612, "Phong", [])]
 
     # do it / postcondition: untouched, same object
-    assert merge_selection_types(types, KINDS) is types
+    assert TagsAudit.merge_selection_types(types, KINDS) is types
 
 
 def test_merge_resorts_by_count_desc():
@@ -107,7 +100,7 @@ def test_merge_resorts_by_count_desc():
     ]
 
     # do it
-    result = merge_selection_types(types, KINDS)
+    result = TagsAudit.merge_selection_types(types, KINDS)
 
     # postcondition: merged Selection (count 2) sorts before Phong (count 1)
     assert [e["label"] for e in result] == ["Selection", "Phong"]
@@ -116,16 +109,16 @@ def test_merge_resorts_by_count_desc():
 def test_scan_result_shapes_the_tags_envelope():
     # setup: two attachment types with rows, one phong angle histogram
     types = {}
-    e = type_entry(5616, "Phong")
+    e = TagsAudit.type_entry(5616, "Phong")
     e["count"] = 2
-    e["objects"].append(object_row(1, "Cube", [{"name": "Phong"}]))
+    e["objects"].append(TagsAudit.object_row(1, "Cube", [{"name": "Phong"}]))
     types[5616] = e
-    small = type_entry(5615, "Texture")
+    small = TagsAudit.type_entry(5615, "Texture")
     small["count"] = 1
     types[5615] = small
 
     # do it
-    out = scan_result(types, [{"guid": 2, "name": "Plane"}], [],
+    out = TagsAudit.scan_result(types, [{"guid": 2, "name": "Plane"}], [],
                       {35.0: 2, 40.0: 1})
 
     # postcondition: sorted by count desc, totals derived from the entries
@@ -138,7 +131,7 @@ def test_scan_result_shapes_the_tags_envelope():
 
 def test_scan_result_phong_false_marks_hosts_without_phong():
     # do it
-    out = scan_result({}, [], [], {}, phong=False)
+    out = TagsAudit.scan_result({}, [], [], {}, phong=False)
 
     # postcondition
     assert out["phong"] is False

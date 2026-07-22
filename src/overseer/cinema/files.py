@@ -4,7 +4,6 @@ import os
 
 import c4d
 
-from ..core.files import logic as fl
 from ..core.files.audit import FilesAudit
 
 _OALEMBIC = getattr(c4d, "Oalembicgenerator", 1028083)
@@ -75,14 +74,14 @@ class CinemaFilesAudit(FilesAudit):
         resolved = self._generate_path(doc_path, raw)
         exists = bool(resolved) and os.path.isfile(resolved)
         absolute = os.path.isabs(raw)
-        reloc, rel_target = fl.relocatable(raw, resolved, exists, doc_path)
+        reloc, rel_target = self.relocatable(raw, resolved, exists, doc_path)
         disk_bytes = 0
         if exists:
             try:
                 disk_bytes = os.path.getsize(resolved)
             except Exception:
                 disk_bytes = 0
-        return fl.file_entry(kind, raw, resolved, exists, absolute, reloc,
+        return self.file_entry(kind, raw, resolved, exists, absolute, reloc,
                              rel_target, disk_bytes, owner_name, guid,
                              owner_kind)
 
@@ -102,10 +101,10 @@ class CinemaFilesAudit(FilesAudit):
                 raw = str(a.get("filename") or "")
             except Exception:
                 raw = ""
-            if not raw or fl.is_image(raw):
+            if not raw or self.is_image(raw):
                 continue
             owner = a.get("owner")
-            out.append(self._entry(fl.classify_kind(raw), raw,
+            out.append(self._entry(self.classify_kind(raw), raw,
                                    self._owner_name(owner) or str(a.get("assetname") or ""),
                                    self._guid_for(owner, adapter), doc_path,
                                    self._owner_kind(owner)))
@@ -163,7 +162,7 @@ class CinemaFilesAudit(FilesAudit):
             seen.add(key)
             entries.append(e)
 
-        return fl.scan_result(entries, doc_path, self._kept_files())
+        return self.scan_result(entries, doc_path, self._kept_files())
 
     def _holders(self, adapter):
         seen: set = set()

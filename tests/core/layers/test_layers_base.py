@@ -3,7 +3,6 @@ from __future__ import annotations
 # Load the hostapi package first: importing an area base directly would trip
 # its eager ports<->base import cycle otherwise.
 from overseer.core.layers.base import LayersBase
-from overseer.core.layers.report import layer_entry
 
 
 class _Layer:
@@ -64,7 +63,7 @@ def test_scan_layers_builds_canonical_rows_and_merges_meta():
     assert rows[0] == {"name": "Geo", "color": [0.1, 0.2, 0.3], "solo": False,
                        "view": False, "render": True, "locked": False,
                        "materials": 0, "tags": 0}
-    assert rows[1] == layer_entry("Props")
+    assert rows[1] == LayersBase.layer_entry("Props")
 
 
 def test_scan_layers_defaults_material_and_tag_counts_to_zero():

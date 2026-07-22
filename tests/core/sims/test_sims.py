@@ -1,11 +1,11 @@
-from overseer.core.sims import logic as sl
+from overseer.core.sims.audit import SimHit, SimsAudit
 
 
 def _hit(**kw):
     base = dict(guid=0, object="obj", carrier="tag", kind="dynamics",
                 label="Dynamics Body")
     base.update(kw)
-    return sl.SimHit(**base)
+    return SimHit(**base)
 
 
 def test_active_hidden_finding_flags_enabled_sim_on_hidden_object():
@@ -17,7 +17,7 @@ def test_active_hidden_finding_flags_enabled_sim_on_hidden_object():
     ]
 
     # do it
-    findings = sl.compute_findings(hits)
+    findings = SimsAudit.compute_findings(hits)
 
     # postcondition: only the enabled sim on a hidden object is flagged
     assert [h["guid"] for h in findings["active_hidden"]] == [1]
@@ -33,7 +33,7 @@ def test_unbaked_only_when_cached_is_knowably_false_and_not_disabled():
     ]
 
     # do it
-    findings = sl.compute_findings(hits)
+    findings = SimsAudit.compute_findings(hits)
 
     # postcondition: unknown cache (None) and disabled sims never count as unbaked
     assert [h["guid"] for h in findings["unbaked"]] == [1]
@@ -48,7 +48,7 @@ def test_disabled_leftovers_are_only_explicitly_disabled_sims():
     ]
 
     # do it
-    findings = sl.compute_findings(hits)
+    findings = SimsAudit.compute_findings(hits)
 
     # postcondition
     assert [h["guid"] for h in findings["disabled_leftovers"]] == [1]
@@ -63,7 +63,7 @@ def test_summary_counts_totals_and_per_kind():
     ]
 
     # do it
-    summary = sl.summarize(hits)
+    summary = SimsAudit.summarize(hits)
 
     # postcondition
     assert summary["total"] == 3
@@ -75,7 +75,7 @@ def test_summary_counts_totals_and_per_kind():
 
 def test_scan_result_shape_is_stable_for_empty_scene():
     # do it
-    res = sl.scan_result([])
+    res = SimsAudit.scan_result([])
 
     # postcondition
     assert res == {

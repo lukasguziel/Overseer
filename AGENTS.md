@@ -65,9 +65,10 @@ src/
       materials/          logic.py (internal-material rules)
       textures/           analysis.py (VRAM/resize decisions), imagesize.py,
                           thumbs.py (Pillow thumbnails)
-      files/ generators/  logic.py (pure result shaping) + audit.py (the shared
-      sims/ tags/ perf/   Audit base class: op dispatch + display shape; hosts
-                          subclass and implement only the read/apply primitives)
+      files/ generators/  audit.py: ONE Audit base class per area owning op
+      sims/ tags/ perf/   dispatch, pure shaping (staticmethods) and the
+                          result shapes; hosts subclass and implement only
+                          the read/apply primitives (everything via self.)
       settings/           logic.py + io.py (per-project UI state persistence)
       hostapi/            ports.py (SceneHost/SceneAdapter/Audit/HostContext
                           ABCs) + webapi.py (the shared JSON op layer - all

@@ -10,7 +10,7 @@ grouped by kind.
 
 The result shape is the C4D one (see ``cinema/generators.py`` and the
 frozen ``frontend/src/tabs/GeneratorsTab.tsx``): ``types`` -> per-type param
-cards, each param summarised across its members via ``core.generators.logic``.
+cards, each param summarised across its members via ``GeneratorsAudit.summarize``.
 GeneratorsTab reads ``data.types`` and ``data.summary`` verbatim, so we return
 those keys (NOT a flat ``generators`` list).
 
@@ -27,7 +27,6 @@ and ``adapter.bpy``; every attribute access is defensive.
 """
 from __future__ import annotations
 
-from ..core.generators import logic as gens_logic
 from ..core.generators.audit import GeneratorsAudit
 
 # Curated per-modifier-type parameter lists. Each entry: (attr, kind) where
@@ -275,8 +274,8 @@ class BlenderGeneratorsAudit(GeneratorsAudit):
                     value = self._read(holder, attr)
                     if value is None:
                         continue
-                    entries.append(gens_logic.value_entry(node.guid, node.name, value))
-                summary = gens_logic.summarize(entries)
+                    entries.append(self.value_entry(node.guid, node.name, value))
+                summary = self.summarize(entries)
                 if not summary["uniform"]:
                     non_uniform_params += 1
                 choices = {}
@@ -286,13 +285,13 @@ class BlenderGeneratorsAudit(GeneratorsAudit):
                     label = self._param_label(first_holder, attr)
                     if kind == "choice":
                         choices = self._enum_choices(first_holder, attr)
-                params_out.append(gens_logic.param_row(
+                params_out.append(self.param_row(
                     attr, label, kind, choices, summary))
-            types_out.append(gens_logic.type_row(
+            types_out.append(self.type_row(
                 key, bucket["label"], self._type_id(key), len(members),
                 params_out))
 
-        return gens_logic.scan_result(types_out, total_gens, non_uniform_params)
+        return self.scan_result(types_out, total_gens, non_uniform_params)
 
     # -----------------------------------------------------------------------
     # apply / select
@@ -410,9 +409,9 @@ class BlenderGeneratorsAudit(GeneratorsAudit):
 
         members = self._members_of(adapter, tree, type_key)
         if param_key is not None and "value" in payload:
-            wanted = gens_logic._hashable(payload.get("value"))
+            wanted = self._hashable(payload.get("value"))
             members = [(n, h) for n, h in members
-                       if gens_logic._hashable(self._read(h, param_key)) == wanted]
+                       if self._hashable(self._read(h, param_key)) == wanted]
 
         guids = []
         seen = set()

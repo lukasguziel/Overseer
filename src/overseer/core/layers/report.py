@@ -131,10 +131,3 @@ def find_layer_mismatches(tree: model.SceneTree,
                                  child_layer=child_layer))
     return out
 
-
-def layer_entry(name: str, color=None, solo: bool = False, view: bool = True,
-                render: bool = True, locked: bool = False,
-                materials: int = 0, tags: int = 0) -> dict:
-    return {"name": name, "color": color, "solo": bool(solo),
-            "view": bool(view), "render": bool(render), "locked": bool(locked),
-            "materials": int(materials), "tags": int(tags)}

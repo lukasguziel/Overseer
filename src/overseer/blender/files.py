@@ -26,10 +26,9 @@ from __future__ import annotations
 
 import os
 
-from ..core.files import logic as fl
 from ..core.files.audit import FilesAudit
 
-# Extensions Blender references that core.files.logic does not classify natively.
+# Extensions Blender references that the core classify_kind table lacks.
 _USD_EXTS = (".usd", ".usda", ".usdc", ".usdz")
 _POINT_CACHE_EXTS = (".mdd", ".pc2")
 
@@ -79,12 +78,12 @@ class BlenderFilesAudit(FilesAudit):
         """Kind label for a Blender external reference (extends
         ``classify_kind`` with USD stages and the legacy point-cache
         formats)."""
-        ext = fl.file_ext(raw)
+        ext = self.file_ext(raw)
         if ext in _USD_EXTS:
             return "scene"
         if ext in _POINT_CACHE_EXTS:
             return "cache"
-        return fl.classify_kind(raw)
+        return self.classify_kind(raw)
 
     # -----------------------------------------------------------------------
     # path helpers (Blender ``//`` blend-relative semantics)
@@ -117,7 +116,7 @@ class BlenderFilesAudit(FilesAudit):
                      doc_path: str):
         """(relocatable, rel_target) for an absolute in-project reference.
 
-        Unlike ``core.files.logic.relocatable`` this never trusts ``os.path.isabs``
+        Unlike ``FilesAudit.relocatable`` this never trusts ``os.path.isabs``
         for the relative decision - on Windows a blend-relative ``//tex/x.abc``
         LOOKS absolute (leading ``//`` reads as UNC). A blend-relative path is
         already relative, so it is never a rewrite candidate. The target is
@@ -422,7 +421,7 @@ class BlenderFilesAudit(FilesAudit):
             seen.add(key)
             entries.append(e)
 
-        return fl.scan_result(entries, doc_path, self._kept_files())
+        return self.scan_result(entries, doc_path, self._kept_files())
 
     # -----------------------------------------------------------------------
     # select

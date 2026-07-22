@@ -1,6 +1,6 @@
 import os
 
-from overseer.core.files import logic as fl
+from overseer.core.files.audit import FilesAudit as fl
 
 
 def test_classify_kind_by_extension():

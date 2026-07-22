@@ -34,14 +34,6 @@ import math
 import zlib
 
 from ..core.tags.audit import TagsAudit
-from ..core.tags.logic import (
-    DEFAULT_PHONG_ANGLE_DEG,
-    deg_from_rad,
-    dominant_angle,
-    object_row,
-    scan_result,
-    type_entry,
-)
 
 # Name of the Geometry Nodes modifier / node group Blender's Auto-Smooth adds
 # (the "Shade Auto Smooth" operator). Matched case-insensitively.
@@ -250,7 +242,7 @@ class BlenderTagsAudit(TagsAudit):
             state["smooth"] = True
             rad = self._read_modifier_angle(mod)
             if rad is not None:
-                state["angle_deg"] = deg_from_rad(rad)
+                state["angle_deg"] = self.deg_from_rad(rad)
 
         return state
 
@@ -460,7 +452,7 @@ class BlenderTagsAudit(TagsAudit):
                         name: str) -> None:
         entry = types.get(kind)
         if entry is None:
-            entry = type_entry(self._kind_id(kind), label)
+            entry = self.type_entry(self._kind_id(kind), label)
             types[kind] = entry
         entry["count"] += 1
         node_tags.setdefault(kind, []).append({"name": name})
@@ -517,7 +509,7 @@ class BlenderTagsAudit(TagsAudit):
 
             for kind, refs in node_tags.items():
                 types[kind]["objects"].append(
-                    object_row(node.guid, node.name, refs))
+                    self.object_row(node.guid, node.name, refs))
 
         if progress:
             progress("Scanning attachments", total, total, "")
@@ -526,7 +518,7 @@ class BlenderTagsAudit(TagsAudit):
         # don't rely on the auto-smooth analog, so phong=False hides the
         # smoothing UI (the missing-phong stat, the add-phong card and the
         # angle card). The type inventory + duplicate-material-slot audit stay.
-        return scan_result(types, missing_phong, duplicate_material_tags,
+        return self.scan_result(types, missing_phong, duplicate_material_tags,
                            phong_angles, phong=False)
 
     def _current_phong_angles(self, adapter, tree) -> dict:
@@ -548,9 +540,9 @@ class BlenderTagsAudit(TagsAudit):
         bpy = adapter.bpy
         guids = payload.get("guids")
         wanted = set(guids) if guids is not None else None
-        angle_deg = dominant_angle(self._current_phong_angles(adapter, tree))
+        angle_deg = self.dominant_angle(self._current_phong_angles(adapter, tree))
         if angle_deg is None:
-            angle_deg = DEFAULT_PHONG_ANGLE_DEG
+            angle_deg = self.DEFAULT_PHONG_ANGLE_DEG
         radians = math.radians(float(angle_deg))
 
         targets: list = []

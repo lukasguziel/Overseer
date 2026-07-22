@@ -40,7 +40,7 @@ file fallback).
 `CinemaMaterials`: material scan/focus/delete. Identity keys use `GetGUID()` not
 names (scenes carry duplicate material names); dunder materials
 (`__octanetemp__`) are plugin-internal — skipped by the unused scan and never
-deleted (`core.materials.logic`).
+deleted (`MaterialsBase.is_internal`).
 
 ### textures/ (paths.py, resize.py, previews.py)
 `paths.py` — `CinemaTexturePaths`: texture scan, relink, repath, collect. Path
@@ -57,7 +57,7 @@ alpha maps rather than dropping the mask. `previews.py` — `CinemaPreviews`
 `CinemaTagsAudit` (subclass of `core.tags.audit.TagsAudit`, exposes `AUDIT`).
 Skips `_INTERNAL_TAG_TYPES` plus every tag type registered without
 `TAG_VISIBLE`. One row per OBJECT per type. Point/polygon/edge selection tags
-are folded into ONE "Selection" entry (`core.tags.logic.merge_selection_types`).
+are folded into ONE "Selection" entry (`TagsAudit.merge_selection_types`).
 Phong angles read/written in radians via `c4d.utils`; symbol ids resolved
 through `getattr(c4d, ...)` fallbacks so it survives across C4D versions.
 
@@ -72,7 +72,7 @@ Deliberately does NOT diff on/off state.
 Rebuild-cost audit — which generator/deformer stalls the viewport. Marks ONE
 object's cache dirty (`DIRTYFLAGS_CACHE`, no data change, no undo step) and
 times `doc.ExecutePasses`; idle-pass cost is subtracted, the median of N runs
-counts. Ranking/verdict is pure (`core/perf/logic.py`). Only runs on an
+counts. Ranking/verdict is pure (`PerfAudit.rank`, shared). Only runs on an
 explicit click.
 
 ### sims.py

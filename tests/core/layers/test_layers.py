@@ -1,4 +1,5 @@
 from overseer.core.layers import report as layers
+from overseer.core.layers.base import LayersBase
 from overseer.core.organize import ops
 from overseer.core.scene import model
 
@@ -146,8 +147,8 @@ def test_mismatch_finding_ignores_unassigned_and_kept():
 
 def test_layer_entry_carries_the_canonical_row_shape():
     # do it
-    default = layers.layer_entry("Props")
-    filled = layers.layer_entry("Lights", solo=True, view=False,
+    default = LayersBase.layer_entry("Props")
+    filled = LayersBase.layer_entry("Lights", solo=True, view=False,
                                 materials=3, tags=2)
 
     # postcondition: exactly the keys both hosts ship, host fills only extras

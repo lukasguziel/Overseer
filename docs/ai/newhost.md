@@ -10,7 +10,7 @@ first.
 
 The web frontend (frozen JSON `/api` contract), ALL op logic
 (`core/hostapi/webapi.py`), every area's pure logic and display shaping
-(`core/<area>/logic.py` + `audit.py`), config/journal/history/updater. A host
+(the `core/<area>` base/audit classes), config/journal/history/updater. A host
 port writes ONLY the glue: ~15 small modules mirroring the area layout, plus a
 loader and a bridge. Nothing in `core/` or `frontend/` changes.
 

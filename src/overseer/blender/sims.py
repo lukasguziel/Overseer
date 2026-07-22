@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from ..core.sims import logic as sims_logic
-from ..core.sims.audit import SimsAudit
+from ..core.sims.audit import SimHit, SimsAudit
 
 
 class BlenderSimsAudit(SimsAudit):
@@ -132,7 +131,7 @@ class BlenderSimsAudit(SimsAudit):
                 enabled = bool(rb.enabled)
             except Exception:
                 enabled = None
-            hit = sims_logic.SimHit(
+            hit = SimHit(
                 guid=guid, object=name, carrier="object", kind="rigidbody",
                 label="Rigid Body", enabled=enabled, cached=world_baked,
                 hidden=hidden)
@@ -153,7 +152,7 @@ class BlenderSimsAudit(SimsAudit):
                                or getattr(m, "show_render", False))
             except Exception:
                 enabled = None
-            hit = sims_logic.SimHit(
+            hit = SimHit(
                 guid=guid, object=name, carrier="modifier", kind=kind,
                 label=label, enabled=enabled, cached=cached, hidden=hidden)
             hit.index = i

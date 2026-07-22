@@ -4,7 +4,6 @@ import time
 
 import c4d
 
-from ..core.perf import logic as perf_logic
 from ..core.perf.audit import PerfAudit
 
 _BUILDFLAGS = getattr(c4d, "BUILDFLAGS_0", getattr(c4d, "BUILDFLAGS_NONE", 0))
@@ -76,7 +75,7 @@ class CinemaPerfAudit(PerfAudit):
         repeats = max(1, min(5, int(payload.get("repeats") or _REPEATS)))
 
         self._exec_passes(doc)
-        baseline = perf_logic.median([self._exec_passes(doc) for _ in range(repeats)])
+        baseline = self.median([self._exec_passes(doc) for _ in range(repeats)])
 
         entries = []
         total = len(cands)
@@ -91,7 +90,7 @@ class CinemaPerfAudit(PerfAudit):
                 samples.append(self._exec_passes(doc))
             if not samples:
                 continue
-            entries.append(perf_logic.measure_row(
+            entries.append(self.measure_row(
                 node.guid, node.name, self._type_label(obj), samples,
                 baseline, getattr(node, "polygons", 0) or 0))
 
@@ -104,9 +103,9 @@ class CinemaPerfAudit(PerfAudit):
                 except Exception:
                     pass
             scene_runs.append(self._exec_passes(doc))
-        scene_ms = max(0.0, (perf_logic.median(scene_runs) - baseline) * 1000.0)
+        scene_ms = max(0.0, (self.median(scene_runs) - baseline) * 1000.0)
 
-        return perf_logic.finish_scan(entries, baseline, scene_ms)
+        return self.finish_scan(entries, baseline, scene_ms)
 
     def select(self, doc, adapter, tree, payload) -> dict:
         guids = payload.get("guids") or []

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 
-from ..core.perf import logic as perf_logic
 from ..core.perf.audit import PerfAudit
 
 _REPEATS = 3
@@ -114,7 +113,7 @@ class BlenderPerfAudit(PerfAudit):
                 return self._empty_result()
 
             self._update(dg)
-            baseline = perf_logic.median([self._update(dg) for _ in range(repeats)])
+            baseline = self.median([self._update(dg) for _ in range(repeats)])
 
             entries = []
             total = len(cands)
@@ -126,7 +125,7 @@ class BlenderPerfAudit(PerfAudit):
                     samples.append(self._update(dg))
                 if not samples:
                     continue
-                entries.append(perf_logic.measure_row(
+                entries.append(self.measure_row(
                     node.guid, node.name, self._type_label(obj), samples,
                     baseline, getattr(node, "poly_count", 0) or 0))
 
@@ -136,9 +135,9 @@ class BlenderPerfAudit(PerfAudit):
                 for _node, obj in cands:
                     self._tag(obj)
                 scene_runs.append(self._update(dg))
-            scene_ms = max(0.0, (perf_logic.median(scene_runs) - baseline) * 1000.0)
+            scene_ms = max(0.0, (self.median(scene_runs) - baseline) * 1000.0)
 
-            return perf_logic.finish_scan(entries, baseline, scene_ms)
+            return self.finish_scan(entries, baseline, scene_ms)
         except Exception as ex:  # noqa: BLE001
             return {"error": "perf scan failed: %s" % ex}
 

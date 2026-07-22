@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 
 from ..core.materials.base import MaterialsBase
-from ..core.materials.logic import is_internal_material
 from .constants import INTERNAL_MATERIAL_PREFIXES
 from .scene.readers import editor_hidden
 
@@ -12,7 +11,7 @@ class BlenderMaterials(MaterialsBase):
 
     def is_internal(self, name: str) -> bool:
         n = name or ""
-        if is_internal_material(n):
+        if MaterialsBase.is_internal(n):
             return True
         try:
             return n.startswith(INTERNAL_MATERIAL_PREFIXES)

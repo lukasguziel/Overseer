@@ -44,8 +44,9 @@ and dedupes within a bucket; `plan_reparents()` honours safe-only + tidy;
 assignments against the expected scheme.
 
 ### materials/
-`logic.py` — `is_internal_material()`: dunder-named plugin helpers (Octane's
-`__octanetemp__` etc.) are never listed as unused and never deleted.
+`base.py` — `MaterialsBase` carries the whole area: the shared scan workflow,
+`is_internal()` (dunder-named plugin helpers like Octane's `__octanetemp__`
+are never listed as unused and never deleted) and the `scan_result` envelope.
 
 ### textures/
 `analysis.py` — texture/VRAM analysis: `ImageInfo`, `vram_bytes()`,
@@ -56,15 +57,15 @@ dependency-free image dimension probing by format; `resolution_tag()`.
 thread).
 
 ### files/ · generators/ · sims/ · tags/ · perf/
-Each audit area ships two modules:
-- `logic.py` — the pure result shaping (`files`: `classify_kind`/`relocatable`/
-  `summarize`; `generators`: `value_distribution`/`summarize`; `sims`:
-  `SimHit` + findings + `scan_result`; `tags`: `dominant_angle`,
-  `merge_selection_types`; `perf`: `median`/`rank`/`overlap_ratio`).
-- `audit.py` — the shared `Audit` base class for the area: it owns the op
-  dispatch and the display shaping, and declares the host-specific read/apply
-  primitives as `@abstractmethod`s. A host provides a subclass (in
-  `cinema/<area>.py` / `blender/<area>.py`) exposing a ready `AUDIT` instance.
+Each audit area is ONE class: `audit.py` holds the area's `Audit` base, which
+owns the op dispatch, all pure shaping as `@staticmethod`s (`files`:
+`classify_kind`/`relocatable`/`summarize`; `generators`:
+`value_distribution`/`summarize`; `sims`: `SimHit` + findings; `tags`:
+`dominant_angle`/`merge_selection_types`; `perf`: `median`/`rank`/
+`overlap_ratio`), the row factories and the `scan_result` envelope — and
+declares the host read/apply primitives as `@abstractmethod`s. A host
+subclass (`cinema/<area>.py` / `blender/<area>.py`) implements the primitives,
+reaches everything else via `self.`, and exposes a ready `AUDIT` instance.
 
 ### settings/
 `logic.py` — UI-state persistence rules: `PERSISTED_KEYS`, `project_slug()`,
@@ -100,11 +101,13 @@ Each base has a fake-host unit test in `tests/core/<area>/test_<area>_base.py`.
 
 Every JSON row/envelope the frontend sees is built by a factory in its area —
 hosts fill fields, they never hand-assemble result dicts:
-`layers.report.layer_entry`, `tags.logic.type_entry`/`object_row`/`scan_result`,
-`files.logic.file_entry`/`scan_result`, `generators.logic.value_entry`/
-`param_row`/`type_row`/`scan_result`, `perf.logic.measure_row`/`finish_scan`,
-`materials.logic.scan_result`, `textures.analysis.texture_row`/
-`texture_scan_result`, `organize.journal.change_item` (the revert item shape).
+they live as `@staticmethod`s on the area classes: `LayersBase.layer_entry`,
+`TagsAudit.type_entry`/`object_row`/`scan_result`,
+`FilesAudit.file_entry`/`scan_result`, `GeneratorsAudit.value_entry`/
+`param_row`/`type_row`/`scan_result`, `PerfAudit.measure_row`/`finish_scan`,
+`MaterialsBase.scan_result`, `TexturePathsBase.texture_row`/
+`texture_scan_result`, plus `organize.journal.change_item` (the revert item
+shape, kept with the journal transforms).
 A new host cannot drift from the frozen frontend contract, and the shapes are
 unit-tested here without any host SDK.
 
@@ -120,7 +123,7 @@ unit-tested here without any host SDK.
   skipped so applied items drop out of the next preview.
 - Texture/imagesize readers must work without Pillow — always keep the
   header-parsing fallback path valid.
-- A new audit area = `core/<area>/logic.py` + `core/<area>/audit.py`, then one
+- A new audit area = one `core/<area>/audit.py` class, then one
   `<area>.py` per host subclassing the audit. `tests/test_import_graph.py` and
   the per-host mirror tests enforce the layout.
 

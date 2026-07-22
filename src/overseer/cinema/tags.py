@@ -3,14 +3,6 @@ from __future__ import annotations
 import c4d
 
 from ..core.tags.audit import TagsAudit
-from ..core.tags.logic import (
-    DEFAULT_PHONG_ANGLE_DEG,
-    deg_from_rad,
-    dominant_angle,
-    object_row,
-    scan_result,
-    type_entry,
-)
 
 _TPHONG = getattr(c4d, "Tphong", 5612)
 _TTEXTURE = getattr(c4d, "Ttexture", 5616)
@@ -113,7 +105,7 @@ class CinemaTagsAudit(TagsAudit):
                         continue
                     entry = types.get(type_id)
                     if entry is None:
-                        entry = type_entry(type_id, self._tag_type_label(tag))
+                        entry = self.type_entry(type_id, self._tag_type_label(tag))
                         types[type_id] = entry
                     entry["count"] += 1
                     try:
@@ -143,14 +135,14 @@ class CinemaTagsAudit(TagsAudit):
                         except Exception:
                             rad = None
                         if rad is not None:
-                            deg = deg_from_rad(float(rad))
+                            deg = self.deg_from_rad(float(rad))
                             phong_angles[deg] = phong_angles.get(deg, 0) + 1
                 except Exception:
                     continue
 
             for type_id, tag_refs in node_tags.items():
                 types[type_id]["objects"].append(
-                    object_row(node.guid, node.name, tag_refs))
+                    self.object_row(node.guid, node.name, tag_refs))
 
             for _key, (mat_name, count) in seen_materials.items():
                 if count > 1:
@@ -164,15 +156,15 @@ class CinemaTagsAudit(TagsAudit):
         if progress:
             progress("Scanning tags", total, total, "")
 
-        return scan_result(types, missing_phong, duplicate_material_tags,
+        return self.scan_result(types, missing_phong, duplicate_material_tags,
                            phong_angles, selection_kinds=_SELECTION_KINDS)
 
     def add_phong(self, doc, adapter, tree, payload) -> dict:
         guids = payload.get("guids")
         wanted = set(guids) if guids is not None else None
-        angle_deg = dominant_angle(self._current_phong_angles(adapter, tree))
+        angle_deg = self.dominant_angle(self._current_phong_angles(adapter, tree))
         if angle_deg is None:
-            angle_deg = DEFAULT_PHONG_ANGLE_DEG
+            angle_deg = self.DEFAULT_PHONG_ANGLE_DEG
         rad = c4d.utils.DegToRad(float(angle_deg))
 
         applied = 0
@@ -218,7 +210,7 @@ class CinemaTagsAudit(TagsAudit):
             except Exception:
                 rad = None
             if rad is not None:
-                deg = deg_from_rad(float(rad))
+                deg = self.deg_from_rad(float(rad))
                 counts[deg] = counts.get(deg, 0) + 1
         return counts
 

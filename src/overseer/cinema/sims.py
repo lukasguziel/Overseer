@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import c4d
 
-from ..core.sims import logic as sims_logic
-from ..core.sims.audit import SimsAudit
+from ..core.sims.audit import SimHit, SimsAudit
 
 TAG_SPECS = [
     (180000102, "dynamics", "Dynamics Body", "sim"),
@@ -107,7 +106,7 @@ class CinemaSimsAudit(SimsAudit):
             obj_spec = self.OBJECT_BY_ID.get(otype)
             if obj_spec is not None:
                 kind, label, group = obj_spec
-                hit = sims_logic.SimHit(
+                hit = SimHit(
                     guid=guid, object=obj_name, carrier="object", kind=kind,
                     label=label, enabled=self._read_enabled(op, kind), hidden=hidden)
                 hit.index = -1
@@ -128,11 +127,11 @@ class CinemaSimsAudit(SimsAudit):
                 kind, label, group = spec
                 if group == "cache":
                     cache_present = True
-                    hit = sims_logic.SimHit(
+                    hit = SimHit(
                         guid=guid, object=obj_name, carrier="tag", kind=kind,
                         label=label, enabled=None, cached=True, hidden=hidden)
                 else:
-                    hit = sims_logic.SimHit(
+                    hit = SimHit(
                         guid=guid, object=obj_name, carrier="tag", kind=kind,
                         label=label, enabled=self._read_enabled(tag, kind),
                         hidden=hidden)

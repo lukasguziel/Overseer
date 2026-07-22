@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import abstractmethod
 
 from ..items import ItemsBase
-from . import logic as mat_logic
-from .logic import is_internal_material
 
 
 class MaterialsBase(ItemsBase):
@@ -19,7 +17,7 @@ class MaterialsBase(ItemsBase):
         try:
             mats = list(self.get_materials())
         except Exception:
-            return mat_logic.scan_result(0, [], [], [], accepted, [])
+            return self.scan_result(0, [], [], [], accepted, [])
 
         used_any, used_visible = self.get_material_usage()
 
@@ -45,13 +43,29 @@ class MaterialsBase(ItemsBase):
                         only_hidden.append(name)
             missing.extend(self.get_missing_textures(m, name))
 
-        return mat_logic.scan_result(len(mats), unused, only_hidden,
-                                      accepted_out, accepted, missing)
+        return self.scan_result(len(mats), unused, only_hidden,
+                                    accepted_out, accepted, missing)
 
-    def is_internal(self, name: str) -> bool:
+    @staticmethod
+    def is_internal(name: str) -> bool:
         """Whether ``name`` is plugin machinery, not an artist material. The
         core convention (dunder names); Blender overrides to add its prefixes."""
-        return is_internal_material(name)
+        n = (name or "").strip()
+        return len(n) > 4 and n.startswith("__") and n.endswith("__")
+
+    @staticmethod
+    def scan_result(total: int, unused: list, only_hidden: list,
+                    accepted_out: list, accepted_all, missing: list) -> dict:
+        return {
+            "total": total,
+            "unused": unused,
+            "only_hidden": only_hidden,
+            "accepted": accepted_out,
+            "accepted_all": sorted(accepted_all or ()),
+            "deletable_count": len(unused),
+            "missing": missing[:50],
+            "missing_textures": len(missing),
+        }
 
     # -- host primitives ----------------------------------------------------
     @abstractmethod

@@ -1,4 +1,4 @@
-from overseer.core.generators import logic as gens_logic
+from overseer.core.generators.audit import GeneratorsAudit as gens_logic
 
 
 def test_uniform_param_has_single_bucket_and_no_outliers():

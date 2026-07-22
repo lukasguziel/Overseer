@@ -3,6 +3,7 @@ import struct
 from conftest import make_bmp, make_png, make_tga
 
 from overseer.core.textures import analysis as textures
+from overseer.core.textures.base import TexturePathsBase
 
 
 def test_vram_estimate_includes_mipmaps():
@@ -296,10 +297,10 @@ def test_texture_row_derives_display_fields_from_image_info():
                               channels=4, has_alpha=True)
 
     # do it
-    row = textures.texture_row("Wood", True, "tex\\wood.png",
+    row = TexturePathsBase.texture_row("Wood", True, "tex\\wood.png",
                                "/p/tex/wood.png", False, True, False, "",
                                4096, info, False)
-    missing = textures.texture_row("Wood", True, "gone.png", "", True, False,
+    missing = TexturePathsBase.texture_row("Wood", True, "gone.png", "", True, False,
                                    False, "", 0, None, True)
 
     # postcondition: metadata, vram and the basename come from the factory
@@ -313,13 +314,13 @@ def test_texture_row_derives_display_fields_from_image_info():
 def test_texture_scan_result_totals_each_physical_file_once():
     # setup
     info = textures.ImageInfo(width=512, height=512, bit_depth=8, channels=3)
-    a = textures.texture_row("A", True, "C:/abs.png", "C:/abs.png", True,
+    a = TexturePathsBase.texture_row("A", True, "C:/abs.png", "C:/abs.png", True,
                              True, True, "tex/abs.png", 100, info, False)
-    b = textures.texture_row("B", True, "tex/rel.png", "/p/tex/rel.png",
+    b = TexturePathsBase.texture_row("B", True, "tex/rel.png", "/p/tex/rel.png",
                              False, False, False, "", 0, None, True)
 
     # do it
-    out = textures.texture_scan_result([a, b], "/p", {"tex/rel.png"},
+    out = TexturePathsBase.texture_scan_result([a, b], "/p", {"tex/rel.png"},
                                        [(100, info)])
 
     # postcondition

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import c4d
 
-from ..core.generators import logic as gens_logic
 from ..core.generators.audit import GeneratorsAudit
 
 _ENABLED = "enabled"
@@ -198,22 +197,22 @@ class CinemaGeneratorsAudit(GeneratorsAudit):
                     value = self._read_param(obj, param)
                     if value is None:
                         continue
-                    entries.append(gens_logic.value_entry(node.guid, node.name, value))
-                summary = gens_logic.summarize(entries)
+                    entries.append(self.value_entry(node.guid, node.name, value))
+                summary = self.summarize(entries)
                 if not summary["uniform"]:
                     non_uniform_params += 1
                 choices = {}
                 if param["kind"] == "choice" and param["id"] is not None and members:
                     labels = self._choice_labels(members[0][1], param["id"])
                     choices = {str(k): v for k, v in labels.items()}
-                params_out.append(gens_logic.param_row(
+                params_out.append(self.param_row(
                     param["key"], param["label"], param["kind"], choices,
                     summary))
-            types_out.append(gens_logic.type_row(
+            types_out.append(self.type_row(
                 entry["key"], entry["label"], type_id, len(members),
                 params_out))
 
-        return gens_logic.scan_result(types_out, total_gens, non_uniform_params)
+        return self.scan_result(types_out, total_gens, non_uniform_params)
 
     def _entry_and_param(self, type_key, param_key):
         resolved = self._resolve_registry()
@@ -284,9 +283,9 @@ class CinemaGeneratorsAudit(GeneratorsAudit):
 
         members = self._members_of(adapter, tree, entry["type_id"])
         if param is not None:
-            wanted = gens_logic._hashable(want_value)
+            wanted = self._hashable(want_value)
             members = [(n, o) for n, o in members
-                       if gens_logic._hashable(self._read_param(o, param)) == wanted]
+                       if self._hashable(self._read_param(o, param)) == wanted]
 
         selected = 0
         for _node, obj in members:

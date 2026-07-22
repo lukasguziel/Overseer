@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import abstractmethod
 
 from ..items import ItemsBase
-from .report import layer_entry
 
 
 class LayersBase(ItemsBase):
@@ -22,11 +21,21 @@ class LayersBase(ItemsBase):
             if name is None:
                 continue
             ref = refs.get(name) or {}
-            entry = layer_entry(name, materials=ref.get("materials", 0),
-                                tags=ref.get("tags", 0))
+            entry = self.layer_entry(name, materials=ref.get("materials", 0),
+                                     tags=ref.get("tags", 0))
             entry.update(self.get_layer_meta(handle))
             out.append(entry)
         return out
+
+    @staticmethod
+    def layer_entry(name: str, color=None, solo: bool = False,
+                    view: bool = True, render: bool = True,
+                    locked: bool = False, materials: int = 0,
+                    tags: int = 0) -> dict:
+        return {"name": name, "color": color, "solo": bool(solo),
+                "view": bool(view), "render": bool(render),
+                "locked": bool(locked),
+                "materials": int(materials), "tags": int(tags)}
 
     def get_layer_references(self) -> dict:
         """``{layer_name: {"materials": int, "tags": int}}`` for handles that
