@@ -61,8 +61,10 @@ src/
                           translate.py, translations.py + data/ dictionary packs
       organize/           ops.py (plan_renames/reparents/layers + Operation ABCs),
                           keeps.py ("accepted as-is"), journal.py (change journal)
-      layers/             report.py (LayerInfo, build_layer_report, mismatches)
-      materials/          logic.py (internal-material rules)
+      layers/             base.py (LayersBase template) + report.py
+                          (LayerInfo, build_layer_report, mismatches)
+      materials/          base.py (MaterialsBase: scan workflow,
+                          internal-material rule, result shape)
       textures/           analysis.py (VRAM/resize decisions), imagesize.py,
                           thumbs.py (Pillow thumbnails)
       files/ generators/  audit.py: ONE Audit base class per area owning op
