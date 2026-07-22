@@ -224,6 +224,12 @@ class HostContext(ABC):
     def clear_progress(self) -> None: ...
 
     # -- bridge facades (for netinfo) --------------------------------------
+    @property
+    @abstractmethod
+    def default_port(self) -> int:
+        """This host build's default web port (each host registers its own;
+        a ``port`` in config.json overrides it)."""
+
     @abstractmethod
     def server_port(self) -> int: ...
 

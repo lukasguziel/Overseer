@@ -1,13 +1,11 @@
-"""Host-neutral web-API IO helpers shared by the C4D and Blender backends.
+"""Host-neutral web-API IO helpers shared by every host backend.
 
 Pure Python: no ``c4d``, no ``bpy``. Everything here is parameterised on plain
 strings/dicts (data dir, document path/name, report dicts) instead of a live
-host document, so both ``cinema/webapi.py`` and ``blender/webapi.py`` can reuse
-it and it is unit-testable without either host.
+host document, so every host webapi can reuse it and it is unit-testable
+without any host SDK.
 
-The C4D backend historically kept private copies of this logic inside
-``cinema/webapi.py``; that copy is left in place (do not destabilise the
-shipped plugin). New code — the Blender port — routes through here.
+All hosts route through here via the shared ``core.hostapi.webapi``.
 """
 from __future__ import annotations
 
@@ -15,7 +13,7 @@ import json
 import os
 
 # ---------------------------------------------------------------------------
-# limits (mirror cinema/webapi.py)
+# limits
 # ---------------------------------------------------------------------------
 HISTORY_MAX = 100
 CHANGES_MAX = 200
@@ -230,7 +228,7 @@ def google_plan(tree, scope, target: str, gcache_path: str,
                 progress=None):
     """Online (Google) translation plan. Returns (proposals, err, detected).
 
-    Mirrors ``cinema/webapi.py::_google_plan`` exactly; pure except for the
+    Pure except for the
     urllib fetch and the on-disk cache at ``gcache_path``.
     """
     import json as _json

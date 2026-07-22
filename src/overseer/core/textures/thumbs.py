@@ -2,10 +2,10 @@
 
 The web UI shows a tiny square preview per texture row. Rendering those with
 the host's bitmap engine forces every request through the host main thread
-(the C4D bridge queues all API calls there), and a big map blocks that thread
-for around a second — swallowing clicks in the embedded web view. The common
+(the host bridges queue all API calls there), and a big map blocks that
+thread for around a second — swallowing clicks in the embedded web view. The common
 formats are therefore decoded with the vendored Pillow, which is safe on any
-thread: the C4D bridge answers them straight from the server thread, and the
+thread: a host bridge can answer them straight from the server thread, and the
 shared op layer uses the same path before falling back to the host bitmap
 engine (EXR/HDR and renderer-specific containers).
 """
@@ -32,7 +32,7 @@ def thumbnail(path: str, size: int = 40) -> str | None:
 
     None means "let the host bitmap engine try": missing file, Pillow not
     vendored, unsupported extension or a decode error. Matches the host
-    engines' look — squashed to size x size like C4D's ScaleIt.
+    engines' look — squashed to size x size like the host bitmap engines do.
     """
     if not supported(path) or not os.path.isfile(path):
         return None

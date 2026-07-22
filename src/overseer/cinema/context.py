@@ -88,8 +88,8 @@ class CinemaContext(HostContext):
 
     @property
     def update_profile(self) -> dict:
-        from ..core import defaults
-        return defaults.UPDATE_CINEMA
+        from .constants import UPDATE_PROFILE
+        return UPDATE_PROFILE
 
     # -- progress (bridge + C4D status bar) ---------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
@@ -111,9 +111,15 @@ class CinemaContext(HostContext):
             pass
 
     # -- bridge facades -----------------------------------------------------
+    @property
+    def default_port(self) -> int:
+        from .constants import DEFAULT_PORT
+        return DEFAULT_PORT
+
     def server_port(self) -> int:
         fn = getattr(bridge, "server_port", None)
-        return int(fn()) if fn else int(getattr(bridge, "DEFAULT_PORT", 8787))
+        return int(fn()) if fn else int(getattr(bridge, "DEFAULT_PORT",
+                                                self.default_port))
 
     def lan_enabled(self) -> bool:
         return bool(getattr(bridge, "lan_enabled", lambda: False)())

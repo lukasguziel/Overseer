@@ -68,8 +68,9 @@ host: `active_host()`, `make_adapter(host)`, `data_dir`/`plugin_dir`,
 `progress`/`clear_progress`, the bridge facades (`server_port`, `lan_enabled`,
 config read/write for `netinfo`), `type_icons(ids)`, `pick_texture_path` /
 `pick_folder`, `audit(prefix)` → the host's `Audit` for that area, and the
-auto-update surface (`host_label` + `update_profile` → the host's release-asset
-shape from `core/defaults.py`; empty profile = updates unsupported). Registered
+auto-update surface (`host_label` + `update_profile` → the host's registered
+release-asset shape from `<host>/constants.py`; empty profile = updates
+unsupported) plus `default_port` (the host's registered web port). Registered
 per host; `webapi.build_handle(ctx)` returns that host's `handle(payload)`.
 
 ## Adding a new 3D host

@@ -7,7 +7,7 @@ import threading
 
 import c4d
 
-from ...core.defaults import DEFAULT_PORT
+from ..constants import DEFAULT_PORT
 
 # web/ sits NEXT TO the overseer package in the plugin dir. This file is
 # nested one level deeper than the blender host (cinema/bridge/ vs blender/),

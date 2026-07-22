@@ -65,3 +65,34 @@ def test_every_overseer_import_resolves():
 
     # postcondition
     assert problems == []
+
+
+def test_core_is_host_agnostic():
+    # setup: everything shared across hosts — core plus the package root
+    shared = [p for p in PKG.rglob("*.py")
+              if "__pycache__" not in p.parts and "vendor" not in p.parts
+              and (p.parts[len(PKG.parts)] == "core" or p.parent == PKG)]
+    forbidden = ("overseer.cinema", "overseer.blender", "c4d", "bpy", "hou")
+    problems = []
+
+    # do it: hosts register their values INTO core (HostContext, constants);
+    # core itself must never import a host package or a host SDK
+    for path in shared:
+        tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+        current = _module_name(path)
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [_resolve(current, path.name == "__init__.py", node) or ""]
+            for name in names:
+                root = name.split(".")[0]
+                if root in ("c4d", "bpy", "hou") or any(
+                        name == f or name.startswith(f + ".")
+                        for f in forbidden):
+                    problems.append("%s:%d imports %s"
+                                    % (current, node.lineno, name))
+
+    # postcondition
+    assert shared and problems == []

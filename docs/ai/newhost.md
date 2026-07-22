@@ -73,9 +73,15 @@ src/plugin/<host>/   the loader (ONLY what the host's plugin format demands)
 
 Rules: only `src/overseer/<host>/` may import the host SDK, and NEVER at
 module load time — import it lazily inside functions (the Blender rule; it is
-what lets a fake SDK module drive the whole package in CI). Add
-`DEFAULT_PORT_<HOST>` to `core/defaults.py` (own port, so hosts run side by
-side) plus an `UPDATE_<HOST>` profile if the host gets release zips.
+what lets a fake SDK module drive the whole package in CI).
+
+**Registration:** core is host-agnostic and carries NO host values. The host
+registers its values in `<host>/constants.py` — `DEFAULT_PORT` (own port, so
+hosts run side by side) and `UPDATE_PROFILE` (release-asset shape for the
+clean `updater.UpdateTarget`) — and surfaces them through its `HostContext`
+(`default_port`, `update_profile`). Add a `test_<host>_registration.py` in
+`tests/<host>/` (copy the Blender/Cinema ones); `tests/test_import_graph.py::
+test_core_is_host_agnostic` enforces the direction.
 
 ## Step 2 — build order (walking skeleton first)
 

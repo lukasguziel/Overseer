@@ -1,5 +1,4 @@
 from overseer import config
-from overseer.core import defaults
 from overseer.core.naming import translations
 from overseer.core.naming.casing import LANG_DE, Casing
 
@@ -32,8 +31,9 @@ def test_load_language_null_means_no_translation():
 
 
 def test_default_config_carries_server_settings():
-    # postcondition: the port default has exactly one source of truth
-    assert config.DEFAULT_CONFIG["port"] == defaults.DEFAULT_PORT
+    # postcondition: no host default here — each host REGISTERS its own port
+    # (cinema/blender constants.py); config only overrides it when set
+    assert "port" not in config.DEFAULT_CONFIG
     assert config.DEFAULT_CONFIG["listen_lan"] is False
     assert set(config.MACHINE_LOCAL_KEYS) == {"port", "listen_lan"}
 

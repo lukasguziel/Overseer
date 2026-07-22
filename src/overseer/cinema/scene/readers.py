@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import c4d
 
-from ...core.defaults import RS_CAMERA_IDS, RS_LIGHT_IDS
 from ...core.scene import model
-from ..constants import KNOWN_TYPES
+from ..constants import KNOWN_TYPES, RS_CAMERA_IDS, RS_LIGHT_IDS
 
 
 def _save_filters() -> dict:

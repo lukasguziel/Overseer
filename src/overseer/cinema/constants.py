@@ -2,6 +2,17 @@ from __future__ import annotations
 
 import c4d
 
+DEFAULT_PORT = 8787
+
+UPDATE_PROFILE = {
+    "asset_pattern": "Overseer-Cinema4D-*.zip",
+    "payload_marker": "overseer.pyp",
+    "disable_globs": ("*.pyp",),
+}
+
+RS_LIGHT_IDS = {1036751}
+RS_CAMERA_IDS = {1057516}
+
 DOC_JOURNAL_ID = 1069221
 
 KNOWN_TYPES = {

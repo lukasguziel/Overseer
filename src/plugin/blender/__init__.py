@@ -84,13 +84,14 @@ def _update_boot_guard():
     # (see docs/overseer/updater.md); pure imports only, safe at register time.
     try:
         from overseer import __version__, updater
+        from overseer.blender.constants import UPDATE_PROFILE
         from overseer.blender.context import BlenderContext
         from overseer.core import defaults
         ctx = BlenderContext()
         updater.note_boot(updater.UpdateTarget(
             repo=defaults.UPDATE_REPO, current_version=__version__,
             install_dir=ctx.plugin_dir, data_dir=ctx.data_dir,
-            **defaults.UPDATE_BLENDER))
+            **UPDATE_PROFILE))
     except Exception:
         import traceback
         traceback.print_exc()

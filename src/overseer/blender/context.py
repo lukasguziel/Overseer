@@ -59,8 +59,8 @@ class BlenderContext(HostContext):
 
     @property
     def update_profile(self) -> dict:
-        from ..core import defaults
-        return defaults.UPDATE_BLENDER
+        from .constants import UPDATE_PROFILE
+        return UPDATE_PROFILE
 
     # -- progress -----------------------------------------------------------
     def progress(self, phase, current=0, total=0, detail="") -> None:
@@ -70,6 +70,11 @@ class BlenderContext(HostContext):
         bridge.clear_progress()
 
     # -- bridge facades -----------------------------------------------------
+    @property
+    def default_port(self) -> int:
+        from .constants import DEFAULT_PORT
+        return DEFAULT_PORT
+
     def server_port(self) -> int:
         return int(bridge.server_port())
 

@@ -3,7 +3,7 @@
 Pure: no host SDK. Stores each project's web-UI state under
 ``<data_dir>/configs/<slug>.json`` (slug/sanitize delegated to
 ``settings.logic``). Shared by every host via the hostapi webapi. (Moved out
-of ``cinema/`` so the shared ``core`` layer no longer imports a host package.)
+of the host packages so the shared ``core`` layer stays host-agnostic.)
 """
 from __future__ import annotations
 

@@ -297,7 +297,7 @@ class WebApi:
         try:
             port = int(self.ctx.server_port())
         except Exception:
-            port = int(cfgmod.DEFAULT_CONFIG["port"])
+            port = int(self.ctx.default_port)
         return {"ok": True, "lan": lan,
                 "wanted": bool(self._read_config_data().get("listen_lan", False)),
                 "restart_needed": changed, "ip": webio.lan_ip(), "port": port}
@@ -310,7 +310,7 @@ class WebApi:
         try:
             port = int(self.ctx.server_port())
         except Exception:
-            port = int(cfgmod.DEFAULT_CONFIG["port"])
+            port = int(self.ctx.default_port)
         try:
             ok = bool(webbrowser.open("http://127.0.0.1:%d/" % port))
         except Exception:
@@ -539,7 +539,9 @@ class WebApi:
             with open(self.CONFIG_PATH, "w") as f:
                 json.dump(payload.get("data", {}), f, indent=2, ensure_ascii=False)
             return {"ok": True, "saved": True, "path": self.CONFIG_PATH}
-        return {"ok": True, "config": data, "defaults": cfgmod.DEFAULT_CONFIG}
+        return {"ok": True, "config": data,
+                "defaults": {**cfgmod.DEFAULT_CONFIG,
+                             "port": int(self.ctx.default_port)}}
 
     def _op_plan_naming(self, req) -> dict:
         op, payload, doc, cfg = req.op, req.payload, req.doc, req.cfg
