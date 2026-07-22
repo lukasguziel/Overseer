@@ -30,6 +30,7 @@ a rigid-body-world collection.
 """
 from __future__ import annotations
 
+from ...core.organize.base import OrganizeBase
 from ...core.organize.journal import change_item
 from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
 from ..scene.readers import stable_id
@@ -37,7 +38,7 @@ from ..scene.readers import stable_id
 GROUP_IDPROP = "overseer_group"
 
 
-class ApplyOps:
+class BlenderOrganize(OrganizeBase):
 
     # -- small guarded bpy helpers -----------------------------------------
     def _safe_name(self, obj) -> str:

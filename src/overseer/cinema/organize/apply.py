@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import c4d
 
+from ...core.organize.base import OrganizeBase
 from ...core.organize.journal import change_item
 from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
 from ..scene.readers import stable_id
 
 
-class ApplyOps:
+class CinemaOrganize(OrganizeBase):
 
     def _match_group(self, obj, segment: str) -> bool:
         if not obj.CheckType(c4d.Onull):

@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from ...core.hostapi import SceneAdapter as SceneAdapterPort
 from ...core.scene import model
-from ..layers import LayerOps
-from ..materials import MaterialOps
-from ..organize.apply import ApplyOps
-from ..textures.paths import TexturePathOps
-from ..textures.previews import PreviewOps
-from ..textures.resize import TextureResizeOps
+from ..layers import BlenderLayers
+from ..materials import BlenderMaterials
+from ..organize.apply import BlenderOrganize
+from ..textures.paths import BlenderTexturePaths
+from ..textures.previews import BlenderPreviews
+from ..textures.resize import BlenderTextureResize
 from .readers import (
     classify,
     editor_hidden,
@@ -26,8 +26,8 @@ from .readers import (
 )
 
 
-class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
-                   TextureResizeOps, LayerOps, ApplyOps,
+class SceneAdapter(BlenderOrganize, BlenderLayers, BlenderMaterials,
+                   BlenderPreviews, BlenderTexturePaths, BlenderTextureResize,
                    SceneAdapterPort):
 
     def __init__(self, doc) -> None:

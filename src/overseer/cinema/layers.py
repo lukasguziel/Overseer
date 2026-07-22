@@ -3,11 +3,12 @@ from __future__ import annotations
 import c4d
 
 from ..core.defaults import LAYER_COLORS
+from ..core.layers.base import LayersBase
 from ..core.layers.report import layer_entry
 from .scene.readers import layer_name
 
 
-class LayerOps:
+class CinemaLayers(LayersBase):
 
     @staticmethod
     def _linked_layer_name(node) -> str | None:

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 
+from ...core.textures.base import TextureResizeBase
+
 _BLENDER_SAVE_FORMATS = {
     ".png": "PNG",
     ".jpg": "JPEG",
@@ -15,7 +17,7 @@ _BLENDER_SAVE_FORMATS = {
 }
 
 
-class TextureResizeOps:
+class BlenderTextureResize(TextureResizeBase):
 
     def _image_has_alpha(self, path: str) -> bool:
         from ...core.textures import analysis as texmod

@@ -4,17 +4,18 @@ import c4d
 
 from ...core.hostapi import SceneAdapter as SceneAdapterPort
 from ...core.scene import model
-from ..layers import LayerOps
-from ..materials import MaterialOps
-from ..organize.apply import ApplyOps
-from ..textures.paths import TexturePathOps
-from ..textures.previews import PreviewOps
-from ..textures.resize import TextureResizeOps
+from ..layers import CinemaLayers
+from ..materials import CinemaMaterials
+from ..organize.apply import CinemaOrganize
+from ..textures.paths import CinemaTexturePaths
+from ..textures.previews import CinemaPreviews
+from ..textures.resize import CinemaTextureResize
 from .readers import classify, editor_hidden, layer_name, own_geo, stable_id, type_name
 
 
-class SceneAdapter(MaterialOps, PreviewOps, TexturePathOps,
-                   TextureResizeOps, LayerOps, ApplyOps, SceneAdapterPort):
+class SceneAdapter(CinemaOrganize, CinemaLayers, CinemaMaterials,
+                   CinemaPreviews, CinemaTexturePaths, CinemaTextureResize,
+                   SceneAdapterPort):
 
     def __init__(self, doc) -> None:
         self.doc = doc

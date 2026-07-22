@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import c4d
 
+from ...core.textures.base import TexturePathsBase
 
-class TexturePathOps:
+
+class CinemaTexturePaths(TexturePathsBase):
 
     def _iter_bitmap_shaders(self, mat):
         def walk(sh):

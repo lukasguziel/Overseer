@@ -3,12 +3,13 @@ from __future__ import annotations
 import os
 
 from ..core.materials import logic as mat_logic
+from ..core.materials.base import MaterialsBase
 from ..core.materials.logic import is_internal_material
 from .constants import INTERNAL_MATERIAL_PREFIXES
 from .scene.readers import editor_hidden
 
 
-class MaterialOps:
+class BlenderMaterials(MaterialsBase):
 
     def _is_internal_material(self, name: str) -> bool:
         n = name or ""

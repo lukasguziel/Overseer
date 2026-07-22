@@ -3,10 +3,11 @@ from __future__ import annotations
 import c4d
 
 from ..core.materials import logic as mat_logic
+from ..core.materials.base import MaterialsBase
 from .scene.readers import editor_hidden
 
 
-class MaterialOps:
+class CinemaMaterials(MaterialsBase):
 
     @staticmethod
     def _mat_key(m):

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 
+from ...core.textures.base import TexturePathsBase
 
-class TexturePathOps:
+
+class BlenderTexturePaths(TexturePathsBase):
 
     @staticmethod
     def _norm(path: str) -> str:

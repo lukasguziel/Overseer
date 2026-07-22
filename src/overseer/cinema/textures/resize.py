@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import c4d
 
+from ...core.textures.base import TextureResizeBase
 from ..scene.readers import _SAVE_FILTERS
 
 
-class TextureResizeOps:
+class CinemaTextureResize(TextureResizeBase):
 
     def _has_alpha(self, path: str) -> bool:
         try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ..core.defaults import LAYER_COLORS
+from ..core.layers.base import LayersBase
 from ..core.layers.report import layer_entry
 
 COLOR_TAG_RGB = {
@@ -15,7 +16,7 @@ COLOR_TAG_RGB = {
 }
 
 
-class LayerOps:
+class BlenderLayers(LayersBase):
 
     def _scene_collections(self) -> list:
         master = self._master_collection()

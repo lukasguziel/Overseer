@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import os
 
+from ...core.textures.base import PreviewsBase
 
-class PreviewOps:
+
+class BlenderPreviews(PreviewsBase):
 
     def material_previews(self, names=None, size=48, progress=None) -> dict:
         out: dict = {}

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import c4d
 
+from ...core.textures.base import PreviewsBase
 
-class PreviewOps:
+
+class CinemaPreviews(PreviewsBase):
 
     def material_previews(self, names=None, size=48, progress=None):
         import base64
