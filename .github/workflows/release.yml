@@ -63,6 +63,8 @@ jobs:
             *-*) echo "prerelease — skipping pyproject.toml + bl_info (integer/PEP-440 forms differ)" ;;
             *) grep -qF "version = \"$V\"" pyproject.toml \
                  || { echo "::error::pyproject.toml is not $V"; fail=1; }
+               grep -qF "version = \"$V\"" src/plugin/blender/blender_manifest.toml \
+                 || { echo "::error::src/plugin/blender/blender_manifest.toml is not $V"; fail=1; }
                # The Blender addon carries the version as an int tuple in bl_info;
                # reconstruct "a.b.c" and compare (stable versions only).
                BL="$(python -c "import ast,re; t=open('src/plugin/blender/__init__.py').read(); m=re.search(r'\"version\":\s*(\([0-9, ]+\))', t); print('.'.join(str(x) for x in ast.literal_eval(m.group(1))) if m else '')")"
