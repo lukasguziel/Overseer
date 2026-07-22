@@ -54,3 +54,8 @@ def set_entry(entries: list, entry: dict) -> list:
             entries[idx] = entry
             break
     return entries
+
+
+def change_item(sid, name, field, before, after) -> dict:
+    return {"sid": sid, "name": name, "field": field,
+            "before": before, "after": after}

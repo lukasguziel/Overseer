@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import c4d
 
+from ..core.materials import logic as mat_logic
 from .scene.readers import editor_hidden
 
 
@@ -69,8 +70,7 @@ class MaterialOps:
         try:
             mats = doc.GetMaterials()
         except Exception:
-            return {"total": 0, "unused": [], "only_hidden": [], "accepted": [],
-                    "deletable_count": 0, "missing": [], "missing_textures": 0}
+            return mat_logic.scan_result(0, [], [], [], accepted, [])
 
         from ..core.materials.logic import is_internal_material
 
@@ -106,16 +106,8 @@ class MaterialOps:
                 except Exception:
                     continue
 
-        return {
-            "total": len(mats),
-            "unused": unused,
-            "only_hidden": only_hidden,
-            "accepted": accepted_out,
-            "accepted_all": sorted(accepted),
-            "deletable_count": len(unused),
-            "missing": missing[:50],
-            "missing_textures": len(missing),
-        }
+        return mat_logic.scan_result(len(mats), unused, only_hidden,
+                                      accepted_out, accepted, missing)
 
     def focus_material(self, name: str) -> dict:
         target = None

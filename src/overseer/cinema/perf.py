@@ -91,15 +91,9 @@ class CinemaPerfAudit(PerfAudit):
                 samples.append(self._exec_passes(doc))
             if not samples:
                 continue
-            entries.append({
-                "guid": node.guid,
-                "name": node.name,
-                "type": self._type_label(obj),
-                "ms": max(0.0, (perf_logic.median(samples) - baseline) * 1000.0),
-                "jitter_ms": perf_logic.jitter(samples) * 1000.0,
-                "runs": len(samples),
-                "polygons": getattr(node, "polygons", 0) or 0,
-            })
+            entries.append(perf_logic.measure_row(
+                node.guid, node.name, self._type_label(obj), samples,
+                baseline, getattr(node, "polygons", 0) or 0))
 
         progress("Measuring rebuild times", total, total, "full scene")
         scene_runs = []
@@ -112,14 +106,7 @@ class CinemaPerfAudit(PerfAudit):
             scene_runs.append(self._exec_passes(doc))
         scene_ms = max(0.0, (perf_logic.median(scene_runs) - baseline) * 1000.0)
 
-        result = perf_logic.rank(entries)
-        result["ok"] = True
-        result["baseline_ms"] = baseline * 1000.0
-        result["scene_ms"] = scene_ms
-        result["summary"]["scene_ms"] = scene_ms
-        result["summary"]["overlap"] = perf_logic.overlap_ratio(
-            result["summary"]["total_ms"], scene_ms)
-        return result
+        return perf_logic.finish_scan(entries, baseline, scene_ms)
 
     def select(self, doc, adapter, tree, payload) -> dict:
         guids = payload.get("guids") or []

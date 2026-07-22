@@ -4,6 +4,9 @@ from overseer.core.tags.logic import (
     deg_from_rad,
     dominant_angle,
     merge_selection_types,
+    object_row,
+    scan_result,
+    type_entry,
 )
 
 POINT, POLY, EDGE = 5674, 5673, 5701
@@ -108,3 +111,34 @@ def test_merge_resorts_by_count_desc():
 
     # postcondition: merged Selection (count 2) sorts before Phong (count 1)
     assert [e["label"] for e in result] == ["Selection", "Phong"]
+
+
+def test_scan_result_shapes_the_tags_envelope():
+    # setup: two attachment types with rows, one phong angle histogram
+    types = {}
+    e = type_entry(5616, "Phong")
+    e["count"] = 2
+    e["objects"].append(object_row(1, "Cube", [{"name": "Phong"}]))
+    types[5616] = e
+    small = type_entry(5615, "Texture")
+    small["count"] = 1
+    types[5615] = small
+
+    # do it
+    out = scan_result(types, [{"guid": 2, "name": "Plane"}], [],
+                      {35.0: 2, 40.0: 1})
+
+    # postcondition: sorted by count desc, totals derived from the entries
+    assert out["ok"] is True and "phong" not in out
+    assert [t["label"] for t in out["types"]] == ["Phong", "Texture"]
+    assert out["summary"]["total_tags"] == 3
+    assert out["summary"]["missing_phong"] == 1
+    assert out["findings"]["phong_angles"]["dominant_angle"] == 35.0
+
+
+def test_scan_result_phong_false_marks_hosts_without_phong():
+    # do it
+    out = scan_result({}, [], [], {}, phong=False)
+
+    # postcondition
+    assert out["phong"] is False

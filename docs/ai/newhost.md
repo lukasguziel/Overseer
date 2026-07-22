@@ -96,8 +96,11 @@ Each step is verifiable in the real host via the web UI before the next:
 
 - `core/hostapi/ports.py` is the compile-time checklist: a concrete class with
   a missing method cannot instantiate.
-- Result shapes: mirror the C4D dicts KEY-FOR-KEY (`docs/api.md` op table;
-  when in doubt open `cinema/<area>.py`). The frontend is frozen.
+- Result shapes: build every row/envelope via the `core/<area>` factories
+  (`layer_entry`, `texture_row`, `file_entry`, per-area `scan_result`,
+  `organize.journal.change_item`, ...) — never hand-assemble the dicts. What
+  has no factory yet: mirror `cinema/<area>.py` key-for-key (`docs/api.md`).
+  The frontend is frozen.
 - Guid semantics, cache invalidation (`invalidate_scene_cache` on mutating
   ops), progress publish + clear-in-finally: identical to both hosts (see
   [hostapi.md](hostapi.md) and the gotchas below).

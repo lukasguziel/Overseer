@@ -76,3 +76,35 @@ def summarize(entries: list) -> dict:
         "relocatable_count": reloc,
         "total_bytes": total_bytes,
     }
+
+
+def file_entry(kind: str, raw: str, resolved: str, exists: bool,
+               absolute: bool, reloc: bool, rel_target: str, disk_bytes: int,
+               owner: str, guid, owner_kind: str = "") -> dict:
+    return {
+        "kind": kind,
+        "file": os.path.basename(raw),
+        "path": raw,
+        "resolved": resolved,
+        "exists": exists,
+        "missing": not exists,
+        "absolute": absolute,
+        "relocatable": reloc,
+        "rel_target": rel_target,
+        "bytes": disk_bytes,
+        "owner": owner,
+        "guid": guid,
+        "owner_kind": owner_kind,
+    }
+
+
+def scan_result(entries: list, doc_path: str, kept) -> dict:
+    kept = set(kept or ())
+    accepted = sorted({e["path"] for e in entries
+                       if e["missing"] and e["path"] in kept})
+    entries = [e for e in entries
+               if not (e["missing"] and e["path"] in kept)]
+    entries.sort(key=lambda e: e["bytes"], reverse=True)
+    return {"ok": True, "doc_path": doc_path, "entries": entries,
+            "accepted": accepted, "accepted_all": sorted(kept),
+            "summary": summarize(entries)}

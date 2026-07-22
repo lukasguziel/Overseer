@@ -66,3 +66,22 @@ def test_empty_input_is_safe():
     assert result["uniform"] is True
     assert result["dominant"] is None
     assert result["outliers"] == []
+
+
+def test_generator_rows_and_scan_result_envelope():
+    # setup
+    entries = [gens_logic.value_entry(1, "Cloner", 3),
+               gens_logic.value_entry(2, "Cloner.1", 5)]
+    summary = gens_logic.summarize(entries)
+    param = gens_logic.param_row("mode", "Clone mode", "int", {}, summary)
+    small = gens_logic.type_row("sds", "Subdivision Surface", 1007455, 1, [])
+    big = gens_logic.type_row("cloner", "Cloner", 1018544, 2, [param])
+
+    # do it
+    out = gens_logic.scan_result([small, big], 3, 1)
+
+    # postcondition: sorted by member count, summary counts the inputs
+    assert param["values"] == summary["values"] and param["kind"] == "int"
+    assert [t["key"] for t in out["types"]] == ["cloner", "sds"]
+    assert out["summary"] == {"total_generators": 3, "types_found": 2,
+                              "non_uniform_params": 1}

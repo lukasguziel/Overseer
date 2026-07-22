@@ -63,3 +63,21 @@ def test_summarize_counts_by_kind_and_flags():
     assert s["absolute_count"] == 2
     assert s["relocatable_count"] == 1
     assert s["total_bytes"] == 160
+
+
+def test_file_entry_and_scan_result_shape_the_files_payload():
+    # setup: one present and one missing-but-accepted reference
+    present = fl.file_entry("alembic", "tex/wheel.abc", "/p/tex/wheel.abc",
+                            True, False, False, "", 2048, "Wheel", 7)
+    gone = fl.file_entry("cache", "/x/smoke.vdb", "/x/smoke.vdb",
+                         False, True, False, "", 0, "Smoke", 8)
+
+    # do it
+    out = fl.scan_result([present, gone], "/p", {"/x/smoke.vdb"})
+
+    # postcondition: accepted-missing rows leave the list but stay reported
+    assert present["file"] == "wheel.abc" and present["missing"] is False
+    assert out["entries"] == [present]
+    assert out["accepted"] == ["/x/smoke.vdb"]
+    assert out["accepted_all"] == ["/x/smoke.vdb"]
+    assert out["summary"]["total"] == 1

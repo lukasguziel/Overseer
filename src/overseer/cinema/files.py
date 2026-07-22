@@ -82,21 +82,9 @@ class CinemaFilesAudit(FilesAudit):
                 disk_bytes = os.path.getsize(resolved)
             except Exception:
                 disk_bytes = 0
-        return {
-            "kind": kind,
-            "file": os.path.basename(raw),
-            "path": raw,
-            "resolved": resolved,
-            "exists": exists,
-            "missing": not exists,
-            "absolute": absolute,
-            "relocatable": reloc,
-            "rel_target": rel_target,
-            "bytes": disk_bytes,
-            "owner": owner_name,
-            "guid": guid,
-            "owner_kind": owner_kind,
-        }
+        return fl.file_entry(kind, raw, resolved, exists, absolute, reloc,
+                             rel_target, disk_bytes, owner_name, guid,
+                             owner_kind)
 
     def _asset_entries(self, doc, adapter, doc_path: str) -> list:
         out: list = []
@@ -175,16 +163,7 @@ class CinemaFilesAudit(FilesAudit):
             seen.add(key)
             entries.append(e)
 
-        kept = self._kept_files()
-        accepted = sorted({e["path"] for e in entries
-                           if e["missing"] and e["path"] in kept})
-        entries = [e for e in entries
-                   if not (e["missing"] and e["path"] in kept)]
-
-        entries.sort(key=lambda e: e["bytes"], reverse=True)
-        return {"ok": True, "doc_path": doc_path, "entries": entries,
-                "accepted": accepted, "accepted_all": sorted(kept),
-                "summary": fl.summarize(entries)}
+        return fl.scan_result(entries, doc_path, self._kept_files())
 
     def _holders(self, adapter):
         seen: set = set()

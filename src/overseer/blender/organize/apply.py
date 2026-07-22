@@ -30,6 +30,7 @@ a rigid-body-world collection.
 """
 from __future__ import annotations
 
+from ...core.organize.journal import change_item
 from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
 from ..scene.readers import stable_id
 
@@ -53,13 +54,8 @@ class ApplyOps:
             return False
 
     def _log_change(self, obj, field: str, before, after) -> None:
-        self.last_changes.append({
-            "sid": stable_id(obj),
-            "name": self._safe_name(obj),
-            "field": field,
-            "before": before,
-            "after": after,
-        })
+        self.last_changes.append(change_item(
+            stable_id(obj), self._safe_name(obj), field, before, after))
 
     # -- group (Empty) resolution ------------------------------------------
     @staticmethod

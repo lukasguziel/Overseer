@@ -19,7 +19,7 @@ class TextureResizeOps:
     def _host_resize(self, src: str, dst: str, percent: int) -> bool:
         import os
 
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         try:
             bmp = c4d.bitmaps.BaseBitmap()
             if bmp.InitWith(src)[0] != c4d.IMAGERESULT_OK:
@@ -56,7 +56,7 @@ class TextureResizeOps:
     def texture_resize(self, paths, percent: int) -> dict:
         import os
 
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         try:
             percent = int(percent)
         except (TypeError, ValueError):

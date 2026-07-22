@@ -65,3 +65,28 @@ def test_empty_input():
     assert out["entries"] == []
     assert out["summary"]["total"] == 0
     assert out["summary"]["slowest"] == ""
+
+
+def test_measure_row_subtracts_the_baseline():
+    # do it
+    row = perf_logic.measure_row(4, "Cloner", "Cloner", [0.030, 0.032, 0.034],
+                            0.002, 1200)
+
+    # postcondition: median minus baseline in ms, never negative
+    assert row["ms"] == (0.032 - 0.002) * 1000.0
+    assert row["runs"] == 3 and row["polygons"] == 1200
+    assert perf_logic.measure_row(1, "x", "t", [0.001], 0.005, 0)["ms"] == 0.0
+
+
+def test_finish_scan_adds_scene_totals_to_the_ranking():
+    # setup
+    rows = [perf_logic.measure_row(1, "A", "t", [0.050], 0.0, 0),
+            perf_logic.measure_row(2, "B", "t", [0.010], 0.0, 0)]
+
+    # do it
+    out = perf_logic.finish_scan(rows, 0.004, 45.0)
+
+    # postcondition
+    assert out["ok"] is True and out["baseline_ms"] == 4.0
+    assert out["scene_ms"] == 45.0 and out["summary"]["scene_ms"] == 45.0
+    assert 0.0 <= out["summary"]["overlap"]

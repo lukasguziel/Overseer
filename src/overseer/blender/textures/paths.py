@@ -240,8 +240,7 @@ class TexturePathOps:
 
     def _build_entry(self, img, raw: str, material: str, used: bool,
                      accepted_set: set, meta_cache: dict) -> dict:
-        from ...core import textures as texmod
-        from ...core.textures import imagesize
+        from ...core.textures import analysis as texmod
         doc_path = self.doc.path or ""
         resolved = self._resolve(raw, getattr(img, "library", None))
         blend_relative = raw.startswith("//")
@@ -256,8 +255,6 @@ class TexturePathOps:
                 rel_target = rel[2:] if rel.startswith("//") else rel
 
         disk_bytes = 0
-        width = height = 0
-        res_tag = ""
         info = None
         if exists:
             if resolved in meta_cache:
@@ -269,38 +266,12 @@ class TexturePathOps:
                     disk_bytes = 0
                 info = texmod.analyze_image(resolved)
                 meta_cache[resolved] = (disk_bytes, info)
-            if info is not None:
-                width, height = info.width, info.height
-                res_tag = imagesize.resolution_tag(max(width, height))
-        return {
-            "material": material,
-            "used": used,
-            "file": self._basename(raw),
-            "path": raw,
-            "resolved": resolved,
-            "absolute": absolute,
-            "exists": exists,
-            "missing": not exists,
-            "relocatable": relocatable,
-            "rel_target": rel_target,
-            "bytes": disk_bytes,
-            "width": width,
-            "height": height,
-            "res_tag": res_tag,
-            "bit_depth": info.bit_depth if info else 0,
-            "channels": info.channels if info else 0,
-            "has_alpha": bool(info.has_alpha) if info else False,
-            "greyscale": bool(info.greyscale) if info else False,
-            "colorspace": info.colorspace if info else "",
-            "vram": texmod.vram_bytes(
-                width, height,
-                channels=info.channels,
-                bit_depth=info.bit_depth) if info else 0,
-            "accepted": raw in accepted_set,
-        }
+        return texmod.texture_row(material, used, raw, resolved, absolute,
+                                  exists, relocatable, rel_target, disk_bytes,
+                                  info, raw in accepted_set)
 
     def scan_textures(self, include_hidden: bool = True, accepted=None) -> dict:
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         accepted_set = {str(p) for p in (accepted or [])}
         doc_path = self.doc.path or ""
 
@@ -332,30 +303,8 @@ class TexturePathOps:
             except Exception:
                 continue
 
-        absolute = [e for e in entries if e["absolute"]]
-        relative = [e for e in entries if not e["absolute"]]
-        total_bytes = sum(size for size, _ in meta_cache.values())
-        total_vram = sum(texmod.vram_bytes(info.width, info.height,
-                                           channels=info.channels,
-                                           bit_depth=info.bit_depth)
-                         for _size, info in meta_cache.values()
-                         if info is not None)
-        return {
-            "doc_path": doc_path,
-            "total": len(entries),
-            "absolute_count": len(absolute),
-            "relative_count": len(relative),
-            "missing_count": sum(1 for e in entries
-                                 if e["missing"] and not e["accepted"]),
-            "relocatable_count": sum(1 for e in entries if e["relocatable"]),
-            "total_bytes": total_bytes,
-            "total_vram": total_vram,
-            "absolute": absolute,
-            "relative": relative,
-            "accepted": sorted({e["path"] for e in entries
-                                if e["missing"] and e["accepted"]}),
-            "accepted_all": sorted(accepted_set),
-        }
+        return texmod.texture_scan_result(entries, doc_path, accepted_set,
+                                           meta_cache.values())
 
     def make_textures_relative(self, materials: list | None = None) -> dict:
         doc_path = self.doc.path or ""

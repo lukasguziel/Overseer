@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+from ..core.materials import logic as mat_logic
 from ..core.materials.logic import is_internal_material
 from .constants import INTERNAL_MATERIAL_PREFIXES
 from .scene.readers import editor_hidden
@@ -182,9 +183,7 @@ class MaterialOps:
         try:
             mats = list(self.bpy.data.materials)
         except Exception:
-            return {"total": 0, "unused": [], "only_hidden": [],
-                    "accepted": [], "accepted_all": sorted(accepted),
-                    "deletable_count": 0, "missing": [], "missing_textures": 0}
+            return mat_logic.scan_result(0, [], [], [], accepted, [])
 
         used_any, used_visible = self._scene_material_usage()
 
@@ -223,16 +222,8 @@ class MaterialOps:
                 if info is not None:
                     missing.append(info)
 
-        return {
-            "total": len(mats),
-            "unused": unused,
-            "only_hidden": only_hidden,
-            "accepted": accepted_out,
-            "accepted_all": sorted(accepted),
-            "deletable_count": len(unused),
-            "missing": missing[:50],
-            "missing_textures": len(missing),
-        }
+        return mat_logic.scan_result(len(mats), unused, only_hidden,
+                                      accepted_out, accepted, missing)
 
     def focus_material(self, name: str) -> dict:
         target = None

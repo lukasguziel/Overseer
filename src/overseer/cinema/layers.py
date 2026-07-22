@@ -3,6 +3,7 @@ from __future__ import annotations
 import c4d
 
 from ..core.defaults import LAYER_COLORS
+from ..core.layers.report import layer_entry
 from .scene.readers import layer_name
 
 
@@ -66,10 +67,8 @@ class LayerOps:
         lay = root.GetDown() if root is not None else None
         while lay:
             name = lay.GetName()
-            entry = {"name": name, "color": None,
-                     "solo": False, "view": True, "render": True,
-                     "locked": False,
-                     "materials": mats.get(name, 0), "tags": tags.get(name, 0)}
+            entry = layer_entry(name, materials=mats.get(name, 0),
+                                tags=tags.get(name, 0))
             try:
                 d = lay.GetLayerData(self.doc) or {}
                 col = d.get("color")

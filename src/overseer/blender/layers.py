@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ..core.defaults import LAYER_COLORS
+from ..core.layers.report import layer_entry
 
 COLOR_TAG_RGB = {
     "COLOR_01": (0.94, 0.25, 0.25),
@@ -99,9 +100,7 @@ class LayerOps:
                 name = col.name
             except Exception:
                 continue
-            entry = {"name": name, "color": None,
-                     "solo": False, "view": True, "render": True,
-                     "locked": False, "materials": 0, "tags": 0}
+            entry = layer_entry(name)
             entry["color"] = self._color_from_tag(col)
             try:
                 entry["view"] = not bool(col.hide_viewport)

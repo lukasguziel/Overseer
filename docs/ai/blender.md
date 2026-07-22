@@ -14,7 +14,10 @@ keep the same API shape so the UI needs no changes.
 ## The golden rule
 
 The frontend is frozen. Every `/api/<op>` handler MUST return the **same JSON
-shape** as `cinema/webapi.py` returns for that op. When in doubt, open the
+shape** as the Cinema build returns for that op. The row/envelope shapes are
+enforced in code: build rows via the `core/<area>` factories (`layer_entry`,
+`texture_row`, `file_entry`, per-area `scan_result`, ...) instead of dict
+literals. When in doubt, open the
 matching `_op_*` in `cinema/webapi.py` and mirror its result dict key-for-key.
 Read `docs/api.md` for the op table.
 

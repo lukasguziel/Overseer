@@ -45,3 +45,44 @@ def merge_selection_types(type_list: list, kind_by_type: dict) -> list:
     }
     return sorted(rest + [merged_entry],
                   key=lambda e: (-e["count"], e["label"]))
+
+
+def type_entry(type_id, label: str) -> dict:
+    return {"type_id": type_id, "label": label, "count": 0, "objects": []}
+
+
+def object_row(guid: int, name: str, tags: list) -> dict:
+    return {"guid": guid, "name": name, "tags": tags}
+
+
+def scan_result(types: dict, missing_phong: list, duplicate_material_tags: list,
+                phong_angles: dict, selection_kinds: dict | None = None,
+                phong: bool = True) -> dict:
+    type_list = sorted(types.values(), key=lambda e: (-e["count"], e["label"]))
+    if selection_kinds:
+        type_list = merge_selection_types(type_list, selection_kinds)
+    dominant = dominant_angle(phong_angles)
+    angle_dist = [{"angle_deg": deg, "count": n}
+                  for deg, n in sorted(phong_angles.items())]
+    total_tags = sum(e["count"] for e in types.values())
+    out = {
+        "ok": True,
+        "types": type_list,
+        "findings": {
+            "missing_phong": missing_phong,
+            "duplicate_material_tags": duplicate_material_tags,
+            "phong_angles": {
+                "distribution": angle_dist,
+                "dominant_angle": dominant,
+            },
+        },
+        "summary": {
+            "total_tags": total_tags,
+            "tag_types": len(type_list),
+            "missing_phong": len(missing_phong),
+            "duplicate_material_tags": len(duplicate_material_tags),
+        },
+    }
+    if not phong:
+        out["phong"] = False
+    return out

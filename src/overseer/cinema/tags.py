@@ -7,7 +7,9 @@ from ..core.tags.logic import (
     DEFAULT_PHONG_ANGLE_DEG,
     deg_from_rad,
     dominant_angle,
-    merge_selection_types,
+    object_row,
+    scan_result,
+    type_entry,
 )
 
 _TPHONG = getattr(c4d, "Tphong", 5612)
@@ -89,7 +91,6 @@ class CinemaTagsAudit(TagsAudit):
         duplicate_material_tags: list = []
         phong_angles: dict = {}
         visible_cache: dict = {}
-        total_tags = 0
 
         for i, node in enumerate(nodes):
             if progress and i % 50 == 0:
@@ -110,11 +111,9 @@ class CinemaTagsAudit(TagsAudit):
                     if (type_id in _INTERNAL_TAG_TYPES
                             or not self._type_visible(type_id, visible_cache)):
                         continue
-                    total_tags += 1
                     entry = types.get(type_id)
                     if entry is None:
-                        entry = {"type_id": type_id, "label": self._tag_type_label(tag),
-                                 "count": 0, "objects": []}
+                        entry = type_entry(type_id, self._tag_type_label(tag))
                         types[type_id] = entry
                     entry["count"] += 1
                     try:
@@ -151,7 +150,7 @@ class CinemaTagsAudit(TagsAudit):
 
             for type_id, tag_refs in node_tags.items():
                 types[type_id]["objects"].append(
-                    {"guid": node.guid, "name": node.name, "tags": tag_refs})
+                    object_row(node.guid, node.name, tag_refs))
 
             for _key, (mat_name, count) in seen_materials.items():
                 if count > 1:
@@ -165,30 +164,8 @@ class CinemaTagsAudit(TagsAudit):
         if progress:
             progress("Scanning tags", total, total, "")
 
-        type_list = sorted(types.values(), key=lambda e: (-e["count"], e["label"]))
-        type_list = merge_selection_types(type_list, _SELECTION_KINDS)
-        dominant = dominant_angle(phong_angles)
-        angle_dist = [{"angle_deg": deg, "count": n}
-                      for deg, n in sorted(phong_angles.items())]
-
-        return {
-            "ok": True,
-            "types": type_list,
-            "findings": {
-                "missing_phong": missing_phong,
-                "duplicate_material_tags": duplicate_material_tags,
-                "phong_angles": {
-                    "distribution": angle_dist,
-                    "dominant_angle": dominant,
-                },
-            },
-            "summary": {
-                "total_tags": total_tags,
-                "tag_types": len(type_list),
-                "missing_phong": len(missing_phong),
-                "duplicate_material_tags": len(duplicate_material_tags),
-            },
-        }
+        return scan_result(types, missing_phong, duplicate_material_tags,
+                           phong_angles, selection_kinds=_SELECTION_KINDS)
 
     def add_phong(self, doc, adapter, tree, payload) -> dict:
         guids = payload.get("guids")

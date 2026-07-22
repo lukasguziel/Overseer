@@ -198,8 +198,7 @@ class CinemaGeneratorsAudit(GeneratorsAudit):
                     value = self._read_param(obj, param)
                     if value is None:
                         continue
-                    entries.append({"guid": node.guid, "name": node.name,
-                                    "value": value})
+                    entries.append(gens_logic.value_entry(node.guid, node.name, value))
                 summary = gens_logic.summarize(entries)
                 if not summary["uniform"]:
                     non_uniform_params += 1
@@ -207,30 +206,14 @@ class CinemaGeneratorsAudit(GeneratorsAudit):
                 if param["kind"] == "choice" and param["id"] is not None and members:
                     labels = self._choice_labels(members[0][1], param["id"])
                     choices = {str(k): v for k, v in labels.items()}
-                params_out.append({
-                    "key": param["key"], "label": param["label"],
-                    "kind": param["kind"],
-                    "choices": choices,
-                    "values": summary["values"],
-                    "distribution": summary["distribution"],
-                    "uniform": summary["uniform"],
-                    "dominant": summary["dominant"],
-                    "outliers": summary["outliers"],
-                })
-            types_out.append({"key": entry["key"], "label": entry["label"],
-                              "type_id": type_id,
-                              "count": len(members), "params": params_out})
+                params_out.append(gens_logic.param_row(
+                    param["key"], param["label"], param["kind"], choices,
+                    summary))
+            types_out.append(gens_logic.type_row(
+                entry["key"], entry["label"], type_id, len(members),
+                params_out))
 
-        types_out.sort(key=lambda t: -t["count"])
-        return {
-            "ok": True,
-            "types": types_out,
-            "summary": {
-                "total_generators": total_gens,
-                "types_found": len(types_out),
-                "non_uniform_params": non_uniform_params,
-            },
-        }
+        return gens_logic.scan_result(types_out, total_gens, non_uniform_params)
 
     def _entry_and_param(self, type_key, param_key):
         resolved = self._resolve_registry()

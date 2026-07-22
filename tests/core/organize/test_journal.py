@@ -84,3 +84,12 @@ def test_set_entry_replaces_by_id():
 
     # postcondition
     assert entries[1]["items"][0]["reverted"] is True
+
+
+def test_change_item_is_the_canonical_journal_row():
+    # do it
+    item = journal.change_item(41, "Cube", "name", "Cube", "PropsCube")
+
+    # postcondition: exactly the shape revert() consumes on every host
+    assert item == {"sid": 41, "name": "Cube", "field": "name",
+                    "before": "Cube", "after": "PropsCube"}

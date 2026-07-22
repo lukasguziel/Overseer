@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import c4d
 
+from ...core.organize.journal import change_item
 from ...core.organize.ops import LayerOp, RenameOp, ReparentOp
 from ..scene.readers import stable_id
 
@@ -67,13 +68,8 @@ class ApplyOps:
         return parent
 
     def _log_change(self, obj, field: str, before, after) -> None:
-        self.last_changes.append({
-            "sid": stable_id(obj),
-            "name": obj.GetName(),
-            "field": field,
-            "before": before,
-            "after": after,
-        })
+        self.last_changes.append(change_item(
+            stable_id(obj), obj.GetName(), field, before, after))
 
     def _do_renames(self, renames: list[RenameOp]) -> int:
         count = 0

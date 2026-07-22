@@ -38,6 +38,9 @@ from ..core.tags.logic import (
     DEFAULT_PHONG_ANGLE_DEG,
     deg_from_rad,
     dominant_angle,
+    object_row,
+    scan_result,
+    type_entry,
 )
 
 # Name of the Geometry Nodes modifier / node group Blender's Auto-Smooth adds
@@ -457,8 +460,7 @@ class BlenderTagsAudit(TagsAudit):
                         name: str) -> None:
         entry = types.get(kind)
         if entry is None:
-            entry = {"type_id": self._kind_id(kind), "label": label,
-                     "count": 0, "objects": []}
+            entry = type_entry(self._kind_id(kind), label)
             types[kind] = entry
         entry["count"] += 1
         node_tags.setdefault(kind, []).append({"name": name})
@@ -471,7 +473,6 @@ class BlenderTagsAudit(TagsAudit):
         missing_phong: list = []
         duplicate_material_tags: list = []
         phong_angles: dict = {}
-        total_tags = 0
 
         for i, node in enumerate(nodes):
             if progress and i % 50 == 0:
@@ -486,13 +487,11 @@ class BlenderTagsAudit(TagsAudit):
                 kind = "mod:" + self._attr(mod, "type", "UNKNOWN")
                 self._add_attachment(types, node_tags, kind, self._modifier_label(mod),
                                      self._attr(mod, "name", ""))
-                total_tags += 1
 
             for con in self._safe_iter(obj, "constraints"):
                 kind = "con:" + self._attr(con, "type", "UNKNOWN")
                 self._add_attachment(types, node_tags, kind, self._constraint_label(con),
                                      self._attr(con, "name", ""))
-                total_tags += 1
 
             if self._is_mesh(obj):
                 state = self._smooth_state(obj)
@@ -505,7 +504,6 @@ class BlenderTagsAudit(TagsAudit):
                         label_name = "Smooth"
                     self._add_attachment(types, node_tags, "smooth", "Shade Smooth",
                                          label_name)
-                    total_tags += 1
                     if state["auto"] and state["angle_deg"] is not None:
                         deg = state["angle_deg"]
                         phong_angles[deg] = phong_angles.get(deg, 0) + 1
@@ -519,39 +517,17 @@ class BlenderTagsAudit(TagsAudit):
 
             for kind, refs in node_tags.items():
                 types[kind]["objects"].append(
-                    {"guid": node.guid, "name": node.name, "tags": refs})
+                    object_row(node.guid, node.name, refs))
 
         if progress:
             progress("Scanning attachments", total, total, "")
 
-        type_list = sorted(types.values(), key=lambda e: (-e["count"], e["label"]))
-        dominant = dominant_angle(phong_angles)
-        angle_dist = [{"angle_deg": deg, "count": n}
-                      for deg, n in sorted(phong_angles.items())]
-
-        return {
-            "ok": True,
-            # Blender has no Cinema-4D-style Phong tag, and professional projects
-            # don't rely on the auto-smooth analog, so hide the smoothing UI (the
-            # missing-phong stat, the add-phong card and the angle card). The type
-            # inventory + duplicate-material-slot audit stay.
-            "phong": False,
-            "types": type_list,
-            "findings": {
-                "missing_phong": missing_phong,
-                "duplicate_material_tags": duplicate_material_tags,
-                "phong_angles": {
-                    "distribution": angle_dist,
-                    "dominant_angle": dominant,
-                },
-            },
-            "summary": {
-                "total_tags": total_tags,
-                "tag_types": len(type_list),
-                "missing_phong": len(missing_phong),
-                "duplicate_material_tags": len(duplicate_material_tags),
-            },
-        }
+        # Blender has no Cinema-4D-style Phong tag, and professional projects
+        # don't rely on the auto-smooth analog, so phong=False hides the
+        # smoothing UI (the missing-phong stat, the add-phong card and the
+        # angle card). The type inventory + duplicate-material-slot audit stay.
+        return scan_result(types, missing_phong, duplicate_material_tags,
+                           phong_angles, phong=False)
 
     def _current_phong_angles(self, adapter, tree) -> dict:
         counts: dict = {}

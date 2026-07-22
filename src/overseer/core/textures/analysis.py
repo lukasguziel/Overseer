@@ -550,3 +550,65 @@ def _png_encode(width: int, height: int, ch: int, pixels) -> bytes:
     ihdr = struct.pack(">IIBBBBB", width, height, 8, color_type, 0, 0, 0)
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
             + chunk(b"IDAT", comp) + chunk(b"IEND", b""))
+
+
+def texture_row(material: str, used: bool, raw: str, resolved: str,
+                absolute: bool, exists: bool, relocatable: bool,
+                rel_target: str, disk_bytes: int, info, accepted: bool) -> dict:
+    width = info.width if info else 0
+    height = info.height if info else 0
+    res_tag = imagesize.resolution_tag(max(width, height)) if info else ""
+    return {
+        "material": material,
+        "used": used,
+        "file": str(raw or "").replace("\\", "/").rsplit("/", 1)[-1],
+        "path": raw,
+        "resolved": resolved,
+        "absolute": absolute,
+        "exists": exists,
+        "missing": not exists,
+        "relocatable": relocatable,
+        "rel_target": rel_target,
+        "bytes": disk_bytes,
+        "width": width,
+        "height": height,
+        "res_tag": res_tag,
+        "bit_depth": info.bit_depth if info else 0,
+        "channels": info.channels if info else 0,
+        "has_alpha": bool(info.has_alpha) if info else False,
+        "greyscale": bool(info.greyscale) if info else False,
+        "colorspace": info.colorspace if info else "",
+        "vram": vram_bytes(width, height,
+                           channels=info.channels,
+                           bit_depth=info.bit_depth) if info else 0,
+        "accepted": accepted,
+    }
+
+
+def texture_scan_result(entries: list, doc_path: str, accepted_set,
+                        metas) -> dict:
+    accepted_set = set(accepted_set or ())
+    metas = list(metas)
+    absolute = [e for e in entries if e["absolute"]]
+    relative = [e for e in entries if not e["absolute"]]
+    total_bytes = sum(size for size, _ in metas)
+    total_vram = sum(vram_bytes(info.width, info.height,
+                                channels=info.channels,
+                                bit_depth=info.bit_depth)
+                     for _size, info in metas if info is not None)
+    return {
+        "doc_path": doc_path,
+        "total": len(entries),
+        "absolute_count": len(absolute),
+        "relative_count": len(relative),
+        "missing_count": sum(1 for e in entries
+                             if e["missing"] and not e["accepted"]),
+        "relocatable_count": sum(1 for e in entries if e["relocatable"]),
+        "total_bytes": total_bytes,
+        "total_vram": total_vram,
+        "absolute": absolute,
+        "relative": relative,
+        "accepted": sorted({e["path"] for e in entries
+                            if e["missing"] and e["accepted"]}),
+        "accepted_all": sorted(accepted_set),
+    }

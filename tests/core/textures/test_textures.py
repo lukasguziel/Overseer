@@ -288,3 +288,44 @@ def test_pure_png_resize_skips_non_8bit():
 
     # postcondition: 16-bit / indexed PNGs are declined (None), never mangled
     assert textures.resize_png_bytes(data, 50) is None
+
+
+def test_texture_row_derives_display_fields_from_image_info():
+    # setup
+    info = textures.ImageInfo(width=2048, height=1024, bit_depth=8,
+                              channels=4, has_alpha=True)
+
+    # do it
+    row = textures.texture_row("Wood", True, "tex\\wood.png",
+                               "/p/tex/wood.png", False, True, False, "",
+                               4096, info, False)
+    missing = textures.texture_row("Wood", True, "gone.png", "", True, False,
+                                   False, "", 0, None, True)
+
+    # postcondition: metadata, vram and the basename come from the factory
+    assert row["file"] == "wood.png" and row["res_tag"]
+    assert row["width"] == 2048 and row["has_alpha"] is True
+    assert row["vram"] == textures.vram_bytes(2048, 1024, channels=4,
+                                              bit_depth=8)
+    assert missing["missing"] is True and missing["vram"] == 0
+
+
+def test_texture_scan_result_totals_each_physical_file_once():
+    # setup
+    info = textures.ImageInfo(width=512, height=512, bit_depth=8, channels=3)
+    a = textures.texture_row("A", True, "C:/abs.png", "C:/abs.png", True,
+                             True, True, "tex/abs.png", 100, info, False)
+    b = textures.texture_row("B", True, "tex/rel.png", "/p/tex/rel.png",
+                             False, False, False, "", 0, None, True)
+
+    # do it
+    out = textures.texture_scan_result([a, b], "/p", {"tex/rel.png"},
+                                       [(100, info)])
+
+    # postcondition
+    assert out["total"] == 2 and out["absolute_count"] == 1
+    assert out["relocatable_count"] == 1
+    assert out["missing_count"] == 0  # the missing row is accepted
+    assert out["accepted"] == ["tex/rel.png"]
+    assert out["total_bytes"] == 100
+    assert out["absolute"] == [a] and out["relative"] == [b]

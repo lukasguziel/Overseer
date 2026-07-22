@@ -422,16 +422,7 @@ class BlenderFilesAudit(FilesAudit):
             seen.add(key)
             entries.append(e)
 
-        kept = self._kept_files()
-        accepted = sorted({e["path"] for e in entries
-                           if e["missing"] and e["path"] in kept})
-        entries = [e for e in entries
-                   if not (e["missing"] and e["path"] in kept)]
-
-        entries.sort(key=lambda e: e["bytes"], reverse=True)
-        return {"ok": True, "doc_path": doc_path, "entries": entries,
-                "accepted": accepted, "accepted_all": sorted(kept),
-                "summary": fl.summarize(entries)}
+        return fl.scan_result(entries, doc_path, self._kept_files())
 
     # -----------------------------------------------------------------------
     # select

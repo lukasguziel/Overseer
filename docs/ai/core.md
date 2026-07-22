@@ -81,6 +81,18 @@ shared JSON op layer (all `_op_*` handlers, host-neutral, bound to a host via
 `LAYER_COLORS`, update profiles, ports). `webio.py` — host-neutral web/data-dir
 IO helpers.
 
+## Row factories: the displayed shape is CODE, not convention
+
+Every JSON row/envelope the frontend sees is built by a factory in its area —
+hosts fill fields, they never hand-assemble result dicts:
+`layers.report.layer_entry`, `tags.logic.type_entry`/`object_row`/`scan_result`,
+`files.logic.file_entry`/`scan_result`, `generators.logic.value_entry`/
+`param_row`/`type_row`/`scan_result`, `perf.logic.measure_row`/`finish_scan`,
+`materials.logic.scan_result`, `textures.analysis.texture_row`/
+`texture_scan_result`, `organize.journal.change_item` (the revert item shape).
+A new host cannot drift from the frozen frontend contract, and the shapes are
+unit-tested here without any host SDK.
+
 ## Conventions & gotchas
 
 - Never import `c4d`/`bpy` here — this package is the CI-testable domain layer.

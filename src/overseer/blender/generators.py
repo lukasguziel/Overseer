@@ -275,8 +275,7 @@ class BlenderGeneratorsAudit(GeneratorsAudit):
                     value = self._read(holder, attr)
                     if value is None:
                         continue
-                    entries.append({"guid": node.guid, "name": node.name,
-                                    "value": value})
+                    entries.append(gens_logic.value_entry(node.guid, node.name, value))
                 summary = gens_logic.summarize(entries)
                 if not summary["uniform"]:
                     non_uniform_params += 1
@@ -287,30 +286,13 @@ class BlenderGeneratorsAudit(GeneratorsAudit):
                     label = self._param_label(first_holder, attr)
                     if kind == "choice":
                         choices = self._enum_choices(first_holder, attr)
-                params_out.append({
-                    "key": attr, "label": label, "kind": kind,
-                    "choices": choices,
-                    "values": summary["values"],
-                    "distribution": summary["distribution"],
-                    "uniform": summary["uniform"],
-                    "dominant": summary["dominant"],
-                    "outliers": summary["outliers"],
-                })
-            types_out.append({
-                "key": key, "label": bucket["label"], "type_id": self._type_id(key),
-                "count": len(members), "params": params_out,
-            })
+                params_out.append(gens_logic.param_row(
+                    attr, label, kind, choices, summary))
+            types_out.append(gens_logic.type_row(
+                key, bucket["label"], self._type_id(key), len(members),
+                params_out))
 
-        types_out.sort(key=lambda t: -t["count"])
-        return {
-            "ok": True,
-            "types": types_out,
-            "summary": {
-                "total_generators": total_gens,
-                "types_found": len(types_out),
-                "non_uniform_params": non_uniform_params,
-            },
-        }
+        return gens_logic.scan_result(types_out, total_gens, non_uniform_params)
 
     # -----------------------------------------------------------------------
     # apply / select

@@ -63,3 +63,26 @@ def rank(entries: list) -> dict:
             "slowest_share": top["share"] if top else 0.0,
         },
     }
+
+
+def measure_row(guid, name, type_label, samples, baseline_s, polygons) -> dict:
+    return {
+        "guid": guid,
+        "name": name,
+        "type": type_label,
+        "ms": max(0.0, (median(samples) - baseline_s) * 1000.0),
+        "jitter_ms": jitter(samples) * 1000.0,
+        "runs": len(samples),
+        "polygons": int(polygons or 0),
+    }
+
+
+def finish_scan(entries: list, baseline_s: float, scene_ms: float) -> dict:
+    result = rank(entries)
+    result["ok"] = True
+    result["baseline_ms"] = baseline_s * 1000.0
+    result["scene_ms"] = scene_ms
+    result["summary"]["scene_ms"] = scene_ms
+    result["summary"]["overlap"] = overlap_ratio(
+        result["summary"]["total_ms"], scene_ms)
+    return result

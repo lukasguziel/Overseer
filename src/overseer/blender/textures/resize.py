@@ -18,7 +18,7 @@ _BLENDER_SAVE_FORMATS = {
 class TextureResizeOps:
 
     def _image_has_alpha(self, path: str) -> bool:
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         try:
             info = texmod.analyze_image(path)
         except Exception:
@@ -26,7 +26,7 @@ class TextureResizeOps:
         return bool(info and info.has_alpha)
 
     def _host_resize(self, src: str, dst: str, percent: int) -> bool:
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         ext = os.path.splitext(dst)[1].lower()
         fmt = _BLENDER_SAVE_FORMATS.get(ext)
         if fmt is None:
@@ -65,7 +65,7 @@ class TextureResizeOps:
 
     def texture_resize(self, paths, percent) -> dict:
         from ... import vendor
-        from ...core import textures as texmod
+        from ...core.textures import analysis as texmod
         try:
             percent = int(percent)
         except (TypeError, ValueError):

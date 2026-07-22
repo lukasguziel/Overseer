@@ -142,3 +142,17 @@ def test_mismatch_finding_ignores_unassigned_and_kept():
 
     # postcondition
     assert found == []
+
+
+def test_layer_entry_carries_the_canonical_row_shape():
+    # do it
+    default = layers.layer_entry("Props")
+    filled = layers.layer_entry("Lights", solo=True, view=False,
+                                materials=3, tags=2)
+
+    # postcondition: exactly the keys both hosts ship, host fills only extras
+    assert default == {"name": "Props", "color": None, "solo": False,
+                       "view": True, "render": True, "locked": False,
+                       "materials": 0, "tags": 0}
+    assert filled["solo"] is True and filled["view"] is False
+    assert filled["materials"] == 3 and filled["tags"] == 2
