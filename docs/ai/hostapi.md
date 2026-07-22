@@ -72,7 +72,10 @@ auto-update surface (`host_label` + `update_profile` → the host's release-asse
 shape from `core/defaults.py`; empty profile = updates unsupported). Registered
 per host; `webapi.build_handle(ctx)` returns that host's `handle(payload)`.
 
-## Adding a new 3D host (the whole checklist)
+## Adding a new 3D host
+
+**Follow [newhost.md](newhost.md)** — the step-by-step porting playbook
+(host questionnaire, skeleton, build order, fake-SDK tests, deploy). Summary:
 
 1. `newhost/scene/doc.py` → a `SceneHost` subclass (map name/path/dirty/
    selection/undo onto the host SDK).

@@ -12,7 +12,10 @@ READ the matching guide BEFORE working in that package:
 [src.md](docs/ai/src.md) (plugin entry) ·
 [overseer.md](docs/ai/overseer.md) (package root, bridge, config) ·
 [cinema.md](docs/ai/cinema.md) (c4d host glue, every module + gotchas) ·
-[core.md](docs/ai/core.md) · [naming.md](docs/ai/naming.md).
+[core.md](docs/ai/core.md) · [naming.md](docs/ai/naming.md) ·
+[hostapi.md](docs/ai/hostapi.md) (host contract) ·
+[newhost.md](docs/ai/newhost.md) (**porting playbook — follow it when asked
+to port Overseer to a new 3D app**).
 
 ## What this is
 
