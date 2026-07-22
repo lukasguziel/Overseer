@@ -35,8 +35,8 @@ Binding conventions and hard-won gotchas. AGENTS.md links here; keep both curren
     early `return` block before the next `try:`).
 - **Prose explanation lives in `docs/`**, one markdown file per module,
   mirroring the source tree (`src/overseer/bridge/server.py` ->
-  `docs/overseer/bridge.md`, `src/overseer/core/ops.py` ->
-  `docs/overseer/core/ops.md`, `src/plugin/cinema4d/overseer.pyp` ->
+  `docs/overseer/bridge.md`, `src/overseer/core/organize/ops.py` ->
+  `docs/overseer/core/organize/ops.md`, `src/plugin/cinema4d/overseer.pyp` ->
   `docs/plugin/cinema4d.md`). Update the module's doc when you change its
   behavior. Hard-won c4d gotchas that used to sit in comments now live there.
 
@@ -47,7 +47,7 @@ Binding conventions and hard-won gotchas. AGENTS.md links here; keep both curren
   docstrings, and frontend UI copy.) Python sources stay ASCII-only (encoding
   safety).
 - Exceptions (deliberate German, do NOT "fix"):
-  - `overseer/translations.py` — the DE→EN dictionary keys ARE German.
+  - `overseer/core/naming/translations.py` — the DE→EN dictionary keys ARE German.
   - Test fixtures/asserts with German object names ("Möbel", "Küche", …) —
     they are inputs for language-detection/translation tests.
 

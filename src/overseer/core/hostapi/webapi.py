@@ -21,17 +21,19 @@ from dataclasses import dataclass, field
 from ... import __version__ as APP_VERSION
 from ... import config as cfgmod
 from ... import updater as updatermod
-from ...naming import detect as detectmod
-from ...naming import translate as translatemod
-from ...naming import translations
-from ...naming.casing import Casing
-from ...naming.convention import NamingConvention
 from .. import defaults as cfgdefaults
-from .. import journal as journalmod
-from .. import keeps as keepsmod
-from .. import layers as layersmod
-from .. import ops, texthumbs, webio
-from ..analyzer import SceneAnalyzer
+from .. import webio
+from ..layers import report as layersmod
+from ..naming import detect as detectmod
+from ..naming import translate as translatemod
+from ..naming import translations
+from ..naming.casing import Casing
+from ..naming.convention import NamingConvention
+from ..organize import journal as journalmod
+from ..organize import keeps as keepsmod
+from ..organize import ops
+from ..scene.analyzer import SceneAnalyzer
+from ..textures import thumbs as texthumbs
 
 
 @dataclass
@@ -191,7 +193,7 @@ class WebApi:
 
     # -- history / journal --------------------------------------------------
     def _slug(self, doc) -> str:
-        from .. import ui_settings_logic as uilogic
+        from ..settings import logic as uilogic
         return uilogic.project_slug(doc.path or "", doc.name or "") or "project"
 
     def _history_path(self, doc) -> str:
@@ -393,23 +395,23 @@ class WebApi:
                 "sel": sel_token, "sel_names": sel_names, "sel_count": sel_count}
 
     def _op_ui_settings_get(self, payload, doc) -> dict:
-        from .. import ui_settings_io as uimod
+        from ..settings import io as uimod
         ui = uimod.load_ui(self.DATA_DIR, doc.path or "", doc.name or "")
         return {"ok": True, "found": bool(ui), "ui": ui}
 
     def _op_ui_settings_set(self, payload, doc) -> dict:
-        from .. import ui_settings_io as uimod
+        from ..settings import io as uimod
         res = uimod.save_ui(self.DATA_DIR, doc.path or "", doc.name or "",
                             payload.get("ui") or {})
         return {"ok": bool(res.get("ok")), "path": res.get("path"),
                 "error": res.get("error")}
 
     def _op_ui_global_get(self, payload, doc) -> dict:
-        from .. import ui_settings_io as uimod
+        from ..settings import io as uimod
         return {"ok": True, "ui": uimod.load_global_ui(self.DATA_DIR)}
 
     def _op_ui_global_set(self, payload, doc) -> dict:
-        from .. import ui_settings_io as uimod
+        from ..settings import io as uimod
         res = uimod.save_global_ui(self.DATA_DIR, payload.get("ui") or {})
         return {"ok": bool(res.get("ok")), "error": res.get("error")}
 

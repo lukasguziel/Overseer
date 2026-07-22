@@ -74,12 +74,16 @@ per host; `webapi.build_handle(ctx)` returns that host's `handle(payload)`.
 
 ## Adding a new 3D host (the whole checklist)
 
-1. `newhost/host.py` → a `SceneHost` subclass (map name/path/dirty/selection/undo
-   onto the host SDK).
-2. `newhost/adapter/` → a `SceneAdapter` subclass. The ABC lists every method;
-   implement each against the host SDK, returning the normalized dicts. Reuse ALL
-   of `core/*_logic.py` — that logic is host-neutral and already normalized.
-3. `newhost/audit_*.py` → an `Audit` per area.
+1. `newhost/scene/doc.py` → a `SceneHost` subclass (map name/path/dirty/
+   selection/undo onto the host SDK).
+2. `newhost/scene/adapter.py` (+ per-area mixin modules mirroring the core
+   areas: `organize/apply.py`, `layers.py`, `materials.py`, `textures/…`) → a
+   `SceneAdapter` subclass. The ABC lists every method; implement each against
+   the host SDK, returning the normalized dicts. Reuse ALL of the
+   `core/<area>/logic.py` modules — that logic is host-neutral and already
+   normalized.
+3. `newhost/<area>.py` for tags/generators/sims/perf/files → subclass the
+   matching `core/<area>/audit.py` base, expose an `AUDIT` instance.
 4. `newhost/context.py` → a `HostContext` binding the above + the bridge/loader.
 5. `newhost/webapi.py` → `handle = hostapi.webapi.build_handle(NewHostContext())`.
    No op logic to rewrite — it is all in the shared webapi.
@@ -101,9 +105,12 @@ history/journal/export, caching, progress — is inherited unchanged.
   static-verified only** (no `c4d` in CI): ruff-clean, `py_compile`-clean, and
   every port method confirmed present — but it needs a local C4D smoke-test
   before merging to main (the release skill offers one).
-- **Phase 3 (planned):** promote each area to a self-contained "port module"
-  (adapter method-group + `Audit` subclass) so adding a host is a per-area
-  checklist; and migrate the audits from modules to `Audit` subclasses.
+- **Phase 3 (done):** per-area layout everywhere. `core/<area>/` holds the
+  pure logic + the area's `Audit` base (`core/<area>/audit.py`); both hosts
+  mirror the same area names (`cinema/tags.py`, `blender/tags.py`, …) and ship
+  `Audit` subclasses exposing `AUDIT`. Adding a host is a per-area checklist,
+  enforced by the mirror tests in `tests/cinema/` / `tests/blender/` and the
+  static resolver in `tests/test_import_graph.py`.
 
 See [blender.md](blender.md) for the concrete Blender mapping and
 [cinema.md](cinema.md) for the C4D one.

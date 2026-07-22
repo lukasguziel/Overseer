@@ -119,7 +119,7 @@ jobs:
           cp src/plugin/cinema4d/config.example.json "$pkg/"
           cp LICENSE "$pkg/"
           # The whole package, not just its top-level modules: overseer/ has
-          # subpackages (core, naming, structure, cinema) and a flat *.py glob
+          # subpackages (core, cinema, blender) and a flat *.py glob
           # silently shipped a plugin that cannot import itself.
           cp -r src/overseer "$pkg/overseer"
           find "$pkg/overseer" -name __pycache__ -type d -prune -exec rm -rf {} +

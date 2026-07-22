@@ -2,7 +2,7 @@
 
 This package is the Blender-side twin of `overseer/cinema/`. It imports `bpy`
 (never imported by CI tests, exactly like `cinema/` never imports `c4d` in
-tests). Everything under `core/`, `naming/`, `config.py` and the whole
+tests). Everything under `core/` (incl. `core/naming/`), `config.py` and the whole
 `frontend/` web UI are **shared verbatim** with the Cinema 4D build — the port
 only re-implements the host glue (`cinema/`) and the loader/bridge.
 
@@ -22,18 +22,18 @@ Read `docs/api.md` for the op table.
 
 | C4D concept | Blender primitive | Notes |
 |---|---|---|
-| active document (`GetActiveDocument`) | `bpy.context.scene` + `bpy.data` + the `.blend` | wrapped by `blender/scene.py::BScene` |
+| active document (`GetActiveDocument`) | `bpy.context.scene` + `bpy.data` + the `.blend` | wrapped by `blender/scene/doc.py::BScene` |
 | object hierarchy (`GetDown`/`GetNext`) | `bpy.data.objects` via `.parent`/`.children_recursive` | roots = objects with no parent, in a stable order |
 | object identity / guid | sequential int assigned during `build_tree` (same as C4D) | a live `bpy.types.Object` is mapped in `_by_guid` |
 | stable id (`GetGUID`) | `object.session_uid` (int, stable within a session) | used for `_by_sid` |
-| categories | LIGHT→light, CAMERA→camera, EMPTY→null, MESH→mesh, CURVE→spline, other | see `blender/adapter/readers.py::classify` |
+| categories | LIGHT→light, CAMERA→camera, EMPTY→null, MESH→mesh, CURVE→spline, other | see `blender/scene/readers.py::classify` |
 | point/poly count | evaluated mesh via depsgraph (`obj.evaluated_get(depsgraph).to_mesh()`) | mirrors C4D's cache/deform-cache recursion; counts the *rendered* result of modifiers/geonodes |
 | editor visibility | `obj.visible_get()` / `hide_viewport` | `visible=False` when hidden |
 | **layers** | **collections** (`bpy.data.collections`) | C4D layer name ⇒ collection of that name. An object's "layer" = its owning non-scene collection (first, if several). Assigning a layer = linking into that collection (and unlinking from prior overseer-managed ones). |
 | layer color | collection `color_tag` (`'COLOR_01'`..`'COLOR_08'`, or `'NONE'`) | Blender has only 8 preset tags; map an RGB triple to the nearest preset. Keep the API `[r,g,b]` shape; store nearest tag. |
 | layer solo/view/render/locked | `collection.hide_viewport`/`hide_render`; `LayerCollection.exclude`; no per-collection lock | fill what exists, default the rest. |
 | materials | `bpy.data.materials` (node-based) | identity key = `material.name_full` (or `session_uid`); duplicate base names exist (`.001`) just like C4D dup names. |
-| unused material | `material.users == 0` **or** assigned to no object's material slots | `__`-prefixed / internal names are skipped (see `core.materials_logic`). |
+| unused material | `material.users == 0` **or** assigned to no object's material slots | `__`-prefixed / internal names are skipped (see `core.materials.logic`). |
 | textures | `bpy.data.images` + Image Texture nodes | path = `image.filepath` (raw) / `filepath_from_user()`; `//` prefix means blend-relative. |
 | relative/absolute path | `//` prefix (blend-relative) | use `bpy.path.abspath` / `bpy.path.relpath`; "make relative" = rewrite to `//…`. |
 | **tags** (C4D) | **modifiers + constraints + custom properties + vertex groups/UV maps** | Blender has no "tags". The Tags tab audits *object attachments*: one row per (object, attachment-kind). Phong/smoothing ⇒ Auto-Smooth / "Shade Smooth" (a mesh property, not a tag). Duplicate-material-tag ⇒ duplicate material slots referencing the same material. |
@@ -43,7 +43,7 @@ Read `docs/api.md` for the op table.
 | files (external refs) | linked libraries (`bpy.data.libraries`), images, caches, fonts, sounds, `.abc`/`.usd` cache modifiers | drop the `.blend`'s own path; prefer blend-relative. |
 | undo step | `bpy.ops.ed.undo_push(message=...)` AFTER a batch of edits | Blender groups by push, not Start/AddUndo/End. Do all edits, then ONE `undo_push`. No per-object AddUndo. |
 | `EventAdd()` | `obj.update_tag()` + view-layer update; usually implicit | tag changed data so the UI/viewport refresh. |
-| focus/frame object | select + `view3d.view_selected` via a temp context override | see `adapter/scene.py::focus`. |
+| focus/frame object | select + `view3d.view_selected` via a temp context override | see `scene/adapter.py::focus`. |
 | status bar | `bpy.context.workspace.status_text_set` (best-effort) | progress still primarily flows to the web UI via `set_progress`. |
 | file/folder picker | a modal `bpy.types.Operator` invoking `fileselect_add` | runs on the main thread from the pump; returns the chosen path to the waiting request. If not feasible in a headless/timer context, return `{"cancelled": True}` gracefully — the UI already handles that. |
 
@@ -62,11 +62,12 @@ design:
 - Per-request **hot reload**: `blender/reload.py::reload_all()` purges every
   `overseer.*` module EXCEPT the process-singleton host
   (`overseer.blender.host` + `overseer.blender.pump` + `overseer.blender.server`
-  + `overseer.blender.reload`). So editing `blender/webapi.py`, any adapter or
-  any audit takes effect on the next request with no Blender restart — same DX
-  as the C4D build.
+  + `overseer.blender.reload` + `overseer.blender.scene.doc`, the BScene class
+  cached doc wrappers keep). So editing `blender/webapi.py`, `scene/adapter.py`
+  or any area module takes effect on the next request with no Blender restart —
+  same DX as the C4D build.
 
-## The `BScene` "doc" wrapper (`blender/scene.py`)
+## The `BScene` "doc" wrapper (`blender/scene/doc.py`)
 
 `cinema/webapi.py` threads a live `c4d` `doc` through every handler. To reuse
 that structure, `blender/webapi.py` threads a `BScene` object that exposes the
@@ -94,13 +95,13 @@ A bare `obj.select_get()` or `bpy.context.selected_objects` works in the
 Python console but silently returns nothing via the web API — that bug shipped
 once (the Selection scope never updated in Blender).
 
-## SceneAdapter contract (`blender/adapter/`)
+## SceneAdapter contract (`blender/scene/` + area modules)
 
 `SceneAdapter` is composed from mixins exactly like C4D's. It is constructed
 `SceneAdapter(scene: BScene)` and MUST provide these members (called by
 `blender/webapi.py`; keep names identical to the C4D adapter):
 
-**Core (adapter/scene.py — provided by the foundation):**
+**Core (scene/adapter.py + scene/readers.py):**
 - `doc` attribute (the `BScene`), `_by_guid: dict[int, bpy.types.Object]`,
   `_by_sid`, `_selected_direct: set[int]`, `_selected_subtree: set[int]`,
   `last_changes: list[dict]`
@@ -111,7 +112,7 @@ once (the Selection scope never updated in Blender).
 - `selected_guids(include_children=True) -> set[int]`
 - `focus(guid) -> bool` — select + frame in the viewport.
 
-**Apply (adapter/apply.py — ApplyOps):**
+**Apply (organize/apply.py — ApplyOps):**
 - `rename_object(guid, new_name) -> bool` (sets `last_changes`)
 - `apply_renames(list[ops.RenameOp]) -> int`
 - `apply_reparents(list[ops.ReparentOp]) -> int` (reparent under a named Empty)
@@ -119,27 +120,27 @@ once (the Selection scope never updated in Blender).
 - `revert(items: list[dict]) -> {"reverted": int, "missing": int, "results": [...]}`
   Each `last_changes` item is a dict the journal stores and `revert` consumes;
   keep the SAME item schema the C4D `apply.py`/`journal.py` use so
-  `core/journal.py` (shared) works unchanged.
+  `core/organize/journal.py` (shared) works unchanged.
 
-**Collections=Layers (adapter/collections.py — LayerOps):**
+**Collections=Layers (layers.py — LayerOps; the layers AREA implemented on Blender collections):**
 - `scan_layers() -> list[dict]` (name, color[r,g,b]|None, solo, view, render,
   locked, materials, tags)
 - `_layer_object_counts() -> dict[str,int]`
 - `delete_layer(name) -> int`, `delete_empty_layers(keep:set) -> int`
 - `set_layer_colors(colors: dict[str,[r,g,b]]) -> int`
 
-**Materials (adapter/materials.py — MaterialOps):**
+**Materials (materials.py — MaterialOps):**
 - `scan_materials(include_hidden, accepted) -> dict` (shape per C4D)
 - `focus_material(name) -> dict`, `delete_material(name, include_hidden) -> int`,
   `delete_unused_materials(include_hidden, accepted) -> int`
 
-**Previews (adapter/previews.py — PreviewOps):**
+**Previews (textures/previews.py — PreviewOps):**
 - `material_previews(names, size, progress) -> dict[name, dataURI]`
 - `texture_previews(paths, size, progress) -> dict[path, dataURI]`
   (use `bpy.data.images[...].preview` / render, or Pillow from `vendor/`; a
   transparent 1×1 PNG data-URI is an acceptable fallback if unavailable.)
 
-**Texture paths (adapter/texpaths.py — TexturePathOps):**
+**Texture paths (textures/paths.py — TexturePathOps):**
 - `scan_textures(include_hidden, accepted) -> dict`
 - `make_textures_relative(materials) -> dict`
 - `texture_owners(path) -> dict`, `collect_textures(materials, subdir, paths) -> dict`
@@ -147,23 +148,25 @@ once (the Selection scope never updated in Blender).
 - `set_texture_path(path, new_path, material) -> dict`
 - `texture_repath(paths, mode, material) -> dict`
 
-**Texture resize (adapter/texresize.py — TextureResizeOps):**
+**Texture resize (textures/resize.py — TextureResizeOps):**
 - `texture_resize(paths, percent) -> dict` (Pillow from `vendor/`, keep bit depth)
 
 Return-dict keys for each are defined by the matching C4D method — mirror them.
 
 ## Audit modules
 
-`blender/audit_{tags,generators,sims,files,perf}.py`. Each exposes:
+`blender/{tags,generators,sims,files,perf}.py` — one module per area, each a
+subclass of the matching `core/<area>/audit.py` base exposing a ready `AUDIT`
+instance whose base class provides:
 
 ```python
 def handle(op, payload, doc, adapter, tree, progress) -> dict: ...
 ```
 
-and `audit_generators`/`audit_sims` also expose `has_any(adapter, tree) -> bool`
+and `generators`/`sims` also expose `has_any(adapter, tree) -> bool`
 (used by `_op_analyze` to show/hide the tab). Ops are `<prefix>_<verb>`
 (`tags_scan`, `gens_apply`, `sims_set_enabled`, `files_relink`, `perf_scan`,
-…). Mirror the C4D audit result shapes (open the matching `cinema/audit_*.py`).
+…). Mirror the C4D audit result shapes (open the matching `cinema/<area>.py`).
 
 Blender specifics:
 - **tags**: audit modifiers + constraints (+ optionally custom props). One row
@@ -195,8 +198,8 @@ the C4D release zip.
 ## Testing (no Blender in CI)
 
 `bpy` is unavailable in CI, exactly like `c4d`. Two tiers:
-1. Pure logic (`core/`, `naming/`, `core/webio.py`) — normal pytest.
-2. Blender adapter/webapi — a **fake `bpy`** stub (`tests/fakebpy/`) injected
+1. Pure logic (`core/`, incl. `core/naming/` and `core/webio.py`) — normal pytest under `tests/core/`.
+2. Blender adapter/webapi — a **fake `bpy`** stub (`tests/blender/fakebpy.py`) injected
    into `sys.modules` lets us unit-test tree building, classification,
    collection assignment and the webapi op registry against synthetic scenes.
    Keep the fake minimal; only model what the code under test touches.

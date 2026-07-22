@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .core.defaults import DEFAULT_PORT
-from .core.keeps import empty_keeps, normalize_keeps
-from .naming.casing import Casing
-from .naming.convention import NamingConvention
+from .core.naming.casing import Casing
+from .core.naming.convention import NamingConvention
+from .core.organize.keeps import empty_keeps, normalize_keeps
 
 CONFIG_SCHEMA_VERSION = 3
 

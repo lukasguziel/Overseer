@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from . import model
+from .scene import model
 
 DEFAULT_PORT = 8787
 DEFAULT_PORT_BLENDER = 8788

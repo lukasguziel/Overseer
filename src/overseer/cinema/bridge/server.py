@@ -82,7 +82,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         # the bridge package is a process singleton.
         import overseer
 
-        from ...core import texthumbs
+        from ...core.textures import thumbs as texthumbs
         cache_root = getattr(overseer, "_scene_cache", None)
         if cache_root is None:
             cache_root = overseer._scene_cache = {}

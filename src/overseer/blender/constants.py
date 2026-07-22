@@ -1,7 +1,7 @@
 """Blender type/category constants (the Blender twin of cinema/constants.py)."""
 from __future__ import annotations
 
-from ..core import model
+from ..core.scene import model
 
 # bpy object type enum -> overseer category.
 CATEGORY_BY_TYPE = {

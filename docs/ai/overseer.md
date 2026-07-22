@@ -45,12 +45,13 @@ other plugins; Overseer's repo + per-host asset profiles live in
 host loaders. Full prose: `docs/overseer/updater.md`.
 
 ## Subpackages
-- core/ â€” pure domain logic (see [core.md](core.md))
-- cinema/ â€” c4d host glue (see [cinema.md](cinema.md))
-- naming/ â€” naming convention pipeline (see [naming.md](naming.md))
+- core/ â€” pure domain logic, one package per area (see [core.md](core.md));
+  the naming pipeline now lives at core/naming/ (see [naming.md](naming.md))
+- cinema/ â€” c4d host glue, mirrors the core areas (see [cinema.md](cinema.md))
+- blender/ â€” Blender host glue, same area layout (see [blender.md](blender.md))
 
 ## Conventions & gotchas
-- Only `cinema/` and `bridge/` import `c4d`; nothing else may, so tests import
+- Only `cinema/` (incl. its `bridge/`) imports `c4d`; nothing else may, so tests import
   the rest without Cinema 4D.
 - `bridge` is the process singleton â€” never hot-reload-purged; `reload_all()`
   drops every other `overseer.*` module so the next request re-imports fresh

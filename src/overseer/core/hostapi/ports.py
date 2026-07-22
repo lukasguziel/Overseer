@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from .. import model
+from ..scene import model
 
 
 class SceneHost(ABC):

@@ -18,8 +18,9 @@ import c4d
 from ..core import webio
 from ..core.hostapi import HostContext
 from . import bridge
-from .adapter import SceneAdapter, load_journal, save_journal
-from .scene_host import CDoc
+from .organize.journal import load_journal, save_journal
+from .scene.adapter import SceneAdapter
+from .scene.doc import CDoc
 
 # Repo/plugin root = dir containing the ``overseer`` package (3 up from here).
 PLUGIN_DIR = os.path.dirname(
@@ -185,9 +186,8 @@ class CinemaContext(HostContext):
         return {"ok": True, "path": chosen or "", "cancelled": not chosen}
 
     def audit(self, prefix: str):
-        name = {"tags": "audit_tags", "gens": "audit_generators",
-                "files": "audit_files", "sims": "audit_sims",
-                "perf": "audit_perf"}.get(prefix)
+        name = {"tags": "tags", "gens": "generators", "files": "files",
+                "sims": "sims", "perf": "perf"}.get(prefix)
         if name is None:
             return None
         mod = importlib.import_module("overseer.cinema." + name)

@@ -48,36 +48,54 @@ src/
                           auto-rollback (docs/overseer/updater.md); ops
                           update_check/update_install/update_ack, UI banner
                           in frontend/src/components/UpdateBanner.tsx
-    bridge/               [c4d] HTTP server (BG thread) + main-thread queue + progress
+    core/                 pure domain logic, ONE PACKAGE PER AREA (never imports
+                          c4d/bpy -> fully tested in CI). Each area defines the
+                          normalized report/plan shapes; the hosts only gather
+                          their host-specific data into them.
+      scene/              model.py (SceneNode/SceneTree), analyzer.py (SceneReport)
+      naming/             casing.py (tokenizer/casing/language heuristic),
+                          convention.py (NamingConvention), detect.py,
+                          translate.py, translations.py + data/ dictionary packs
+      organize/           ops.py (plan_renames/reparents/layers + Operation ABCs),
+                          keeps.py ("accepted as-is"), journal.py (change journal)
+      layers/             report.py (LayerInfo, build_layer_report, mismatches)
+      materials/          logic.py (internal-material rules)
+      textures/           analysis.py (VRAM/resize decisions), imagesize.py,
+                          thumbs.py (Pillow thumbnails)
+      files/ generators/  logic.py (pure result shaping) + audit.py (the shared
+      sims/ tags/ perf/   Audit base class: op dispatch + display shape; hosts
+                          subclass and implement only the read/apply primitives)
+      settings/           logic.py + io.py (per-project UI state persistence)
+      hostapi/            ports.py (SceneHost/SceneAdapter/Audit/HostContext
+                          ABCs) + webapi.py (the shared JSON op layer - all
+                          /api op handlers, host-neutral)
+      defaults.py         constant tables; webio.py  web/data-dir IO helpers
+    cinema/               [c4d] host glue - mirrors the core areas 1:1:
+                          scene/ (doc.py CDoc, readers.py, adapter.py),
+                          organize/ (apply.py, journal.py), layers.py,
+                          materials.py, textures/ (paths.py, resize.py,
+                          previews.py), tags.py, generators.py, sims.py,
+                          files.py, perf.py + webapi.py, constants.py,
+                          context.py (HostContext; hot-reloaded per request)
+      bridge/             HTTP server (BG thread) + main-thread queue + progress
                           state; one file per class (progress/mainthread/reload/
                           server/dialog). PROCESS SINGLETON — the whole package
                           is excluded from hot-reload.
-    core/
-      model.py            SceneNode / SceneTree (pure hierarchy)
-      ops.py              plan_renames()/plan_layers() + RenameOp/ReparentOp/LayerOp
-      keeps.py            per-section "accepted as-is" lists (filter_kept/set_section_keeps)
-      analyzer.py         SceneTree -> SceneReport (single pass)
-    naming/
-      casing.py           Tokenizer, casing detection, language heuristic (was naming.py)
-      convention.py       NamingConvention (casing/language/numbering), disambiguate()
-      translations.py     DE<->EN dictionary + add_translations()
-      translate.py        Language-only rename proposals
-      detect.py           Auto-detect existing scheme (style/language/pad + confidence)
-    cinema/               [c4d] host glue
-      adapter/            doc <-> SceneTree; rename/reparent/plan/layers with undo.
-                          One file per domain class (readers/scene/materials/
-                          previews/texpaths/texresize/layers/apply/journal)
-      webapi.py           JSON API; hot-reloaded per request. Scene-tree +
-                          preview caches live on the `overseer` package
-                          (survive hot-reload; invalidated by the doc dirty
-                          counter, cleared by POST /api/reload). Every slow op
-                          publishes a progress label (_OP_LABELS -> /api/progress).
+    blender/              [bpy] host glue - same area layout as cinema/ (the
+                          mirror makes host overrides visible: e.g. layers.py
+                          implements the layers area on Blender collections).
+                          host.py/pump.py/server.py/reload.py are the process
+                          singleton (bpy.app.timers pump), scene/doc.py = BScene.
   web/                    Vite build output (gitignored; deployed by deploy.ps1)
 frontend/                 Vite/React/TypeScript source (App.tsx, tabs/, components/, hooks/useOrganizer.ts)
   STYLEGUIDE.md           UI vocabulary: every reusable block, its class + markup
                           (.section-head, sidebar text ranks, buttons, colour meaning).
                           READ BEFORE touching CSS — reuse a block, never fork a near-copy.
-tests/                    pytest, runs WITHOUT c4d
+tests/                    pytest, runs WITHOUT c4d/bpy, split per stack:
+                          tests/core/<area>/ (pure domain), tests/cinema/
+                          (compile + area-mirror gate), tests/blender/ (fakebpy
+                          scene/webapi tests), tests/test_import_graph.py
+                          (static import resolution across all stacks)
 .github/workflows/ci.yml  4 jobs: plugin-lint (ruff), plugin-test (pytest, Python 3.11 =
                           C4D 2024 runtime; ruff enforces 3.9 syntax = C4D 2023),
                           frontend-lint (tsc), frontend-test (vitest + vite build);

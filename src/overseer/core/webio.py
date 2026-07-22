@@ -237,7 +237,7 @@ def google_plan(tree, scope, target: str, gcache_path: str,
     import urllib.parse
     import urllib.request
 
-    from ..naming import translate as translatemod
+    from .naming import translate as translatemod
 
     nodes = [n for n in tree.walk()
              if (scope is None or n.guid in scope) and n.name.strip()]
